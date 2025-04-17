@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2025-04-17">
+
+<title>Disease modeling for public health - The Ross-Macdonald Framework: Foundational Mathematical Models in Vector-Borne Disease Epidemiology</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html" rel="" target="">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html" rel="" target="">
+ <span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/" rel="" target=""><i class="bi bi-linkedin" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau" rel="" target=""><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">1</span> Introduction</a></li>
+  <li><a href="#rosss-initial-mathematical-framework" id="toc-rosss-initial-mathematical-framework" class="nav-link" data-scroll-target="#rosss-initial-mathematical-framework"><span class="header-section-number">2</span> Ross’s Initial Mathematical Framework</a></li>
+  <li><a href="#the-basic-reproduction-number" id="toc-the-basic-reproduction-number" class="nav-link" data-scroll-target="#the-basic-reproduction-number"><span class="header-section-number">3</span> The Basic Reproduction Number</a></li>
+  <li><a href="#the-macdonald-refinements" id="toc-the-macdonald-refinements" class="nav-link" data-scroll-target="#the-macdonald-refinements"><span class="header-section-number">4</span> The Macdonald Refinements</a></li>
+  <li><a href="#equilibrium-analysis-and-threshold-conditions" id="toc-equilibrium-analysis-and-threshold-conditions" class="nav-link" data-scroll-target="#equilibrium-analysis-and-threshold-conditions"><span class="header-section-number">5</span> Equilibrium Analysis and Threshold Conditions</a></li>
+  <li><a href="#vector-control-implications" id="toc-vector-control-implications" class="nav-link" data-scroll-target="#vector-control-implications"><span class="header-section-number">6</span> Vector Control Implications</a></li>
+  <li><a href="#sensitivity-analysis" id="toc-sensitivity-analysis" class="nav-link" data-scroll-target="#sensitivity-analysis"><span class="header-section-number">7</span> Sensitivity Analysis</a></li>
+  <li><a href="#contemporary-extensions-and-applications" id="toc-contemporary-extensions-and-applications" class="nav-link" data-scroll-target="#contemporary-extensions-and-applications"><span class="header-section-number">8</span> Contemporary Extensions and Applications</a></li>
+  <li><a href="#practical-applications-in-disease-control-programs" id="toc-practical-applications-in-disease-control-programs" class="nav-link" data-scroll-target="#practical-applications-in-disease-control-programs"><span class="header-section-number">9</span> Practical Applications in Disease Control Programs</a></li>
+  <li><a href="#discussion" id="toc-discussion" class="nav-link" data-scroll-target="#discussion"><span class="header-section-number">10</span> Discussion</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">11</span> References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">The Ross-Macdonald Framework: Foundational Mathematical Models in Vector-Borne Disease Epidemiology</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 17, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="introduction" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1</span> Introduction</h2>
+<p>The mathematical modeling of infectious diseases has become an indispensable tool in modern epidemiology, guiding intervention strategies and policy decisions. While contemporary models exhibit increasing complexity, many fundamental principles trace back to the pioneering work of Sir Ronald Ross, who established the theoretical foundation for understanding vector-borne disease transmission dynamics at the turn of the 20th century.</p>
+<p>This article examines Ross’s seminal contributions to mathematical epidemiology, the subsequent refinements by George Macdonald, and how these models continue to influence contemporary approaches to vector-borne disease control. We will focus on the mathematical formulations that undergird the Ross-Macdonald framework and their implications for disease control thresholds.</p>
+</section>
+<section id="rosss-initial-mathematical-framework" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="rosss-initial-mathematical-framework"><span class="header-section-number">2</span> Ross’s Initial Mathematical Framework</h2>
+<p>After establishing the mosquito-malaria parasite life cycle, for which he received the Nobel Prize in Medicine in 1902, Ronald Ross turned his attention to developing mathematical models to guide control strategies. His first models, published in 1908 in “Report on the Prevention of Malaria in Mauritius” <span class="citation" data-cites="ross1908report">(<a href="#ref-ross1908report" role="doc-biblioref">Ross 1908</a>)</span> and expanded in his 1911 book “The Prevention of Malaria” <span class="citation" data-cites="ross1911prevention">(<a href="#ref-ross1911prevention" role="doc-biblioref">Ross 1911</a>)</span>, represented a paradigm shift in epidemiological thinking.</p>
+<p>Ross later formalized these mathematical principles in his landmark papers “Some a priori pathometric equations” <span class="citation" data-cites="ross1915some">(<a href="#ref-ross1915some" role="doc-biblioref">Ross 1915</a>)</span> and “An application of the theory of probabilities to the study of a priori pathometry” <span class="citation" data-cites="ross1916application">(<a href="#ref-ross1916application" role="doc-biblioref">Ross 1916</a>)</span>, which laid the groundwork for the entire field of mathematical epidemiology.</p>
+<p>Ross’s initial model was remarkably straightforward yet profound. If we denote the proportion of infected humans as <span class="math inline">\(p\)</span> and the proportion of infected mosquitoes as <span class="math inline">\(P\)</span>, his first model can be expressed as:</p>
+<p><span class="math display">\[\frac{dp}{dt} = abmP(1-p) - rp\]</span> <span class="math display">\[\frac{dP}{dt} = acp(1-P) - \mu P\]</span></p>
+<p>Where: - <span class="math inline">\(a\)</span> represents the mosquito biting rate - <span class="math inline">\(b\)</span> is the probability of parasite transmission from mosquito to human per bite - <span class="math inline">\(c\)</span> is the probability of parasite transmission from human to mosquito per bite - <span class="math inline">\(m\)</span> is the mosquito density per human - <span class="math inline">\(r\)</span> is the human recovery rate - <span class="math inline">\(\mu\)</span> is the mosquito mortality rate</p>
+</section>
+<section id="the-basic-reproduction-number" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="the-basic-reproduction-number"><span class="header-section-number">3</span> The Basic Reproduction Number</h2>
+<p>Ross’s most significant contribution was demonstrating that malaria transmission could be interrupted without eliminating the entire vector population <span class="citation" data-cites="smith2007revisiting">(<a href="#ref-smith2007revisiting" role="doc-biblioref">Smith et al. 2007</a>)</span>. This led to the concept of a critical threshold, later formalized as the basic reproduction number <span class="math inline">\(R_0\)</span>.</p>
+<p>For Ross’s model, <span class="math inline">\(R_0\)</span> can be derived as:</p>
+<p><span class="math display">\[R_0 = \frac{a^2bcm}{\mu r}\]</span></p>
+<p>This quantity represents the expected number of secondary infections arising from a single infected individual in a completely susceptible population. When <span class="math inline">\(R_0 &lt; 1\)</span>, the disease will eventually die out; when <span class="math inline">\(R_0 &gt; 1\)</span>, the disease can persist in the population <span class="citation" data-cites="smith2012ross">(<a href="#ref-smith2012ross" role="doc-biblioref">Smith et al. 2012</a>)</span>.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to calculate R0 from model parameters</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>calculate_R0 <span class="ot">&lt;-</span> <span class="cf">function</span>(a, b, c, m, mu, r) {</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  R0 <span class="ot">&lt;-</span> (a<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> b <span class="sc">*</span> c <span class="sc">*</span> m) <span class="sc">/</span> (mu <span class="sc">*</span> r)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(R0)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Example parameter values</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fl">0.3</span>    <span class="co"># Biting rate (bites per day)</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fl">0.5</span>    <span class="co"># Transmission probability: mosquito to human</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>c <span class="ot">&lt;-</span> <span class="fl">0.5</span>    <span class="co"># Transmission probability: human to mosquito</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="dv">10</span>     <span class="co"># Mosquito density per human</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>mu <span class="ot">&lt;-</span> <span class="fl">0.1</span>   <span class="co"># Mosquito mortality rate</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>r <span class="ot">&lt;-</span> <span class="fl">0.01</span>   <span class="co"># Human recovery rate</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>R0 <span class="ot">&lt;-</span> <span class="fu">calculate_R0</span>(a, b, c, m, mu, r)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"With these parameters, R0 ="</span>, <span class="fu">round</span>(R0, <span class="dv">2</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>With these parameters, R0 = 225</code></pre>
+</div>
+</div>
+</section>
+<section id="the-macdonald-refinements" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="the-macdonald-refinements"><span class="header-section-number">4</span> The Macdonald Refinements</h2>
+<p>George Macdonald expanded Ross’s work in the 1950s, incorporating additional biological complexity <span class="citation" data-cites="macdonald1952analysis">(<a href="#ref-macdonald1952analysis" role="doc-biblioref">Macdonald 1952</a>)</span>. His key modifications included:</p>
+<ol type="1">
+<li>Accounting for the latent period in the mosquito (<span class="math inline">\(n\)</span> days), during which the parasite develops</li>
+<li>Recognition of mosquito survival as exponential, with daily survival probability <span class="math inline">\(p\)</span></li>
+</ol>
+<p>Macdonald’s version of the reproduction number became:</p>
+<p><span class="math display">\[R_0 = \frac{ma^2bcp^n}{-r\ln(p)}\]</span></p>
+<p>Where <span class="math inline">\(-\ln(p)\)</span> replaces <span class="math inline">\(\mu\)</span> as the mosquito mortality rate.</p>
+<p>A crucial insight from Macdonald was that malaria transmission is particularly sensitive to adult mosquito longevity, as expressed by the exponent <span class="math inline">\(n\)</span> in the equation. This led to the strategic emphasis on adult mosquito control using residual insecticides <span class="citation" data-cites="garrett1964malaria">(<a href="#ref-garrett1964malaria" role="doc-biblioref">Garrett-Jones 1964</a>)</span>.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Macdonald's R0 calculation</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>calculate_macdonald_R0 <span class="ot">&lt;-</span> <span class="cf">function</span>(m, a, b, c, p, n, r) {</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  R0 <span class="ot">&lt;-</span> (m <span class="sc">*</span> a<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> b <span class="sc">*</span> c <span class="sc">*</span> p<span class="sc">^</span>n) <span class="sc">/</span> (<span class="sc">-</span>r <span class="sc">*</span> <span class="fu">log</span>(p))</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(R0)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Example parameter values</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="dv">10</span>     <span class="co"># Mosquito density per human</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fl">0.3</span>    <span class="co"># Biting rate (bites per day)</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fl">0.5</span>    <span class="co"># Transmission probability: mosquito to human</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>c <span class="ot">&lt;-</span> <span class="fl">0.5</span>    <span class="co"># Transmission probability: human to mosquito</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fl">0.9</span>    <span class="co"># Daily mosquito survival probability</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">10</span>     <span class="co"># Extrinsic incubation period (days)</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>r <span class="ot">&lt;-</span> <span class="fl">0.01</span>   <span class="co"># Human recovery rate</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>macdonald_R0 <span class="ot">&lt;-</span> <span class="fu">calculate_macdonald_R0</span>(m, a, b, c, p, n, r)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"With Macdonald's formulation, R0 ="</span>, <span class="fu">round</span>(macdonald_R0, <span class="dv">2</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>With Macdonald's formulation, R0 = 74.46</code></pre>
+</div>
+</div>
+</section>
+<section id="equilibrium-analysis-and-threshold-conditions" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="equilibrium-analysis-and-threshold-conditions"><span class="header-section-number">5</span> Equilibrium Analysis and Threshold Conditions</h2>
+<p>Ross’s mathematical analysis demonstrated that the system has two equilibrium points <span class="citation" data-cites="bailey1982biomathematics">(<a href="#ref-bailey1982biomathematics" role="doc-biblioref">Bailey 1982</a>)</span>:</p>
+<ol type="1">
+<li>Disease-free equilibrium: <span class="math inline">\((p, P) = (0, 0)\)</span></li>
+<li>Endemic equilibrium: <span class="math inline">\((p, P) = (p^*, P^*)\)</span> where:</li>
+</ol>
+<p><span class="math display">\[p^* = \frac{abmP^* - rp^*}{abmP^*}\]</span> <span class="math display">\[P^* = \frac{acp^* - \mu P^*}{acp^*}\]</span></p>
+<p>The stability of these equilibria depends on the value of <span class="math inline">\(R_0\)</span>. When <span class="math inline">\(R_0 &lt; 1\)</span>, the disease-free equilibrium is stable and the endemic equilibrium doesn’t exist. When <span class="math inline">\(R_0 &gt; 1\)</span>, the disease-free equilibrium is unstable and the endemic equilibrium is stable <span class="citation" data-cites="dietz1993malaria">(<a href="#ref-dietz1993malaria" role="doc-biblioref">Dietz, Molineaux, and Thomas 1974</a>)</span>.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple SIS model with vector-host interaction</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ross_model <span class="ot">&lt;-</span> <span class="cf">function</span>(time, state, parameters) {</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">with</span>(<span class="fu">as.list</span>(<span class="fu">c</span>(state, parameters)), {</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    dp_dt <span class="ot">&lt;-</span> a <span class="sc">*</span> b <span class="sc">*</span> m <span class="sc">*</span> P <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p) <span class="sc">-</span> r <span class="sc">*</span> p</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    dP_dt <span class="ot">&lt;-</span> a <span class="sc">*</span> c <span class="sc">*</span> p <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> P) <span class="sc">-</span> mu <span class="sc">*</span> P</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">list</span>(<span class="fu">c</span>(dp_dt, dP_dt)))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameter values</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">a =</span> <span class="fl">0.3</span>,    <span class="co"># Biting rate</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">b =</span> <span class="fl">0.5</span>,    <span class="co"># Transmission probability: mosquito to human</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">c =</span> <span class="fl">0.5</span>,    <span class="co"># Transmission probability: human to mosquito</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">m =</span> <span class="dv">10</span>,     <span class="co"># Mosquito density per human</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">r =</span> <span class="fl">0.01</span>,   <span class="co"># Human recovery rate</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu =</span> <span class="fl">0.1</span>    <span class="co"># Mosquito mortality rate</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Initial conditions</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>init_state <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">p =</span> <span class="fl">0.01</span>, <span class="at">P =</span> <span class="fl">0.005</span>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Time points</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>times <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">365</span>, <span class="at">by =</span> <span class="dv">1</span>)</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Solve the model</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>solution <span class="ot">&lt;-</span> <span class="fu">ode</span>(<span class="at">y =</span> init_state, <span class="at">times =</span> times, <span class="at">func =</span> ross_model, <span class="at">parms =</span> params)</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert to data frame</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(solution)</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>results_long <span class="ot">&lt;-</span> <span class="fu">pivot_longer</span>(results, <span class="at">cols =</span> <span class="fu">c</span>(p, P), </span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>                           <span class="at">names_to =</span> <span class="st">"Compartment"</span>, </span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>                           <span class="at">values_to =</span> <span class="st">"Proportion"</span>)</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(results_long, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> Proportion, <span class="at">color =</span> Compartment)) <span class="sc">+</span></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">size =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"p"</span> <span class="ot">=</span> <span class="st">"darkred"</span>, <span class="st">"P"</span> <span class="ot">=</span> <span class="st">"darkblue"</span>),</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>                    <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"p"</span> <span class="ot">=</span> <span class="st">"Infected Humans"</span>, <span class="st">"P"</span> <span class="ot">=</span> <span class="st">"Infected Mosquitoes"</span>)) <span class="sc">+</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Ross Model Dynamics"</span>,</span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Time (days)"</span>,</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Proportion Infected"</span>) <span class="sc">+</span></span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/ross-model-simulation-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="vector-control-implications" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="vector-control-implications"><span class="header-section-number">6</span> Vector Control Implications</h2>
+<p>The Ross-Macdonald framework provides clear guidance on vector control strategies. From the expression for <span class="math inline">\(R_0\)</span>, we can derive critical thresholds for various control parameters <span class="citation" data-cites="smith2014recasting">(<a href="#ref-smith2014recasting" role="doc-biblioref">Smith et al. 2014</a>)</span>. For example, the critical mosquito density <span class="math inline">\(m_c\)</span> below which transmission cannot be sustained is:</p>
+<p><span class="math display">\[m_c = \frac{\mu r}{a^2bc}\]</span></p>
+<p>Similarly, the required efficacy of insecticides to achieve control can be calculated. If we denote the proportional reduction in mosquito density as <span class="math inline">\(\Delta m\)</span>, then for disease elimination:</p>
+<p><span class="math display">\[\Delta m &gt; 1 - \frac{1}{R_0}\]</span></p>
+<p>This concept is directly related to the herd immunity threshold in direct transmission diseases <span class="citation" data-cites="fine1981herd">(<a href="#ref-fine1981herd" role="doc-biblioref">Fine 1993</a>)</span>.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate critical mosquito density</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>calculate_critical_m <span class="ot">&lt;-</span> <span class="cf">function</span>(a, b, c, mu, r) {</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  m_c <span class="ot">&lt;-</span> (mu <span class="sc">*</span> r) <span class="sc">/</span> (a<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> b <span class="sc">*</span> c)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(m_c)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>m_c <span class="ot">&lt;-</span> <span class="fu">calculate_critical_m</span>(a, b, c, mu, r)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Critical mosquito density (m_c) ="</span>, <span class="fu">round</span>(m_c, <span class="dv">2</span>), <span class="st">"mosquitoes per human</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Critical mosquito density (m_c) = 0.04 mosquitoes per human</code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate required control effectiveness</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>required_control <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> (<span class="dv">1</span><span class="sc">/</span>R0)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Required proportional reduction in mosquito density ="</span>, <span class="fu">round</span>(required_control, <span class="dv">4</span>) <span class="sc">*</span> <span class="dv">100</span>, <span class="st">"%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Required proportional reduction in mosquito density = 99.56 %</code></pre>
+</div>
+</div>
+</section>
+<section id="sensitivity-analysis" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="sensitivity-analysis"><span class="header-section-number">7</span> Sensitivity Analysis</h2>
+<p>A key insight from the Ross-Macdonald framework is the differential sensitivity of <span class="math inline">\(R_0\)</span> to various parameters. This can be formally analyzed through partial derivatives or elasticity analysis <span class="citation" data-cites="brady2016vectorial">(<a href="#ref-brady2016vectorial" role="doc-biblioref">Brady et al. 2016</a>)</span>.</p>
+<p>For example, the elasticity of <span class="math inline">\(R_0\)</span> with respect to parameter <span class="math inline">\(\theta\)</span> is:</p>
+<p><span class="math display">\[E_{\theta} = \frac{\theta}{R_0} \frac{\partial R_0}{\partial \theta}\]</span></p>
+<p>For the mosquito mortality rate <span class="math inline">\(\mu\)</span>, this becomes:</p>
+<p><span class="math display">\[E_{\mu} = -1\]</span></p>
+<p>This indicates that a 1% increase in mosquito mortality leads to approximately a 1% decrease in <span class="math inline">\(R_0\)</span>.</p>
+<p>For the parameter <span class="math inline">\(a\)</span> (biting rate), the elasticity is:</p>
+<p><span class="math display">\[E_a = 2\]</span></p>
+<p>This reflects Macdonald’s important observation that interventions targeting mosquito biting behavior have a squared effect on transmission, since <span class="math inline">\(a\)</span> appears as <span class="math inline">\(a^2\)</span> in the <span class="math inline">\(R_0\)</span> expression <span class="citation" data-cites="smith2012ross">(<a href="#ref-smith2012ross" role="doc-biblioref">Smith et al. 2012</a>)</span>.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to calculate elasticity for different parameters</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>calculate_elasticities <span class="ot">&lt;-</span> <span class="cf">function</span>(a, b, c, m, mu, r) {</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  E_a <span class="ot">&lt;-</span> <span class="dv">2</span>                <span class="co"># Elasticity for biting rate</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  E_b <span class="ot">&lt;-</span> <span class="dv">1</span>                <span class="co"># Elasticity for transmission probability (mosquito to human)</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  E_c <span class="ot">&lt;-</span> <span class="dv">1</span>                <span class="co"># Elasticity for transmission probability (human to mosquito)</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  E_m <span class="ot">&lt;-</span> <span class="dv">1</span>                <span class="co"># Elasticity for mosquito density</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  E_mu <span class="ot">&lt;-</span> <span class="sc">-</span><span class="dv">1</span>              <span class="co"># Elasticity for mosquito mortality rate</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  E_r <span class="ot">&lt;-</span> <span class="sc">-</span><span class="dv">1</span>               <span class="co"># Elasticity for human recovery rate</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  elasticities <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">Parameter =</span> <span class="fu">c</span>(<span class="st">"Biting rate (a)"</span>, <span class="st">"Transmission: mosquito→human (b)"</span>, </span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"Transmission: human→mosquito (c)"</span>, <span class="st">"Mosquito density (m)"</span>,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"Mosquito mortality (μ)"</span>, <span class="st">"Human recovery rate (r)"</span>),</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">Elasticity =</span> <span class="fu">c</span>(E_a, E_b, E_c, E_m, E_mu, E_r)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(elasticities)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>elasticities <span class="ot">&lt;-</span> <span class="fu">calculate_elasticities</span>(a, b, c, m, mu, r)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>elasticities</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                         Parameter Elasticity
+1                  Biting rate (a)          2
+2 Transmission: mosquito→human (b)          1
+3 Transmission: human→mosquito (c)          1
+4             Mosquito density (m)          1
+5           Mosquito mortality (μ)         -1
+6          Human recovery rate (r)         -1</code></pre>
+</div>
+</div>
+</section>
+<section id="contemporary-extensions-and-applications" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="contemporary-extensions-and-applications"><span class="header-section-number">8</span> Contemporary Extensions and Applications</h2>
+<p>While the Ross-Macdonald framework remains foundational, modern approaches have extended these models in several directions <span class="citation" data-cites="reiner2013systematic mandal2011mathematical">(<a href="#ref-reiner2013systematic" role="doc-biblioref">Reiner et al. 2013</a>; <a href="#ref-mandal2011mathematical" role="doc-biblioref">Mandal, Sarkar, and Sinha 2011</a>)</span>:</p>
+<ol type="1">
+<li><strong>Spatial heterogeneity</strong>: Incorporating spatial structure and human mobility</li>
+<li><strong>Stochasticity</strong>: Accounting for random events, particularly important near elimination</li>
+<li><strong>Vector bionomics</strong>: More detailed entomological parameters</li>
+<li><strong>Immunity dynamics</strong>: Accounting for acquired immunity in human populations</li>
+<li><strong>Drug resistance</strong>: Modeling the spread of antimalarial resistance</li>
+</ol>
+<p>The mathematical expression for <span class="math inline">\(R_0\)</span> in these more complex models becomes correspondingly more intricate. For example, in a spatial metapopulation model with <span class="math inline">\(n\)</span> patches, <span class="math inline">\(R_0\)</span> can be expressed as the dominant eigenvalue of the next-generation matrix:</p>
+<p><span class="math display">\[R_0 = \rho(FV^{-1})\]</span></p>
+<p>Where <span class="math inline">\(F\)</span> represents new infections and <span class="math inline">\(V\)</span> represents transitions between compartments.</p>
+</section>
+<section id="practical-applications-in-disease-control-programs" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="practical-applications-in-disease-control-programs"><span class="header-section-number">9</span> Practical Applications in Disease Control Programs</h2>
+<p>The threshold concept derived from Ross’s work remains central to modern malaria control programs <span class="citation" data-cites="smith2007revisiting">(<a href="#ref-smith2007revisiting" role="doc-biblioref">Smith et al. 2007</a>)</span>. The World Health Organization’s Global Technical Strategy for Malaria 2016-2030 implicitly relies on these mathematical principles when setting targets for vector control coverage and intervention effectiveness.</p>
+<p>Key applications include:</p>
+<ol type="1">
+<li><strong>Indoor residual spraying (IRS)</strong>: Targeting the adult mosquito longevity parameter</li>
+<li><strong>Insecticide-treated nets (ITNs)</strong>: Affecting both mosquito mortality and biting rate</li>
+<li><strong>Larval source management</strong>: Reducing the mosquito density parameter <span class="math inline">\(m\)</span></li>
+</ol>
+<p>Mathematical models help quantify the coverage levels required for these interventions to bring <span class="math inline">\(R_0\)</span> below 1 <span class="citation" data-cites="brady2016vectorial">(<a href="#ref-brady2016vectorial" role="doc-biblioref">Brady et al. 2016</a>)</span>.</p>
+</section>
+<section id="discussion" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="discussion"><span class="header-section-number">10</span> Discussion</h2>
+<p>Ross’s mathematical insights have withstood the test of time remarkably well. The threshold concept, formalized as <span class="math inline">\(R_0\)</span>, remains central to infectious disease epidemiology across all pathogens, not just vector-borne diseases.</p>
+<p>Modern computational capabilities allow for increasingly complex simulations, but the core mathematical principles established by Ross <span class="citation" data-cites="ross1911prevention">(<a href="#ref-ross1911prevention" role="doc-biblioref">Ross 1911</a>)</span> and refined by Macdonald <span class="citation" data-cites="macdonald1952analysis">(<a href="#ref-macdonald1952analysis" role="doc-biblioref">Macdonald 1952</a>)</span> continue to guide our understanding of transmission dynamics. The elegance of these models lies in their ability to capture essential dynamics with relatively simple formulations.</p>
+<p>As we face challenges like climate change, insecticide resistance, and drug resistance, these mathematical frameworks are being adapted to address increasingly complex scenarios <span class="citation" data-cites="smith2014recasting">(<a href="#ref-smith2014recasting" role="doc-biblioref">Smith et al. 2014</a>)</span>. Yet the threshold principle - that disease transmission can be interrupted without eliminating every vector - remains a profound insight that continues to guide public health strategies worldwide.</p>
+</section>
+<section id="references" class="level2" data-number="11">
+
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography"><h2 class="anchored quarto-appendix-heading">11 References</h2><div id="refs" class="references csl-bib-body hanging-indent" role="list">
+<div id="ref-bailey1982biomathematics" class="csl-entry" role="listitem">
+Bailey, Norman TJ. 1982. <span>“The Biomathematics of Malaria.”</span> <em>Mathematics in Medicine and Biology</em> 2 (4).
+</div>
+<div id="ref-brady2016vectorial" class="csl-entry" role="listitem">
+Brady, Oliver J, H Charles J Godfray, Andrew J Tatem, Peter W Gething, Justin M Cohen, F Ellis McKenzie, T Alex Perkins, et al. 2016. <span>“Vectorial Capacity and Vector Control: Reconsidering Sensitivity to Parameters for Malaria Elimination.”</span> <em>Transactions of the Royal Society of Tropical Medicine and Hygiene</em> 110 (2): 107–17. <a href="https://doi.org/10.1093/trstmh/trv113">https://doi.org/10.1093/trstmh/trv113</a>.
+</div>
+<div id="ref-dietz1993malaria" class="csl-entry" role="listitem">
+Dietz, Klaus, Louis Molineaux, and Anthony Thomas. 1974. <span>“A Malaria Model Tested in the African Savannah.”</span> <em>Bulletin of the World Health Organization</em> 50 (3-4): 347–57.
+</div>
+<div id="ref-fine1981herd" class="csl-entry" role="listitem">
+Fine, Paul EM. 1993. <span>“Herd Immunity: History, Theory, Practice.”</span> <em>Epidemiologic Reviews</em> 15 (2): 265–302.
+</div>
+<div id="ref-garrett1964malaria" class="csl-entry" role="listitem">
+Garrett-Jones, C. 1964. <span>“Malaria Eradication and Control from a Global Standpoint.”</span> <em>Journal of Medical Entomology</em> 1 (4): 353–65.
+</div>
+<div id="ref-macdonald1952analysis" class="csl-entry" role="listitem">
+Macdonald, George. 1952. <span>“The Analysis of Equilibrium in Malaria.”</span> <em>Tropical Diseases Bulletin</em> 49 (9): 813–29.
+</div>
+<div id="ref-mandal2011mathematical" class="csl-entry" role="listitem">
+Mandal, Sandip, Ram Rup Sarkar, and Somdatta Sinha. 2011. <span>“Mathematical Models of Malaria-a Review.”</span> <em>Malaria Journal</em> 10 (1): 1–19. <a href="https://doi.org/10.1186/1475-2875-10-202">https://doi.org/10.1186/1475-2875-10-202</a>.
+</div>
+<div id="ref-reiner2013systematic" class="csl-entry" role="listitem">
+Reiner, Robert C, T Alex Perkins, Christopher M Barker, Tianchan Niu, Luis Fernando Chaves, Alicia M Ellis, Dylan B George, et al. 2013. <span>“A Systematic Review of Mathematical Models of Mosquito-Borne Pathogen Transmission: 1970–2010.”</span> <em>Journal of the Royal Society Interface</em> 10 (81): 20120921. <a href="https://doi.org/10.1098/rsif.2012.0921">https://doi.org/10.1098/rsif.2012.0921</a>.
+</div>
+<div id="ref-ross1908report" class="csl-entry" role="listitem">
+Ross, Ronald. 1908. <em>Report on the Prevention of Malaria in Mauritius</em>. London: Waterlow &amp; Sons Limited.
+</div>
+<div id="ref-ross1911prevention" class="csl-entry" role="listitem">
+———. 1911. <em>The Prevention of Malaria</em>. London: John Murray.
+</div>
+<div id="ref-ross1915some" class="csl-entry" role="listitem">
+———. 1915. <span>“Some a Priori Pathometric Equations.”</span> <em>British Medical Journal</em> 1 (2830): 546–47.
+</div>
+<div id="ref-ross1916application" class="csl-entry" role="listitem">
+———. 1916. <span>“An Application of the Theory of Probabilities to the Study of a Priori Pathometry. Part i.”</span> <em>Proceedings of the Royal Society of London. Series A</em> 92 (638): 204–30.
+</div>
+<div id="ref-smith2012ross" class="csl-entry" role="listitem">
+Smith, David L, Katherine E Battle, Simon I Hay, Christopher M Barker, Thomas W Scott, and F Ellis McKenzie. 2012. <span>“Ross, Macdonald, and a Theory for the Dynamics and Control of Mosquito-Transmitted Pathogens.”</span> <em>PLOS Pathogens</em> 8 (4): e1002588. <a href="https://doi.org/10.1371/journal.ppat.1002588">https://doi.org/10.1371/journal.ppat.1002588</a>.
+</div>
+<div id="ref-smith2007revisiting" class="csl-entry" role="listitem">
+Smith, David L, F Ellis McKenzie, Robert W Snow, and Simon I Hay. 2007. <span>“Revisiting the Basic Reproductive Number for Malaria and Its Implications for Malaria Control.”</span> <em>PLOS Biology</em> 5 (3): e42. <a href="https://doi.org/10.1371/journal.pbio.0050042">https://doi.org/10.1371/journal.pbio.0050042</a>.
+</div>
+<div id="ref-smith2014recasting" class="csl-entry" role="listitem">
+Smith, David L, T Alex Perkins, Robert C Reiner, Christopher M Barker, Tianchan Niu, Luis Fernando Chaves, Alicia M Ellis, et al. 2014. <span>“Recasting the Theory of Mosquito-Borne Pathogen Transmission Dynamics and Control.”</span> <em>Transactions of the Royal Society of Tropical Medicine and Hygiene</em> 108 (4): 185–97. <a href="https://doi.org/10.1093/trstmh/tru026">https://doi.org/10.1093/trstmh/tru026</a>.
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

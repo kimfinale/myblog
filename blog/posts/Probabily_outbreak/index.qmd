@@ -1,0 +1,107 @@
+---
+title: "감염병의 대유행 가능성"
+author: "Jong-Hoon Kim"
+date: "2024-03-04"
+categories: [probability of a large outbreak, reproduction number]
+image: "outbreak_prob.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE)
+```
+
+[감염병 인류](https://www.yes24.com/Product/Goods/99051113?ReviewYn=Y) 라는 책을 재미있게 읽는 중이다. 136페이지에는 기초감염재생산지수와 대유행의 가능성에 대한 간단한 수식이 나온다. $$\text{대유행의 가능성} = 1 - \frac{1}{R_0}$$
+
+$R_0$는 기초감염재생산지수, 즉 한 사람의 감염자가 다른 모든 사람이 감수성자 (susceptible) 일때 감염시키는 평균 감염자수를 나타낸다. 위 수식은 제한적인 경우에만 적용된다. 감염병 유입 시 대유행의 가능성에 대해 좀 더 일반적으로 적용될 수 있는 방법에 대해 적어보려고 한다. 물론 아래 내용도 상당히 이상적인 상황에 대한 기술일 뿐이고 현실은 그 보다 훨씬 더 복잡할 것이다. 감염병 유입 시 대유행의 가능성에 대한 내용은 Niels G. Becker가 저술한 [Modeling to Inform Infectious Disease Control](https://www.amazon.com/Modeling-Infectious-Disease-Control-Biostatistics/dp/1498731066/ref=sr_1_3?crid=Q6E8KCGFJHES&dib=eyJ2IjoiMSJ9.UCQn7lL_fhp-8cr31i1yvNkFiM8031ZLJrQd3oLch4MLiIGfVd7xSHYK8DxJcl2irN6hOSKXvwIBltRHfSRsMnCEZE09qU6Hj_BrGkMf45Q7EvhtR8q1EEZnjJP4ZrU8ow-Z6gIW1vhne7qQp5LiGeJsnbWorvZjpvfWu0Q-YbgfYopAUnSl95IUf0nlTDbvxm-rYGyOawJEC5BHEBXi3wsYCfLfM-F7eZW2vwT_9n8.DIMrBAhp9UdkHqkC9_69y7tViatvCC44j3phlaCTrA4&dib_tag=se&keywords=niels+becker&qid=1709912228&sprefix=niels+becker%2Caps%2C239&sr=8-3)의 제 2장에 자세하게 기술되어 있다.
+
+동일한 사람들로 이루어진 인구 집단에서 감염병이 퍼져나가는 현상을 생각해 보자. 한 사람이 평균적으로 $R_0$ 명을 감염시킨다고 할 때 $R_0$은 평균일뿐 후속 감염자수는 어떤 확률 분포를 가진다고 생각해볼 수 있다. 한 명의 감염자가 총 $j$ 명의 후속 감염자를 만들어 내는 확률을 $P(X=j) = p_j$라고 할 때 $R_0$는 아래와 같이 표현할 수 있다.
+
+$$R_0 = \sum_{k=0}^\infty j p_j.$$
+
+대유행의 가능성은 역으로 생각하는 것이 유리하다. 즉 대유행이 아닌 소규모의 감염으로 막을 내리는 확률, $\theta$, 을 구한 후 대유행의 확률은 $1-\theta$로 구하는 것이다. 소규모의 감염이 일어나기 위해서는 유입된 초기 환자 (index patient)가 아무도 감염시키지 않거나 혹은 몇 명을 감염시켰다고 할지라도 후속 감염자들이 추가적으로 일으키는 감염이 소규모일때만 가능할 것이다. 즉 소규모 감염의 확률, $\theta$, 는 아래의 식을 만족한다.
+
+$$
+\theta =  p_0 + p_1 \theta + p_2 \theta^2 + ...
+$$ {#eq-theta}
+
+위 식을 보면 $\theta$ 는 후속 감염자수가 어떠한 분포를 따르느냐에 따라 달라질 것이라 예상할 수 있다. 가장 흔히 쓰이는 분포 중의 하나인 푸아송 분포 (Poisson distribution)를 생각해보자. 화률 분포 함수는 아래와 같다.
+
+$$\text{Prob}(X=j) = \frac{R^j e^R}{j!}\text{ for } j=0,1,2,...$$
+
+이 경우 @eq-theta 의 우변은 아래와 같이 나타내어질 수 있다.
+
+$$\sum_{j=0}^\infty p_j \theta^{j} = e^{(1-\theta)R_0}.$$
+
+따라서 $\theta$는 아래의 식을 계산하면 된다. 다만 해를 직접 구할 수는 없고 수치해석방법을 이용 해서 답을 구해야 한다.
+
+$$\theta = e^{(1-\theta)R_0}.$$
+
+위에서 언급한 $\text{대유행의 가능성} = 1 - \frac{1}{R_0}$는 후속 감염자수의 분포가 기하분포 (geometric distribution)를 따를때 성립한다. 기하분포는 아래와 같이 표현되 $$\text{Prob}(X=j) = (1-p)^j p$$
+
+평균과 성공확률의 관게, $R = \frac{1-p}{p}$, 이용하여 다시 표현하면 아래와 같다.
+
+$$\text{Prob}(X=j) = (\frac{R_0}{1+R_0})^j \frac{1}{1+R_0}$$ 위에서와 동일하게 계산하면 아래와 같다. $$\sum_{j=0}^\infty p_j \theta^{j} = \frac{1}{1 + (1-\theta)R_0}$$ 따라서 아래의 식을 풀면 $\theta$를 구할 수 있다.
+
+$$\theta = \frac{1}{1 + (1-\theta)R_0}.$$
+
+$$\theta = \frac{1}{R_0}.$$
+
+따라서 [감염병 인류](https://www.yes24.com/Product/Goods/99051113?ReviewYn=Y) 책에서 언급된 것처럼 $$\text{대유행의 가능성} = 1 - \frac{1}{R_0}.$$ 마지막으로 후속 감염자수가 이항분포 (negative binomial distribution)을 따른다고 가정해보자. 최근 연구들에서 빈번하게 언급되고 가장 현실에 가까운 가정인 듯 하다.
+
+다양한 모수를 사용하여 표현할 수 있고 평균 $R_0$과 확산(dispersion; $k$)를 이용하여 나타내면 아래와 같다. 이항 분포는 $k=1$일 때는 기하분포와 동일하고 $k=\infty$ 일때는 푸아송분포와 동일하다. 코로나 19의 경우 $k$ 값이 약 [0.55](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9349569/)이다.
+
+$$\text{Prob}(X=j) = \frac{\Gamma(k+j)}{j!\Gamma(k)}\left(\frac{k}{k+R_0}\right)^k\left(\frac{R_0}{k+R_0}\right)^j \text{ for } k=0,1,2,...$$ The probability of a minor outbreak, 위와 동일한 방법으로 계산하면 우변은 아래와 같다.
+
+$$\sum_{j=0}^\infty p_j \theta^{j} = \left(\frac{k}{k + (1-\theta)R_0}\right)^k$$ 따라서 $$\theta = \left(\frac{k}{k + (1-\theta)R_0}\right)^k$$를 계산하여 소규모감염의 확률을 계산하고 $1-\theta$를 계산하여 대규모유행 확률을 계산하면 된다.
+
+R 시물레이션을 통해서 세방법이 어떻게 다른 결과를 나타내는지 살펴보자
+
+```{r}
+prob_outbreak_pois = function(theta, R0){
+  theta - exp(-R0 + R0*theta) 
+}
+prob_outbreak_geo = function(R0){
+  1/R0 
+}
+prob_outbreak_nb = function(theta, R0, k){
+  theta - (k / (k + R0 - R0*theta))^k 
+}
+
+Rs <- seq(1.1, 10, length.out=100)
+theta1 <- sapply(Rs, function(x) 
+  min(rootSolve::multiroot(prob_outbreak_pois, c(0, 1), R0=x)$root))
+theta2 <- sapply(Rs, function(x) prob_outbreak_geo(x))
+theta3 <- sapply(Rs, function(x) 
+   min(rootSolve::multiroot(prob_outbreak_nb, c(0, 1), R0=x, k=0.55)$root))
+df <- data.frame(R0=rep(Rs,3), 
+                 dist=rep(c("Pois","Geom","NB(k=0.55)"),each=100),
+                 prob_outbreak=c(1-theta1,1-theta2,1-theta3))
+
+library(ggplot2)
+extrafont::loadfonts("win", quiet=TRUE)
+theme_set(hrbrthemes::theme_ipsum_rc(base_size=14, subtitle_size=16, 
+                                     axis_title_size=12))
+
+ggplot(df) +
+  geom_line(aes(R0, prob_outbreak, color=dist))+
+  ggtitle(expression("Probability of a large outbreak vs." ~italic(R)[0])) +
+  labs(y="Probability of a large outbreak", x=expression(italic(R)[0]), color="")
+
+# ggsave("outbreak_prob.png", units="in", width=3.4*2, height=2.7*2)  
+```
+
+각 분포에 대한 무한 수열의 합과 $\theta$에 대한 해는 아래 Mathematica 명령어를 사용하여 확인할 수 있다.
+
+```{r, eval=FALSE}
+Sum[PDF[PoissonDistribution[R],j]\[Theta]^j, {j, 0, Infinity}]
+FindRoot[\[Theta] - E^(R (-1 + \[Theta])) == 0, {\[Theta], 0.1}] /. 
+ R -> 3
+Sum[PDF[GeometricDistribution[1/(1+R)],j]\[Theta]^j, {j, 0, Infinity}]
+FindRoot[\[Theta] - 1/(R + \[Theta] - R \[Theta]) == 0, {\[Theta], 
+   0.5}] /. R -> 3
+
+FullSimplify[Sum[PDF[NegativeBinomialDistribution[k,k/(R+k)],i]\[Theta]^i, {i, 0, Infinity}],{ k>0, R>1, 0<\[Theta]<1}ㅑ
+FindRoot[\[Theta] - (k/(k + R - R \[Theta]))^k == 0, {\[Theta], 0.1}] 
+```

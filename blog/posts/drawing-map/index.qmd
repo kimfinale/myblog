@@ -1,0 +1,63 @@
+---
+title: "ggplot2로 지도 그리기"
+author: "Jong-Hoon Kim"
+date: "2023-08-30"
+categories: [R, map, ggplot2, sf, RColorBrewer]
+image: "thumbnail.jpg"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE)
+```
+
+`ggplot2`를 이용하여 지도 그리기를 해보자. 지도는 shapefile에 담겨져 있다고 가정하자. shapefile을 읽는 방법은 여러가지가 있을 수 있는데 `sf` 패키지의 `st_read` 혹은 `read_sf` 함수를 이용한 후 `ggplot2`의 `geom_sf`를 이용하여 그리는 것이 가장 쉬운 것 같다.
+
+```{r}
+library(sf)
+kor <- st_read("gadm41_KOR_1.shp")
+# kor <- read_sf(dsn="C:/Users/jonghoon.kim/Documents/myblog/posts/drawing-map", layer="gadm41_KOR_1")
+set.seed(42)
+# normalized number of characters of the name of the admin unit (level 1)
+char_len <- sapply(kor$NAME_1, nchar)
+kor$prop_char <- char_len / max(char_len)
+
+library(ggplot2)
+plt <- ggplot(kor)+
+  geom_sf(aes(fill=prop_char))+
+  scale_fill_viridis_c(name="Normalized\ncharacter length", limits=c(0,1)) +
+  theme_minimal()+
+  theme(legend.position="right")
+
+plt
+
+# use color brewer 
+library(RColorBrewer)
+pal <- brewer.pal(9,"YlOrBr")
+plt <- plt + 
+  scale_fill_gradientn(name="Normalized\ncharacter length", colors=pal, limits=c(0,1))
+  
+plt
+
+# Clear some background stuff
+plt <- plt +
+  theme(panel.background = element_blank(), # bg of the panel
+        plot.background = element_blank(), # bg of the plot
+        legend.background = element_blank(), # get rid of legend bg
+        legend.box.background = element_blank(),
+        panel.spacing = unit(c(0,0,0,0), "null"),
+        plot.margin = unit(c(0,0,0,0), "null"),
+        axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom",
+        plot.title = element_text(hjust=0.5, size=12))
+plt
+```

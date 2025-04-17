@@ -1,0 +1,110 @@
+---
+title: "Parallel simulation in R"
+author: "Jong-Hoon Kim"
+date: "2024-06-14"
+categories: [parallelism, foreach, doParallel]
+image: "right_trunc2.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+I find that `parallel`, `doParallel` and `foreach` packages provide the easiest approach for parallel computing in R. The `doParallel` [vignette](https://cran.r-project.org/web/packages/doParallel/vignettes/gettingstartedParallel.pdf) provides a great overview. `library(doParallel)` command automatically loads required packages.
+
+```{r}
+library(doParallel)
+ncores <-  detectCores()
+cl <- makeCluster(getOption("cl.cores", ncores/2))
+registerDoParallel(cl)
+nruns <- ncores
+
+x <- 2
+res <- foreach(i=1:4, .combine=c) %dopar% { c(i, x^2) }
+
+stopCluster(cl)
+res
+```
+
+We can export packages.
+
+```{r}
+cl <- makeCluster(getOption("cl.cores", ncores/2))
+registerDoParallel(cl)
+
+res <- 
+  foreach(i=1:5, .packages=c("data.table"), .combine=cbind) %dopar% {
+    frollmean(rnorm(10), 7)
+  }
+
+stopCluster(cl)
+res
+```
+
+We may want to set the same seed for each worker.
+
+```{r}
+cl <- makeCluster(getOption("cl.cores", ncores/2))
+registerDoParallel(cl)
+
+res <- 
+  foreach(i=1:5, .packages=c("data.table"), .combine=cbind) %dopar% {
+    set.seed(12)
+    frollmean(rnorm(10), 7)
+}
+stopCluster(cl)
+res
+```
+
+Different `foreach` sessions with the same random seed are not reproducible.
+
+```{r}
+cl <- makeCluster(getOption("cl.cores", ncores/2))
+registerDoParallel(cl)
+
+set.seed(12)
+a1 <- foreach(i=1:2, combine=cbind) %dopar% { rnorm(5) }
+b1 <- foreach(i=1:2, combine=cbind) %dopar% { rnorm(5) }
+set.seed(12)
+a2 <- foreach(i=1:2, combine=cbind) %dopar% { rnorm(5) }
+b2 <- foreach(i=1:2, combine=cbind) %dopar% { rnorm(5) }
+identical(a1, a2) && identical(b1, b2)
+
+stopCluster(cl)
+```
+
+Reproducibility across different `foreach` sessions are possible using 
+[doRNG](https://ftp.heanet.ie/mirrors/cran.r-project.org/web/packages/doRNG/index.html) package.
+Examples below were adapted from the [stackoverflow post](https://stackoverflow.com/questions/8358098/how-to-set-seed-for-random-simulations-with-foreach-and-domc-packages).
+
+You use `%dorng%` instead of `%dopar%` in the `doRNG` approach 
+```{r}
+library(doRNG)
+
+cl <- makeCluster(getOption("cl.cores", ncores/2))
+registerDoParallel(cl)
+
+set.seed(12)
+a1 <- foreach(i=1:2, combine=cbind) %dorng% { rnorm(5) }
+b1 <- foreach(i=1:2, combine=cbind) %dorng% { rnorm(5) }
+
+set.seed(12)
+a2 <- foreach(i=1:2, combine=cbind) %dorng% { rnorm(5) }
+b2 <- foreach(i=1:2, combine=cbind) %dorng% { rnorm(5) }
+identical(a1, a2) && identical(b1, b2)
+
+stopCluster(cl)
+```
+
+We may want to examine parallel workers.
+
+```{r}
+cl <- makeCluster(getOption("cl.cores", ncores/2))
+registerDoParallel(cl)
+getDoParWorkers()
+getDoParName()
+getDoParVersion()
+stopCluster(cl)
+```

@@ -1,0 +1,102 @@
+---
+title: "Learning ChatGPT 1: Probabilities for the next word"
+author: "Jong-Hoon Kim"
+date: "2024-05-01"
+categories: [GPT-2, ChatGPT, Wolfram]
+image: "top5_prob.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+Inspired by the [blog post by Stephen Wolfram](https://writings.stephenwolfram.com/2023/02/what-is-chatgpt-doing-and-why-does-it-work/) about the workings of the GPT-2 system, I decided to learn a bit about ChatGPT myself. Luckily, [GPT-2](https://github.com/AGPatriota/GPT-2-for-R) is now available for R. My first task is simply to learn to run the model and generate the probability table for the words that can follow the text, "The best thing about AI is to be able to". The following contents are mainly based on [the blog post by Stephen Wolfram](https://writings.stephenwolfram.com/2023/02/what-is-chatgpt-doing-and-why-does-it-work/). Additional resources include OpenAI Github page for [gpt-2](https://github.com/openai/gpt-2) and [the paper](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf) describing GPT-2 paper.
+
+Load the libraries and R implementation of GPT-2.
+
+```{r}
+require(tok)
+require(torch)
+source('GPT.R')
+```
+
+Create a tokenizer to process inputs.
+
+```{r}
+tok <- tok::tokenizer$from_pretrained("gpt2")
+```
+
+Load a GPT-2 model
+
+```{r}
+torch::with_device(device = "meta",{
+  Model0 <- GPT(
+    block_size = 1024,
+    n_embd = 768,
+    N_Layers = 12,
+    nvoc = 50257,
+    Head = 12
+  )
+})
+```
+
+Apply the model weights
+
+```{r}
+Model0$load_state_dict(state_dict = torch_load("Model-weights.pt"),
+                       .refer_to_state_dict = TRUE)
+```
+
+Create a function to list up `top_k` words with their probabilities.
+
+```{r}
+top_k_words <- function(model = NULL,
+                             device = NULL,
+                             raw_text = NULL, 
+                             temperature = NULL, 
+                             top_k = 10){
+  
+  idx = tok$encode(raw_text)$ids
+  paste0("Input text is ", raw_text)
+  idx = torch::torch_tensor(idx+1, dtype=torch::torch_int(), device=device0)
+  idx = torch::torch_unsqueeze(idx, 1)
+  idx_cond = idx	
+  logits = model$eval()(idx_cond)
+  logits = logits[, min(idx$size(2),1024), ] / temperature
+  
+  logits = logits$topk(top_k)
+  probs = torch::nnf_softmax(logits[[1]],-1)
+  df <- data.frame(token = NA,
+                   probability=as.numeric(probs))
+  
+  for (i in 1:top_k) {
+    idx_next <- logits[[2]][,as.integer(i)]$unsqueeze(1)
+    token <- tok$decode(as.integer(idx_next$cpu()-1))
+    df$token[i] <- token
+  }
+  return(df)
+}
+```
+
+Have the model run on GPU
+
+```{r}
+Model0 = if (torch::cuda_is_available()) Model0$cuda() else Model0$cpu()
+device0 = if (torch::cuda_is_available()) "cuda" else "cpu"
+```
+
+Generate the results
+
+```{r}
+set.seed(1) # for reproducibility, GPT-2 output is random.
+df <- top_k_words(model = Model0,
+                  device = device0,
+                  raw_text = "The best thing about AI is its ability to", 
+                  temperature = 0.8,
+                  top_k = 5)
+
+names(df) <- c("Token","Probability")
+knitr::kable(df)
+```

@@ -1,0 +1,47 @@
+---
+title: "Extract raster based on a polygon"
+author: "Jong-Hoon Kim"
+date: "2023-09-23"
+categories: [R, raster, shapefile, crop, mask, sf]
+image: "thumbnail.jpg"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE)
+```
+
+raster 이미지의 일부를 추출해보자. 특히, `shapefile`에 담겨져 있는 polygon에 해당하는 raster 를 추출해보자. `raster` 패키지의 `crop` 과 `mask` 함수를 이용할 수 있다.
+
+```{r}
+# Create some data using meuse 
+library(raster)
+data(meuse)
+coordinates(meuse) <- ~x+y
+proj4string(meuse) <- CRS("+init=epsg:28992")
+data(meuse.grid)
+coordinates(meuse.grid) = ~x+y
+proj4string(meuse.grid) <- CRS("+init=epsg:28992")
+gridded(meuse.grid) = TRUE    
+r <- raster(meuse.grid) 
+r[] <- runif(ncell(r))
+
+# Create a polygon
+f <- rgeos::gBuffer(meuse[10,], byid=FALSE, id=NULL, width=250, 
+                         joinStyle="ROUND", quadsegs=10)   
+
+# Plot full raster and polygon                       
+plot(r)
+plot(f,add=T)
+
+# Crop using extent, rasterize polygon and finally, create poly-raster
+#          **** This is the code that you are after ****  
+cr <- crop(r, extent(f), snap="out")                    
+fr <- rasterize(f, cr)   
+lr <- mask(x=cr, mask=fr)
+
+# Plot results
+plot(lr)
+plot(f,add=T)
+```

@@ -1,0 +1,109 @@
+---
+title: "Generation interval, growth rate, reproduction number"
+author: "Jong-Hoon Kim"
+date: "2023-12-06"
+categories: [generation interval, growth rate, reproduction number]
+image: "sample_figure.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+### Growth rate, generation interval, and reproduction number
+
+[Wallinga and Lipsitch](https://royalsocietypublishing.org/doi/10.1098/rspb.2006.3754?url_ver=Z39.88-2003&rfr_id=ori%3Arid%3Acrossref.org&rfr_dat=cr_pub++0pubmed) wrote a highly cited paper about the reproduction number. It discusses how to derive reproduction number, $R$, given the growth rate, $r$, and the generation interval, $T_c$.
+
+$$
+\begin{align}
+R &= 1 + r/b\\
+R &= (1 + r/b_1)(1 + r/b_2)\\
+R &= \frac{(1 + r/b_1)^x}{\sum_{i=1}^y(1 + r/b_2)^{-i}}\\
+\end{align}
+$$
+
+I can seem to use the third equation to reproduce the answer to the example the authors provided. On page 603, the authors gave the example of Influenza A where the generation interval has a mean of 2.85 days with the standard deviation of 0.93 days. The epidemic growth rate $r = 0.2$. "The $R=1.57$ for the SIR epidemic model, a value of $R=1.65$ for the SEIR epidemic model and a value of $R=1.66$ the more complicated epidemic model with one latent stage and two infectious stages (equation (3.3), with $x=1, y=2$)"
+
+I tried to reproduce the results.
+
+```{r}
+Tc = 2.85
+sigma = 0.93
+r = 0.2
+# for the SIR model
+b = 1/Tc
+(R = 1 + r/b)
+# for the SEIR model, assume that b1 and b2 are the same
+b1 = b2 = 2/Tc
+(R = (1 + r/b1)*(1 + r/b2))
+```
+
+For the model with $x=1, y=2$, the $R$ is not the same as provided. $R$ can vary depending on how we set $b_1$ and $b_2$, but it is smaller than one.
+
+```{r}
+# for the SEIR model with x=1, y=2 (i.e., two consecutive . assume that b1 and b2 are the same
+x = 1
+y = 2
+b1 = 2/Tc
+b2 = 4/Tc
+
+numer = function(x) (1 + r/b1)^x
+denom = function(y) sum(sapply(1:y, function(i) (1+r/b2)^(-i)))
+
+(R = numer(x=x)/denom(y=y))
+```
+
+The study also refers to [Wearing et al. (2005)](https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.0020174) study and the result is below. Again, it is not $R=1.66$
+
+```{r}
+# as presented in Wearing et al.(2005)
+
+m = 1
+n = 2
+b1 = 2/Tc
+b2 = 4/Tc
+
+numer = r*(r/(b1*m)+1)^m
+denom = b2*(1-(r/(b2*n)+1)^(-n))
+(R = numer / denom)
+```
+
+I implemented moment generating function to see if I can reproduce the results this way. One important aspect is that how we should set the rate to get the generation interval we want.
+
+```{r}
+mgf = function(b, r) b / (b + r)
+
+1/mgf(b=1/Tc, r=r)
+
+mgf_recursion = function(c, b, r){
+  l = length(b)
+  if (l == 1) {
+    c * mgf(b, r)
+  } 
+  else {
+    c[l] * mgf(b[l], r) * mgf_recursion(c=rep(1,length(b[1:(l-1)])), b=b[1:(l-1)], r=r)
+  }
+}
+
+c = c(0,1/2,1/2)
+b = c(3,3,3)/Tc
+
+R0_recursion = function(c,b,r){
+  out <- rep(NA, length(b))
+  for (i in seq_along(b)) {
+    out[i] = mgf_recursion(c[1:i], b[1:i], r)
+  }
+  1/sum(out)
+}
+
+R0_recursion(c=c(1), b=c(1)/Tc, r=0.2)
+R0_recursion(c=c(0,1), b=c(2,2)/Tc, r=0.2)
+# for y=2 (i.e., Gamma distribution with shape=2)
+# use the relationship 
+# average time to infection = beta*(1+alpha)/2 where beta and alpha represent scale and shape
+# beta*(1+alpha)/2 = Tc/2
+# rate = b = (1+alpha)/Tc
+R0_recursion(c=c(0,1/2,1/2), b=c(2,3,3)/Tc, r=0.2)
+```

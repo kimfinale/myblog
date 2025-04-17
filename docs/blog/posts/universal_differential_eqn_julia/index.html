@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2024-01-12">
+
+<title>Disease modeling for public health - Universal differential equation using Julia</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html" rel="" target="">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html" rel="" target="">
+ <span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/" rel="" target=""><i class="bi bi-linkedin" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau" rel="" target=""><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Universal differential equation using Julia</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">universal differential equation</div>
+    <div class="quarto-category">julia</div>
+    <div class="quarto-category">sub-exponential growth</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">January 12, 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="universal-differential-equation-ude" class="level3">
+<h3 class="anchored" data-anchor-id="universal-differential-equation-ude">Universal differential equation (UDE)</h3>
+<p>The <a href="https://docs.sciml.ai/Overview/stable/showcase/missing_physics/">UDE</a> refers to an approach to embed the machine learning into differential equations. The resulting UDE has some parts of the equation replaced by <strong>universal approximators</strong> i.e., neural network (NN). The UDE model approach allows us to approximate a wide, if not infinite, variety of functional relationships. As an example, I will test how well the UDE model approach will approximate a <a href="https://www.jonghoonk.com/posts/sub-exponential-growth/index.html">sub-exponential growth model</a>, which is challenging to fit if we use an exponential growth model.</p>
+<p>I am using Julia for the UDE approach as it appeared that the Julia is the most advanced in this regard.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># SciML (Scientific Machine Learning) Tools</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">OrdinaryDiffEq</span>, <span class="bu">SciMLSensitivity</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">Optimization</span>, <span class="bu">OptimizationOptimisers</span>, <span class="bu">OptimizationOptimJL</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Standard Libraries</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">LinearAlgebra</span>, <span class="bu">Statistics</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># External Libraries</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">ComponentArrays</span>, <span class="bu">Lux</span>, <span class="bu">Zygote</span>, <span class="bu">Plots</span>, <span class="bu">StableRNGs</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">gr</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Plots.GRBackend()</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Set a random seed for reproducible behaviour</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> <span class="fu">StableRNG</span>(<span class="fl">1111</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>StableRNGs.LehmerRNG(state=0x000000000000000000000000000008af)</code></pre>
+</div>
+</div>
+</section>
+<section id="data-generation" class="level3">
+<h3 class="anchored" data-anchor-id="data-generation">Data generation</h3>
+<p>The SIR model with a sub-exponential growth is used.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">sir_subexp!</span>(du, u, p, t)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    α, β, γ <span class="op">=</span> p </span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    du[<span class="fl">1</span>] <span class="op">=</span> <span class="op">-</span> β<span class="op">*</span>u[<span class="fl">1</span>]<span class="op">*</span>u[<span class="fl">2</span>]<span class="op">^</span>α</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    du[<span class="fl">2</span>] <span class="op">=</span> <span class="op">+</span> β<span class="op">*</span>u[<span class="fl">1</span>]<span class="op">*</span>u[<span class="fl">2</span>]<span class="op">^</span>α <span class="op">-</span> γ<span class="op">*</span>u[<span class="fl">2</span>]</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    du[<span class="fl">3</span>] <span class="op">=</span> <span class="op">+</span> γ<span class="op">*</span>u[<span class="fl">2</span>]</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>sir_subexp! (generic function with 1 method)</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the experimental parameter</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>tspan <span class="op">=</span> (<span class="fl">0.0</span>, <span class="fl">20.0</span>);</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># u0 = 5.0f0 * rand(rng, 2)</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>u0 <span class="op">=</span> [<span class="fl">0.99</span>, <span class="fl">0.01</span>, <span class="fl">0.0</span>];</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>p_ <span class="op">=</span> [<span class="fl">0.8</span>, <span class="fl">0.4</span>, <span class="fl">0.2</span>];</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>prob <span class="op">=</span> <span class="fu">ODEProblem</span>(sir_subexp!, u0, tspan, p_);</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>solution <span class="op">=</span> <span class="fu">solve</span>(prob, <span class="fu">Tsit5</span>(), abstol <span class="op">=</span> <span class="fl">1e-12</span>, reltol <span class="op">=</span> <span class="fl">1e-12</span>, saveat <span class="op">=</span> <span class="fl">1.0</span>);</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Add noise in terms of the mean</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> <span class="fu">Array</span>(solution);</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>t <span class="op">=</span> solution.t;</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>xbar <span class="op">=</span> <span class="fu">mean</span>(X, dims<span class="op">=</span><span class="fl">2</span>);   </span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>noise_magnitude <span class="op">=</span> <span class="fl">5e-2</span>;</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>Xn <span class="op">=</span> X <span class="op">.+</span> (noise_magnitude <span class="op">*</span> xbar) <span class="op">.*</span> <span class="fu">randn</span>(rng, <span class="fu">eltype</span>(X), <span class="fu">size</span>(X));</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(solution, alpha <span class="op">=</span> <span class="fl">0.75</span>, color <span class="op">=</span> <span class="op">:</span>black, label <span class="op">=</span> [<span class="st">"True Data"</span> <span class="cn">nothing</span>]);</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="fu">scatter!</span>(t, <span class="fu">transpose</span>(Xn), color <span class="op">=</span> <span class="op">:</span>red, label <span class="op">=</span> [<span class="st">"Noisy Data"</span> <span class="cn">nothing</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-2-J1.png" class="img-fluid" width="300"></p>
+</div>
+</div>
+</section>
+<section id="ude-model" class="level3">
+<h3 class="anchored" data-anchor-id="ude-model">UDE model</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Let's define our Universal Differential eqution</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rbf</span>(x) <span class="op">=</span> <span class="fu">exp</span>.(<span class="fu">-</span>(x <span class="op">.^</span> <span class="fl">2</span>));</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Multilayer FeedForward</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> U <span class="op">=</span> Lux.<span class="fu">Chain</span>(Lux.<span class="fu">Dense</span>(<span class="fl">3</span>, <span class="fl">5</span>, rbf), Lux.<span class="fu">Dense</span>(<span class="fl">5</span>, <span class="fl">5</span>, rbf), </span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>Lux.<span class="fu">Dense</span>(<span class="fl">5</span>, <span class="fl">5</span>, rbf), Lux.<span class="fu">Dense</span>(<span class="fl">5</span>, <span class="fl">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Chain(
+    layer_1 = Dense(3 =&gt; 5, rbf),       # 20 parameters
+    layer_2 = Dense(5 =&gt; 5, rbf),       # 30 parameters
+    layer_3 = Dense(5 =&gt; 5, rbf),       # 30 parameters
+    layer_4 = Dense(5 =&gt; 1),            # 6 parameters
+)         # Total: 86 parameters,
+          #        plus 0 states.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the initial parameters and state variables of the model</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>p, st <span class="op">=</span> Lux.<span class="fu">setup</span>(rng, U)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>((layer_1 = (weight = Float32[-0.11597705 -0.5499123 0.10071843; -0.20088743 0.5602648 0.2718303; … ; -0.22440201 -0.57859105 0.7904316; -0.4619576 -0.62989676 0.18545352], bias = Float32[0.0; 0.0; … ; 0.0; 0.0;;]), layer_2 = (weight = Float32[-0.043933477 -0.21508422 … 0.55779475 0.5849693; 0.0011237671 0.006483868 … 0.27549765 -0.2874395; … ; 0.5079049 -0.36002874 … 0.41297784 -0.5777891; -0.5179172 -0.60432595 … -0.18625909 0.06577149], bias = Float32[0.0; 0.0; … ; 0.0; 0.0;;]), layer_3 = (weight = Float32[0.21934992 0.20916325 … -0.357856 -0.27426103; 0.59777355 -0.04514681 … 0.22668682 0.73459923; … ; 0.36797842 0.13955377 … 0.28912562 0.20840885; -0.33154675 0.035615936 … 0.011346816 -0.13401343], bias = Float32[0.0; 0.0; … ; 0.0; 0.0;;]), layer_4 = (weight = Float32[-0.49593353 -0.68478346 … -0.4632702 -0.1476636], bias = Float32[0.0;;])), (layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple(), layer_4 = NamedTuple()))</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> _st <span class="op">=</span> st</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>(layer_1 = NamedTuple(), layer_2 = NamedTuple(), layer_3 = NamedTuple(), layer_4 = NamedTuple())</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the hybrid model</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">ude_dynamics!</span>(du, u, p, t, p_true)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    û <span class="op">=</span> <span class="fu">U</span>(u, p, _st)[<span class="fl">1</span>] <span class="co"># Network prediction</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    du[<span class="fl">1</span>] <span class="op">=</span> dS <span class="op">=</span> <span class="op">-</span> û[<span class="fl">1</span>]</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    du[<span class="fl">2</span>] <span class="op">=</span> dI <span class="op">=</span> <span class="op">+</span> û[<span class="fl">1</span>] <span class="op">-</span> p_true[<span class="fl">3</span>]<span class="op">*</span>u[<span class="fl">2</span>] </span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    du[<span class="fl">3</span>] <span class="op">=</span> dR <span class="op">=</span> <span class="op">+</span> p_true[<span class="fl">3</span>]<span class="op">*</span>u[<span class="fl">2</span>] </span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>ude_dynamics! (generic function with 1 method)</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Closure with the known parameter</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_dynamics!</span>(du, u, p, t) <span class="op">=</span> <span class="fu">ude_dynamics!</span>(du, u, p, t, p_)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>nn_dynamics! (generic function with 1 method)</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the problem</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>prob_nn <span class="op">=</span> <span class="fu">ODEProblem</span>(nn_dynamics!, Xn[<span class="op">:</span>, <span class="fl">1</span>], tspan, p)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>ODEProblem with uType Vector{Float64} and tType Float64. In-place: true
+timespan: (0.0, 20.0)
+u0: 3-element Vector{Float64}:
+ 1.0239505612968622
+ 0.0034985090690380412
+ 0.00031492340046744696</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># I don't understand the details of the algorithm</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># sensealg=QuadratureAdjoint(autojacvec=ReverseDiffVJP(true))</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co"># I just adopted what's provided in the web page: </span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="co"># https://docs.sciml.ai/Overview/stable/showcase/missing_physics/</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">predict</span>(θ, X <span class="op">=</span> Xn[<span class="op">:</span>, <span class="fl">1</span>], T <span class="op">=</span> t)</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    _prob <span class="op">=</span> <span class="fu">remake</span>(prob_nn, u0 <span class="op">=</span> X, tspan <span class="op">=</span> (T[<span class="fl">1</span>], T[<span class="kw">end</span>]), p <span class="op">=</span> θ)</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">Array</span>(<span class="fu">solve</span>(_prob, <span class="fu">Tsit5</span>(), saveat <span class="op">=</span> T,</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>                abstol <span class="op">=</span> <span class="fl">1e-6</span>, reltol <span class="op">=</span> <span class="fl">1e-6</span>,</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>                sensealg<span class="op">=</span><span class="fu">QuadratureAdjoint</span>(autojacvec<span class="op">=</span><span class="fu">ReverseDiffVJP</span>(<span class="cn">true</span>))))</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>predict (generic function with 3 methods)</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">loss</span>(θ)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    Xhat <span class="op">=</span> <span class="fu">predict</span>(θ)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(abs2, Xn <span class="op">.-</span> Xhat)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>loss (generic function with 1 method)</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>losses <span class="op">=</span> <span class="dt">Float64</span>[];</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>callback <span class="op">=</span> <span class="kw">function</span> (p, l)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">push!</span>(losses, l)</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="fu">length</span>(losses) <span class="op">%</span> <span class="fl">50</span> <span class="op">==</span> <span class="fl">0</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>        <span class="fu">println</span>(<span class="st">"Current loss after </span><span class="sc">$</span>(<span class="fu">length</span>(losses))<span class="st"> iterations: </span><span class="sc">$</span>(losses[<span class="kw">end</span>])<span class="st">"</span>)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="cn">false</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>#125 (generic function with 1 method)</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>adtype <span class="op">=</span> Optimization.<span class="fu">AutoZygote</span>();</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>optf <span class="op">=</span> Optimization.<span class="fu">OptimizationFunction</span>((x, p) <span class="op">-&gt;</span> <span class="fu">loss</span>(x), adtype);</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>optprob <span class="op">=</span> Optimization.<span class="fu">OptimizationProblem</span>(optf, <span class="fu">ComponentVector</span><span class="dt">{Float64}</span>(p));</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>mxiter <span class="op">=</span> <span class="fl">2000</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>2000</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>res1 <span class="op">=</span> Optimization.<span class="fu">solve</span>(optprob, <span class="fu">ADAM</span>(), callback <span class="op">=</span> callback, maxiters <span class="op">=</span> mxiter);</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="fu">println</span>(<span class="st">"Training loss after </span><span class="sc">$</span>(<span class="fu">length</span>(losses))<span class="st"> iterations: </span><span class="sc">$</span>(losses[<span class="kw">end</span>])<span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Training loss after 2001 iterations: 0.0015564208691683874</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="co"># You can optimize further by using LBFGS</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>optprob2 <span class="op">=</span> Optimization.<span class="fu">OptimizationProblem</span>(optf, res1.u)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>OptimizationProblem. In-place: true
+u0: ComponentVector{Float64}(layer_1 = (weight = [-0.05170182389621984 -0.6044817578839353 0.030221881763510722; -0.32123561819724095 0.6510350091471692 0.44802414729182577; … ; -0.29710021515609997 -0.5198718000241755 0.8494439396600794; -0.5240838499417148 -0.5805885464625195 0.2207764494848388], bias = [0.07034258756689579; -0.1248750018606046; … ; -0.10460911230943246; -0.09231330051875483;;]), layer_2 = (weight = [-0.16444552836729504 -0.39149348409521373 … 0.4595876886836963 0.48596336484497255; 0.06110486638492416 0.09809356179876788 … 0.33257093321228715 -0.23929486432898225; … ; 0.44222617028480327 -0.07489082170130384 … 0.38613240122653225 -0.6098094519525386; -0.4255467375078114 -0.39126782596548754 … -0.07050700982314294 0.183500531584539], bias = [-0.10242371127901419; 0.05522672750843921; … ; -0.06460784045609771; 0.08515934187149939;;]), layer_3 = (weight = [0.30753421402862036 0.2947114335480522 … -0.26966507778144233 -0.19068344291102465; 0.6803575575897453 0.0350253144116066 … 0.3095389929942777 0.8122600471146871; … ; 0.4338542747333688 0.20165221719158863 … 0.35259992082403724 0.2701023387838381; -0.2070809282199827 0.1890743367589869 … 0.1659803847569096 -0.0012012794338499672], bias = [0.08539245136971987; 0.08006728472152563; … ; 0.06194248786256519; 0.15306636356417658;;]), layer_4 = (weight = [-0.42084525587118515 -0.6144846254382511 … -0.40340199958868356 -0.06553529479212013], bias = [0.09174711461704013;;]))</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>res2 <span class="op">=</span> Optimization.<span class="fu">solve</span>(optprob2, Optim.<span class="fu">LBFGS</span>(), callback <span class="op">=</span> callback, maxiters <span class="op">=</span> <span class="fl">1000</span>);</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">println</span>(<span class="st">"Final training loss after </span><span class="sc">$</span>(<span class="fu">length</span>(losses))<span class="st"> iterations: </span><span class="sc">$</span>(losses[<span class="kw">end</span>])<span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Final training loss after 3002 iterations: 0.00037095070511105146</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Rename the best candidate</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>p_trained <span class="op">=</span> res2.u</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>ComponentVector{Float64}(layer_1 = (weight = [0.18588559475980856 -0.678836961079842 0.003164511566198509; -0.2117593049546201 0.7659777764210745 0.5001880949174726; … ; -0.12793809908258996 -0.5806165465015546 0.7359889411458274; -0.5987978703086538 -0.8542736922318693 0.22071269547796915], bias = [0.20283880857556238; 0.1442364184846448; … ; -0.10951065483152145; -0.43136285105428973;;]), layer_2 = (weight = [-0.7722740902742339 -1.1539959612185595 … -0.2557276161227372 0.04069177034071063; 0.11613000554442242 -0.06879626497651166 … 0.49503733065196687 -0.20521706786070337; … ; 0.49449245622560034 0.17333857621023685 … 0.3021120793343474 -0.7328812254592773; -0.2225923998099525 -0.1546676318277597 … 0.38305691443718165 0.48987085385328843], bias = [-0.7211379554471269; 0.18024471356943225; … ; -0.06082478805131034; 0.35625527871182344;;]), layer_3 = (weight = [0.06379174538587522 0.13743725900849454 … -0.37275930238632443 -0.4224270345491679; 1.0145108036936996 0.5041281988482341 … 0.7904247027437314 0.9963675316648448; … ; 0.42914689744537293 0.2244122549609806 … 0.38639622079002267 0.24704090971935938; -0.2838037009222233 0.13375316701238169 … 0.12509351575197344 -0.08653639834262729], bias = [-0.1263271345517243; 0.44502442954219273; … ; 0.07338220202701212; 0.0804054739454783;;]), layer_4 = (weight = [-0.5832026087107504 -0.34311500443215825 … -0.3606462665796045 -0.2121086546094451], bias = [0.3482487547293952;;]))</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the losses</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>pl_losses <span class="op">=</span> <span class="fu">plot</span>(<span class="fl">1</span><span class="op">:</span>mxiter, losses[<span class="fl">1</span><span class="op">:</span>mxiter], yaxis <span class="op">=</span> <span class="op">:</span>log10, xaxis <span class="op">=</span> <span class="op">:</span>log10,</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>                 xlabel <span class="op">=</span> <span class="st">"Iterations"</span>, ylabel <span class="op">=</span> <span class="st">"Loss"</span>, label <span class="op">=</span> <span class="st">"ADAM"</span>, color <span class="op">=</span> <span class="op">:</span>blue)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-3-J1.png" class="img-fluid" width="300"></p>
+</div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot!</span>((mxiter<span class="op">+</span><span class="fl">1</span>)<span class="op">:</span><span class="fu">length</span>(losses), losses[(mxiter<span class="op">+</span><span class="fl">1</span>)<span class="op">:</span><span class="kw">end</span>], yaxis <span class="op">=</span> <span class="op">:</span>log10, xaxis <span class="op">=</span> <span class="op">:</span>log10,</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>      xlabel <span class="op">=</span> <span class="st">"Iterations"</span>, ylabel <span class="op">=</span> <span class="st">"Loss"</span>, label <span class="op">=</span> <span class="st">"BFGS"</span>, color <span class="op">=</span> <span class="op">:</span>red)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-3-J2.png" class="img-fluid" width="300"></p>
+</div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a><span class="co">## Analysis of the trained network</span></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the data and the approximation</span></span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>ts <span class="op">=</span> <span class="fu">first</span>(solution.t)<span class="op">:</span>(<span class="fu">mean</span>(<span class="fu">diff</span>(solution.t)) <span class="op">/</span> <span class="fl">2</span>)<span class="op">:</span><span class="fu">last</span>(solution.t)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>0.0:0.5:20.0</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>Xhat <span class="op">=</span> <span class="fu">predict</span>(p_trained, Xn[<span class="op">:</span>, <span class="fl">1</span>], ts)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>3×41 Matrix{Float64}:
+ 1.02395      1.00815     0.992781   …  0.150512  0.141294  0.131538
+ 0.00349851   0.0181957   0.0310887     0.16279   0.156074  0.15051
+ 0.000314923  0.00141772  0.0038941     0.714463  0.730397  0.745716</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Trained on noisy data vs real solution</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>pl_trajectory <span class="op">=</span> <span class="fu">plot</span>(ts, <span class="fu">transpose</span>(Xhat), xlabel <span class="op">=</span> <span class="st">"t"</span>, </span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>                     ylabel <span class="op">=</span> <span class="st">"S(t), I(t), R(t)"</span>, color <span class="op">=</span> <span class="op">:</span>red,</span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>                     label <span class="op">=</span> [<span class="st">"UDE Approximation"</span> <span class="cn">nothing</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-3-J3.png" class="img-fluid" width="300"></p>
+</div>
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">scatter!</span>(solution.t, <span class="fu">transpose</span>(Xn), color <span class="op">=</span> <span class="op">:</span>black, label <span class="op">=</span> [<span class="st">"Measurements"</span> <span class="cn">nothing</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-3-J4.png" class="img-fluid" width="300"></p>
+</div>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Ideal unknown interactions of the predictor</span></span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Ybar = [-p_[2] * (Xhat[1, :] .* Xhat[2, :])'; p_[3] * (Xhat[1, :] .* Xhat[2, :])']</span></span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Ybar = [p_[2] .* Xhat[1,:] .* (Xhat[2,:].^p_[1])]</span></span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>Ybar <span class="op">=</span> <span class="fu">transpose</span>([p_[<span class="fl">2</span>] <span class="op">*</span> Xhat[<span class="fl">1</span>,i] <span class="op">*</span> (Xhat[<span class="fl">2</span>,i]<span class="op">.^</span>p_[<span class="fl">1</span>]) for i <span class="op">∈</span> <span class="fl">1</span><span class="op">:</span><span class="fl">41</span>, j <span class="op">∈</span> <span class="fl">1</span><span class="op">:</span><span class="fl">1</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>1×41 transpose(::Matrix{Float64}) with eltype Float64:
+ 0.00444064  0.0163516  0.024717  …  0.0140907  0.0127893  0.0115655</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Neural network guess</span></span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>Yhat <span class="op">=</span> <span class="fu">U</span>(Xhat, p_trained, st)[<span class="fl">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>1×41 Matrix{Float64}:
+ 0.032401  0.0309925  0.0306477  0.031214  …  0.0180941  0.0188726  0.02026</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>pl_reconstruction <span class="op">=</span> <span class="fu">plot</span>(ts, <span class="fu">transpose</span>(Yhat), xlabel <span class="op">=</span> <span class="st">"t"</span>, </span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>                         ylabel <span class="op">=</span> <span class="st">"U(S,I,R)"</span>, color <span class="op">=</span> <span class="op">:</span>red,</span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>                         label <span class="op">=</span> [<span class="st">"UDE Approximation"</span> <span class="cn">nothing</span>]);</span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a><span class="fu">plot!</span>(ts, <span class="fu">transpose</span>(Ybar), color <span class="op">=</span> <span class="op">:</span>black, label <span class="op">=</span> [<span class="st">"True Interaction"</span> <span class="cn">nothing</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-3-J5.png" class="img-fluid" width="300"></p>
+</div>
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the error</span></span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>pl_reconstruction_error <span class="op">=</span> <span class="fu">plot</span>(ts, <span class="fu">norm</span>.(<span class="fu">eachcol</span>(Ybar <span class="op">-</span> Yhat)), yaxis <span class="op">=</span> <span class="op">:</span>log, xlabel <span class="op">=</span> <span class="st">"t"</span>,</span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>                               ylabel <span class="op">=</span> <span class="st">"L2-Error"</span>, label <span class="op">=</span> <span class="cn">nothing</span>, color <span class="op">=</span> <span class="op">:</span>red);</span>
+<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>pl_missing <span class="op">=</span> <span class="fu">plot</span>(pl_reconstruction, pl_reconstruction_error, layout <span class="op">=</span> (<span class="fl">2</span>, <span class="fl">1</span>));</span>
+<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a>pl_overall <span class="op">=</span> <span class="fu">plot</span>(pl_trajectory, pl_missing)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-3-J6.png" class="img-fluid" width="300"></p>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

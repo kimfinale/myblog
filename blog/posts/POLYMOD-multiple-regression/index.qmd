@@ -1,0 +1,146 @@
+---
+title: "Mulitple regression: POLYMOD data"
+author: "Jong-Hoon Kim"
+date: "2023-10-12"
+categories: [R, regression, contact]
+image: "polymod-age-contact.jpg"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+This post describes my attempt to reproduce Table 1 of the paper, [Social Contacts and Mixing Patterns Relevant to the Spread of Infectious Diseases](https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.0050074). Data were downloaded from [Social Contact Data](http://www.socialcontactdata.org/), which was hosted in [zenodo](https://zenodo.org/record/3746312#.Xo85CcgzZPY). I used the version 1.1. While I wasn't successful at reproducing the table exatly but still wanted to document the processes that I went through. Potential reasons include: a) results of numerical computations vary depending on the system and the software and b) datasets that were analyzed might be slightly different because of the missing values.
+
+### Data preparation
+
+```{r}
+library(data.table)
+d1 <- fread("2008_Mossong_POLYMOD_participant_common.csv")
+d2 <- fread("2008_Mossong_POLYMOD_contact_common.csv")
+library(dplyr)
+# count the number of contacts for each participant using part_id variable
+d2 |> group_by(part_id) |>
+  summarize(contacts = n()) -> d2_contacts
+d12 <- left_join(d1, d2_contacts, by="part_id")
+# add household information
+d3 <- fread("2008_Mossong_POLYMOD_hh_common.csv")
+d123 <- left_join(d12, d3, by="hh_id")
+# add day of week information
+d4 <- fread("2008_Mossong_POLYMOD_sday.csv")
+dat <- left_join(d123, d4, by="part_id")
+```
+
+### Data manipulation
+
+Categorize the age group into different 10 age groups: 0-4, 5-9, 10-14, 15-19, and 20 to 70 by 10 years and 70 and above
+
+```{r}
+classify_age <- function(d){
+  d$age_grp <- 99
+  for (i in 1:nrow(d)) {
+    if(!is.na(d$part_age[i])){
+      if(d$part_age[i] < 5){
+        d$age_grp[i] <- 0
+      }
+      else if (d$part_age[i] >= 5 && d$part_age[i] < 20){
+        for(j in 1:3){
+          if(d$part_age[i] >= 5*j && d$part_age[i] < (5*j+5)){
+            d$age_grp[i] <- j
+          }
+        }
+      }
+      else if (d$part_age[i] >= 20 && d$part_age[i] < 70){
+        for (k in 1:5){
+          if (d$part_age[i] >= (10+10*k) && d$part_age[i] < (20+10*k)){
+            d$age_grp[i] <- k+3
+          }
+        }
+      } 
+      else {
+        d$age_grp[i] <- 9
+      }
+    } 
+  }
+  d
+}
+
+dat <- classify_age(dat)
+```
+
+Visualize the distribution of the number of contacts
+
+```{r}
+library(ggplot2)
+dat |> ggplot(aes(x=contacts)) + 
+  geom_histogram(binwidth=5)
+```
+
+Compare the number of participants by age group (the third column)
+
+```{r}
+dat |> 
+  group_by(age_grp) |> 
+  summarize(npart=n(),
+            avg_contacts = round(sum(contacts, na.rm=T) / npart, digits=2)) -> dat_ag
+
+dat_ag$npart_true <- c(660,661,713,685,879,815,908,906,728,270,65)
+dat_ag$avg_contacts_true <- c(10.21,14.81, 18.22,17.58,13.57,14.14,13.83,12.30,9.21,6.89,9.63)
+dat_ag
+```
+
+Categorize the household size
+
+```{r}
+classify_hh <- function(d){
+  d$hh_size_grp <- ifelse(d$hh_size > 4, 5, ifelse(!is.na(d$hh_size), d$hh_size, 99))
+  d
+}
+dat <- classify_hh(dat)
+# data.table::fwrite(dat, "data/POLYMOD_2017.csv")
+```
+
+Make categorical variables factor for regression
+
+```{r}
+# dat <- data.table::fread("data/POLYMOD_2017.csv")
+# set the categorical variables as factor for regression
+dat$age_grp <- as.factor(dat$age_grp)
+dat$hh_size_grp <- as.factor(dat$hh_size_grp)
+dat$gender <- ifelse(dat$part_gender=="M", 0, ifelse(dat$part_gender=="F", 1, 99))
+dat$gender <- as.factor(dat$gender)
+dat$dayofweek <- as.factor(dat$dayofweek)
+# dat <- dat[complete.cases(dat),]
+# data.table::fwrite(dat, "data/POLYMOD_2017_gender_modified.csv")
+
+```
+
+### Linear regression
+
+While I will eventually use the negative binomial regresssion, I tried linear regression with which my colleague who uses Stata is familiar.
+
+```{r}
+library(MASS)
+# to remove missing values
+dat <- dat[complete.cases(dat),]
+
+m <- lm(contacts ~ age_grp + gender + hh_size_grp + country + dayofweek, data = dat)
+summary(m)
+```
+
+### NegBin regression
+
+Negative binomial regression was modeled using `MASS::glm.nb` function
+
+```{r}
+library(MASS)
+m1 <- glm.nb(contacts ~ age_grp, data = dat)
+summary(m1)
+exp(m1$coefficients)
+
+m5 <- glm.nb(contacts ~ age_grp + gender + hh_size_grp + country + dayofweek, data = dat)
+summary(m5)
+exp(m5$coefficients)
+```

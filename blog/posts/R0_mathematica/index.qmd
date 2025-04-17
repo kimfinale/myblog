@@ -1,0 +1,146 @@
+---
+title: "Basic reproduction number: An algorithmic approach"
+author: "Jong-Hoon Kim"
+date: "2024-06-02"
+categories: [Basic reproduction number, Mathematica, algorithmic approach, next generation matrix]
+image: "intro-spikey.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE) 
+```
+
+A [recent article](https://www.mdpi.com/2227-7390/12/1/27) published in Mathematics discusses an approach to calculating $\mathcal{R}_0$. Since I have previously written a [post](https://www.jonghoonk.com/posts/R0-sympy/) about calculating $\mathcal{R}_0$ using Sympy, I wanted to explore a new approach proposed by the article.
+
+The article claims that $\mathcal{R}_0$ is a not function of the original set of ordinary differential equations (ODEs) because $(F, V)$ gradient decomposition may not be unique for a given set of ODEs. As a reminder, [Diekmann *et al.*](https://link.springer.com/article/10.1007/BF00178324) showed that $\mathcal{R}_0$ is the spectral radius, or Perron–Frobenius eigenvalue, of the next generation operator.
+
+```{=tex}
+\begin{align}
+\mathrm{d}S/\mathrm{d}t &= -\beta I S/N \\
+\mathrm{d}I/\mathrm{d}t &= \beta I S/N - \gamma I\\
+\mathrm{d}R/\mathrm{d}t &= \gamma I
+\end{align}
+```
+Following Python and Mathematica codes generate that $$\mathcal{R}_0 = \frac{\beta}{\gamma}.$$ if $\beta$ and $\gamma$ are replaced with $b$ and $g$, respectively.
+
+```{python}
+from sympy import *
+b, k, g, = symbols('b k g')
+F = Matrix([[0, b],[0, 0]])
+V = Matrix([[k, 0], [-k, g]])
+M = F*(V**-1)
+eigval = M.eigenvals(simplify=true)
+init_printing(use_unicode=True)
+lst = list(eigval.keys())
+lst[1]
+```
+
+Mathematica uses the following next generation method (NGM) function provided in the article.
+
+```{r, eval=FALSE}
+NGM[mod_, inf_] := 
+ Module[{dyn, X, infc, M, V, F, F1, V1, K}, dyn = mod[[1]]; 
+  X = mod[[2]]; infc = Complement[Range[Length[X]], inf]; 
+  M = Grad[dyn[[inf]], X[[inf]]]
+  (*The jacobian of the infectious equations*); 
+  V1 = -M /. Thread[X[[infc]] -> 0]
+  (*V1 is a first guess for V,
+  retains all gradient terms which disappear when the non infectious \
+components are null*); F1 = M + V1
+  (*F1 is a first guess for F,containing all other gradient terms*); 
+  F = Replace[F1, _. _?Negative -> 0, {2}];
+  (*all terms in F1 containing minuses are set to 0*); V = F - M;
+  K = (F . Inverse[V]) /. Thread[X[[inf]] -> 0] // FullSimplify;
+  {M, V1, F1, F, V, K}]
+
+eqnsSEIR = {
+  -b s i ,
+  b s i - k e,
+  k e - g i, 
+  g i }
+
+varsSEIR = {s, e, i, r}
+modSEIR = {eqnsSEIR, varsSEIR}
+NGM[modSEIR, {2, 3}] /. s -> 1
+```
+
+As in the [previous post](https://www.jonghoonk.com/posts/R0-sympy/), I applied the method to the model used in [Pitzer *et al*.](https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0002642), of which the model may be expressed in the following set of equations.
+
+```{=tex}
+\begin{align} 
+\mathrm{d}S_1/\mathrm{d}t &= B + \epsilon S_2 - (\lambda_p+\lambda_w+\mu)S_1\\
+\mathrm{d}I_1/\mathrm{d}t &= (\lambda_p+\lambda_w)S_1 - (\delta+\mu) I_1 \\
+\mathrm{d}R/\mathrm{d}t &= \delta(1-\theta-\alpha)(I_1+I_2) - (\omega +\mu)R \\
+\mathrm{d}C/\mathrm{d}t &= \delta\theta(I_1+I_2) - \mu C \\
+\mathrm{d}S_2/\mathrm{d}t &= \omega R -\epsilon S_2 - (\lambda_p+\lambda_w+\mu) S_2\\
+\mathrm{d}I_2/\mathrm{d}t &= (\lambda_p+\lambda_w) S_2 - (\delta+\mu) I_2 \\
+\mathrm{d}W/\mathrm{d}t &= \gamma(I_1+rI_2+rC) - \xi W
+\end{align}
+```
+Following Python and Mathematica codes generates that
+
+```{=tex}
+\begin{align}
+\mathcal{R}_0 = \frac{1}{\mu+\delta} \left(\beta_p +\frac{\gamma \beta_w}{\xi}\right) \left(1 +\frac{\delta\theta r}{\mu}\right)
+\end{align}
+```
+In the following Python codes $p, r, w, d, m, t, g, x$ represent $\beta_p, r, \beta_w, \delta, \mu, \theta, \gamma, \xi$ in the equation.
+
+```{python, eval=FALSE}
+p, r, w, d, m, t, g, x = symbols('p r w d m t g x')
+F = Matrix([[p, r*p, r*p, w], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+V = Matrix([[d+m, 0, 0, 0], [0, d+m, 0, 0], [-d*t, -d*t, m, 0], [-g, -r*g, -r*g, x]])
+M = F*(V**-1)
+eigval = M.eigenvals(simplify=true)
+init_printing(use_unicode=True)
+eigval 
+lst = list(eigval.keys())
+R0_eig = lst[1]
+R0 = (1/(d+m))*(p+g*w/x)*(1+(d*t*r)/m) # R0 from the Pitzer (2014)
+simplify(R0-R0_eig) # 0 for the same expression (symbolic assessment)
+R0.equals(R0_eig) # True for the same expression (numerical assessment)
+```
+
+```{r, eval=FALSE}
+eqnsSIRW = {
+  B + \[Epsilon] Subscript[s, 
+    2] - (Subscript[\[Beta], 
+       P] (Subscript[i, 1] + r Subscript[i, 2] + r c) + 
+      Subscript[\[Beta], W] w + \[Mu]) Subscript[s, 1],
+  \[Omega] R - \[Epsilon] Subscript[s, 
+    2] - (Subscript[\[Beta], 
+       P] (Subscript[i, 1] + r Subscript[i, 2] + r c) + 
+      Subscript[\[Beta], W]  w + \[Mu]) Subscript[s, 2],
+  (Subscript[\[Beta], P] (Subscript[i, 1] + r Subscript[i, 2] + r c) +
+       Subscript[\[Beta], W]  w) Subscript[s, 
+    1] \[Minus] (\[Delta] + \[Mu]) Subscript[i, 1],
+  (Subscript[\[Beta], P] (Subscript[i, 1] + r Subscript[i, 2] + r c) +
+       Subscript[\[Beta], W]  w) Subscript[s, 
+    2] - (\[Delta] + \[Mu]) Subscript[i, 2],
+  \[Delta] \[Theta] (Subscript[i, 1] + Subscript[i, 2]) - \[Mu] c,
+  \[Gamma] (Subscript[i, 1] + r Subscript[i, 2] + r c) - \[Xi] w,
+  \[Delta] (1 - \[Theta]) (Subscript[i, 1] + Subscript[i, 
+      2]) - (\[Omega] + \[Mu]) R}
+
+varsSIRW = {Subscript[s, 1], Subscript[s, 2], Subscript[i, 1], 
+  Subscript[i, 2], c, w, R }
+  
+modSIRW = {eqnsSIRW, varsSIRW}
+NGM[modSIRW, Range[3, 6]]
+```
+
+Again, manually defining $F,V$ as follows leads to the same answer
+
+```{r, eval=FALSE}
+F = {{Subscript[\[Beta], P], r Subscript[\[Beta], P], 
+   r Subscript[\[Beta], P], Subscript[\[Beta], W] }, {0, 0, 0, 0}, {0,
+    0, 0, 0}, {0, 0, 0, 0}}
+V = {{\[Delta] + \[Mu], 0, 0, 0}, {0, \[Delta] + \[Mu], 0, 
+   0}, {-\[Delta] \[Theta], -\[Delta] \[Theta], \[Mu], 
+   0}, {-\[Gamma], -r \[Gamma], -r \[Gamma], \[Xi]}}
+Eigenvalues[Dot[F, Inverse[V]]] // FullSimplify
+```
+
+$$\mathcal{R}_0 = \frac{(\mu +\delta  \theta  r) \left(\xi  \beta_P+\gamma  \beta_W \right)}{\mu  \xi  (\delta +\mu )}.$$

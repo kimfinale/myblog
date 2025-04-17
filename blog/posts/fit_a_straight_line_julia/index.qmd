@@ -1,0 +1,79 @@
+---
+title: "Fitting a straight line in Julia: Flux machine learning"
+author: "Jong-Hoon Kim"
+date: "2024-01-04"
+categories: [julia, Flux, linear model]
+image: "flux_logo.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+### Fitting a straight line in Julia
+
+This post is my attempt to learn machine learning in Julia. The contents of this page came from the [Flux](https://fluxml.ai/Flux.jl/stable/models/overview/). `Flux` is a machine learning package written in Julia.
+
+### Create training and test data
+
+```{julia}
+using Flux, Distributions, Random, Statistics
+# create the data
+# true parameter values are 4 and 2
+linear_model(x) = rand(Normal(4x+2,1))[1]
+
+x_train, x_test = hcat(0:5...), hcat(6:10...)
+y_train, y_test = linear_model.(x_train), linear_model.(x_test)
+```
+
+### Create a neural network model with a single layer
+
+```{julia}
+# y = σ.(W * x .+ bias) 
+model = Flux.Dense(1 => 1) # 2 parameters
+# prediction based on the untrained baseline model 
+model(x_train)
+
+# define the loss function to use it for training
+loss(m, x, y) = mean(abs2.(m(x) .- y))
+loss(model, x_train, y_train)
+```
+
+### Train the model
+
+`Flux` package has the `Flux.train!` function for model training. The function requires an optimizer, which can be, for example, created using `Descent` function.
+
+```{julia}
+using Flux: train!
+
+opt = Descent() # gradient descent algorithm 
+Descent(0.1)
+
+data = [(x_train, y_train)]
+
+train!(loss, model, data, opt)
+loss(model, x_train, y_train)
+
+# check model parameters after going through the data once
+model.weight, model.bias
+
+# iteratively train the model
+for epoch in 1:200
+    train!(loss, model, data, opt)
+end
+```
+
+### Examine the trained model
+
+```{julia}
+# check the loss
+loss(model, x_train, y_train)
+# check the model parameters
+model.weight, model.bias
+# check the model against the test data set
+model(x_test)
+y_test
+```
+

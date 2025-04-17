@@ -1,0 +1,46 @@
+---
+title: "SIR model using SymPy"
+author: "Jong-Hoon Kim"
+date: "2023-10-16"
+categories: [SIR, SymPy]
+image: "SimPy_logo.svg.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE) 
+```
+
+I attempted to replicate some of the simple analytical results presented in the book, Mathematical Epidemiology by Brauer *et al*.
+
+$$
+\begin{align}
+\mathrm{d}S/\mathrm{d}t &= -\beta I S \\
+\mathrm{d}I/\mathrm{d}t &= \beta I S - \gamma I\\
+\end{align}
+$$ The first part is simply to compute $dI/dS$.
+
+```{python}
+from sympy import *
+
+R_0, b, g, dIdt, dSdt, S, I = symbols('R_0 b g dIdt dSdt S I')
+
+dSdt = - b*S*I
+dIdt = + b*S*I - g*I
+dSdI = dIdt / dSdt #-(I*S*b - I*g)/(I*S*b)
+
+# b <- R0*g
+simplify(-(I*S*R_0*g - I*g)/(I*S*R_0*g)) 
+```
+
+The second part is integrate the equation, $\text{d}I/\text{d}S$
+
+```{python}
+S, I = symbols("S I", cls=Function)
+b, g, t, R_0, S0, I0 = symbols("b g t R_0 S0 I0")
+
+eq = Eq(I(t).diff(t), - S(t).diff(t) + (1/R_0)*(1/S(t))*S(t).diff(t))
+
+integrate(eq, t)
+```

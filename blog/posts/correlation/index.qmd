@@ -1,0 +1,133 @@
+---
+title: "Understanding correlation, covariation, and least squares regression"
+author: "Jong-Hoon Kim"
+date: "2025-01-30"
+format:
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 3
+    number-sections: false
+    highlight-style: github
+    fig-width: 8
+    fig-height: 6
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Introduction
+
+Understanding relationships between variables is a fundamental aspect of statistical analysis. Three key concepts in this domain are **correlation**, **covariation**, and **least squares regression**. In this post, we will explore how these concepts interrelate and use **R** for demonstration.
+
+## Covariance
+
+Covariance measures how two variables move together. The covariance between two variables $X$ and $Y$ is given by:
+
+$$
+\text{Cov}(X, Y) = \frac{1}{n} \sum_{i=1}^{n} (X_i - \bar{X})(Y_i - \bar{Y})
+$$
+
+where:
+- $X_i, Y_i$ are individual observations,
+- $\bar{X}, \bar{Y}$ are the means of $X$ and $Y$.
+
+A positive covariance indicates that as $X$ increases, $Y$ tends to increase. A negative covariance suggests an inverse relationship.
+
+### R code example
+
+```r
+# Generate sample data
+set.seed(123)
+x <- rnorm(100, mean = 50, sd = 10)
+y <- 2 * x + rnorm(100, mean = 0, sd = 5)
+
+# Compute covariance
+cov_xy <- cov(x, y)
+print(cov_xy)
+```
+
+## Correlation
+
+Correlation standardizes covariance by dividing it by the product of standard deviations of $X$ and $Y$. The Pearson correlation coefficient is given by:
+
+$$
+\rho_{X,Y} = \frac{1}{n} \sum_{i=1}^{n} \left(\frac{X_i - \bar{X}}{s_X}\right) \left(\frac{Y_i - \bar{Y}}{s_Y}\right) = \frac{\text{Cov}(X, Y)}{s_X s_Y}
+$$
+where $s_X$ and $s_Y$ are standard deviations of $X$ and $Y$. The correlation coefficient ranges from -1 to 1:
+- **+1**: Perfect positive correlation
+- **-1**: Perfect negative correlation
+- **0**: No linear relationship
+
+### R Code Example
+
+```r
+# Compute correlation
+cor_xy <- cor(x, y)
+print(cor_xy)
+```
+
+## Least squares regression
+
+Least squares regression models the relationship between $X$ and $Y$ by fitting a line that minimizes the sum of squared residuals:
+
+$$
+Y = \beta_0 + \beta_1 X + \epsilon
+$$
+
+where:
+- $\beta_0$ (intercept) and $\beta_1$ (slope) are estimated using:
+
+The equation for the $\beta_1$ can be derived by minimizing the error sum of squares (SSE)
+$$
+SSE = \sum_{i=1}^{n} (Y_i - (\beta_0 + \beta_1 X_i))^2
+$$
+, which in turn can be solved using the following equation.
+$$
+\frac{\partial}{\partial \beta_1} \sum_{i=1}^{n} (Y_i - \beta_0 - \beta_1 X_i)^2 = 0
+$$
+
+$$
+\beta_1 = \frac{\text{Cov}(X, Y)}{\text{Var}(X)}
+$$
+
+The intuition behind this formula is as follows. Covariance $\text{Cov}(X,Y)$ measures how $X$ and $Y$ vary together. Variance $\text{Var}(X)$ measures how spread out $X$ is.  
+The ratio $\frac{\text{Cov}(X,Y)}{\text{Var}(X)}$ tells us the change in $Y$ for a one-unit change in 
+$X$. This makes sense because we are essentially scaling the covariance by the variability of $X$--ensuring that our slope correctly reflects how much $Y$ changes per unit of 
+$X$.
+
+$$
+\beta_0 = \bar{Y} - \beta_1 \bar{X}
+$$
+
+- $\epsilon$ represents the residual error.
+
+### R code Example
+
+```r
+# Fit a linear model
+model <- lm(y ~ x)
+summary(model)
+
+# Plot regression
+plot(x, y, main = "Least Squares Regression", xlab = "X", ylab = "Y", pch = 19)
+abline(model, col = "red", lwd = 2)
+```
+
+## Relationship between concepts
+
+1. **Covariation quantifies the direction and strength of a linear relationship** but does not standardize it.
+2. **Correlation standardizes covariance** to provide a measure that is independent of the units of $X$ and $Y$.
+3. **Least squares regression uses covariance to estimate the slope ($\beta_1$)** and define the best-fit line.
+
+### Summary Table
+| Concept       | Definition & Formula      | Interpretation |
+|---------------|---------------------------|----------------|
+| Covariation   | $\text{Cov}(X, Y) = \frac{1}{n} \sum (X_i - \bar{X})(Y_i - \bar{Y})$ | Measures the direction of relationship but not the scale. |
+| Correlation   | $\rho_{X,Y} = \frac{\text{Cov}(X, Y)}{s_X s_Y}$ | Standardized measure of association between -1 and 1. |
+| Regression    | $Y = \beta_0 + \beta_1 X + \epsilon$ | Uses covariance to estimate $\beta_1$ and predict $Y$. |
+
+## Conclusion
+
+Understanding **covariance, correlation, and regression** allows for deeper insights into data relationships. Covariance provides directionality, correlation offers a unit-free measure of strength, and regression predicts outcomes. By applying these techniques in **R**, we can uncover meaningful patterns in data!

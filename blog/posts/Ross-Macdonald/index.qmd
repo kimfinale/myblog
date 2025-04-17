@@ -1,0 +1,277 @@
+---
+title: "The Ross-Macdonald Framework: Foundational Mathematical Models in Vector-Borne Disease Epidemiology"
+author: "Jong-Hoon Kim"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(deSolve)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+## Introduction
+
+The mathematical modeling of infectious diseases has become an indispensable tool in modern epidemiology, guiding intervention strategies and policy decisions. While contemporary models exhibit increasing complexity, many fundamental principles trace back to the pioneering work of Sir Ronald Ross, who established the theoretical foundation for understanding vector-borne disease transmission dynamics at the turn of the 20th century.
+
+This article examines Ross's seminal contributions to mathematical epidemiology, the subsequent refinements by George Macdonald, and how these models continue to influence contemporary approaches to vector-borne disease control. We will focus on the mathematical formulations that undergird the Ross-Macdonald framework and their implications for disease control thresholds.
+
+## Ross's Initial Mathematical Framework
+
+After establishing the mosquito-malaria parasite life cycle, for which he received the Nobel Prize in Medicine in 1902, Ronald Ross turned his attention to developing mathematical models to guide control strategies. His first models, published in 1908 in "Report on the Prevention of Malaria in Mauritius" [@ross1908report] and expanded in his 1911 book "The Prevention of Malaria" [@ross1911prevention], represented a paradigm shift in epidemiological thinking.
+
+Ross later formalized these mathematical principles in his landmark papers "Some a priori pathometric equations" [@ross1915some] and "An application of the theory of probabilities to the study of a priori pathometry" [@ross1916application], which laid the groundwork for the entire field of mathematical epidemiology.
+
+Ross's initial model was remarkably straightforward yet profound. If we denote the proportion of infected humans as $p$ and the proportion of infected mosquitoes as $P$, his first model can be expressed as:
+
+$$\frac{dp}{dt} = abmP(1-p) - rp$$
+$$\frac{dP}{dt} = acp(1-P) - \mu P$$
+
+Where:
+- $a$ represents the mosquito biting rate
+- $b$ is the probability of parasite transmission from mosquito to human per bite
+- $c$ is the probability of parasite transmission from human to mosquito per bite
+- $m$ is the mosquito density per human
+- $r$ is the human recovery rate
+- $\mu$ is the mosquito mortality rate
+
+## The Basic Reproduction Number
+
+Ross's most significant contribution was demonstrating that malaria transmission could be interrupted without eliminating the entire vector population [@smith2007revisiting]. This led to the concept of a critical threshold, later formalized as the basic reproduction number $R_0$.
+
+For Ross's model, $R_0$ can be derived as:
+
+$$R_0 = \frac{a^2bcm}{\mu r}$$
+
+This quantity represents the expected number of secondary infections arising from a single infected individual in a completely susceptible population. When $R_0 < 1$, the disease will eventually die out; when $R_0 > 1$, the disease can persist in the population [@smith2012ross].
+
+```{r r0-calculation, echo=TRUE}
+# Function to calculate R0 from model parameters
+calculate_R0 <- function(a, b, c, m, mu, r) {
+  R0 <- (a^2 * b * c * m) / (mu * r)
+  return(R0)
+}
+
+# Example parameter values
+a <- 0.3    # Biting rate (bites per day)
+b <- 0.5    # Transmission probability: mosquito to human
+c <- 0.5    # Transmission probability: human to mosquito
+m <- 10     # Mosquito density per human
+mu <- 0.1   # Mosquito mortality rate
+r <- 0.01   # Human recovery rate
+
+R0 <- calculate_R0(a, b, c, m, mu, r)
+cat("With these parameters, R0 =", round(R0, 2))
+```
+
+## The Macdonald Refinements
+
+George Macdonald expanded Ross's work in the 1950s, incorporating additional biological complexity [@macdonald1952analysis]. His key modifications included:
+
+1. Accounting for the latent period in the mosquito ($n$ days), during which the parasite develops
+2. Recognition of mosquito survival as exponential, with daily survival probability $p$
+
+Macdonald's version of the reproduction number became:
+
+$$R_0 = \frac{ma^2bcp^n}{-r\ln(p)}$$
+
+Where $-\ln(p)$ replaces $\mu$ as the mosquito mortality rate.
+
+A crucial insight from Macdonald was that malaria transmission is particularly sensitive to adult mosquito longevity, as expressed by the exponent $n$ in the equation. This led to the strategic emphasis on adult mosquito control using residual insecticides [@garrett1964malaria].
+
+```{r macdonald-r0, echo=TRUE}
+# Macdonald's R0 calculation
+calculate_macdonald_R0 <- function(m, a, b, c, p, n, r) {
+  R0 <- (m * a^2 * b * c * p^n) / (-r * log(p))
+  return(R0)
+}
+
+# Example parameter values
+m <- 10     # Mosquito density per human
+a <- 0.3    # Biting rate (bites per day)
+b <- 0.5    # Transmission probability: mosquito to human
+c <- 0.5    # Transmission probability: human to mosquito
+p <- 0.9    # Daily mosquito survival probability
+n <- 10     # Extrinsic incubation period (days)
+r <- 0.01   # Human recovery rate
+
+macdonald_R0 <- calculate_macdonald_R0(m, a, b, c, p, n, r)
+cat("With Macdonald's formulation, R0 =", round(macdonald_R0, 2))
+```
+
+## Equilibrium Analysis and Threshold Conditions
+
+Ross's mathematical analysis demonstrated that the system has two equilibrium points [@bailey1982biomathematics]:
+
+1. Disease-free equilibrium: $(p, P) = (0, 0)$
+2. Endemic equilibrium: $(p, P) = (p^*, P^*)$ where:
+
+$$p^* = \frac{abmP^* - rp^*}{abmP^*}$$
+$$P^* = \frac{acp^* - \mu P^*}{acp^*}$$
+
+The stability of these equilibria depends on the value of $R_0$. When $R_0 < 1$, the disease-free equilibrium is stable and the endemic equilibrium doesn't exist. When $R_0 > 1$, the disease-free equilibrium is unstable and the endemic equilibrium is stable [@dietz1993malaria].
+
+```{r ross-model-simulation, echo=TRUE}
+# Simple SIS model with vector-host interaction
+ross_model <- function(time, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    dp_dt <- a * b * m * P * (1 - p) - r * p
+    dP_dt <- a * c * p * (1 - P) - mu * P
+    
+    return(list(c(dp_dt, dP_dt)))
+  })
+}
+
+# Parameter values
+params <- c(
+  a = 0.3,    # Biting rate
+  b = 0.5,    # Transmission probability: mosquito to human
+  c = 0.5,    # Transmission probability: human to mosquito
+  m = 10,     # Mosquito density per human
+  r = 0.01,   # Human recovery rate
+  mu = 0.1    # Mosquito mortality rate
+)
+
+# Initial conditions
+init_state <- c(p = 0.01, P = 0.005)
+
+# Time points
+times <- seq(0, 365, by = 1)
+
+# Solve the model
+solution <- ode(y = init_state, times = times, func = ross_model, parms = params)
+
+# Convert to data frame
+results <- as.data.frame(solution)
+results_long <- pivot_longer(results, cols = c(p, P), 
+                           names_to = "Compartment", 
+                           values_to = "Proportion")
+
+# Plot
+ggplot(results_long, aes(x = time, y = Proportion, color = Compartment)) +
+  geom_line(size = 1) +
+  scale_color_manual(values = c("p" = "darkred", "P" = "darkblue"),
+                    labels = c("p" = "Infected Humans", "P" = "Infected Mosquitoes")) +
+  labs(title = "Ross Model Dynamics",
+       x = "Time (days)",
+       y = "Proportion Infected") +
+  theme_minimal()
+```
+
+## Vector Control Implications
+
+The Ross-Macdonald framework provides clear guidance on vector control strategies. From the expression for $R_0$, we can derive critical thresholds for various control parameters [@smith2014recasting]. For example, the critical mosquito density $m_c$ below which transmission cannot be sustained is:
+
+$$m_c = \frac{\mu r}{a^2bc}$$
+
+Similarly, the required efficacy of insecticides to achieve control can be calculated. If we denote the proportional reduction in mosquito density as $\Delta m$, then for disease elimination:
+
+$$\Delta m > 1 - \frac{1}{R_0}$$
+
+This concept is directly related to the herd immunity threshold in direct transmission diseases [@fine1981herd].
+
+```{r control-thresholds, echo=TRUE}
+# Calculate critical mosquito density
+calculate_critical_m <- function(a, b, c, mu, r) {
+  m_c <- (mu * r) / (a^2 * b * c)
+  return(m_c)
+}
+
+m_c <- calculate_critical_m(a, b, c, mu, r)
+cat("Critical mosquito density (m_c) =", round(m_c, 2), "mosquitoes per human\n")
+
+# Calculate required control effectiveness
+required_control <- 1 - (1/R0)
+cat("Required proportional reduction in mosquito density =", round(required_control, 4) * 100, "%")
+```
+
+## Sensitivity Analysis
+
+A key insight from the Ross-Macdonald framework is the differential sensitivity of $R_0$ to various parameters. This can be formally analyzed through partial derivatives or elasticity analysis [@brady2016vectorial].
+
+For example, the elasticity of $R_0$ with respect to parameter $\theta$ is:
+
+$$E_{\theta} = \frac{\theta}{R_0} \frac{\partial R_0}{\partial \theta}$$
+
+For the mosquito mortality rate $\mu$, this becomes:
+
+$$E_{\mu} = -1$$
+
+This indicates that a 1% increase in mosquito mortality leads to approximately a 1% decrease in $R_0$.
+
+For the parameter $a$ (biting rate), the elasticity is:
+
+$$E_a = 2$$
+
+This reflects Macdonald's important observation that interventions targeting mosquito biting behavior have a squared effect on transmission, since $a$ appears as $a^2$ in the $R_0$ expression [@smith2012ross].
+
+```{r elasticity-analysis, echo=TRUE}
+# Function to calculate elasticity for different parameters
+calculate_elasticities <- function(a, b, c, m, mu, r) {
+  E_a <- 2                # Elasticity for biting rate
+  E_b <- 1                # Elasticity for transmission probability (mosquito to human)
+  E_c <- 1                # Elasticity for transmission probability (human to mosquito)
+  E_m <- 1                # Elasticity for mosquito density
+  E_mu <- -1              # Elasticity for mosquito mortality rate
+  E_r <- -1               # Elasticity for human recovery rate
+  
+  elasticities <- data.frame(
+    Parameter = c("Biting rate (a)", "Transmission: mosquito→human (b)", 
+                  "Transmission: human→mosquito (c)", "Mosquito density (m)",
+                  "Mosquito mortality (μ)", "Human recovery rate (r)"),
+    Elasticity = c(E_a, E_b, E_c, E_m, E_mu, E_r)
+  )
+  
+  return(elasticities)
+}
+
+elasticities <- calculate_elasticities(a, b, c, m, mu, r)
+elasticities
+```
+
+## Contemporary Extensions and Applications
+
+While the Ross-Macdonald framework remains foundational, modern approaches have extended these models in several directions [@reiner2013systematic; @mandal2011mathematical]:
+
+1. **Spatial heterogeneity**: Incorporating spatial structure and human mobility
+2. **Stochasticity**: Accounting for random events, particularly important near elimination
+3. **Vector bionomics**: More detailed entomological parameters
+4. **Immunity dynamics**: Accounting for acquired immunity in human populations
+5. **Drug resistance**: Modeling the spread of antimalarial resistance
+
+The mathematical expression for $R_0$ in these more complex models becomes correspondingly more intricate. For example, in a spatial metapopulation model with $n$ patches, $R_0$ can be expressed as the dominant eigenvalue of the next-generation matrix:
+
+$$R_0 = \rho(FV^{-1})$$
+
+Where $F$ represents new infections and $V$ represents transitions between compartments.
+
+## Practical Applications in Disease Control Programs
+
+The threshold concept derived from Ross's work remains central to modern malaria control programs [@smith2007revisiting]. The World Health Organization's Global Technical Strategy for Malaria 2016-2030 implicitly relies on these mathematical principles when setting targets for vector control coverage and intervention effectiveness.
+
+Key applications include:
+
+1. **Indoor residual spraying (IRS)**: Targeting the adult mosquito longevity parameter
+2. **Insecticide-treated nets (ITNs)**: Affecting both mosquito mortality and biting rate
+3. **Larval source management**: Reducing the mosquito density parameter $m$
+
+Mathematical models help quantify the coverage levels required for these interventions to bring $R_0$ below 1 [@brady2016vectorial].
+
+## Discussion
+
+Ross's mathematical insights have withstood the test of time remarkably well. The threshold concept, formalized as $R_0$, remains central to infectious disease epidemiology across all pathogens, not just vector-borne diseases. 
+
+Modern computational capabilities allow for increasingly complex simulations, but the core mathematical principles established by Ross [@ross1911prevention] and refined by Macdonald [@macdonald1952analysis] continue to guide our understanding of transmission dynamics. The elegance of these models lies in their ability to capture essential dynamics with relatively simple formulations.
+
+As we face challenges like climate change, insecticide resistance, and drug resistance, these mathematical frameworks are being adapted to address increasingly complex scenarios [@smith2014recasting]. Yet the threshold principle - that disease transmission can be interrupted without eliminating every vector - remains a profound insight that continues to guide public health strategies worldwide.
+
+## References

@@ -1,0 +1,146 @@
+---
+title: "Learning ChatGPT 2: Approximating a tower function using a neural net"
+author: "Jong-Hoon Kim"
+date: "2024-05-28"
+categories: [Neural network, Adam, matrix]
+image: "stepfunc_nn.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+The [blog post by Stephen Wolfram](https://writings.stephenwolfram.com/2023/02/what-is-chatgpt-doing-and-why-does-it-work/) discusses a neural network for approximating some sort of a step function. This post is my attempt to reproduce it. A [YouTube video](https://www.youtube.com/watch?v=Ijqkc7OLenI) and a [book chapter](http://neuralnetworksanddeeplearning.com/chap4.html) by Michael Nielsen beautifully explain how a neural network can approximate a tower function while explaining the [Universal Approximation Theorem](https://en.wikipedia.org/wiki/Universal_approximation_theorem).
+
+### Data
+
+```{r}
+library(torch)
+x <- seq(0, 3,by=0.01)
+y <- ifelse(x < 1, 0.3, ifelse(x < 2, 0.8, 0.4))
+# input and output are turned into a 1-column tensor  
+x <- torch_tensor(as.matrix(x, ncol=1))
+y <- torch_tensor(as.matrix(y, ncol=1))
+plot(x, y, xlab="X", type="l", ylab="Y", lty="dashed", lwd=2)
+```
+
+### Neural network
+
+One simple way to create a neural network is to use `nn_sequential` function of the `torch` package. [Rectified linear unit (ReLU)](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)) is used for an activation function.
+
+```{r}
+dim_in <- 1
+dim_out <- 1
+dim_hidden <- 32
+
+net <- nn_sequential(
+  nn_linear(dim_in, dim_hidden),
+  nn_relu(),
+  nn_linear(dim_hidden, dim_out)
+)
+```
+
+### Traing a neural network
+
+The [Adam optimizer](https://arxiv.org/abs/1412.6980), which a popular choice, is used.
+
+```{r}
+opt <- optim_adam(net$parameters)
+# opt <- optim_sgd(net$parameters, lr=0.001)
+```
+
+```{r}
+num_epochs <- 1000
+for (epoch in 1:num_epochs) {
+  y_pred <- net(x)  # forward pass
+  loss <- nnf_mse_loss(y_pred, y)  # compute loss 
+  if (epoch %% 100 == 0) { 
+    cat("Epoch: ", epoch, ", Loss: ", loss$item(), "\n")
+  }
+  # back propagation 
+  opt$zero_grad()
+  loss$backward()
+  opt$step()  # update weights
+}
+```
+
+Compare the data and the model predictions
+
+```{r}
+ypred <- net(x)
+sprintf("L2 loss: %.4f", sum((ypred-y)^2))
+
+plot(x, y, type="l", xlab="X", ylab="Y", lty="dashed", lwd=2)
+lines(x, ypred, lwd=2, col="firebrick")
+legend("topright", 
+  legend=c("data","neural net"), 
+  col=c("black","firebrick"), 
+  lty= c("dashed","solid"),
+  lwd=2, 
+  bty = "n", 
+  cex = 1.0, 
+  text.col = "black", 
+  horiz = F , 
+  inset = c(0.02,0.02))
+```
+
+### Enlarge the neural network
+
+Let's repeat an experiment using a larger network - more nodes and layers
+
+```{r}
+dim_hidden <- 64
+
+net <- nn_sequential(
+  nn_linear(dim_in, dim_hidden),
+  nn_relu(),
+  nn_linear(dim_hidden, dim_hidden),
+  nn_relu(),
+  nn_linear(dim_hidden, dim_hidden),
+  nn_relu(),
+  nn_linear(dim_hidden, dim_out)
+)
+```
+
+```{r}
+opt <- optim_adam(net$parameters)
+```
+
+```{r}
+num_epochs <- 1000
+for (epoch in 1:num_epochs) {
+  y_pred <- net(x)  # forward pass
+  loss <- nnf_mse_loss(y_pred, y)  # compute loss 
+  if (epoch %% 100 == 0) { 
+    cat("Epoch: ", epoch, ", Loss: ", loss$item(), "\n")
+  }
+  # back propagation 
+  opt$zero_grad()
+  loss$backward()
+  opt$step()  # update weights
+}
+```
+
+Compare the data and the model predictions
+
+```{r}
+ypred <- net(x)
+sprintf("L2 loss: %.4f", sum((ypred-y)^2))
+
+# png("stepfunc_nn.png")
+plot(x, y, type="l", xlab="X", ylab="Y", lty="dashed", lwd=2)
+lines(x, ypred, lwd=2, col="firebrick")
+legend("topright", 
+  legend=c("data","neural net"), 
+  col=c("black","firebrick"), 
+  lty= c("dashed","solid"),
+  lwd=2, 
+  bty = "n", 
+  cex = 1.0, 
+  text.col = "black", 
+  horiz = F , 
+  inset = c(0.02,0.02))
+# dev.off()
+```

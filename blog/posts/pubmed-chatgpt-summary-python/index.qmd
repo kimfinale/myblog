@@ -1,0 +1,58 @@
+---
+title: "PubMed search, ChatGPT summary, and sending an email in Python"
+author: "Jong-Hoon Kim"
+date: "2023-09-01"
+categories: [ChatGPT, R, xml, httr]
+image: "chatgpt.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE)
+```
+
+```{python eval=FALSE, include=FALSE}
+from Bio import Entrez
+
+def search_pubmed(keyword, max_results=100):
+    # Set your email address. This is required by NCBI to track usage.
+    # Make sure to use a valid email address.
+    Entrez.email = "your_email@example.com"
+
+    # Search PubMed using the keyword
+    handle = Entrez.esearch(db="pubmed", term=keyword, retmax=max_results)
+    record = Entrez.read(handle)
+    handle.close()
+
+    idlist = record["IdList"]
+
+    # Fetch the details of these records
+    handle = Entrez.efetch(db="pubmed", id=idlist, rettype="medline", retmode="xml")
+    records = Entrez.read(handle)
+    handle.close()
+
+    results = []
+    for rec in records['PubmedArticle']:
+        pmid = rec['MedlineCitation']['PMID']
+        abstract = rec['MedlineCitation']['Article'].get('Abstract', {}).get('AbstractText', [''])[0]
+        doi = next((i['Value'] for i in rec['MedlineCitation']['Article']['ELocationID'] if i.attributes['EIdType'] == 'doi'), None)
+        results.append({
+            'PMID': pmid,
+            'DOI': doi,
+            'Abstract': abstract
+        })
+
+    return results
+
+if __name__ == "__main__":
+    # keyword = input("Enter a keyword for PubMed search: ")
+    # results = search_pubmed(keyword)
+    # 
+    # for res in results:
+    #     print(f"PMID: {res['PMID']}")
+    #     print(f"DOI: {res['DOI']}")
+    #     print(f"Abstract: {res['Abstract']}")
+    #     print("---------------------------------------------------")
+
+```

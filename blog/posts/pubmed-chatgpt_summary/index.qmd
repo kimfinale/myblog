@@ -1,0 +1,195 @@
+---
+title: "PubMed search, ChatGPT summary, and sending an email in R"
+author: "Jong-Hoon Kim"
+date: "2023-09-01"
+categories: [ChatGPT, R, xml, httr]
+image: "chatgpt.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE)
+```
+
+```{r eval=FALSE, echo=FALSE}
+library(blastula)
+
+email_creds <- creds(user = "kimfinale", 
+                     provider = "gmail", 
+                     host = "smtp.gmail.com",
+                     port = 587, use_ssl = TRUE)
+
+
+create_smtp_creds_key(
+  id = "gmail_creds_20240531",
+  user = "kimfinale@gmail.com",
+  provider = "gmail",
+  overwrite = TRUE,
+  use_ssl = TRUE
+)
+
+
+create_smtp_creds_file(
+  file = "gmail_creds_20240531",
+  user = "kimfinale@gmail.com",
+  provider = "gmail",
+  host = "smtp.gmail.com",
+  use_ssl = TRUE
+)
+
+create_smtp_creds_key(
+  id = "outlook",
+  user = "jonghoon.kim@ivi.int",
+  provider = "office365",
+  host = "smtp.office365.com",
+  use_ssl = TRUE,
+  overwrite = TRUE)
+
+saveRDS(gmail_appkey, "gmail_app_key.rds")
+
+view_credential_keys()
+```
+
+1.  Search the PubMed database Use the entrez_search function from the rentrez package to search the PubMed database
+
+```{r, eval=FALSE}
+library(rentrez)
+
+date_start <- gsub("-", "/", Sys.Date()-2)
+date_end <- gsub("-", "/", Sys.Date()-1)
+search_query <- paste0("(typhoid OR cholera) AND ", date_start,":", date_end, "[dp]") # the search query
+search_results <- entrez_search(db="pubmed", term=search_query) # any other useful parameters?
+```
+
+2.  Fetch the details of the article in xml format
+
+```{r, eval=FALSE}
+# Retrieve the details of the data in xml format based on pubmed ids
+article_details <- entrez_fetch(db="pubmed", id=search_results$ids, rettype="xml")
+```
+
+3.  Parse the XML using the xml2 package
+
+```{r, eval=FALSE}
+library(xml2)
+# Parse the XML data
+doc <- read_xml(article_details)
+# Extract the titles and abstracts
+titles <- xml_text(xml_find_all(doc, "//ArticleTitle"))
+# abstracts <- xml_text(xml_find_all(doc, "//AbstractText"))
+abstracts <- xml_text(xml_find_all(doc, "//Abstract"))
+dois <- xml_text(xml_find_all(doc, ".//PubmedData/ArticleIdList/ArticleId[@IdType='doi']")) # to get the doi's
+```
+
+4.  Call ChatGPT to summarize the abstract in 1-2 sentences This is a subscription-based service. You must have a ChatGPT API key and must have signed up for their paid service.
+
+```{r, eval=FALSE}
+# gpt-4o
+prompt_chatgpt <- function(prompt, api_key=NULL, model="gpt-4o", temperature=0.8){
+  model <- grep(model, c("gpt-3.5-turbo", "gpt-4o"), value=TRUE)
+  response <- httr::POST(
+    url = "https://api.openai.com/v1/chat/completions", 
+    httr::add_headers(Authorization = paste("Bearer", api_key)),
+    httr::content_type_json(),
+    encode = "json",
+    body = list(
+      model = model,
+      temperature = temperature, # this is the degree of randomness of the model's output
+      messages = list(list(
+        role = "user", 
+        content = prompt
+     ))
+   )
+  )
+  return(httr::content(response)$choices[[1]]$message$content)
+}
+
+```
+
+5.  Make R send you an email everyday Use simple HTML syntaxes (`<p></p>` or `<b></b>`) to compose an email message using `blastula` package
+
+```{r, eval=FALSE}
+library(blastula)
+
+create_summary <- function(titles, abstract_summary, ids, dois) {
+  summary <- sapply(1:length(abstract_summary), function(i) paste0("<p>", " <b>", " <a href=https://pubmed.ncbi.nlm.nih.gov/", ids[i], "/> ", titles[i], "</a>", " </b> ", abstract_summary[i], " PMID=", ids[i], " DOI=", dois[i], "</p>"))
+  return(summary)
+}
+
+email <- compose_email(
+  title = "Test Email",
+  body = md(create_summary(titles, abstract_summary, ids, dois)))
+
+email %>%
+  smtp_send( 
+    from = "kimfinale@gmail.com",
+    to = "jonghoon.kim@ivi.int",
+    subject = "Daily summary of PubMed search",
+    # credentials = creds_key(id = "gmail"),
+    credentials = creds_file("gmail_cred")
+  )
+```
+
+6.  Save all as a single R script
+
+```{r, eval=FALSE}
+date_start <- gsub("-", "/", Sys.Date()-2)
+date_end <- gsub("-", "/", Sys.Date()-1)
+search_query <- paste0("(typhoid OR cholera OR transmission OR modeling) AND ", date_start,":", date_end, "[dp]") 
+ 
+chatgpt_api_key <- Sys.getenv("CHATGPT_API_KEY")
+
+search_res <- rentrez::entrez_search(db="pubmed", term=search_query)
+model <- "gpt-3.5"  
+if (length(search_res$ids) > 0) { # one or more hits
+  ids <- search_res$ids
+  details <- rentrez::entrez_fetch(db="pubmed", id=ids, rettype="xml")
+  doc <- xml2::read_xml(details)
+  titles <- xml2::xml_text(xml2::xml_find_all(doc, "//ArticleTitle"))
+  abstracts <- xml2::xml_text(xml2::xml_find_all(doc, "//Abstract"))
+  dois <- xml2::xml_text(xml2::xml_find_all(doc, "//PubmedData/ArticleIdList/ArticleId[@IdType='doi']"))
+  
+  abstract_summary <- rep(NA, length(abstracts))
+
+  if (length(abstracts) > 1) {
+    for (i in 1:length(abstracts)) {
+      prompt <- paste0("Your task is to generate a short summary of a scientific article based on its title and abstract. Summarize the text delimited by triple backticks into a single sentence. Please do not repeat the title. ``` Title: ", titles[i], ". Abstract: ", abstracts[i], "```")
+      abstract_summary[i] <- 
+        prompt_chatgpt(prompt=prompt, api_key=chatgpt_api_key, model=model)
+    }
+  }
+  # create a summary for the email  
+  summary <- sapply(1:length(abstract_summary), 
+                    function(i) paste0("<p>", " <b>", " <a href=https://pubmed.ncbi.nlm.nih.gov/", ids[i], "/> ", titles[i], "</a>", " </b> ", abstract_summary[i], " PMID=", ids[i], ". DOI=", dois[i], ". </p>"))
+
+  intro <- paste0("<p>Please enjoy the articles retrieved from PubMed based on your search query, ", search_query, ", published between ", date_start, ", and ", date_end, ". Each article is accompanied by a one-sentence summary provided by the ChatGPT, ", model, ". For feedback, please contact Jong-Hoon Kim at jonghoon.kim@ivi.int.</p>")
+  
+  summary <- c(intro, summary)
+  email <- blastula::compose_email(
+    title = "Weekly summary of PubMed search",
+    body =  blastula::md(summary))
+  
+  blastula::smtp_send(email, 
+    from = "kimfinale@gmail.com",
+    to = "jonghoon.kim@ivi.int",
+    subject = "Daily summary of PubMed search",
+    credentials = blastula::creds_file("gmail_creds")
+  )
+
+} else {
+  "No articles matched your query." 
+}
+
+```
+
+7.  Register the file using the Windows task scheduler
+
+```{r, eval=FALSE}
+library(taskscheduleR)
+# Schedule the script to run daily at a specific time
+taskscheduler_create(
+  taskname = "PubMed_ChatGPT_Summary",
+  rscript = "~/myblog/pubmed_chatgpt.R",
+  schedule = "WEEKLY", starttime = "22:00", startdate = "02/06/2024")
+```

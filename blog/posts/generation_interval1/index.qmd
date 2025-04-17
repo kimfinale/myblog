@@ -1,0 +1,57 @@
+---
+title: "Generation interval"
+author: "Jong-Hoon Kim"
+date: "2023-12-07"
+categories: [generation interval, reproduction number]
+image: "sample_figure.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+### Generation interval = incubation period + infectious period?
+
+Although not published, I wrote a correspondence to Lancet to commenting the [article](https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30260-9/fulltext). In the article, the authors stated that the generation interval is the sum of the incubation period and the infectious period. I argued that this statement holds only for a constant rate of transmission during the exponentially distributed infectious period (i.e., only a very limited case). Then, I showed that the generation interval varies if the infectious period distribution is different from the exponential distribution even with the constant rate of transmission. Following is the whole message. I now think I am glad that it was not published because I realized that 
+ [Svensson](https://www.sciencedirect.com/science/article/abs/pii/S0025556406002094?via%3Dihub) wrote an article in 2007 to show a similar message in a more rigorous and general way. At least the message and arguments I presented were correct. 
+
+### The main text
+
+When confronted with a novel disease like the coronavirus disease 2019 (COVID-19), the incubation period and the serial interval are two critical epidemiological variables that are measured during the early stages of an outbreak. A transmission model can be constructed based on these variables to project potential scenarios of outbreak expansion or resolution and, importantly, define the basic reproduction number ($R_0$) for the disease. The recent article by [Wu et al.](https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30260-9/fulltext), published in The Lancet on January 31 of this year, one month after the first case was reported in Wuhan, China, uses a transmission model parameterized by data available at the time. This study provided important and timely insights into the spread of COVID-19 in China and elsewhere, concluding that, in addition to Wuhan, other major cities in China and well-connected cities outside China were likely to already have sustained localized outbreaks. The model utilized by Wu et al. makes a key statement, which has limited applications and may lead to unjustified assumptions in subsequent model iterations. 
+The dynamic model requires an input on the length of the infectious period, which Wu et al. derived by assuming that the serial interval is equal to the sum of the infectious period and the latent period (on page 4 of the article by Wu et al.). Neither Wu et al. nor the [study](https://www.science.org/doi/10.1126/science.1086616) to which they refer provides a clear rationale for this statement.
+The serial interval represents the time between the clinical onset of successive cases [3] and it is naturally expressed as the sum of the incubation period and disease age at transmission* [4](https://link.springer.com/book/10.1007/978-90-481-2313-1). Here we treat the incubation period (the time between infection and the onset of symptoms) as the same as latent period (the time between infection and the onset of infectiousness), for simplicity. The disease age at transmission represents the time between the onset of symptoms of a primary case and the time of infection of the associated secondary cases. Therefore, for the mean serial interval to be the same as the sum of mean incubation period and mean infectious period, the mean disease age at transmission must be equal to the mean infectious period.
+The mean disease age at transmission is indeed as long as the mean of the exponentially-distributed infectious period, which is often used for convenience in building a differential equation-based model (Table 1). However, for other distributions we explored, the mean disease age at transmission is shorter than mean infectious period, and it is only half of the mean infectious period† when the infectious period is constant. The gamma-distributed infectious period can also be easily adopted in a differential-equation based model to represent a more realistic representation of infectious period and in this case, following Wu et al.’s recipe will lead to a shorter serial interval than is intended. Moreover, each of the aforementioned arguments holds when transmission occurs at a constant rate over the infectious period, and violating this assumption of a constant rate (such as when viral load is high during the initial part of the infectious period and tapers off over time [5](https://pubmed.ncbi.nlm.nih.gov/32080991/)[6](https://pubmed.ncbi.nlm.nih.gov/32074444/) will likely induce an even shorter disease age at transmission.
+
+The assumption that the serial interval is the sum of incubation (or latent) period and infectious period seems to hold only when the infectious period is exponentially distributed for a constant transmission rate. For a wider application, one has to calculate the disease age at transmission that leads to a correct serial interval for a given distribution of the infectious period. We believe this is an important point and potentially unjustified assumptions in subsequent model iterations may result in providing outbreak responders with inaccurate projections on the characteristics of disease transmission. 
+
+Table 1. Time to infection since symptom onset under infectious period with different distributions.
+
++-----------------------------------+--------------------------------------------------------------+
+| Infectious period                 | Time to transmission (disease age)                           |
++--------------------+--------------+-----------------------------------------+--------------------+
+| Distribution       | Expectation  | Sample mean‡                            | Expectation§       |
+|                    |              | [$2.5^{th}$, $97.5^{th}$ percentile]    |                    |
++====================+==============+=========================================+====================+
+| Exponential        | 5            | 5                                       | 5                  |
++--------------------+--------------+-----------------------------------------+--------------------+
+| Gamma(2,5/2)¶      | 5            | 3.73 [3.75, 3.71]                       | 3.75               |
++--------------------+--------------+-----------------------------------------+--------------------+
+| Uniform(0,10)      | 5            | 3.34 [3.32, 3.35]                       | 3.33               |
++--------------------+--------------+-----------------------------------------+--------------------+
+| Weibull(2,5/2)     | 5            | 3.17 [3.16, 3.19]                       | 3.18               |
++--------------------+--------------+-----------------------------------------+--------------------+
+| Lognormal(2,5/2)   | 5            | 2.90 [2.89, 2.91]                       | 2.90               |
++--------------------+--------------+-----------------------------------------+--------------------+
+| Constant at 5      | 5            | 2.51 [2.49, 2.52]                       | 2.50               |
++--------------------+--------------+-----------------------------------------+--------------------+
+: Table 1. Time to infection since symptom onset under infectious period with different distributions.
+
+
+Footnotes
+*Taking statistical distribution into account, we can write the serial interval at time $t$ as the convolution of the distributions of disease age, $g$, and incubation period, $f$: $s(t)= \int_0^t g(t-\tau)f(\tau)\textrm{d}\tau$. 
+† Interestingly, the [Wikipedia article](https://en.wikipedia.org/wiki/Serial_interval) says that the length of a serial interval is equal to the sum of incubation period and the half of the infectious period [7](https://en.wikipedia.org/wiki/Serial_interval).
+‡To simulate disease age, we drew a random infectious period from each distribution and let transmission occur at a constant probability with R0 of 2.2 over the infectious period. We repeated the process 100000 times to calculate a mean and a $2.5^{th}$ and $95^{th}$ percentiles. 
+§The probability density function for the disease age at transmission at time $t$ may be obtained by $g(t) = \frac{P(X>t)}{∫_0^∞ P(X>t)dt} ~\textrm{for}~ t∈(0,+∞)$ for infectious period $X$.  The expected value can then be calculated as $\int_0^{\infty} t g(t)\textrm{d}t$.
+¶Gamma(shape, rate). This distribution can be produced by assuming two successive compartments with the exit rate of 2/5.

@@ -1,0 +1,236 @@
+---
+title: "SIR model benchmarks: deSolve, odin, and diffeqr"
+author: "Jong-Hoon Kim"
+date: "2024-01-19"
+categories: [ODE, R, deSolve, odin, diffeqr, C++, Julia]
+image: "diffeqr_sir.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE)
+```
+
+### deSolve package
+
+```{r, eval=F}
+sir_deSolve <- function(t, u, p){
+  N <- sum(u)
+  du1 <- - p[1]*u[1]*u[2]/N
+  du2 <- + p[1]*u[1]*u[2]/N - p[2]*u[2]
+  du3 <- + p[2]*u[2]
+    
+  return(list(c(du1,du2,du3))) 
+}
+
+library(deSolve)
+u0 <- c(0.99, 0.01, 0)
+tspan <- seq(from=0, to=50)
+p <- c(0.4, 0.2)
+
+outdf <- as.data.frame(ode(y=u0, times=tspan, func=sir_deSolve, parms=p))
+
+library(ggplot2)
+extrafont::loadfonts("win", quiet=TRUE)
+theme_set(hrbrthemes::theme_ipsum_rc(base_size=14, subtitle_size=16, axis_title_size=12))
+
+ggplot(outdf,aes(x=time))+
+  geom_line(aes(y=`1`, color="S")) +
+  geom_line(aes(y=`2`, color="I")) +
+  geom_line(aes(y=`3`, color="R")) +
+  scale_color_manual("",values=c("S"="steelblue","I"="firebrick",
+                              "R"="darkgreen"))+
+  labs(y="Number of individuals", x="Time", color="")
+```
+
+### Manual C++
+
+Euler method was implemented
+
+```{r, eval=F}
+sir_cpp <- '
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+List sir_cpp(List params) {
+  double tau = params["tau"]; // time step size
+  double ndays = params["ndays"]; // number of days for output
+  int nsubsteps = ceil(1/tau);
+  
+  NumericVector S(ndays+1);
+  NumericVector I(ndays+1);
+  NumericVector R(ndays+1); 
+  NumericVector time(ndays+1);
+  
+  S(0) = params["susceptible"];
+  I(0) = params["infectious"];
+  R(0) = params["recovered"];
+  
+  double b = params["b"]; // transmission rate per unit of time
+  double g = params["g"]; // recovery rate
+  
+  for (int day = 0; day < ndays; day++) {
+    double St = S[day];
+    double It = I[day];
+    double Rt = R[day];
+    
+    for (int substep = 0; substep < nsubsteps; substep++){
+      double N = St + It + Rt;
+      double foi = b * It / N;
+
+      double StoI = St * foi * tau;
+      double ItoR = It * g * tau;
+
+      double dS = - StoI;
+      double dI = + StoI - ItoR;
+      double dR = + ItoR;
+
+      St = St + dS;
+      It = It + dI;
+      Rt = Rt + dR;
+    }
+    // Update next timestep
+    S[day + 1] = St;
+    I[day + 1] = It;
+    R[day + 1] = Rt;
+    time[day + 1] = day+1;
+  }
+
+  DataFrame result = DataFrame::create(
+    Named("time") = time,
+    Named("S") = S,
+    Named("I") = I,
+    Named("R") = R);
+
+  return result;
+}'
+
+
+Rcpp::cppFunction(code=sir_cpp)
+
+params <- list()
+params <- within(params, {
+  tau <- 0.1 # in days
+  ndays <- 50
+
+  b <- 0.4
+  g <- 0.2
+  
+  susceptible <- 0.99
+  infectious <- 0.01
+  recovered <- 0.0
+})
+
+out_cpp <- sir_cpp(params)
+
+ggplot(out_cpp, aes(x=time))+
+  geom_line(aes(y=`S`, color="S")) +
+  geom_line(aes(y=`I`, color="I")) +
+  geom_line(aes(y=`R`, color="R")) +
+  scale_color_manual("",values=c("S"="steelblue","I"="firebrick",
+                              "R"="darkgreen"))+
+  labs(y="Number of individuals", x="Time", color="")
+```
+
+### odin package
+
+```{r, eval=F}
+library(odin)
+sir_odin <- odin::odin({
+  ## Derivatives
+  deriv(S) <- -b*S*I/(S+I+R)
+  deriv(I) <- b*S*I/(S+I+R)-g*I
+  deriv(R) <- g*I
+
+  ## Initial conditions
+  initial(S) <- 0.99
+  initial(I) <- 0.01
+  initial(R) <- 0.00
+
+  ## parameters
+  b <- user(0.4)
+  g <- user(0.2)
+})
+
+sir_mod <- sir_odin$new(b=0.4, g=0.2)
+tspan <- seq(from=0, to=50)
+out_odin <- as.data.frame(sir_mod$run(tspan))
+
+ggplot(out_odin, aes(x=t))+
+  geom_line(aes(y=`S`, color="S")) +
+  geom_line(aes(y=`I`, color="I")) +
+  geom_line(aes(y=`R`, color="R")) +
+  scale_color_manual("",values=c("S"="steelblue","I"="firebrick",
+                              "R"="darkgreen"))+
+  labs(y="Number of individuals", x="Time", color="")
+```
+
+### diffeqr package
+
+```{r, eval=F}
+library(diffeqr)
+de <- diffeqr::diffeq_setup()
+
+sir_julia <- function(u, p, t){
+  N = sum(u)
+  du1 = - p[1]*u[1]*u[2]/N
+  du2 = + p[1]*u[1]*u[2]/N - p[2]*u[2]
+  du3 = + p[2]*u[2]
+    
+  return(c(du1,du2,du3))
+}
+
+u0 <- c(0.99, 0.01, 0.0)
+tspan <- c(0.0, 50.0)
+p <- c(0.4, 0.2)
+prob <- de$ODEProblem(sir_julia, u0, tspan, p)
+prob_jit <- diffeqr::jitoptimize_ode(de, prob)
+
+sol <- de$solve(prob_jit, de$Tsit5(), saveat=1)
+
+mat <- sapply(sol$u, identity)
+udf <- as.data.frame(t(mat))
+tudf <- cbind(data.frame(t=sol$t), udf)
+
+ggplot(tudf, aes(x=t))+
+  geom_line(aes(y=V1, color="S")) +
+  geom_line(aes(y=V2, color="I")) +
+  geom_line(aes(y=V3, color="R")) +
+  scale_color_manual("",values=c("S"="steelblue","I"="firebrick",
+                              "R"="darkgreen"))+
+  labs(y="Number of individuals", x="Time", color="")
+# ggsave("diffeqr_sir.png", gg, units="in", width=3.4*2, height=2.7*2)  
+```
+
+### Benchmarks
+
+The `diffeqr` is the most efficient tool for running the SIR model in its ODE form.
+
+As a side note, the test gave an unfair advantage to the `sir_cpp` due to the use of the Euler method with 0.1 day step size. In fact, `deSolve::ode` outperformed `sir_cpp` when it was used with `method="euler"`. Therefore there is no need to write manually CPP models if an ODE solver is what you need. The situation might differ when implementing a stochastic model, which will be discussed in a later post.
+
+```{r, eval=F}
+library(microbenchmark)
+
+benchmark = microbenchmark(
+  deSolve = ode(y=u0, times=tspan, func=sir_deSolve, parms=p),
+  cpp = sir_cpp(params),
+  odin = sir_mod$run(tspan),
+  julia = de$solve(prob_jit, de$Tsit5(), saveat=1),
+  times = 1000
+)
+
+```
+
+```{r}
+benchmark <- readRDS("benchmark.rds")
+library(dplyr)
+benchmark |> 
+  group_by(expr) |>
+  mutate(sec=time/1000) |> 
+  summarize(
+    lower_sec = quantile(sec, probs=0.025),
+    median_sec = quantile(sec, probs=0.5),
+    upper_sec = quantile(sec, probs=0.975))
+```

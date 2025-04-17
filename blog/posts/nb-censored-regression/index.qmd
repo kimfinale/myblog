@@ -1,0 +1,331 @@
+---
+title: "Negative binomial regression with censored data: POLYMOD data"
+author: "Jong-Hoon Kim"
+date: "2023-11-02"
+categories: [R, regression, contact, censor]
+image: "POLYMOD_Table1.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+This post describes my attempt to reproduce Table 1 of the paper, [Social Contacts and Mixing Patterns Relevant to the Spread of Infectious Diseases](https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.0050074). Data were downloaded from [Social Contact Data](http://www.socialcontactdata.org/), which was hosted in [zenodo](https://zenodo.org/record/3746312#.Xo85CcgzZPY). I used the version 1.1. In summary, I wasn't successful at reproducing the table exactly but still wanted to document the processes that I went through.
+
+### Data preparation
+
+```{r}
+library(data.table)
+library(dplyr)
+d1 <- fread("2008_Mossong_POLYMOD_participant_common.csv")
+# d1 <- fread("data/2008_Mossong_POLYMOD_participant_common.csv")
+d2 <- fread("2008_Mossong_POLYMOD_contact_common.csv")
+# d2 <- fread("data/2008_Mossong_POLYMOD_contact_common.csv")
+# count the number of contacts for each participant using part_id variable
+d2 |> group_by(part_id) |>
+  summarize(contacts = n()) -> d2_contacts
+d12 <- left_join(d1, d2_contacts, by="part_id")
+# add household information
+d3 <- fread("2008_Mossong_POLYMOD_hh_common.csv")
+# d3 <- fread("data/2008_Mossong_POLYMOD_hh_common.csv")
+d123 <- left_join(d12, d3, by="hh_id")
+# add day of week information
+d4 <- fread("2008_Mossong_POLYMOD_sday.csv")
+# d4 <- fread("data/2008_Mossong_POLYMOD_sday.csv")
+dat <- left_join(d123, d4, by="part_id")
+```
+
+### Data manipulation
+
+Categorize the age group into different 10 age groups: 0-4, 5-9, 10-14, 15-19, and 20 to 70 by 10 years and 70 and above
+
+```{r}
+age_grp_label <- c("0-4","5-9","10-14","15-19","20-29",
+                   "30-39","40-49","50-59","60-69","70+")
+
+dat$age_grp <- ifelse(is.na(dat$part_age), "Missing", 
+                      ifelse(dat$part_age < 20,
+                             age_grp_label[floor(dat$part_age/5) + 1], 
+                             ifelse(dat$part_age < 80,
+                                    age_grp_label[floor(dat$part_age/10) + 3],
+                                    age_grp_label[10])))
+```
+
+Compare the number of participants by age group (the third column of Table 1)
+
+```{r}
+dat |> group_by(age_grp) |> summarize(npart=n()) -> npart_ag
+# hard-coded using the values in Table 1.
+npart_ag$true <- c(660,661,713,685,879,815,908,906,728,270,65) 
+npart_ag
+```
+
+Categorize the household size
+
+```{r}
+classify_household <- function(d){
+  d$hh_size_grp <- "Missing"
+  d$hh_size_grp <- ifelse(d$hh_size > 5, "6+", as.character(d$hh_size))
+  return(d)
+}
+dat <- classify_household(dat)
+```
+
+Classify gender
+
+```{r}
+classify_gender <- function(d) {
+  d$gender <- "Missing"
+  d$gender <- ifelse(d$part_gender == "M", "M", 
+                     ifelse(d$part_gender == "F", "F", d$gender))
+  
+  return(d)
+}
+
+dat <- classify_gender(dat)
+```
+
+Classify day of week
+
+```{r}
+dayofweek_label <- c("Sunday","Monday","Tuesday","Wednesday","Thursday",
+                     "Friday","Saturday")
+
+classify_dayofweek <- function(d) {
+  d$dayofweek_f <- "Missing"
+  for (i in 1:nrow(d)) {
+    day = d$dayofweek[i]
+    if (!is.na(day)) {
+      d$dayofweek_f[i] <- dayofweek_label[day+1]
+    }
+  }
+  return(d)
+}
+dat <- classify_dayofweek(dat)
+# change names for conveninence
+dat$dayofweek_integer <- dat$dayofweek
+dat$dayofweek <- dat$dayofweek_f
+```
+
+Make categorical variables factor for regression Set reference groups `relevel(x, ref=ref)` as in Table 1
+
+```{r}
+# set the categorical variables as factor for regression
+dat$age_grp <- factor(dat$age_grp, levels=c(age_grp_label,"Missing"))
+dat$age_grp <- relevel(dat$age_grp, ref="0-4")
+dat$gender <- factor(dat$gender, levels=c("F","M","Missing"))
+dat$gender <- relevel(dat$gender, ref = "F")
+dat$dayofweek <- factor(dat$dayofweek, levels=c(dayofweek_label,"Missing"))
+dat$dayofweek <- relevel(dat$dayofweek, ref = "Sunday")
+dat$hh_size_grp <- as.factor(dat$hh_size_grp)
+dat$hh_size_grp <- relevel(dat$hh_size_grp, ref="1")
+dat$country <- factor(dat$country, levels=c("BE","DE","FI","GB","IT","LU","NL","PL"))
+dat$country <- relevel(dat$country, ref="BE")
+
+# fwrite(dat, "POLYMOD_2017.csv")
+
+```
+
+Assign weights to individual participants based on the supplementary Table 2. My approach was to identify a row and a column for the relevant weight based on the age and household size. Weight of an age group for the sample was calculated by dividing the proportion of the age group in the population (in the census) with the proportion of the age group in the sample.
+
+```{r}
+find_age_row_column <- function(d) {
+  d$age_row <- NA
+  for (i in 1:nrow(d)) {
+    ag <- d$part_age[i]
+    if(!is.na(ag)){
+      for (j in 1:14) {
+        if (ag >= (j-1)*5 & ag < (j-1)*5+5) {
+          d$age_row[i] <- j
+          break
+        }
+        else if (ag >= 70) {
+          d$age_row[i] <- 15
+          break
+        }
+        else{}
+      }
+    }
+  }
+  
+  d$hh_col <- NA
+  for (i in 1:nrow(d)) {
+    hs <- d$hh_size[i]
+    if(!is.na(hs)){
+      for (j in 1:4) {
+        if (hs == j) {
+          d$hh_col[i] <- j
+          break
+        }
+        else if (hs > 4) {
+          d$hh_col[i] <- 5
+        }
+        else{}
+      }
+    }
+  }
+  return(d)
+}
+
+dat <- find_age_row_column(dat)
+# wlist <- rio::import_list("data/sampling_weight.xlsx")
+wlist <- rio::import_list("sampling_weight.xlsx")
+
+classify_weight <- function(d){
+  d$wt <- NA
+  cnames <- names(wlist)
+  for (i in 1:length(cnames)) {
+    wtable <- wlist[[i]]
+    w1 <- wtable[wtable$`Household size` == "Ratio C/S",] # sampling weight
+    W <- w1[!is.na(w1$`Household size`),] # remove the first row
+    # View(W)
+    for (j in 1:nrow(d)){
+      if(d$country[j] == cnames[i]) {
+        d$wt[j] <- W[d$age_row[j], d$hh_col[j]+2]
+      }
+    }
+  }
+  return(d)
+}
+
+# grep("-", as.character(d$wt), value = T)
+# hist(as.numeric(d$wt))
+dat <- classify_weight(dat)
+dat$wt <- as.numeric(dat$wt)
+```
+
+### Data for fitting only complete cases
+
+There are missing values for contacts (\$n\$=36) and weight (\$n\$=65). It is not clear how those observations were treated in the model. This may be a reason why I can't reproduce the results in Table 1.
+
+```{r}
+dat_ <- dat
+## would imputation for the 36 observations make a difference?
+# dat$contacts_ori <- dat$contacts
+# dat$contacts <- ifelse(is.na(dat$contacts), round(mean(dat$contacts, na.rm=T)), dat$contacts)
+
+model_var <- c("contacts", "age_grp", "gender", "dayofweek", "hh_size_grp", "country", "wt")
+dat <- dat[,..model_var]
+# dat <- dat[complete.cases(dat),]
+dat <- dat[!is.na(contacts),]
+```
+
+### NegBin regression: no censoring and no weighting
+
+```{r}
+library(MASS)
+m <- glm.nb(contacts ~ age_grp + gender + dayofweek + hh_size_grp + country, 
+            data = dat)
+# summary(m4)
+exp(m$coefficients)
+```
+
+Regression that account for censored number of contacts. The paper reads: *The data were right censored at 29 contacts for all countries because of a limited number of possible diary entries in some countries*
+
+$$
+\text{log }L = \sum_{i=1}^n w_i\left(\delta_i~\text{log} \left(P\left(Y=y_i|X\right)\right) + \left(1-\delta_i\right)~\text{log} \left(1-\sum_{i=1}^{28}P(Y=y_i|X)\right)
+\right) 
+$$ , where
+
+$$
+\begin{equation}
+  \delta_i=\begin{cases}
+    1, & \text{if$~y_i<29$}.\\
+    0, & \text{otherwise}.
+  \end{cases}
+\end{equation}
+$$
+
+### Take censoring into account
+
+```{r}
+X = model.matrix(m)
+# X <- model.matrix(~ age_grp + gender + dayofweek + hh_size_grp + country, data=dat)
+
+# ini = c(coef(m1), log_theta = log(summary(m1)$theta))
+init = c(coef(m), size=summary(m)$theta)
+
+negll_censor <- function(par, y, X, ul=400) {
+  # parameters
+  size = par[length(par)]
+  beta = par[-length(par)]
+  # create indicator depending on chosen limit
+  indicator = y < ul
+  # linear predictor
+  mu = exp(X %*% beta)
+  # log likelihood
+  ll = sum(indicator * dnbinom(y, mu=mu, size=size, log=T) +
+             (1-indicator) * log(1-pnbinom(ul, mu=mu, size=size)), na.rm=T)
+  return(-ll)
+}
+
+# you can check if two methods (glm.nb vs. optim) match by setting ul high (e.g., 100)
+fit1 <- optim(par=init,
+            negll_censor,
+            y = dat$contacts,
+            X = X,
+            ul = 29,
+            method = "Nelder-Mead",
+            control = list(maxit=1e3, reltol=1e-10))
+exp(fit1$par)
+```
+
+### Take censoring & weighting into account
+
+```{r}
+X = model.matrix(m)
+# X <- model.matrix(~ age_grp + gender + dayofweek + hh_size_grp + country, data=dat) # full matrix
+# ini = c(coef(m1), log_theta = log(summary(m1)$theta))
+init = c(coef(m), size=summary(m)$theta)
+
+negll_censor_weight <- function(par, y, X, wt, ul=400) {
+  # parameters
+  size = par[length(par)]
+  beta = par[-length(par)]
+  # create indicator depending on chosen limit
+  indicator = y < ul
+  # linear predictor
+  mu = exp(X %*% beta)
+  # log likelihood
+  ll = sum(wt*(indicator * dnbinom(y, mu=mu, size=size, log=T)
+  + (1-indicator) * log(1-pnbinom(ul, mu=mu, size=size))), na.rm=T)
+
+  return(-ll)
+}
+
+fit2 <- optim(par=init,
+            negll_censor_weight,
+            y = dat$contacts,
+            X = X,
+            wt = dat$wt,
+            ul = 29,
+            method = "Nelder-Mead",
+            control = list(maxit=1e3, reltol=1e-10))
+
+exp(fit2$par)
+```
+
+```{r}
+da <- data.frame(
+  parm=c("0-4", "5-9", "10-14", "15-19", "20-29", "30-39", "40-49", 
+"50-59", "60-69", "70+", "Missing", 
+"F","M","Missing",
+"1", "2", "3", "4", "5", "6+",
+"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
+"Saturday", "Missing",
+"BE", "DE", "FI", "GB", "IT", "LU", "NL", "PL"),
+est = c(1.00, 1.42, 1.73, 1.68, 1.45, 1.45, 1.38, 1.31, 1.06, 0.81,0.91, 
+        1.00, 0.99, 1.57, 
+        1.00, 1.17, 1.20, 1.36, 1.46, 1.56,
+        1.00, 1.33, 1.39, 1.38, 1.41, 1.43, 1.20, 1.24,
+        1.00, 0.70, 0.94, 0.99, 1.66, 1.42, 1.34, 1.37))
+
+da$myest = round(c(1.00, exp(fit2$par)[2:11], 
+             1.00, exp(fit2$par)[12:13],
+             1.00, exp(fit2$par)[21:25],
+             1.00, exp(fit2$par)[14:20],
+             1.00, exp(fit2$par)[26:32]), digits=2)
+da
+```

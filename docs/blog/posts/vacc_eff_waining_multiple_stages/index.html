@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2024-04-08">
+
+<title>Disease modeling for public health - Waning vaccine efficacy on susceptibility</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html" rel="" target="">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html" rel="" target="">
+ <span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/" rel="" target=""><i class="bi bi-linkedin" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau" rel="" target=""><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Waning vaccine efficacy on susceptibility</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Vaccine</div>
+    <div class="quarto-category">waning</div>
+    <div class="quarto-category">SEIR</div>
+    <div class="quarto-category">Erlang distribution</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 8, 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<p>In this article, I examined the process of modifying the disease transmission model (for instance, the <span class="math inline">\(SEIR\)</span> model) to include vaccination and the waning of vaccine-induced immunity as it might happen in a clinical trial. A straightforward method to represent this involves assuming vaccinated individuals (i.e., those in the vaccinated, <span class="math inline">\(V\)</span>, compartment) possess partial immunity and subsequently transition back to the susceptible, <span class="math inline">\(S\)</span>, compartment. This approach effectively simulates the diminishing effectiveness of vaccines using two parameters. I focus on determining these parameters through the analysis of existing vaccine efficacy data, utilizing the typhoid vaccine clinical trial as a case study. The adaptation of the model to account for the progressive reduction in vaccine-derived immunity across various compartments was conducted <a href="https://www.jonghoonk.com/posts/seir_varying_number_compartments/">prior post</a>.</p>
+<section id="vaccine-efficacy-data" class="level3">
+<h3 class="anchored" data-anchor-id="vaccine-efficacy-data">Vaccine efficacy data</h3>
+<p>Vaccine efficacy data come from a clinical trial conducted in Malawi from 2018 through 2023, for which the detailed information is available in the <a href="https://pubmed.ncbi.nlm.nih.gov/38281499/">study</a>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># df &lt;- data.frame(year=c(1,2), efficacy=c(83.4,73.0)) # Shakya (2021) Lancet Glob Health</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># vaccine efficacy cumulative over the four years</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Patel (2024) Lancet</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>tab2_vitt <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">group =</span> <span class="st">"Vi-TT"</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">age =</span> <span class="fu">c</span>(<span class="st">"&lt;2yo"</span>,<span class="st">"2-4yo"</span>,<span class="st">"&gt;=5yo"</span>,<span class="st">"all_ITT"</span>,<span class="st">"all_PP"</span>),</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>                   <span class="at">person_years =</span> <span class="fu">c</span>(<span class="dv">6586</span>,<span class="dv">15007</span>,<span class="dv">38907</span>,<span class="dv">60500</span>,<span class="dv">59942</span>), </span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>                   <span class="at">typhoid_culture =</span> <span class="fu">c</span>(<span class="dv">4</span>,<span class="dv">5</span>,<span class="dv">15</span>,<span class="dv">24</span>,<span class="dv">22</span>),</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>                   <span class="at">IR_obs =</span> <span class="fu">c</span>(<span class="fl">60.7</span>,<span class="fl">33.3</span>,<span class="fl">38.6</span>,<span class="fl">39.7</span>,<span class="fl">36.7</span>),</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>                   <span class="at">VE_obs =</span> <span class="fu">c</span>(<span class="fl">70.6</span>,<span class="fl">79.6</span>,<span class="fl">79.3</span>,<span class="fl">78.3</span>,<span class="fl">80.0</span>))</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>tab2_mena <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">group =</span> <span class="st">"MenA"</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>                   <span class="at">age =</span> <span class="fu">c</span>(<span class="st">"&lt;2yo"</span>,<span class="st">"2-4yo"</span>,<span class="st">"&gt;=5yo"</span>,<span class="st">"all_ITT"</span>,<span class="st">"all_PP"</span>),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>                   <span class="at">person_years =</span> <span class="fu">c</span>(<span class="dv">6773</span>,<span class="dv">15297</span>,<span class="dv">38151</span>,<span class="dv">60220</span>,<span class="dv">59662</span>), </span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>                   <span class="at">typhoid_culture =</span> <span class="fu">c</span>(<span class="dv">14</span>,<span class="dv">25</span>,<span class="dv">71</span>,<span class="dv">110</span>,<span class="dv">109</span>),</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>                   <span class="at">IR_obs =</span> <span class="fu">c</span>(<span class="fl">206.7</span>,<span class="fl">163.4</span>,<span class="fl">186.1</span>,<span class="fl">182.7</span>,<span class="fl">182.7</span>),</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>                   <span class="at">VE_obs =</span> <span class="cn">NA</span>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>tab2 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(tab2_vitt, tab2_mena)</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Check the sanity of the data</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>tab2<span class="sc">$</span>IR_cal <span class="ot">&lt;-</span> <span class="fu">round</span>(tab2<span class="sc">$</span>typhoid_culture<span class="sc">/</span>tab2<span class="sc">$</span>person_years<span class="sc">*</span><span class="fl">1e5</span>, <span class="at">digits=</span><span class="dv">1</span>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>tab2<span class="sc">$</span>IR_cal <span class="sc">==</span> tab2<span class="sc">$</span>IR_obs</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>tab2<span class="sc">$</span>VE_cal <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>tab2[tab2<span class="sc">$</span>group <span class="sc">==</span> <span class="st">"Vi-TT"</span>,]<span class="sc">$</span>VE_cal <span class="ot">&lt;-</span> </span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>(<span class="dv">100</span><span class="sc">*</span>(<span class="dv">1</span> <span class="sc">-</span> tab2[tab2<span class="sc">$</span>group <span class="sc">==</span> <span class="st">"Vi-TT"</span>,]<span class="sc">$</span>IR_cal<span class="sc">/</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>               tab2[tab2<span class="sc">$</span>group <span class="sc">==</span> <span class="st">"MenA"</span>,]<span class="sc">$</span>IR_cal),<span class="at">digits=</span><span class="dv">1</span>) </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>tab2<span class="sc">$</span>VE_cal <span class="sc">==</span> tab2<span class="sc">$</span>VE_obs</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1]  TRUE  TRUE  TRUE  TRUE FALSE    NA    NA    NA    NA    NA</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>tab3_vitt <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">group =</span> <span class="st">"Vi-TT"</span>,</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">age =</span> <span class="st">"all_ITT"</span>,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">person_years =</span> <span class="fu">c</span>(<span class="dv">14058</span>,<span class="dv">28104</span>,<span class="dv">42135</span>,<span class="dv">56121</span>,<span class="dv">60500</span>),</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">year_since_vacc =</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="fl">4.61</span>),</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">typhoid_culture =</span> <span class="fu">c</span>(<span class="dv">6</span>,<span class="dv">12</span>,<span class="dv">15</span>,<span class="dv">23</span>,<span class="dv">24</span>),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">IR_obs =</span> <span class="fu">c</span>(<span class="fl">42.7</span>,<span class="fl">42.7</span>,<span class="fl">35.6</span>,<span class="fl">41.0</span>,<span class="fl">39.7</span>),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>                   <span class="at">VE_obs=</span><span class="fu">c</span>(<span class="fl">83.4</span>,<span class="fl">80.7</span>,<span class="fl">80.1</span>,<span class="fl">77.1</span>,<span class="fl">78.3</span>))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>tab3_mena <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">group =</span> <span class="st">"MenA"</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                   <span class="at">age =</span> <span class="st">"all_ITT"</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>                   <span class="at">person_years =</span> <span class="fu">c</span>(<span class="dv">14036</span>,<span class="dv">28021</span>,<span class="dv">41983</span>,<span class="dv">55889</span>,<span class="dv">60220</span>),</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>                   <span class="at">year_since_vacc =</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="fl">4.61</span>),</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>                   <span class="at">typhoid_culture =</span> <span class="fu">c</span>(<span class="dv">36</span>,<span class="dv">62</span>,<span class="dv">75</span>,<span class="dv">100</span>,<span class="dv">110</span>),</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>                   <span class="at">IR_obs =</span> <span class="fu">c</span>(<span class="fl">256.5</span>,<span class="fl">221.3</span>,<span class="fl">178.6</span>,<span class="fl">178.9</span>,<span class="fl">182.7</span>),</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>                   <span class="at">VE_obs =</span> <span class="cn">NA</span>)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>tab3 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(tab3_vitt, tab3_mena)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Check the sanity of the data</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>tab3<span class="sc">$</span>IR_cal <span class="ot">&lt;-</span> <span class="fu">round</span>(tab3<span class="sc">$</span>typhoid_culture<span class="sc">/</span>tab3<span class="sc">$</span>person_years<span class="sc">*</span><span class="fl">1e5</span>, <span class="at">digits=</span><span class="dv">1</span>)</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>tab3<span class="sc">$</span>VE_cal <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>tab3[tab3<span class="sc">$</span>group <span class="sc">==</span> <span class="st">"Vi-TT"</span>,]<span class="sc">$</span>VE_cal <span class="ot">&lt;-</span> </span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>(<span class="dv">100</span><span class="sc">*</span>(<span class="dv">1</span> <span class="sc">-</span> tab3[tab3<span class="sc">$</span>group <span class="sc">==</span> <span class="st">"Vi-TT"</span>,]<span class="sc">$</span>IR_cal<span class="sc">/</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>               tab3[tab3<span class="sc">$</span>group <span class="sc">==</span> <span class="st">"MenA"</span>,]<span class="sc">$</span>IR_cal),<span class="at">digits=</span><span class="dv">1</span>) </span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>tab3<span class="sc">$</span>VE_cal <span class="sc">==</span> tab3<span class="sc">$</span>VE_obs</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] TRUE TRUE TRUE TRUE TRUE   NA   NA   NA   NA   NA</code></pre>
+</div>
+</div>
+</section>
+<section id="model-of-typhoid-transmission-for-a-clinical-trial" class="level3">
+<h3 class="anchored" data-anchor-id="model-of-typhoid-transmission-for-a-clinical-trial">Model of typhoid transmission for a clinical trial</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>seirv_nstg_trial <span class="ot">&lt;-</span> <span class="cf">function</span>(u, p, t){</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  S <span class="ot">&lt;-</span> u[<span class="dv">1</span>]; E <span class="ot">&lt;-</span> u[<span class="dv">2</span>]; I <span class="ot">&lt;-</span> u[<span class="dv">3</span>]; R <span class="ot">&lt;-</span> u[<span class="dv">4</span>]; C <span class="ot">&lt;-</span> u[<span class="dv">5</span>]</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># # vaccinated cohort</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  nstg <span class="ot">&lt;-</span> p[<span class="dv">1</span>]</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>nstg) {</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">"V"</span>,i,<span class="st">" &lt;- "</span>, <span class="st">"u[5+"</span>,i,<span class="st">"]"</span>)));</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  }<span class="co"># vaccinated and partially protected</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  VS <span class="ot">&lt;-</span> u[<span class="dv">5</span> <span class="sc">+</span> nstg <span class="sc">+</span> <span class="dv">1</span>] <span class="co"># vaccinated but immunity waned and fully susceptible</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  VE <span class="ot">&lt;-</span> u[<span class="dv">5</span> <span class="sc">+</span> nstg <span class="sc">+</span> <span class="dv">2</span>] </span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  VI <span class="ot">&lt;-</span> u[<span class="dv">5</span> <span class="sc">+</span> nstg <span class="sc">+</span> <span class="dv">3</span>] </span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  VR <span class="ot">&lt;-</span> u[<span class="dv">5</span> <span class="sc">+</span> nstg <span class="sc">+</span> <span class="dv">4</span>] </span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  VC <span class="ot">&lt;-</span> u[<span class="dv">5</span> <span class="sc">+</span> nstg <span class="sc">+</span> <span class="dv">5</span>]</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  pop <span class="ot">&lt;-</span> S <span class="sc">+</span> E <span class="sc">+</span> I <span class="sc">+</span> R</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  v_sum <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>nstg, <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">"V"</span>,x)), <span class="at">collapse=</span><span class="st">"+"</span>)</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">"popV &lt;- VS+VE+VI+VR+"</span>, v_sum)))</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  epsilon <span class="ot">&lt;-</span> p[<span class="dv">2</span>] <span class="co"># 1/latent period</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>  gamma <span class="ot">&lt;-</span> p[<span class="dv">3</span>] <span class="co"># 1/duration of infectiousness</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>  beta <span class="ot">&lt;-</span> p[<span class="dv">4</span>] <span class="co"># transmission rate</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> p[<span class="dv">5</span>] <span class="co"># death rate is applied and population size decreases over time</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>  omega <span class="ot">&lt;-</span> p[<span class="dv">6</span>] <span class="co"># 1 / duration of natural immunity</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  omega_v <span class="ot">&lt;-</span> p[<span class="dv">7</span>] <span class="co"># 1 / duration of partial vaccine-derived immunity</span></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  ve <span class="ot">&lt;-</span> p[<span class="dv">8</span>] <span class="co"># vaccine efficacy</span></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># vaccinated and unvaccinated population mix randomly</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  foi <span class="ot">&lt;-</span> beta<span class="sc">*</span>(I<span class="sc">+</span>VI)<span class="sc">/</span>(pop<span class="sc">+</span>popV) <span class="co"># force of infection</span></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>  muEI <span class="ot">&lt;-</span> epsilon</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>  muIR <span class="ot">&lt;-</span> gamma</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>  muRS <span class="ot">&lt;-</span> omega</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>  muVS <span class="ot">&lt;-</span> nstg<span class="sc">*</span>omega_v</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>  <span class="co"># differential equations</span></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>  dS <span class="ot">&lt;-</span> <span class="sc">-</span> foi<span class="sc">*</span>S <span class="sc">+</span> muRS<span class="sc">*</span>R <span class="sc">-</span> mu<span class="sc">*</span>S <span class="sc">+</span> mu<span class="sc">*</span>(pop<span class="sc">+</span>popV)</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>  dE <span class="ot">&lt;-</span> foi<span class="sc">*</span>S <span class="sc">-</span> muEI<span class="sc">*</span>E <span class="sc">-</span> mu<span class="sc">*</span>E</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>  dI <span class="ot">&lt;-</span> muEI<span class="sc">*</span>E <span class="sc">-</span> muIR<span class="sc">*</span>I <span class="sc">-</span> mu<span class="sc">*</span>I</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>  dR <span class="ot">&lt;-</span> muIR<span class="sc">*</span>I <span class="sc">-</span> muRS<span class="sc">*</span>R <span class="sc">-</span> mu<span class="sc">*</span>R</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>  dC <span class="ot">&lt;-</span> muEI<span class="sc">*</span>E</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>  dV1 <span class="ot">&lt;-</span> <span class="sc">-</span> foi<span class="sc">*</span>(<span class="dv">1</span><span class="sc">-</span>ve)<span class="sc">*</span>V1 <span class="sc">-</span> muVS<span class="sc">*</span>V1 <span class="sc">-</span> mu<span class="sc">*</span>V1</span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (nstg <span class="sc">&gt;=</span> <span class="dv">2</span>) {</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span>nstg) {</span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>      <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">"dV"</span>,i,<span class="st">" &lt;- - foi*(1-ve)*V"</span>, i, <span class="st">" + muVS*V"</span>,</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>                           i<span class="dv">-1</span> , <span class="st">" - muVS*V"</span>, i,<span class="st">" - mu*V"</span>, i)))</span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">"dVS &lt;- - foi*VS + muVS*V"</span>, </span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>                       nstg, <span class="st">" + muRS*VR - mu*VS"</span>))) </span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">"dVE &lt;- foi*((1-ve)*("</span>, </span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>                       v_sum, <span class="st">")+VS) - muEI*VE - mu*VE"</span>)))</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>  dVI <span class="ot">&lt;-</span> muEI<span class="sc">*</span>VE <span class="sc">-</span> muIR<span class="sc">*</span>VI <span class="sc">-</span> mu<span class="sc">*</span>VI</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>  dVR <span class="ot">&lt;-</span> muIR<span class="sc">*</span>VI <span class="sc">-</span> muRS<span class="sc">*</span>VR <span class="sc">-</span> mu<span class="sc">*</span>VR</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>  dVC <span class="ot">&lt;-</span> muEI<span class="sc">*</span>VE</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>  dvstr <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>nstg, <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">"dV"</span>, x)), <span class="at">collapse=</span><span class="st">","</span>)</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">"c(dS,dE,dI,dR,dC,"</span>, </span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>                              dvstr, <span class="st">",dVS,dVE,dVI,dVR,dVC)"</span>))))</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="simulation-of-the-variable-compartment-seirv-model" class="level3">
+<h3 class="anchored" data-anchor-id="simulation-of-the-variable-compartment-seirv-model">Simulation of the variable-compartment <span class="math inline">\(SEIRV\)</span> model</h3>
+<p>Solutions for the steady states of the <span class="math inline">\(SEIR\)</span> model. These are used to set the initial conditions as we assume that the disease transmission reached a <a href="https://www.jonghoonk.com/posts/cholera_seir_eqn/">steady state</a>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Ss <span class="ot">&lt;-</span> <span class="st">"((gamma + mu) * (epsilon + mu)) / (beta * epsilon)"</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>Es <span class="ot">&lt;-</span> <span class="st">"- ((gamma + mu) * (mu + omega) * ((gamma + mu) * (epsilon + mu) - beta * epsilon)) / (beta * epsilon * (gamma * (epsilon + mu + omega) + (epsilon + mu) * (mu + omega)))"</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>Is <span class="ot">&lt;-</span> <span class="st">"((mu + omega) * (beta * epsilon - (gamma + mu) * (epsilon + mu))) / (beta * omega * (gamma + epsilon + mu) + beta * (gamma + mu) * (epsilon + mu))"</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>Rs <span class="ot">&lt;-</span> <span class="st">"(beta * gamma * epsilon - gamma * (gamma + mu) * (epsilon + mu)) / (beta * omega * (gamma + epsilon + mu) + beta * (gamma + mu) * (epsilon + mu))"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Common parameters</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>R0 <span class="ot">&lt;-</span> <span class="dv">3</span> <span class="co"># basic reproduction number</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>epsilon <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">5</span> <span class="co"># 1/epsilon = incubation period</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>gamma <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">/</span><span class="fl">11.8</span> <span class="co"># 1/gamma = duration of infectiousness</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">&lt;-</span> R0<span class="sc">*</span>gamma <span class="co"># instantaneous transmission rate</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>mu <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">/</span>(<span class="dv">65</span><span class="sc">*</span><span class="dv">365</span>) <span class="co"># natural death rate</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>omega <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># re-infection is not counted in the clinical trial</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>omega_v <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">/</span>(<span class="dv">4</span><span class="sc">*</span><span class="dv">365</span>) <span class="co"># natural immunity waning rate</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>ve <span class="ot">&lt;-</span> <span class="fl">0.834</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>nstg <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="co"># number of stages</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>N <span class="ot">&lt;-</span> <span class="fl">1e6</span> <span class="co"># population size</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>f <span class="ot">&lt;-</span> <span class="fl">1e-4</span> <span class="co"># fraction of vaccinated population</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>tend <span class="ot">&lt;-</span> <span class="dv">10</span><span class="sc">*</span><span class="dv">365</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co"># parameters</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">nstg=</span>nstg, <span class="at">epsilon=</span>epsilon, <span class="at">gamma=</span>gamma, <span class="at">beta=</span>beta, </span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>            <span class="at">mu=</span>mu, <span class="at">omega=</span>omega, <span class="at">omega_v=</span>omega_v, <span class="at">ve=</span>ve,</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>            <span class="at">N=</span>N, <span class="at">f=</span>f, <span class="at">tend=</span>tend)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="co"># steady states for given parameters</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>states0 <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">S=</span>Ss, <span class="at">E=</span>Es, <span class="at">I=</span>Is, <span class="at">R=</span>Rs)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>steadys0 <span class="ot">&lt;-</span> <span class="fu">sapply</span>(states0, <span class="cf">function</span>(x) <span class="fu">eval</span>(<span class="fu">parse</span>(<span class="at">text =</span> x)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Function to run the model</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>run_seirv_nstg_trial <span class="ot">&lt;-</span> <span class="cf">function</span>(params) {</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  de <span class="ot">&lt;-</span> diffeqr<span class="sc">::</span><span class="fu">diffeq_setup</span>() <span class="co"># to use Julia's DifferentialEquations.jl</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># initial distribution of the population across the states</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  nstg <span class="ot">&lt;-</span> params[[<span class="st">"nstg"</span>]]</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  N <span class="ot">&lt;-</span> params[[<span class="st">"N"</span>]]</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> params[[<span class="st">"f"</span>]]</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  V0s <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>nstg, <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">"V"</span>, x,<span class="st">"=0"</span>)), <span class="at">collapse=</span><span class="st">","</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">"u0 &lt;- c(steadys0*N,C=0,"</span>, </span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>                       V0s, <span class="st">",VS=0,VE=0,VI=0,VR=0,VC=0)"</span>)))</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  u0[<span class="fu">c</span>(<span class="st">"V1"</span>,<span class="st">"VE"</span>,<span class="st">"VI"</span>,<span class="st">"VR"</span>)] <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(steadys0<span class="sc">*</span>N<span class="sc">*</span>f<span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>f))</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  tend <span class="ot">&lt;-</span> params[[<span class="st">"tend"</span>]]</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  tspan <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.0</span>, tend)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  prob <span class="ot">&lt;-</span> de<span class="sc">$</span><span class="fu">ODEProblem</span>(seirv_nstg_trial, u0, tspan, params)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  sol <span class="ot">&lt;-</span> de<span class="sc">$</span><span class="fu">solve</span>(prob, de<span class="sc">$</span><span class="fu">Tsit5</span>(), <span class="at">saveat=</span><span class="dv">1</span>)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  mat <span class="ot">&lt;-</span> <span class="fu">sapply</span>(sol<span class="sc">$</span>u, identity)</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  udf <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">t</span>(mat))</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">data.frame</span>(<span class="at">t=</span>sol<span class="sc">$</span>t), udf)</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  Vn <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>nstg, <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">'"V'</span>, x, <span class="st">'"'</span>)), <span class="at">collapse=</span><span class="st">","</span>)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(out) <span class="ot">&lt;-</span> <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">'c("t","S","E","I","R","C",'</span>, Vn, </span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>                                     <span class="st">',"VS","VE","VI","VR","VC")'</span>))) </span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(out)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Direct vaccine effectiveness in case vaccine-derived immunity does not wane over time</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>nstg <span class="ot">&lt;-</span> params[[<span class="st">"nstg"</span>]]</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>params[[<span class="st">"omega_v"</span>]] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">run_seirv_nstg_trial</span>(<span class="at">params=</span>params)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>novacc <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"S"</span>,<span class="st">"E"</span>,<span class="st">"I"</span>,<span class="st">"R"</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>Vn <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>nstg, <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">'"V'</span>, x, <span class="st">'"'</span>)), <span class="at">collapse=</span><span class="st">","</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>vacc <span class="ot">&lt;-</span> <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">'c('</span>, Vn, <span class="st">',"VS","VE","VI","VR")'</span>))) </span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>dve <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="fu">nrow</span>(out)) <span class="co"># direct vaccine effectiveness measured daily</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(out)){</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  dve[i] <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> (out[i,<span class="st">"VC"</span>]<span class="sc">/</span><span class="fu">sum</span>(out[i,vacc]))<span class="sc">/</span>(out[i,<span class="st">"C"</span>]<span class="sc">/</span><span class="fu">sum</span>(out[i,novacc]))</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(dve)<span class="sc">/</span><span class="dv">365</span>, dve, <span class="at">type=</span><span class="st">"l"</span>, <span class="at">ylab=</span><span class="st">"direct VE"</span>, <span class="at">xlab=</span><span class="st">"year"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Direct vaccine efficacy in case vaccine-derived immunity wanes over time with the average waiting time of 10 years</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>nstg <span class="ot">&lt;-</span> params[[<span class="st">"nstg"</span>]]</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>params[[<span class="st">"omega_v"</span>]] <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">10</span><span class="sc">/</span><span class="dv">365</span> <span class="co"># average waiting time = 10 years</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">run_seirv_nstg_trial</span>(<span class="at">params=</span>params)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>novacc <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"S"</span>,<span class="st">"E"</span>,<span class="st">"I"</span>,<span class="st">"R"</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>Vn <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>nstg, <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">'"V'</span>, x, <span class="st">'"'</span>)), <span class="at">collapse=</span><span class="st">","</span>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>vacc <span class="ot">&lt;-</span> <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">'c('</span>, Vn, <span class="st">',"VS","VE","VI","VR")'</span>))) </span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>dve <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="fu">nrow</span>(out)) <span class="co"># direct vaccine effectiveness measured daily</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(out)){</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  dve[i] <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> (out[i,<span class="st">"VC"</span>]<span class="sc">/</span><span class="fu">sum</span>(out[i,vacc]))<span class="sc">/</span>(out[i,<span class="st">"C"</span>]<span class="sc">/</span><span class="fu">sum</span>(out[i,novacc]))</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(dve)<span class="sc">/</span><span class="dv">365</span>, dve, <span class="at">type=</span><span class="st">"l"</span>, <span class="at">ylab=</span><span class="st">"direct VE"</span>, <span class="at">xlab=</span><span class="st">"year"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Function to measure vaccine effectiveness over time.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>measure_vacc_eff <span class="ot">&lt;-</span> <span class="cf">function</span>(p, params, times){</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  de <span class="ot">&lt;-</span> diffeqr<span class="sc">::</span><span class="fu">diffeq_setup</span>()</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  params[[<span class="st">"ve"</span>]] <span class="ot">&lt;-</span> p[<span class="dv">1</span>]</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  params[[<span class="st">"omega_v"</span>]] <span class="ot">&lt;-</span> p[<span class="dv">2</span>]</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  nstg <span class="ot">&lt;-</span> params[[<span class="st">"nstg"</span>]]</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">run_seirv_nstg_trial</span>(params)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  novacc <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"S"</span>,<span class="st">"E"</span>,<span class="st">"I"</span>,<span class="st">"R"</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  Vn <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>nstg, <span class="cf">function</span>(x) <span class="fu">paste0</span>(<span class="st">'"V'</span>, x, <span class="st">'"'</span>)), <span class="at">collapse=</span><span class="st">","</span>)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  vacc <span class="ot">&lt;-</span> <span class="fu">eval</span>(<span class="fu">str2lang</span>(<span class="fu">paste0</span>(<span class="st">'c('</span>, Vn, <span class="st">',"VS","VE","VI","VR")'</span>))) </span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  ve_sim <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="fu">length</span>(times))</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(times)) {</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    ve_sim[i] <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> </span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>      ((out[times[i],<span class="st">"VC"</span>])<span class="sc">/</span><span class="fu">sum</span>(out[times[i],vacc])) <span class="sc">/</span> </span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>      ((out[times[i],<span class="st">"C"</span>])<span class="sc">/</span><span class="fu">sum</span>(out[times[i],novacc]))</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(ve_sim)</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Define sum of squared difference (ssq) between the model and the data to evaluate the performance of the model.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># the initial VE is not measured from the model</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>times <span class="ot">&lt;-</span> <span class="fu">round</span>(tab3[tab3<span class="sc">$</span>group <span class="sc">==</span> <span class="st">"Vi-TT"</span>,]<span class="sc">$</span>year_since_vacc<span class="sc">*</span><span class="dv">365</span>) <span class="co"># times to measure VE</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>ve_obs <span class="ot">&lt;-</span> tab3[tab3<span class="sc">$</span>group <span class="sc">==</span> <span class="st">"Vi-TT"</span>,]<span class="sc">$</span>VE_obs<span class="sc">/</span><span class="dv">100</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>ssq <span class="ot">&lt;-</span> <span class="cf">function</span>(p){</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  ve_sim <span class="ot">&lt;-</span> <span class="fu">measure_vacc_eff</span>(p, <span class="at">params=</span>params, <span class="at">times=</span>times)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>((ve_obs <span class="sc">-</span> ve_sim)<span class="sc">^</span><span class="dv">2</span>)  </span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co"># check for some predetermined ve and omega</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co"># ssq(p=c(0.8,1/3650)) must be smaller than ssq(p=c(0.4,1/365))</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="fu">ssq</span>(<span class="at">p=</span><span class="fu">c</span>(<span class="fl">0.8</span>,<span class="dv">1</span><span class="sc">/</span><span class="dv">3650</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.05994089</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ssq</span>(<span class="at">p=</span><span class="fu">c</span>(<span class="fl">0.4</span>,<span class="dv">1</span><span class="sc">/</span><span class="dv">3650</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1.005789</code></pre>
+</div>
+</div>
+<p>Estimate parameters by minimizing the ssq using the <code>nlminb</code> function.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>params[[<span class="st">"nstg"</span>]] <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>fit1 <span class="ot">&lt;-</span> <span class="fu">nlminb</span>(<span class="fu">c</span>(<span class="fl">0.9</span>, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">10</span><span class="sc">*</span><span class="dv">365</span>)), <span class="at">objective=</span>ssq, </span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">lower=</span><span class="fu">c</span>(<span class="fl">0.1</span>,<span class="dv">1</span><span class="sc">/</span>(<span class="dv">1000</span><span class="sc">*</span><span class="dv">365</span>)),</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">upper=</span><span class="fu">c</span>(<span class="fl">0.99</span>,<span class="fl">0.99</span>))</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>fit1<span class="sc">$</span>par[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.8589978</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span><span class="sc">/</span>fit1<span class="sc">$</span>par[<span class="dv">2</span>]<span class="sc">/</span><span class="dv">365</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 22.14073</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>fit1<span class="sc">$</span>objective</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.0003437906</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>ve_obs</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.834 0.807 0.801 0.771 0.783</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>(ve_sim <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">measure_vacc_eff</span>(<span class="at">p=</span>fit1<span class="sc">$</span>par, <span class="at">params=</span>params, <span class="at">times=</span>times), <span class="at">digits=</span><span class="dv">3</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.828 0.815 0.799 0.782 0.772</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>params[[<span class="st">"nstg"</span>]] <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>fit2 <span class="ot">&lt;-</span> <span class="fu">nlminb</span>(<span class="fu">c</span>(<span class="fl">0.9</span>, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">100</span><span class="sc">*</span><span class="dv">365</span>)), <span class="at">objective=</span>ssq, </span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">lower=</span><span class="fu">c</span>(<span class="fl">0.1</span>,<span class="dv">1</span><span class="sc">/</span>(<span class="dv">100000</span><span class="sc">*</span><span class="dv">365</span>)),</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">upper=</span><span class="fu">c</span>(<span class="fl">0.99</span>,<span class="fl">0.99</span>))</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>fit2<span class="sc">$</span>par[<span class="dv">1</span>]</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span><span class="sc">/</span>fit2<span class="sc">$</span>par[<span class="dv">2</span>]<span class="sc">/</span><span class="dv">365</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>fit2<span class="sc">$</span>objective</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>ve_obs</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">measure_vacc_eff</span>(<span class="at">p=</span>fit2<span class="sc">$</span>par, <span class="at">params=</span>params, <span class="at">times=</span>times), <span class="at">digits=</span><span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Plot data and simulation results</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># png("vacc_eff_obs_sim.png")</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(times<span class="sc">/</span><span class="dv">365</span>, ve_obs, <span class="at">col=</span><span class="st">"firebrick"</span>, </span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>     <span class="at">ylim=</span><span class="fu">c</span>(<span class="fl">0.5</span>,<span class="dv">1</span>),  <span class="at">xlab=</span><span class="st">"year since vaccination"</span>, <span class="at">ylab=</span><span class="st">"direct vaccine effectiveness"</span>,</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>     <span class="at">type=</span><span class="st">"p"</span>, <span class="at">pch=</span><span class="dv">0</span>)</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(times<span class="sc">/</span><span class="dv">365</span>, ve_sim, <span class="at">col=</span><span class="st">"black"</span>)</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>, </span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">legend=</span><span class="fu">c</span>(<span class="st">"Data"</span>, <span class="st">"Model"</span>), </span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">col=</span><span class="fu">c</span>(<span class="st">"firebrick"</span>, <span class="st">"black"</span>), </span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">lty=</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">1</span>),</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">pch=</span><span class="fu">c</span>(<span class="dv">0</span>,<span class="cn">NA</span>),</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">bty =</span> <span class="st">"n"</span>, </span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">cex =</span> <span class="fl">1.0</span>, </span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">text.col =</span> <span class="st">"black"</span>, </span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">horiz =</span> F , </span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">inset =</span> <span class="fu">c</span>(<span class="fl">0.02</span>,<span class="fl">0.02</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid" width="672"></p>
+</div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># dev.off()</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

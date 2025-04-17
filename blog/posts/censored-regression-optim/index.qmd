@@ -1,0 +1,131 @@
+---
+title: "Regression with censored data: AER::tobit and optim"
+author: "Jong-Hoon Kim"
+date: "2023-10-15"
+categories: [R, regression, censor, tobit]
+image: "apt_censored.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+The following example was adapted from the Tobit model in [Model Estimation by Example](https://m-clark.github.io/models-by-example/tobit.html). The dataset contains 200 observations. The academic aptitude variable is `apt`, the reading and math test scores are `read` and `math`, respectively. The variable `prog` is the type of program the student is in, it is a categorical (nominal) variable that takes on three values, academic (prog = 1), general (prog = 2), and vocational (prog = 3). The variable `id` is an identification variable. More details of the dataset available at https://stats.oarc.ucla.edu/r/dae/tobit-models/.
+
+```{r}
+library(data.table)
+dat = fread("https://stats.idre.ucla.edu/stat/data/tobit.csv")
+dat[, prog := as.factor(prog)]
+dat
+```
+
+Following codes were borrowed from the [UCLA Advanced Research Computing](https://stats.oarc.ucla.edu/r/dae/tobit-models/)
+
+```{r}
+# function that gives the density of normal distribution
+# for given mean and sd, scaled to be on a count metric
+# for the histogram: count = density * sample size * bin width
+f <- function(x, var, bw = 15) {
+  dnorm(x, mean = mean(var), sd(var)) * length(var) * bw
+}
+library(ggplot2)
+# setup base plot
+p <- ggplot(dat, aes(x = apt, fill=prog))
+# histogram, coloured by proportion in different programs
+# with a normal distribution overlayed
+p <- p + stat_bin(binwidth=15) + 
+  stat_function(fun = f, size = 1,
+    args = list(var = dat$apt))
+
+ggsave("apt_censored.png", p)
+```
+
+Looking at the above histogram, we can see the censoring in the values of `apt`, that is, there are far more cases with scores of 750 to 800 than one would expect looking at the rest of the distribution. Below is an alternative histogram that further highlights the excess of cases where `apt=800`.
+
+**Note on the difference between truncation and censoring**: With censored variables, all of the observations are in the dataset, but we don't know the "true" values of some of them. With truncation some of the observations are not included in the analysis because of the value of the variable.
+
+The Tobit model can be used for such a case. It is a class of regression models in which the observed range of the dependent variable is censored in some way, according to the \[Wikipedia article\] (https://en.wikipedia.org/wiki/Tobit_model). The possible maximum score 800, which
+
+```{r}
+tobit = AER::tobit(
+  apt ~ read + math + prog,
+  data = dat,
+  left = -Inf,
+  right = 800
+)
+```
+
+To account for censoring, likelihood function is modified to so that it reflects the unequal sampling probability for each observation depending on whether the latent dependent variable fell above or below the determined threshold. It appears that this approach was first proposed by [James Tobin](https://en.wikipedia.org/wiki/James_Tobin). For a sample that, as in Tobin's original case, was censored from below at zero, the sampling probability for each non-limit observation is simply the height of the appropriate density function. For any limit observation, it is the cumulative distribution, i.e. the integral below zero of the appropriate density function. The likelihood function is thus a mixture of densities and cumulative distribution functions, according to the [Wikipedia article](https://en.wikipedia.org/wiki/Tobit_model).
+
+$$
+\text{log }L = \sum_{i=1}^n w_i\left(\delta_i~\text{log} \left(P\left(Y=y_i|X\right)\right) + \left(1-\delta_i\right)~\text{log} \left(1-\sum_{i=1}^{l_U}P(Y=y_i|X)\right)
+\right) 
+$$ , where $l_U$ represents the upper limit and
+
+$$
+\begin{equation}
+  \delta_i=\begin{cases}
+    1, & \text{if }y_i < l_U.\\
+    0, & \text{otherwise}.
+  \end{cases}
+\end{equation}
+$$
+
+### Log likelihood accounting for censoring
+
+```{r}
+negloglik <- function(par, y, X, ul=100) {
+  # parameters
+  sd = par[length(par)]
+  beta = par[-length(par)]
+  # create indicator depending on chosen limit
+  indicator = y < ul
+  # linear predictor
+  mu = X %*% beta
+  # log likelihood
+  loglik = indicator * dnorm(y, mean=mu, sd=sd, log=T) +
+             (1-indicator) * log(1-pnorm(ul, mean=mu, sd=sd))
+
+  sumloglik = sum(loglik, na.rm=T)
+  return(-sumloglik)
+}
+```
+
+### optim
+
+```{r}
+# Setup data and initial values.
+mod = lm(apt ~ read + math + prog, data = dat)
+X = model.matrix(mod)
+init = c(coef(mod), sigma=summary(mod)$sigma)
+
+# negloglik(par=init, y=acad_apt$apt, X=X, ul=800)
+
+fit <- optim(par = init,
+            fn = negloglik,
+            y = dat$apt,
+            X = X,
+            ul = 800)
+
+coef(tobit)
+(fit$par)
+```
+
+### `optim` control parameters
+
+By adjusting control parameters of the `optim` function, results can match more closely. Below is such an example.
+
+```{r}
+fit <- optim(par = init,
+            fn = negloglik,
+            y = dat$apt,
+            X = X,
+            ul = 800,
+            method = "Nelder-Mead",
+            control = list(maxit=2e4, reltol=1e-15))
+
+coef(tobit)
+(fit$par)
+```

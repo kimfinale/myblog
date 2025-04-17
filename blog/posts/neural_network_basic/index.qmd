@@ -1,0 +1,191 @@
+---
+title: "A very basic implementation of a neural network"
+author: "Jong-Hoon Kim"
+date: "2024-05-27"
+categories: [GPT-2, ChatGPT, Wolfram]
+image: "obs_pred.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+I am documenting my learning of a neural network. The contents are mostly based on the [e-book](https://skeydan.github.io/Deep-Learning-and-Scientific-Computing-with-R-torch/).
+
+Load the `torch` library.
+
+```{r}
+require(torch)
+```
+
+### Data
+ 
+```{r}
+# input dimensionality (number of input features)
+dim_in <- 3
+# number of observations in training set
+n <- 200
+
+x <- torch_randn(n, dim_in)
+coefs <- c(0.2, -1.3, -0.5)
+y <- x$matmul(coefs)$unsqueeze(2) + torch_randn(n, 1) # column matrix
+```
+
+Weights and biases
+
+$$f(\bf{X})=\bf{XW}+b$$
+
+
+
+Using two layers with corresponding parameters, `w1, b1, w2` and `b2`. 
+
+$$f(\bf{X})=(\bf{XW_1}+b_1)\bf{W_2}+b_2$$
+
+`y_pred <- x$mm(w1)$add(b1)$relu()$mm(w2)$add(b2)`
+  
+```{r}
+# dimensionality of hidden layer
+dim_hidden <- 32
+# output dimensionality (number of predicted features)
+dim_out <- 1
+
+# weights connecting input to hidden layer
+w1 <- torch_randn(dim_in, dim_hidden, requires_grad = TRUE)
+# weights connecting hidden to output layer
+w2 <- torch_randn(dim_hidden, dim_out, requires_grad = TRUE)
+
+# hidden layer bias
+b1 <- torch_zeros(1, dim_hidden, requires_grad = TRUE)
+# output layer bias
+b2 <- torch_zeros(1, dim_out, requires_grad = TRUE)
+```
+
+Predicted values from the above network is computed as follows and using Rectified Linear Unit (ReLU) as the activation function
+```{r}
+y_pred <- x$mm(w1)$add(b1)$relu()$mm(w2)$add(b2)
+```
+
+Then the loss function can be created as follows
+```{r}
+loss <- (y_pred - y)$pow(2)$mean()
+```
+
+
+```{r}
+learning_rate <- 1e-2
+
+### training loop ----------------------------------------
+
+for (epoch in 1:200) {
+  ### -------- Forward pass --------
+  y_pred <- x$mm(w1)$add(b1)$relu()$mm(w2)$add(b2)
+  
+  ### -------- Compute loss -------- 
+  loss <- (y_pred - y)$pow(2)$mean()
+  if (epoch %% 10 == 0)
+    cat("Epoch: ", epoch, "   Loss: ", loss$item(), "\n")
+  
+  ### -------- Backpropagation --------
+  # compute gradient of loss w.r.t. all tensors with
+  # requires_grad = TRUE
+  loss$backward()
+  
+  ### -------- Update weights -------- 
+  # Wrap in with_no_grad() because this is a part we don't 
+  # want to record for automatic gradient computation
+   with_no_grad({
+     w1 <- w1$sub_(learning_rate * w1$grad)
+     w2 <- w2$sub_(learning_rate * w2$grad)
+     b1 <- b1$sub_(learning_rate * b1$grad)
+     b2 <- b2$sub_(learning_rate * b2$grad)  
+     
+     # Zero gradients after every pass, as they'd
+     # accumulate otherwise
+     w1$grad$zero_()
+     w2$grad$zero_()
+     b1$grad$zero_()
+     b2$grad$zero_()  
+   })
+}
+```
+
+Evaluate the model visually
+```{r}
+# png("obs_pred.png")
+y_pred <- x$mm(w1)$add(b1)$relu()$mm(w2)$add(b2)
+plot(y, y_pred, xlab="Observed", ylab="Predicted", 
+     main="Neural network from scratch")
+abline(a=0, b=1, col="red")
+# dev.off()
+sum((as.numeric(y) - as.numeric(y_pred))^2)
+```
+
+
+The same model can be created in a more compactly way using a sequential module and using the activation function. 
+
+```{r}
+net <- nn_sequential(
+  nn_linear(dim_in, dim_hidden),
+  nn_relu(),
+  nn_linear(dim_hidden, dim_out)
+)
+```
+
+Train using the `Adam` optimizer, a popular choice.
+
+```{r}
+opt <- optim_adam(net$parameters)
+# opt <- optim_sgd(net$parameters, lr=0.001)
+```
+
+
+```{r}
+### training loop --------------------------------------
+
+for (epoch in 1:200) {
+  # forward pass
+  y_pred <- net(x)
+  # compute loss 
+  loss <- nnf_mse_loss(y_pred, y)
+  if (epoch %% 10 == 0) { 
+    cat("Epoch: ", epoch, ", Loss: ", loss$item(), "\n")
+  }
+  # back propagation 
+  opt$zero_grad()
+  loss$backward()
+  # update weights
+  opt$step()
+}
+```
+
+Compare the prediction and observation
+
+```{r}
+y_pred_s <- net(x)
+plot(y, y_pred, xlab="Observed", ylab="Predicted", 
+     main="Neural network: A sequential module")
+abline(a=0, b=1, col="red")
+# Mean squared error, L2 loss
+sum((as.numeric(y) - as.numeric(y_pred))^2)
+```
+
+Compared with the linear model
+```{r}
+xdf <- as.data.frame(as.matrix(x))
+names(xdf) <- c("x1","x2", "x3")
+ydf <- as.data.frame(as.matrix(y))
+names(ydf) <- c("y")
+dat <- cbind(xdf, ydf)
+m <- lm(y~x1+x2+x3, data=dat)
+y_pred_lm <- predict(m, xdf)
+ydf2 <- cbind(ydf, y_pred_lm)
+plot(ydf2[,1], ydf2[,2], xlab="Observed", ylab="Predicted", 
+     main="Linear regresssion")
+abline(a=0, b=1, col="red")
+# Mean squared error, L2 loss
+sum((ydf$y - y_pred_lm)^2)
+```
+
+

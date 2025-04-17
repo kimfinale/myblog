@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2023-08-11">
+
+<title>Disease modeling for public health - Basic reproduction number using SymPy</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html" rel="" target="">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html" rel="" target="">
+ <span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/" rel="" target=""><i class="bi bi-linkedin" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau" rel="" target=""><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Basic reproduction number using SymPy</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Basic reproduction number</div>
+    <div class="quarto-category">SymPy</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">August 11, 2023</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<p>감염병의 전파를 이해하는 데 있어 가장 기본적인 개념이 <a href="https://jonghoonkim.ghost.io/ghost/#/editor/post/63aae251d7d6b5003d2967d1">재감염지수</a>, 특히 기초재감염지수 (<span class="math inline">\(\mathcal{R}_0\)</span>) 이다. 재감염지수는 한 명의 감염자로부터 생산되는 평균 후속 감염자의 수를 일컫는데 기초재감염지수는 코로나19의 경우 처럼 인구 집단에 면역력을 가진 사람이 없어 모든 사람이 감염될 수 있는 상태하 에서의 재감염지수를 말한다. 기초 재감염 지수는 다음과 같은 수식으로 표현할 수 있다.</p>
+<p><span class="math display">\[ \mathcal{R}_0 = \beta c D \]</span></p>
+<p><span class="math inline">\(\beta\)</span> 는 한 명의 감염자가 타인을 접촉할 때 상대방을 감염시킬 수 있는 확률, <span class="math inline">\(c\)</span> 는 단위 시간 당 접촉이 일어나는 횟수, <span class="math inline">\(D\)</span> 는 감염 상태가 지속되는 시간을 나타낸다. <span class="math inline">\(\beta\)</span> 만으로 <span class="math inline">\(\beta c\)</span> 를 대신해 사용하는 경우도 흔하다. 그 경우 <span class="math inline">\(\beta\)</span> 는 단위 시간 당 후속 감염자의 수로 표현할 수 있을 것 같다. 미분방정식에 기반한 감염병 모형의 경우는 <span class="math inline">\(\mathcal{R}_0\)</span>를 어떻게 계산할까? 아래와 같이 SIR 모형을 정의해 보자.</p>
+<span class="math display">\[\begin{align}
+\mathrm{d}S/\mathrm{d}t &amp;= -\beta I S/N \\
+\mathrm{d}I/\mathrm{d}t &amp;= \beta I S/N - \gamma I\\
+\mathrm{d}R/\mathrm{d}t &amp;= \gamma I
+\end{align}\]</span>
+<p>위의 정의에서 사용되었던 개념을 적용한다면 <span class="math inline">\(\mathcal{R}_0 = \beta/\gamma\)</span> 라고 할 수 있다. 이는 <span class="math inline">\(\mathcal{R}_0\)</span>가 감염병이 집단 내에서 유행을 일으킬 수 있는 역치조건임을 이용해도 동일한 결론에 이를 수 있다. (i.e., <span class="math inline">\(\mathrm{d}I/\mathrm{d}t&gt;0\)</span>)</p>
+<p>위와는 달리 <a href="https://link.springer.com/article/10.1007/BF00178324">Diekmann <em>et al.</em></a> 에 의해서 도입된 next generation 방법으로 좀 더 다양한 상황 하에서 <span class="math inline">\(\mathcal{R}_0\)</span>를 구할 수 있다. 이 방법에서는 <span class="math inline">\(\mathcal{R}_0\)</span>가 next generation operator의 spectral radius 가 된다. 위 논문 보다는 <a href="https://www.sciencedirect.com/science/article/pii/S0025556402001086">van den Driessche <em>et al.</em></a> 가 좀 더 이해하기 쉬운 것 같아 이 방법을 기준으로 살펴보겠다. 그리고 그 계산을 python의 SymPy 라이브러리를 이용해서 구현을 해보겠다. 먼저 간단한 우선 ( SEIR ) 모형의 경우부터 살펴보자.</p>
+<p>Next generation operator <span class="math inline">\(G\)</span> 은 전파를 통해서 생산되는 새로운 감염이 발생하는 속도를 나타내는 행렬 <span class="math inline">\(F\)</span>와 감염이 다른 상태로 변화되는 속도 (V)로 구성되며 다음과 같은 관계를 갖는다. <span class="math inline">\(G=FV^{-1}\)</span>. 그리고 <span class="math inline">\(R_0\)</span>는 <span class="math inline">\(G\)</span>의 <a href="https://en.wikipedia.org/wiki/Spectral_radius">spectral radius</a>가 된다. 아래 파이썬 구현에서는 <span class="math inline">\(\beta, \gamma\)</span> 를 b, g로 나타내었다.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sympy <span class="im">import</span> <span class="op">*</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>b, k, g, <span class="op">=</span> symbols(<span class="st">'b k g'</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>F <span class="op">=</span> Matrix([[<span class="dv">0</span>, b],[<span class="dv">0</span>, <span class="dv">0</span>]])</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>V <span class="op">=</span> Matrix([[k, <span class="dv">0</span>], [<span class="op">-</span>k, g]])</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> F<span class="op">*</span>(V<span class="op">**-</span><span class="dv">1</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>eigval <span class="op">=</span> M.eigenvals(simplify<span class="op">=</span>true)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>init_printing(use_unicode<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>lst <span class="op">=</span> <span class="bu">list</span>(eigval.keys())</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>lst[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>b
+─
+g</code></pre>
+</div>
+</div>
+<p>위에서 언급한 SEIR 모형의 경우는 너무 간단하니 그 보다 조금 더 복잡한 그 예로 다음 연구를 살펴보자. <a href="https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0002642">Pitzer <em>et al</em>.</a>의 연구인데 사용된 감염병 모형은 사람 간 직접 전파와 물을 통한 간접 전파 두 가지의 전파 메케니즘을 구현 하였고 (<span class="math inline">\(\lambda_p\)</span> 와 <span class="math inline">\(\lambda_w\)</span>) 최초 감염 <span class="math inline">\(S_1 \rightarrow I_1\)</span> 과 중복 감염<span class="math inline">\(R \rightarrow S_2 \rightarrow I_2\)</span> 을 다르게 취급하였다. 부록 (supplementary material)을 보면 사용된 미분식을 볼 수 있다.</p>
+<span class="math display">\[\begin{align}
+\mathrm{d}S_1/\mathrm{d}t &amp;= B + \epsilon S_2 - (\lambda_p+\lambda_w+\mu)S_1\\
+\mathrm{d}I_1/\mathrm{d}t &amp;= (\lambda_p+\lambda_w)S_1 - (\delta+\mu) I_1 \\
+\mathrm{d}R/\mathrm{d}t &amp;= \delta(1-\theta-\alpha)(I_1+I_2) - (\omega +\mu)R \\
+\mathrm{d}C/\mathrm{d}t &amp;= \delta\theta(I_1+I_2) - \mu C \\
+\mathrm{d}S_2/\mathrm{d}t &amp;= \omega R -\epsilon S_2 - (\lambda_p+\lambda_w+\mu) S_2\\
+\mathrm{d}I_2/\mathrm{d}t &amp;= (\lambda_p+\lambda_w) S_2 - (\delta+\mu) I_2 \\
+\mathrm{d}W/\mathrm{d}t &amp;= \gamma(I_1+rI_2+rC) - \xi W
+\end{align}\]</span>
+<p>또한 아래와 같이 기초재감염지수도 계산 결과를 보여준다. SymPy를 통해 동일한 결과를 얻을 수 있는지 확인해보자.</p>
+<span class="math display">\[\begin{align}
+R_0 = \frac{1}{\mu+\delta} \left(\beta_p +\frac{\gamma \beta_w}{\xi}\right) \left(1 +\frac{\delta\theta r}{\mu}\right)
+\end{align}\]</span>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>p, r, w, N, d, m, t, g, x <span class="op">=</span> symbols(<span class="st">'p r w N d m t g x'</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>F <span class="op">=</span> Matrix([[p, r<span class="op">*</span>p, r<span class="op">*</span>p, w<span class="op">*</span>N], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>]])</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>V <span class="op">=</span> Matrix([[d<span class="op">+</span>m, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>], [<span class="dv">0</span>, d<span class="op">+</span>m, <span class="dv">0</span>, <span class="dv">0</span>], [<span class="op">-</span>d<span class="op">*</span>t, <span class="op">-</span>d<span class="op">*</span>t, m, <span class="dv">0</span>], [<span class="op">-</span>g, <span class="op">-</span>r<span class="op">*</span>g, <span class="op">-</span>r<span class="op">*</span>g, x]])</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> F<span class="op">*</span>(V<span class="op">**-</span><span class="dv">1</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>eigval <span class="op">=</span> M.eigenvals(simplify<span class="op">=</span>true)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>init_printing(use_unicode<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>eigval </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>⎧      (N⋅g⋅w + p⋅x)⋅(d⋅r⋅t + m)   ⎫
+⎨0: 3, ─────────────────────────: 1⎬
+⎩             m⋅x⋅(d + m)          ⎭</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>lst <span class="op">=</span> <span class="bu">list</span>(eigval.keys())</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>R0_eig <span class="op">=</span> lst[<span class="dv">1</span>]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>R0 <span class="op">=</span> (<span class="dv">1</span><span class="op">/</span>(d<span class="op">+</span>m))<span class="op">*</span>(p<span class="op">+</span>N<span class="op">*</span>g<span class="op">*</span>w<span class="op">/</span>x)<span class="op">*</span>(<span class="dv">1</span><span class="op">+</span>(d<span class="op">*</span>t<span class="op">*</span>r)<span class="op">/</span>m) <span class="co"># R0 from the Pitzer (2014)</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>simplify(R0<span class="op">-</span>R0_eig) <span class="co"># 0 for the same expression (symbolic assessment)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>0</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>R0.equals(R0_eig) <span class="co"># True for the same expression (numerical assessment)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True</code></pre>
+</div>
+</div>
+<p>부록에 보면 기초 재감염지수에 이르는 상세한 과정이 나와있는데 <span class="math inline">\(V_{3,3}\)</span> 에 오류가 있음을 알아냈다. <span class="math inline">\(\delta +\mu\)</span> 가 <span class="math inline">\(\mu\)</span> 로 바뀌어야 한다. 이유는 위 미분식에서 <span class="math inline">\(C\)</span> 식을 보면 알 수 있는데 이는 만성 감염자를 나타내고 따라서 회복을 의미하는 <span class="math inline">\(\delta\)</span> 가 없어야 한다. 이는 기록하는 과정에서의 오류인 듯 하고 결과로 얻어진 <span class="math inline">\(R_0\)</span> 는 우리가 계산한 결과와 동일하다. 다만, 계산 결과를 위 식에서와 같이 의미있는 구획으로 나누어서 표현하려면 SymPy 결과를 직접 수정하여야 한다.</p>
+
+
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

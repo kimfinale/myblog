@@ -1,0 +1,214 @@
+---
+title: "Solutions for the steady states of the SEIR model"
+author: "Jong-Hoon Kim"
+date: "2024-03-28"
+categories: [SEIR model, steady states, ODE, deSolve, Mathematica]
+image: "sample_figure.png"
+editor_options: 
+  chunk_output_type: console
+format: 
+  html:
+    page-layout: full
+    toc-location: left
+    html-math-method: katex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+In this post, I compared the numerical solutions obtained using `deSolve::ode` 
+with the algebraic solutions derived from Mathematica for the steady states of 
+a SEIR model. The model considers the waning of natural immunity over time 
+in a dynamically changing population.
+
+### $SEIR$ model with waning immunity and vital dynamics
+$$
+dS/dt = \mu (S+E+I+R) - \beta SI - \mu S + \omega R\\
+dE/dt = \beta SI - (\mu+\kappa)E\\
+dI/dt = \kappa E - (\mu+\gamma)I\\
+dR/dt = \gamma I - (\mu+\omega) R
+$$
+Following Mathematica command produces the solutions for the steady states.
+```{r, eval=FALSE}
+FullSimplify[
+ Solve[{\[Mu]*(S + E1 + I1 + R) - (\[Beta]*I1 + \[Mu])*S + \[Omega]*
+      R == 0, \[Beta]*I1*S - (\[Mu] + \[Kappa])*E1 == 
+    0, \[Kappa]*E1 - (\[Mu] + \[Gamma])*I1 == 
+    0, \[Gamma]*I1 - (\[Omega] + \[Mu])*R == 0, 
+   S + E1 + I1 + R == 1, \[Mu] > 0, \[Beta] > 0, \[Kappa] > 
+    0, \[Gamma] > 0, \[Omega] > 0, S > 0, E1 > 0, I1 > 0, R > 0, 
+   S \[Element] Reals, E1 \[Element] Reals, I1 \[Element] Reals, 
+   R \[Element] Reals}, {S, E1, I1, R}]]
+```
+
+$$s = \frac{(\gamma +\mu ) (\kappa +\mu )}{\beta  \kappa } \\
+e = -\frac{(\gamma +\mu ) (\mu +\omega ) ((\gamma +\mu ) (\kappa +\mu )-\beta  \kappa )}{\beta  \kappa  (\gamma  (\kappa +\mu +\omega )+(\kappa +\mu ) (\mu +\omega ))} \\
+i = \frac{(\mu +\omega ) (\beta  \kappa -(\gamma +\mu ) (\kappa +\mu ))}{\beta  \omega  (\gamma +\kappa +\mu )+\beta  (\gamma +\mu ) (\kappa +\mu )} \\
+r = \frac{\beta  \gamma  \kappa -\gamma  (\gamma +\mu ) (\kappa +\mu )}{\beta  \omega  (\gamma +\kappa +\mu )+\beta  (\gamma +\mu ) (\kappa +\mu )}
+$$
+I used `latex2r` package to convert the LaTex expressions from the Mathematica to R codes
+```{r}
+library(latex2r)
+s <- latex2r("\\frac{(\\gamma +\\mu ) (\\kappa +\\mu )}{\\beta  \\kappa }")
+e <- latex2r("-\\frac{(\\gamma +\\mu ) (\\mu +\\omega ) ((\\gamma +\\mu ) (\\kappa +\\mu )-\\beta  \\kappa )}{\\beta  \\kappa  (\\gamma  (\\kappa +\\mu +\\omega )+(\\kappa +\\mu ) (\\mu +\\omega ))}")
+i <- latex2r("\\frac{(\\mu +\\omega ) (\\beta  \\kappa -(\\gamma +\\mu ) (\\kappa +\\mu ))}{\\beta  \\omega  (\\gamma +\\kappa +\\mu )+\\beta  (\\gamma +\\mu ) (\\kappa +\\mu )}")
+r <- latex2r("\\frac{\\beta  \\gamma  \\kappa -\\gamma  (\\gamma +\\mu ) (\\kappa +\\mu )}{\\beta  \\omega  (\\gamma +\\kappa +\\mu )+\\beta  (\\gamma +\\mu ) (\\kappa +\\mu )}")
+
+kappa <- 1.115044 / 2 # mean late period is still around 1.4 days, 
+gamma <- 1/2
+mu <- 1/(65*365)
+omega <- 1/(4*365)
+beta <- 0.6
+
+states <- list(s=s, e=e, i=i, r=r)
+val = sapply(states, function(x) eval(parse(text = x)))
+val[["e"]]/(val[["i"]]+val[["e"]])
+gamma/(gamma+kappa)
+(gamma+mu)/(gamma+kappa+mu)
+(1/kappa)/(1/kappa + 1/gamma) 
+```
+
+Numerical solutions based on `deSolve::ode`.
+
+```{r}
+seir_vital <- function(t, u, p){
+  N <- sum(u)
+  beta <- p["beta"]
+  kappa <- p["kappa"]
+  gamma <- p["gamma"]
+  omega <- p["omega"]
+  mu <- p["mu"]
+  
+  du1 <- - beta*u[1]*u[3] + omega*u[4] - mu*u[1] + mu*N
+  du2 <- + beta*u[1]*u[3] - kappa*u[2] - mu*u[2]
+  du3 <- + kappa*u[2] - gamma*u[3] - mu*u[3]
+  du4 <- + gamma*u[3] - omega*u[4] - mu*u[4]
+  
+  return(list(c(du1,du2,du3,du4))) 
+}
+
+library(deSolve)
+u0 <- c(0.99, 0, 0.01, 0)
+p <- c(kappa=1.115044/2, gamma=1/2, mu=1/(65*365), 
+      omega=1/(4*365), beta=0.6)
+tspan <- seq(from=0, to=300*100)
+outdf <- as.data.frame(ode(y=u0, times=tspan, func=seir_vital, parms=p))
+names(outdf) <- c("day","s","e","i","r")
+tail(outdf, 1)
+```
+
+
+### $SE_1E_2I_1I_2R_1R_2$ model
+
+This model incorporates two consecutive compartments for the Exposed (E), 
+Infectious (I), and Recovered (R) states, effectively changing the distribution
+of waiting times in each states from an exponential to an Erlang distribution
+with a shape parameter of 2, offering a more realistic representation.
+
+$$
+dS/dt = \mu (S+E_1+I_1+R_1+E_2+I_2+R_2) - \beta S(I_1+I_2) - \mu S + 2 \omega R_2\\
+dE_1/dt = \beta S(I_1+I_2) - (\mu+2\kappa)E1\\
+dE_2/dt = 2\kappa E_1 - (\mu+2\kappa)E2\\
+dI_1/dt = 2 \kappa E_2 - (\mu+2\gamma)I_1\\
+dI_2/dt = 2\gamma I_1 - (\mu+2\gamma)I_2\\
+dR_1/dt = 2 \gamma I_2 - (\mu+2\omega) R_1\\
+dR_2/dt = 2 \omega R_1 - (\mu+2\omega) R_2
+$$
+
+The following Mathematica command produces the solutions for the steady states.
+```{r, eval=F}
+FullSimplify[
+ Solve[{\[Mu]*(S + E1 + E2 + I1 + I2 + R1 + 
+        R2) - (\[Beta]*(I1 + I2) + \[Mu])*S + 2*\[Omega]*R2 == 
+    0, \[Beta]*(I1 + I2)*S - (\[Mu] + 2*\[Kappa])*E1 == 0, 
+   2*\[Kappa]*E1 - (2*\[Kappa] + \[Mu])*E2 == 0, 
+   2*\[Kappa]*E2 - (\[Mu] + 2*\[Gamma])*I1 == 0, 
+   2*\[Gamma]*I1 - (2*\[Gamma] + \[Mu])*I2 == 0, 
+   2*\[Gamma]*I2 - (2*\[Omega] + \[Mu])*R1 == 0, 
+   2*\[Omega]*R1 - (\[Mu] + 2*\[Omega])*R2 == 0, 
+   S + E1 + E2 + I1 + I2 + R1 + R2 == 1, \[Mu] > 0, \[Beta] > 
+    0, \[Kappa] > 0, \[Gamma] > 0, \[Omega] > 0, S > 0, E1 > 0, 
+   E2 > 0, I1 > 0, I2 > 0, R1 > 0, R2 > 0, S \[Element] Reals, 
+   E1 \[Element] Reals, E2 \[Element] Reals, I1 \[Element] Reals, 
+   I2 \[Element] Reals, R1 \[Element] Reals, R2 \[Element] Reals}, {S,
+    E1, E2, I1, I2, R1, R2}]]
+```
+
+$$
+s= \frac{(2 \gamma +\mu )^2 (2 \kappa +\mu )^2}{4 \beta  \kappa ^2 (4 \gamma +\mu )}\\
+$$
+$$
+e_1 = - \frac{(2 \gamma +\mu )^2 (2 \kappa +\mu ) (\mu +2 \omega )^2 \left((2 \gamma +\mu )^2 (2 \kappa +\mu )^2-4 \beta  \kappa ^2 (4 \gamma +\mu )\right)}{4 \beta  \kappa ^2 (4 \gamma +\mu ) \left(4 \gamma ^2 (2 \kappa +\mu +2 \omega ) (2 \kappa  (\mu +4 \omega )+\mu  (\mu +2 \omega ))+4 \gamma  (2 \kappa +\mu )^2 (\mu +2 \omega )^2+\mu  (2 \kappa +\mu )^2 (\mu +2 \omega )^2\right)}\\
+$$
+$$
+e_2 = -\frac{(2 \gamma +\mu )^2 (\mu +2 \omega )^2 \left((2 \gamma +\mu )^2 (2 \kappa +\mu )^2-4 \beta  \kappa ^2 (4 \gamma +\mu )\right)}{2 \beta  \kappa  (4 \gamma +\mu ) \left(4 \gamma ^2 (2 \kappa +\mu +2 \omega ) (2 \kappa  (\mu +4 \omega )+\mu  (\mu +2 \omega ))+4 \gamma  (2 \kappa +\mu )^2 (\mu +2 \omega )^2+\mu  (2 \kappa +\mu )^2 (\mu +2 \omega )^2\right)}\\
+$$
+$$
+i_1 = - \frac{(2 \gamma +\mu ) (\mu +2 \omega )^2 \left((2 \gamma +\mu )^2 (2 \kappa +\mu )^2-4 \beta  \kappa ^2 (4 \gamma +\mu )\right)}{\beta  (4 \gamma +\mu ) \left(4 \gamma ^2 (2 \kappa +\mu +2 \omega ) (2 \kappa  (\mu +4 \omega )+\mu  (\mu +2 \omega ))+4 \gamma  (2 \kappa +\mu )^2 (\mu +2 \omega )^2+\mu  (2 \kappa +\mu )^2 (\mu +2 \omega )^2\right)}\\
+$$
+$$
+i_2 = -\frac{2 \gamma  (\mu +2 \omega )^2 \left(4 \beta  \kappa ^2 (4 \gamma +\mu )-(2 \gamma +\mu )^2 (2 \kappa +\mu )^2\right)}{\beta  (4 \gamma +\mu ) \left(4 \gamma ^2 (2 \kappa +\mu +2 \omega ) (2 \kappa  (\mu +4 \omega )+\mu  (\mu +2 \omega ))+4 \gamma  (2 \kappa +\mu )^2 (\mu +2 \omega )^2+\mu  (2 \kappa +\mu )^2 (\mu +2 \omega )^2\right)}\\
+$$
+$$
+r_1 = -\frac{4 \gamma ^2 (\mu +2 \omega ) \left((2 \gamma +\mu )^2 (2 \kappa +\mu )^2-4 \beta  \kappa ^2 (4 \gamma +\mu )\right)}{\beta  (4 \gamma +\mu ) \left(4 \gamma ^2 (2 \kappa +\mu +2 \omega ) (2 \kappa  (\mu +4 \omega )+\mu  (\mu +2 \omega ))+4 \gamma  (2 \kappa +\mu )^2 (\mu +2 \omega )^2+\mu  (2 \kappa +\mu )^2 (\mu +2 \omega )^2\right)}\\
+$$
+$$
+r_2 = -\frac{8 \gamma ^2 \omega  \left((2 \gamma +\mu )^2 (2 \kappa +\mu )^2-4 \beta  \kappa ^2 (4 \gamma +\mu )\right)}{\beta  (4 \gamma +\mu ) \left(4 \gamma ^2 (2 \kappa +\mu +2 \omega ) (2 \kappa  (\mu +4 \omega )+\mu  (\mu +2 \omega ))+4 \gamma  (2 \kappa +\mu )^2 (\mu +2 \omega )^2+\mu  (2 \kappa +\mu )^2 (\mu +2 \omega )^2\right)}
+$$
+
+Again, LaTex expressions were converted to R codes using the `latex2r` package.
+```{r}
+s <- latex2r("\\frac{(2 \\gamma +\\mu )^2 (2 \\kappa +\\mu )^2}{4 \\beta  \\kappa ^2 (4 \\gamma +\\mu )}")
+e1 <- latex2r("-\\frac{(2 \\gamma +\\mu )^2 (2 \\kappa +\\mu ) (\\mu +2 \\omega )^2 \\left((2 \\gamma +\\mu )^2 (2 \\kappa +\\mu )^2-4 \\beta  \\kappa ^2 (4 \\gamma +\\mu )\\right)}{4 \\beta  \\kappa ^2 (4 \\gamma +\\mu ) \\left(4 \\gamma ^2 (2 \\kappa +\\mu +2 \\omega ) (2 \\kappa  (\\mu +4 \\omega )+\\mu  (\\mu +2 \\omega ))+4 \\gamma  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2+\\mu  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2\\right)}")
+
+e2 <- latex2r("-\\frac{(2 \\gamma +\\mu )^2 (\\mu +2 \\omega )^2 \\left((2 \\gamma +\\mu )^2 (2 \\kappa +\\mu )^2-4 \\beta  \\kappa ^2 (4 \\gamma +\\mu )\\right)}{2 \\beta  \\kappa  (4 \\gamma +\\mu ) \\left(4 \\gamma ^2 (2 \\kappa +\\mu +2 \\omega ) (2 \\kappa  (\\mu +4 \\omega )+\\mu  (\\mu +2 \\omega ))+4 \\gamma  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2+\\mu  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2\\right)}")
+
+i1 <- latex2r("-\\frac{(2 \\gamma +\\mu ) (\\mu +2 \\omega )^2 \\left((2 \\gamma +\\mu )^2 (2 \\kappa +\\mu )^2-4 \\beta  \\kappa ^2 (4 \\gamma +\\mu )\\right)}{\\beta  (4 \\gamma +\\mu ) \\left(4 \\gamma ^2 (2 \\kappa +\\mu +2 \\omega ) (2 \\kappa  (\\mu +4 \\omega )+\\mu  (\\mu +2 \\omega ))+4 \\gamma  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2+\\mu  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2\\right)}")
+
+i2 <- latex2r("\\frac{2 \\gamma  (\\mu +2 \\omega )^2 \\left(4 \\beta  \\kappa ^2 (4 \\gamma +\\mu )-(2 \\gamma +\\mu )^2 (2 \\kappa +\\mu )^2\\right)}{\\beta  (4 \\gamma +\\mu ) \\left(4 \\gamma ^2 (2 \\kappa +\\mu +2 \\omega ) (2 \\kappa  (\\mu +4 \\omega )+\\mu  (\\mu +2 \\omega ))+4 \\gamma  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2+\\mu  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2\\right)}")
+
+r1 <- latex2r("-\\frac{4 \\gamma ^2 (\\mu +2 \\omega ) \\left((2 \\gamma +\\mu )^2 (2 \\kappa +\\mu )^2-4 \\beta  \\kappa ^2 (4 \\gamma +\\mu )\\right)}{\\beta  (4 \\gamma +\\mu ) \\left(4 \\gamma ^2 (2 \\kappa +\\mu +2 \\omega ) (2 \\kappa  (\\mu +4 \\omega )+\\mu  (\\mu +2 \\omega ))+4 \\gamma  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2+\\mu  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2\\right)}")
+
+r2 <- latex2r("-\\frac{8 \\gamma ^2 \\omega  \\left((2 \\gamma +\\mu )^2 (2 \\kappa +\\mu )^2-4 \\beta  \\kappa ^2 (4 \\gamma +\\mu )\\right)}{\\beta  (4 \\gamma +\\mu ) \\left(4 \\gamma ^2 (2 \\kappa +\\mu +2 \\omega ) (2 \\kappa  (\\mu +4 \\omega )+\\mu  (\\mu +2 \\omega ))+4 \\gamma  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2+\\mu  (2 \\kappa +\\mu )^2 (\\mu +2 \\omega )^2\\right)}")
+
+kappa <- 1.115044 / 2 # mean late period is still around 1.4 days, 
+gamma <- 1/2 
+mu <- 1/(65*365)
+omega <- 1/(4*365)
+beta <- 0.6
+
+states <- list(s=s, e1=e1, e2=e2, i1=i1, i2=i2, r1=r1, r2=r2)
+sapply(states, function(x) eval(parse(text = x)))
+```
+Numerical solutions are based on `deSolve::ode`.
+```{r}
+seir_2stg_vital <- function(t, u, p){
+  N <- sum(u)
+  beta <- p["beta"]
+  kappa <- p["kappa"]
+  gamma <- p["gamma"]
+  omega <- p["omega"]
+  mu <- p["mu"]
+  
+  du1 <- - beta*u[1]*(u[4]+u[5]) + 2*omega*u[7] - mu*u[1] + mu*N
+  du2 <- + beta*u[1]*(u[4]+u[5]) - 2*kappa*u[2] - mu*u[2]
+  du3 <- + 2*kappa*u[2] - 2*kappa*u[3] - mu*u[3]
+  du4 <- + 2*kappa*u[3] - 2*gamma*u[4] - mu*u[4]
+  du5 <- + 2*gamma*u[4] - 2*gamma*u[5] - mu*u[5]
+  du6 <- + 2*gamma*u[5] - 2*omega*u[6] - mu*u[6]
+  du7 <- + 2*omega*u[6] - 2*omega*u[7] - mu*u[7]
+  
+  return(list(c(du1,du2,du3,du4,du5,du6,du7))) 
+}
+
+u0 <- c(0.99, 0, 0, 0.01, 0, 0, 0)
+p <- c(kappa=1.115044/2, gamma=1/2, mu=1/(65*365), 
+      omega=1/(4*365), beta=0.6)
+tspan <- seq(from=0, to=365*300)
+outdf <- as.data.frame(ode(y=u0, times=tspan, func=seir_2stg_vital, parms=p))
+names(outdf) <- c("day","s","e1","e2","i1","i2","r1","r2")
+tail(outdf, 1)
+```
+
+

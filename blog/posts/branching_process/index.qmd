@@ -1,0 +1,111 @@
+---
+title: "Branching process model"
+author: "Jong-Hoon Kim"
+date: "2023-11-08"
+categories: [R, branching process, final epidemic size]
+image: "thumbnail.jpg"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
+```
+
+### Branching process model
+
+In the branching process model, the number of secondary infections is realized as a random number (e.g., Poission or Negative binomial).
+
+```{r sir_branch}
+set.seed(42)
+R0_mean <- 2
+popsize = 1000 # population size for each iteration
+nrun <- 1000 # number of iterations to compute the mean
+outbreaks <- rep(NA, nrun) # to store outbreak size for each iteration
+init_inf <- 1 # initially infected people
+
+for (r in seq_len(nrun)) {
+  pop <- data.frame(id=1:popsize)
+  pop$status <- "S"
+  pop$status[1:init_inf] <- "I"
+  nS <- sum(pop$status == "S")
+  nI <- sum(pop$status == "I")
+  N <- nrow(pop)
+  cnt <- init_inf + 1 # infecteds are placed from the first position
+  while (nI > 0 & nS > 0) {
+    row <- which(pop$status == "I")
+    nI <- length(row)
+    for (i in seq_len(nI)) {
+      pop$status[row[i]] <- "R"
+      offspring <- rpois(1, lambda=R0_mean*nS/N)
+      nS = nS - offspring
+      for (k in seq_len(offspring)) {
+        pop$status[cnt] <- "I" 
+        cnt <- cnt + 1
+      }
+    }
+  }
+  outbreaks[r] = popsize - sum(pop$status == "S")
+}
+
+hist(outbreaks) # minor and major outbreaks
+sum(outbreaks>200)/nrun # freq of major outbreaks
+mean(outbreaks[outbreaks>200])/popsize # outbreak size of the only major outbreaks
+max(outbreaks) # maximum outbreak size
+```
+
+### Final epidemic size
+
+To make sure that my branching process model makes sense, let's compare the final size of an epidemic. As shown in the previous post, for the $SIR$ model in a well-mixed population, the final epidemic size, $R(\infty)$ is given as follows: $$R(\infty) = 1 − \text{exp}\left[-R_0R(\infty)\right]$$
+
+```{r sir_epidemic_size}
+# final size of an epidemic, R
+final_size <- function(R, R0){
+  R - 1 + exp(-R0*R)
+}
+# lower bound set at a positive number to avoid R=0, which is also a solution
+uniroot(final_size, interval=c(1e-3,1), R0=R0_mean)$root
+```
+
+### Negative binomial distribution
+
+What would happen if I allow the negative binomial distribution for the offspring
+
+```{r nb, eval=FALSE}
+set.seed(42)
+R0_mean <- 2
+R0_size <- 0.2 # loosely based on the estimate for Ebola (see Kucharski et al. 2016 https://wwwnc.cdc.gov/eid/article/22/1/15-1410_article)
+popsize = 1000 # population size for each iteration
+nrun <- 1000 # number of iterations to compute the mean
+outbreaks <- rep(NA, nrun) # to store outbreak size for each iteration
+init_inf <- 1 # initially infected people
+
+for (r in seq_len(nrun)) {
+  pop <- data.frame(id=1:popsize)
+  pop$status <- "S"
+  pop$status[1:init_inf] <- "I"
+  nS <- sum(pop$status == "S")
+  nI <- sum(pop$status == "I")
+  N <- nrow(pop)
+  cnt <- init_inf + 1 # infecteds are placed from the first position
+  while (nI > 0 & nS > 0) {
+    row <- which(pop$status == "I")
+    nI <- length(row)
+    for (i in seq_len(nI)) {
+      pop$status[row[i]] <- "R"
+      offspring <- rnbinom(1, mu=R0_mean*nS/N, size=R0_size)
+      nS = nS - offspring
+      for (k in seq_len(offspring)) {
+        pop$status[cnt] <- "I" 
+        cnt <- cnt + 1
+      }
+    }
+  }
+  outbreaks[r] = popsize - sum(pop$status == "S")
+}
+
+hist(outbreaks) # minor and major outbreaks
+sum(outbreaks>200)/nrun # freq of major outbreaks
+mean(outbreaks[outbreaks>200])/popsize # only major outbreaks
+max(outbreaks) # maximum outbreak size
+```

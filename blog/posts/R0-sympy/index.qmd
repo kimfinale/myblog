@@ -1,0 +1,81 @@
+---
+title: "Basic reproduction number using SymPy"
+author: "Jong-Hoon Kim"
+date: "2023-08-11"
+categories: [Basic reproduction number, SymPy]
+image: "SimPy_logo.svg.png"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE) 
+```
+
+감염병의 전파를 이해하는 데 있어 가장 기본적인 개념이 [재감염지수](https://jonghoonkim.ghost.io/ghost/#/editor/post/63aae251d7d6b5003d2967d1), 특히 기초재감염지수 ($\mathcal{R}_0$) 이다. 재감염지수는 한 명의 감염자로부터 생산되는 평균 후속 감염자의 수를 일컫는데 기초재감염지수는 코로나19의 경우 처럼 인구 집단에 면역력을 가진 사람이 없어 모든 사람이 감염될 수 있는 상태하 에서의 재감염지수를 말한다. 기초 재감염 지수는 다음과 같은 수식으로 표현할 수 있다.
+
+$$ \mathcal{R}_0 = \beta c D $$
+
+$\beta$ 는 한 명의 감염자가 타인을 접촉할 때 상대방을 감염시킬 수 있는 확률, $c$ 는 단위 시간 당 접촉이 일어나는 횟수, $D$ 는 감염 상태가 지속되는 시간을 나타낸다. $\beta$ 만으로 $\beta c$ 를 대신해 사용하는 경우도 흔하다. 그 경우 $\beta$ 는 단위 시간 당 후속 감염자의 수로 표현할 수 있을 것 같다. 미분방정식에 기반한 감염병 모형의 경우는 $\mathcal{R}_0$를 어떻게 계산할까? 아래와 같이 SIR 모형을 정의해 보자.
+
+```{=tex}
+\begin{align}
+\mathrm{d}S/\mathrm{d}t &= -\beta I S/N \\
+\mathrm{d}I/\mathrm{d}t &= \beta I S/N - \gamma I\\
+\mathrm{d}R/\mathrm{d}t &= \gamma I
+\end{align}
+```
+위의 정의에서 사용되었던 개념을 적용한다면 $\mathcal{R}_0 = \beta/\gamma$ 라고 할 수 있다. 이는 $\mathcal{R}_0$가 감염병이 집단 내에서 유행을 일으킬 수 있는 역치조건임을 이용해도 동일한 결론에 이를 수 있다. (i.e., $\mathrm{d}I/\mathrm{d}t>0$)
+
+위와는 달리 [Diekmann *et al.*](https://link.springer.com/article/10.1007/BF00178324) 에 의해서 도입된 next generation 방법으로 좀 더 다양한 상황 하에서 $\mathcal{R}_0$를 구할 수 있다. 이 방법에서는 $\mathcal{R}_0$가 next generation operator의 spectral radius 가 된다. 위 논문 보다는 [van den Driessche *et al.*](https://www.sciencedirect.com/science/article/pii/S0025556402001086) 가 좀 더 이해하기 쉬운 것 같아 이 방법을 기준으로 살펴보겠다. 그리고 그 계산을 python의 SymPy 라이브러리를 이용해서 구현을 해보겠다. 먼저 간단한 우선 ( SEIR ) 모형의 경우부터 살펴보자.
+
+Next generation operator $G$ 은 전파를 통해서 생산되는 새로운 감염이 발생하는 속도를 나타내는 행렬 $F$와 감염이 다른 상태로 변화되는 속도 (V)로 구성되며 다음과 같은 관계를 갖는다. $G=FV^{-1}$. 그리고 $R_0$는 $G$의 [spectral radius](https://en.wikipedia.org/wiki/Spectral_radius)가 된다. 아래 파이썬 구현에서는 $\beta, \gamma$ 를 b, g로 나타내었다.
+
+```{python}
+from sympy import *
+b, k, g, = symbols('b k g')
+F = Matrix([[0, b],[0, 0]])
+V = Matrix([[k, 0], [-k, g]])
+M = F*(V**-1)
+eigval = M.eigenvals(simplify=true)
+init_printing(use_unicode=True)
+lst = list(eigval.keys())
+lst[1]
+```
+
+위에서 언급한 SEIR 모형의 경우는 너무 간단하니 그 보다 조금 더 복잡한 그 예로 다음 연구를 살펴보자. [Pitzer *et al*.](https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0002642)의 연구인데 사용된 감염병 모형은 사람 간 직접 전파와 물을 통한 간접 전파 두 가지의 전파 메케니즘을 구현 하였고 ($\lambda_p$ 와 $\lambda_w$) 최초 감염 $S_1 \rightarrow I_1$ 과 중복 감염$R \rightarrow S_2 \rightarrow I_2$ 을 다르게 취급하였다. 부록 (supplementary material)을 보면 사용된 미분식을 볼 수 있다.
+
+```{=tex}
+\begin{align} 
+\mathrm{d}S_1/\mathrm{d}t &= B + \epsilon S_2 - (\lambda_p+\lambda_w+\mu)S_1\\
+\mathrm{d}I_1/\mathrm{d}t &= (\lambda_p+\lambda_w)S_1 - (\delta+\mu) I_1 \\
+\mathrm{d}R/\mathrm{d}t &= \delta(1-\theta-\alpha)(I_1+I_2) - (\omega +\mu)R \\
+\mathrm{d}C/\mathrm{d}t &= \delta\theta(I_1+I_2) - \mu C \\
+\mathrm{d}S_2/\mathrm{d}t &= \omega R -\epsilon S_2 - (\lambda_p+\lambda_w+\mu) S_2\\
+\mathrm{d}I_2/\mathrm{d}t &= (\lambda_p+\lambda_w) S_2 - (\delta+\mu) I_2 \\
+\mathrm{d}W/\mathrm{d}t &= \gamma(I_1+rI_2+rC) - \xi W
+\end{align}
+```
+또한 아래와 같이 기초재감염지수도 계산 결과를 보여준다. SymPy를 통해 동일한 결과를 얻을 수 있는지 확인해보자.
+
+```{=tex}
+\begin{align}
+R_0 = \frac{1}{\mu+\delta} \left(\beta_p +\frac{\gamma \beta_w}{\xi}\right) \left(1 +\frac{\delta\theta r}{\mu}\right)
+\end{align}
+```
+```{python}
+p, r, w, N, d, m, t, g, x = symbols('p r w N d m t g x')
+F = Matrix([[p, r*p, r*p, w*N], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+V = Matrix([[d+m, 0, 0, 0], [0, d+m, 0, 0], [-d*t, -d*t, m, 0], [-g, -r*g, -r*g, x]])
+M = F*(V**-1)
+eigval = M.eigenvals(simplify=true)
+init_printing(use_unicode=True)
+eigval 
+lst = list(eigval.keys())
+R0_eig = lst[1]
+R0 = (1/(d+m))*(p+N*g*w/x)*(1+(d*t*r)/m) # R0 from the Pitzer (2014)
+simplify(R0-R0_eig) # 0 for the same expression (symbolic assessment)
+R0.equals(R0_eig) # True for the same expression (numerical assessment)
+```
+
+부록에 보면 기초 재감염지수에 이르는 상세한 과정이 나와있는데 $V_{3,3}$ 에 오류가 있음을 알아냈다. $\delta +\mu$ 가 $\mu$ 로 바뀌어야 한다. 이유는 위 미분식에서 $C$ 식을 보면 알 수 있는데 이는 만성 감염자를 나타내고 따라서 회복을 의미하는 $\delta$ 가 없어야 한다. 이는 기록하는 과정에서의 오류인 듯 하고 결과로 얻어진 $R_0$ 는 우리가 계산한 결과와 동일하다. 다만, 계산 결과를 위 식에서와 같이 의미있는 구획으로 나누어서 표현하려면 SymPy 결과를 직접 수정하여야 한다.
