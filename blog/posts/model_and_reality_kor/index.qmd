@@ -80,11 +80,11 @@ ggplot(output_long, aes(x = time, y = 비율, color = 상태)) +
         legend.title = element_blank(),
         plot.title = element_text(face = "bold", size = 16),
         plot.subtitle = element_text(size = 12),
-        axis.title = element_text(size = 12)) +
-  annotate("text", x = 22, y = 0.25, label = "최대 감염자 수", 
-           color = "#e74c3c", fontface = "bold") +
-  annotate("segment", x = 22, y = 0.23, xend = 18, yend = 0.19,
-           arrow = arrow(length = unit(0.3, "cm")), color = "#e74c3c")
+        axis.title = element_text(size = 12))
+  # annotate("text", x = 22, y = 0.25, label = "최대 감염자 수", 
+  #          color = "#e74c3c", fontface = "bold") +
+  # annotate("segment", x = 22, y = 0.23, xend = 18, yend = 0.19,
+  #          arrow = arrow(length = unit(0.3, "cm")), color = "#e74c3c")
 ```
 
 ## 직접 실험할 수 없을 때, 모델이 답한다
@@ -159,7 +159,7 @@ ggplot(all_scenarios, aes(x = time, y = I, color = scenario, linetype = scenario
        subtitle = "거리두기 개입은 20일차에 시작하여 30일간 지속",
        x = "시간 (일)", 
        y = "감염자 비율",
-       caption = "기본 재생산 지수(R₀) = 3.0") +
+       caption = expression(paste("기본 재생산 지수(", R[0], ") = 3.0"))) +
   scale_color_manual(values = c("조치 없음" = "#e74c3c", 
                                "약한 거리두기" = "#f39c12", 
                                "중간 거리두기" = "#3498db", 
@@ -182,7 +182,7 @@ ggplot(all_scenarios, aes(x = time, y = I, color = scenario, linetype = scenario
 
 ## 코로나19는 모델의 강점과 한계를 동시에 보여줬다
 
-코로나19 초기, 모델은 중요한 역할을 했다. 병원 수용 능력을 예측했다. 사회적 거리두기(social distancing)의 효과를 추정했다. 정책 결정에 도움을 줬다.
+코로나19 초기, 모델은 중요한 역할을 했다. 병원에 수용될 환자수를 예측하고, 사회적 거리두기(social distancing)의 효과를 추정했다. 정책 결정에 도움을 줬다.
 
 그러나 예측이 빗나간 경우도 많았다. 이유는 여러 가지다. 바이러스에 대한 정보가 부족했다. 사람들의 행동 변화를 예측하기 어려웠다. 새로운 변이가 등장했다.
 
@@ -209,16 +209,16 @@ set.seed(123)
 dates <- seq(as.Date("2020-03-01"), as.Date("2020-06-30"), by = "day")
 
 # 초기 예측 모델 (과대 예측)
-initial_model <- 100 * exp(0.15 * 1:length(dates))
-initial_model[initial_model > 20000] <- 20000 + (initial_model[initial_model > 20000] - 20000) * 0.1
-initial_model <- pmin(initial_model, 25000)
+initial_model <- 100 * exp(0.14 * 1:length(dates))
+initial_model[initial_model > 10000] <- 10000 + (initial_model[initial_model > 10000] - 10000) * 0.1
+initial_model <- pmin(initial_model, 15000)
 
 # 업데이트된 모델 (더 정확함)
 updated_model <- 50 * exp(0.12 * 1:length(dates))
-updated_model <- pmin(updated_model, 15000)
+updated_model <- pmin(updated_model, 5000)
 
 # 실제 사례 (락다운 효과 반영)
-actual_cases <- 50 * exp(0.18 * 1:40)
+actual_cases <- 50 * exp(0.12 * 1:40)
 lockdown_effect <- exp(-0.03 * 1:(length(dates) - 40))
 actual_cases <- c(actual_cases, actual_cases[40] * lockdown_effect)
 actual_cases <- actual_cases + rnorm(length(dates), 0, actual_cases * 0.05)
@@ -239,9 +239,7 @@ ggplot(model_data, aes(x = date, y = cases, color = type, linetype = type)) +
   geom_line(size = 1.2) +
   labs(title = "코로나19 모델 예측과 실제 확진자 수 비교",
        subtitle = "초기 모델은 과대 예측, 업데이트된 모델은 더 정확함",
-       x = "날짜", 
-       y = "일일 확진자 수",
-       caption = "가상 데이터 기반 시뮬레이션") +
+       x = "날짜", y = "일일 확진자 수", caption = "가상 데이터 기반 시뮬레이션") +
   scale_color_manual(values = c("초기 모델 (3월 1일)" = "#e74c3c", 
                               "업데이트된 모델 (4월 1일)" = "#3498db", 
                               "실제 사례" = "#2ecc71")) +
@@ -255,8 +253,8 @@ ggplot(model_data, aes(x = date, y = cases, color = type, linetype = type)) +
         plot.subtitle = element_text(size = 12),
         axis.title = element_text(size = 12)) +
   geom_vline(xintercept = lockdown_date, linetype = "dashed", color = "gray50") +
-  annotate("text", x = lockdown_date + days(5), y = 22000, 
-           label = "락다운 시작", color = "gray50", fontface = "italic", hjust = 0)
+  annotate("text", x = lockdown_date - days(1), y = 15000, 
+           label = "락다운 시작", color = "gray50", fontface = "italic", hjust=1)
 ```
 
 ## 더 나은 모델을 위한 다섯 가지 방법
