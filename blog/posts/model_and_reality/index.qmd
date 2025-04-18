@@ -1,0 +1,147 @@
+---
+title: "The Model and Reality: Bridging Mathematical Frameworks with Real-World Infectious Disease Dynamics"
+author: "Jong-Hoon Kim"
+date: "2023-04-18"
+format: 
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    number-sections: true
+bibliography: references.bib
+---
+
+## Introduction
+
+As infectious disease modelers, we face a fundamental epistemological question: How can abstract mathematical constructs help us understand and predict the complex dynamics of disease transmission in the real world? This question lies at the intersection of epidemiology, mathematics, and philosophy of science.
+
+Drawing from the Stanford Encyclopedia of Philosophy's entry on scientific models [@stanford_models_science], I'd like to explore how we connect our mathematical representations to reality, particularly in the context of infectious disease modeling.
+
+## Surrogate Reasoning: How Models Help Us Understand Reality
+
+Philosophers describe our relationship with models as a process of "surrogate reasoning" or "model-based reasoning." Through building, manipulating, applying, and evaluating models, we can make inferences about reality without directly experimenting on it—an especially crucial approach when dealing with infectious diseases.
+
+This reasoning process can be divided into two phases:
+
+1. Understanding the model itself
+2. Translating that understanding to the real-world target system
+
+When building a model, we learn how different components interact mathematically. For instance, in an SIR model, we define relationships between susceptible, infected, and recovered populations [@anderson_infectious_1991]. Through manipulation—changing parameters, running simulations, and analyzing outputs—we develop intuition about the system's behavior under different conditions.
+
+But the critical challenge remains: How do we translate knowledge gained from manipulating abstract equations to meaningful insights about actual disease transmission?
+
+## The Representation Problem
+
+For a model to be useful, it must represent relevant aspects of reality. If we're interested in how vaccination might reduce infection rates, our model must incorporate mechanisms that capture both vaccination dynamics and disease transmission accurately.
+
+Yet how can we be sure our mathematical representations adequately reflect reality? This is where empirical validation becomes essential. We compare model predictions against observed data—testing whether our models actually predict what happens in outbreaks. When discrepancies arise, we refine our models, creating an iterative cycle of improvement.
+
+```{r}
+#| echo: false
+#| fig-cap: "Simple visualization of the model validation cycle"
+#| fig-align: center
+
+library(DiagrammeR)
+
+grViz("
+digraph model_cycle {
+  graph [rankdir = LR]
+  
+  node [shape = box, style = filled, fillcolor = lightblue]
+  
+  A [label = 'Model Development']
+  B [label = 'Parameter Estimation']
+  C [label = 'Model Prediction']
+  D [label = 'Validation with Real Data']
+  E [label = 'Model Refinement']
+  
+  A -> B -> C -> D -> E
+  E -> A [label = 'Iterative Process']
+}
+")
+```
+
+## Models as Tools for Knowledge Rather Than Perfect Representations
+
+It's important to recognize that all models are simplifications. As statistician George Box famously noted, "All models are wrong, but some are useful" [@box_science_statistics]. The value of a model isn't in its perfect replication of reality but in its ability to provide useful insights despite its limitations.
+
+In infectious disease modeling, we often make simplifying assumptions—homogeneous mixing of populations, identical susceptibility across age groups, or simplified immune responses. These assumptions make the mathematics tractable but create distance from biological reality.
+
+## Case Study: COVID-19 Modeling
+
+The COVID-19 pandemic provided a dramatic illustration of both the power and limitations of epidemiological modeling. Early models helped forecast hospital capacity needs and evaluate potential intervention strategies [@adam_special_report; @ferguson_impact_2020]. However, they also demonstrated how sensitive predictions can be to underlying assumptions about transmission rates, asymptomatic spread, and behavioral responses [@ioannidis_forecasting_2020].
+
+When models failed to accurately predict outcomes, this wasn't necessarily a failure of modeling itself but often reflected limitations in our understanding of the virus or changes in human behavior that models couldn't anticipate [@holmdahl_wrong_2020]. Each discrepancy became an opportunity to refine both our models and our understanding of disease dynamics.
+
+```{r}
+#| echo: false
+#| fig-cap: "Example SIR model simulation showing potential COVID-19 scenarios with different intervention strategies"
+#| message: false
+#| warning: false
+
+library(deSolve)
+library(ggplot2)
+library(tidyr)
+
+# Simple SIR model
+sir_model <- function(time, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    dS <- -beta * S * I
+    dI <- beta * S * I - gamma * I
+    dR <- gamma * I
+    return(list(c(dS, dI, dR)))
+  })
+}
+
+# Parameter sets for different scenarios
+run_scenario <- function(beta_val, title) {
+  parameters <- c(beta = beta_val, gamma = 0.1)
+  initial_state <- c(S = 0.999, I = 0.001, R = 0.0)
+  times <- seq(0, 200, by = 1)
+  
+  output <- as.data.frame(ode(y = initial_state, times = times, 
+                             func = sir_model, parms = parameters))
+  output$Scenario <- title
+  return(output)
+}
+
+# Run different scenarios
+no_intervention <- run_scenario(0.3, "No Intervention")
+moderate_intervention <- run_scenario(0.2, "Moderate Intervention")
+strong_intervention <- run_scenario(0.15, "Strong Intervention")
+
+# Combine results
+all_scenarios <- rbind(no_intervention, moderate_intervention, strong_intervention)
+all_scenarios_long <- pivot_longer(all_scenarios, cols = c("S", "I", "R"), 
+                                  names_to = "Compartment", values_to = "Proportion")
+
+# Plot
+ggplot(subset(all_scenarios_long, Compartment == "I"), 
+       aes(x = time, y = Proportion, color = Scenario)) +
+  geom_line(size = 1.2) +
+  labs(title = "Impact of Different Intervention Intensities on COVID-19",
+       x = "Time (days)", y = "Proportion of Population Infected") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")
+```
+
+## Bridging the Gap: Model Validation and Refinement
+
+How can we strengthen the connection between our models and reality? Several approaches are crucial:
+
+1. **Empirical validation**: Continuously comparing model outputs with real-world data
+2. **Sensitivity analysis**: Understanding how changes in parameters affect outcomes
+3. **Ensemble modeling**: Using multiple modeling approaches to gain more robust insights
+4. **Incorporating heterogeneity**: Adding complexity to capture more realistic population structures
+5. **Interdisciplinary collaboration**: Working with behavioral scientists, immunologists, and other experts to better represent complex dynamics
+
+## Conclusion
+
+As infectious disease modelers, we navigate a fascinating epistemological landscape. Our models serve as cognitive tools that allow us to explore complex dynamics in ways that would be impossible through direct observation alone. They help us generate hypotheses, evaluate potential interventions, and develop intuition about non-linear systems.
+
+While the gap between model and reality can never be completely closed, the iterative process of building, testing, and refining models brings us progressively closer to useful representations of disease transmission. The philosophical challenge of connecting abstract mathematical structures to biological reality remains at the heart of our discipline—a challenge that makes epidemiological modeling both intellectually stimulating and practically valuable for public health.
+
+## References {.unnumbered}
+
+::: {#refs}
+:::
