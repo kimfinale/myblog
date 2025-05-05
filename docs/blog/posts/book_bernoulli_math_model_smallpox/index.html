@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="연구자">
+<meta name="dcterms.date" content="2025-05-06">
+
+<title>Disease modeling for public health - 다니엘 베르누이의 천연두 연구: 최초의 감염병 수리모형</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html" rel="" target="">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html" rel="" target="">
+ <span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/" rel="" target=""><i class="bi bi-linkedin" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau" rel="" target=""><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#서론-계몽시대의-수학자와-전염병" id="toc-서론-계몽시대의-수학자와-전염병" class="nav-link active" data-scroll-target="#서론-계몽시대의-수학자와-전염병"><span class="header-section-number">1</span> 서론: 계몽시대의 수학자와 전염병</a></li>
+  <li><a href="#베르누이의-원문-연구-essai-dune-nouvelle-analyse" id="toc-베르누이의-원문-연구-essai-dune-nouvelle-analyse" class="nav-link" data-scroll-target="#베르누이의-원문-연구-essai-dune-nouvelle-analyse"><span class="header-section-number">2</span> 베르누이의 원문 연구: “Essai d’une nouvelle analyse”</a></li>
+  <li><a href="#베르누이의-수학적-접근법" id="toc-베르누이의-수학적-접근법" class="nav-link" data-scroll-target="#베르누이의-수학적-접근법"><span class="header-section-number">3</span> 베르누이의 수학적 접근법</a></li>
+  <li><a href="#베르누이의-주요-발견" id="toc-베르누이의-주요-발견" class="nav-link" data-scroll-target="#베르누이의-주요-발견"><span class="header-section-number">4</span> 베르누이의 주요 발견</a></li>
+  <li><a href="#베르누이와-달랑베르의-논쟁" id="toc-베르누이와-달랑베르의-논쟁" class="nav-link" data-scroll-target="#베르누이와-달랑베르의-논쟁"><span class="header-section-number">5</span> 베르누이와 달랑베르의 논쟁</a></li>
+  <li><a href="#베르누이-연구의-역사적-의의" id="toc-베르누이-연구의-역사적-의의" class="nav-link" data-scroll-target="#베르누이-연구의-역사적-의의"><span class="header-section-number">6</span> 베르누이 연구의 역사적 의의</a></li>
+  <li><a href="#현대적-관점에서-본-베르누이의-연구" id="toc-현대적-관점에서-본-베르누이의-연구" class="nav-link" data-scroll-target="#현대적-관점에서-본-베르누이의-연구"><span class="header-section-number">7</span> 현대적 관점에서 본 베르누이의 연구</a></li>
+  <li><a href="#결론-베르누이의-유산" id="toc-결론-베르누이의-유산" class="nav-link" data-scroll-target="#결론-베르누이의-유산"><span class="header-section-number">8</span> 결론: 베르누이의 유산</a></li>
+  <li><a href="#참고문헌" id="toc-참고문헌" class="nav-link" data-scroll-target="#참고문헌"><span class="header-section-number">9</span> 참고문헌</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">다니엘 베르누이의 천연두 연구: 최초의 감염병 수리모형</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">감염병</div>
+    <div class="quarto-category">수리모형</div>
+    <div class="quarto-category">역학</div>
+    <div class="quarto-category">역사</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>연구자 </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">May 6, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="서론-계몽시대의-수학자와-전염병" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="서론-계몽시대의-수학자와-전염병"><span class="header-section-number">1</span> 서론: 계몽시대의 수학자와 전염병</h2>
+<p>18세기 유럽은 천연두(smallpox)의 그림자 아래 살고 있었다. 이 무서운 질병은 매년 수십만 명의 목숨을 앗아갔으며, 생존자들에게는 평생 지울 수 없는 흉터를 남겼다 <span class="citation" data-cites="razzell1977conquest">(<a href="#ref-razzell1977conquest" role="doc-biblioref">Razzell, 1977</a>)</span>. 이런 상황에서 한 수학자가 수학적 사고를 통해 이 질병에 맞서고자 했다. 그의 이름은 다니엘 베르누이(Daniel Bernoulli, 1700-1782)였다.</p>
+<p>베르누이는 저명한 수학자 가문의 일원으로, 유체역학, 확률론, 통계학에 큰 족적을 남긴 학자였다 <span class="citation" data-cites="straub1970bernoulli">(<a href="#ref-straub1970bernoulli" role="doc-biblioref">Straub, 1970</a>)</span>. 그러나 그의 가장 혁신적인 업적 중 하나는 의학 분야에서 이루어졌다. 1760년 그는 파리 과학 아카데미(Académie Royale des Sciences)에서 천연두 사망률과 접종의 이점에 관한 새로운 분석 방법에 대한 발표를 했다 <span class="citation" data-cites="bernoulli1766essai">(<a href="#ref-bernoulli1766essai" role="doc-biblioref">Bernoulli, 1766</a>)</span>. 이 연구는 1766년에 출판되었으며, 인류 역사상 최초로 전염병을 수학적으로 모델링한 시도로 평가받는다 <span class="citation" data-cites="dietz2002daniel">(<a href="#ref-dietz2002daniel" role="doc-biblioref">Dietz &amp; Heesterbeek, 2002</a>)</span>.</p>
+</section>
+<section id="베르누이의-원문-연구-essai-dune-nouvelle-analyse" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="베르누이의-원문-연구-essai-dune-nouvelle-analyse"><span class="header-section-number">2</span> 베르누이의 원문 연구: “Essai d’une nouvelle analyse”</h2>
+<p>베르누이의 논문 “Essai d’une nouvelle analyse de la mortalité causée par la petite vérole, et des avantages de l’inoculation pour la prévenir”(천연두로 인한 사망률과 이를 예방하기 위한 접종의 이점에 관한 새로운 분석 시도)는 간단한 제목 속에 혁명적인 내용을 담고 있었다 <span class="citation" data-cites="bernoulli1766essai">(<a href="#ref-bernoulli1766essai" role="doc-biblioref">Bernoulli, 1766</a>)</span>. 이 논문은 수학적 방법을 사용하여 공중보건 문제를 분석한 최초의 시도 중 하나였다.</p>
+<p>베르누이는 논문의 서두에 자신의 의도를 명확히 밝혔다. 그는 “인류의 복지에 밀접한 관련이 있는 문제에 있어서, 약간의 분석과 계산이 제공할 수 있는 모든 지식 없이는 어떤 결정도 내려서는 안 된다”고 주장했다 <span class="citation" data-cites="blower2004attempt">(<a href="#ref-blower2004attempt" role="doc-biblioref">Blower &amp; Bernoulli, 2004</a>)</span>. 이는 200여 년 후 현대 의학이 증거 기반 의사결정을 지향하게 될 것을 예견한 선구적 발언이었다.</p>
+<p>베르누이가 이 연구를 시작한 배경에는 당시 유럽에서 진행되고 있던 인두법(variolation)에 대한 격렬한 논쟁이 있었다. 인두법은 천연두에 걸린 환자의 고름이나 딱지를 건강한 사람에게 의도적으로 접종하여 약한 형태의 질병을 유발하고 면역을 획득하게 하는 방법이었다 <span class="citation" data-cites="razzell1977conquest">(<a href="#ref-razzell1977conquest" role="doc-biblioref">Razzell, 1977</a>)</span>. 동양에서 유래한 이 방법은 18세기 초 유럽에 도입되었으나, 때때로 중증 질환이나 사망을 초래할 수 있어 논란이 많았다 <span class="citation" data-cites="ioannidis2020how">(<a href="#ref-ioannidis2020how" role="doc-biblioref">Ioannidis, 2020</a>)</span>.</p>
+<p>베르누이는 이 논쟁에 과학적 관점에서 개입하기로 결정했다. 그는 천연두와 인두법의 위험을 수학적으로 비교하여, 인두법이 전체 인구의 건강에 미치는 영향을 정량적으로 평가하고자 했다 <span class="citation" data-cites="dietz2000bernoulli">(<a href="#ref-dietz2000bernoulli" role="doc-biblioref">Dietz &amp; Heesterbeek, 2000</a>)</span>.</p>
+</section>
+<section id="베르누이의-수학적-접근법" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="베르누이의-수학적-접근법"><span class="header-section-number">3</span> 베르누이의 수학적 접근법</h2>
+<p>베르누이는 천연두의 역학을 이해하기 위해 두 가지 핵심 가정을 설정했다 <span class="citation" data-cites="blower2004attempt">(<a href="#ref-blower2004attempt" role="doc-biblioref">Blower &amp; Bernoulli, 2004</a>)</span>:</p>
+<ol type="1">
+<li><p>천연두에 걸리지 않은 사람들이 매년 질병에 감염될 위험(감염률)은 연령에 관계없이 일정하다. 베르누이는 이 값을 n = 8로 설정했다(즉, 매년 감염되지 않은 사람 중 1/8이 감염된다).</p></li>
+<li><p>천연두에 걸린 사람이 이 질병으로 사망할 위험(치명률)도 연령에 관계없이 일정하다. 베르누이는 이 값을 m = 8로 설정했다(즉, 감염자의 1/8이 사망한다).</p></li>
+</ol>
+<p>이러한 가정을 바탕으로 베르누이는 다음과 같은 미분방정식을 도출했다 <span class="citation" data-cites="dietz2002daniel">(<a href="#ref-dietz2002daniel" role="doc-biblioref">Dietz &amp; Heesterbeek, 2002</a>)</span>:</p>
+<p><span class="math display">\[
+\frac{ds}{dt} = \frac{s}{n} - \frac{sd\pi}{\pi} - \frac{s^2dx}{mn\pi}
+\]</span></p>
+<p>여기서: - <span class="math inline">\(s\)</span>는 특정 연령에서 천연두에 걸리지 않은 사람의 수 - <span class="math inline">\(\pi\)</span>는 동일 연령에서 생존자 총수 - <span class="math inline">\(t\)</span>는 연령(년) - <span class="math inline">\(n\)</span>과 <span class="math inline">\(m\)</span>은 앞서 정의한 감염률과 치명률 관련 매개변수</p>
+<p>베르누이는 이 미분방정식을 적분하여 다음과 같은 해를 구했다 <span class="citation" data-cites="dietz2002daniel">(<a href="#ref-dietz2002daniel" role="doc-biblioref">Dietz &amp; Heesterbeek, 2002</a>)</span>:</p>
+<p><span class="math display">\[
+s = \frac{m\pi}{(m-1)e^{t/n} + 1}
+\]</span></p>
+<p>이 방정식을 통해 베르누이는 각 연령대별로 천연두에 감염되지 않은 사람들의 비율과 천연두로 인한 사망자 수를 계산할 수 있었다 <span class="citation" data-cites="blower2004attempt">(<a href="#ref-blower2004attempt" role="doc-biblioref">Blower &amp; Bernoulli, 2004</a>)</span>.</p>
+</section>
+<section id="베르누이의-주요-발견" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="베르누이의-주요-발견"><span class="header-section-number">4</span> 베르누이의 주요 발견</h2>
+<p>베르누이는 에드먼드 할리(Edmund Halley)의 생명표를 바탕으로, 1,300명의 신생아로 시작하는 코호트 분석을 실시했다 <span class="citation" data-cites="blower2004attempt">(<a href="#ref-blower2004attempt" role="doc-biblioref">Blower &amp; Bernoulli, 2004</a>)</span>. 그는 다음과 같은 주요 결과를 도출했다:</p>
+<ol type="1">
+<li><p><strong>천연두 제거 효과</strong>: 천연두가 완전히 제거된다면, 25세에 도달하는 사람의 수는 565명에서 644명으로 증가할 것이다 <span class="citation" data-cites="blower2004attempt">(<a href="#ref-blower2004attempt" role="doc-biblioref">Blower &amp; Bernoulli, 2004</a>)</span>.</p></li>
+<li><p><strong>기대수명 증가</strong>: 천연두 제거는 출생 시 기대수명을 26년 7개월에서 29년 9개월로, 약 3년 2개월 증가시킬 것이다 <span class="citation" data-cites="dietz2002daniel">(<a href="#ref-dietz2002daniel" role="doc-biblioref">Dietz &amp; Heesterbeek, 2002</a>)</span>.</p></li>
+<li><p><strong>인두법의 임계값</strong>: 베르누이는 인두법으로 인한 사망 위험이 11% 미만이라면, 이 방법이 전체 인구에 이득이 될 것이라고 계산했다 <span class="citation" data-cites="bacaer2011smallpox">(<a href="#ref-bacaer2011smallpox" role="doc-biblioref">Bacaër, 2011</a>)</span>. 당시 인두법의 추정 사망률은 1-2%였으므로, 베르누이는 인두법을 지지하는 결론에 도달했다.</p></li>
+<li><p><strong>상대적 이득</strong>: 연령이 증가함에 따라 천연두 제거의 상대적 이득이 증가하여, 25세에는 생존자 수가 자연 상태보다 약 1/7 더 많아질 것으로 예측했다 <span class="citation" data-cites="blower2004attempt">(<a href="#ref-blower2004attempt" role="doc-biblioref">Blower &amp; Bernoulli, 2004</a>)</span>.</p></li>
+</ol>
+<p>베르누이의 분석은 인두법이 개인뿐만 아니라 사회 전체에 이익이 된다는 것을 수학적으로 증명했다. 그는 “시민 생명”(Civil Life)이라는 개념을 도입하여, 17세 이후부터 국가와 사회에 기여할 수 있는 시기에 주목했다 <span class="citation" data-cites="ioannidis2020how">(<a href="#ref-ioannidis2020how" role="doc-biblioref">Ioannidis, 2020</a>)</span>. 그의 계산에 따르면, 인두법의 보편적 시행으로 프랑스는 매년 25,000명의 추가적인 “유용한 시민 생명”을 얻을 수 있었다.</p>
+</section>
+<section id="베르누이와-달랑베르의-논쟁" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="베르누이와-달랑베르의-논쟁"><span class="header-section-number">5</span> 베르누이와 달랑베르의 논쟁</h2>
+<p>베르누이의 연구는 당시 또 다른 저명한 수학자인 장 르 롱 달랑베르(Jean le Rond d’Alembert)와의 논쟁을 불러일으켰다. 달랑베르는 1761년 인두법에 관한 자신의 분석을 발표하며 베르누이의 접근법을 비판했다 <span class="citation" data-cites="ioannidis2020how">(<a href="#ref-ioannidis2020how" role="doc-biblioref">Ioannidis, 2020</a>)</span>.</p>
+<p>달랑베르는 베르누이의 모델이 너무 단순하다고 주장했다. 그는 특히 두 가지 측면에서 비판을 제기했다 <span class="citation" data-cites="bacaer2011smallpox">(<a href="#ref-bacaer2011smallpox" role="doc-biblioref">Bacaër, 2011</a>)</span>:</p>
+<ol type="1">
+<li><p><strong>즉각적 위험과 미래 이익</strong>: 달랑베르는 인두법의 즉각적인 사망 위험과 미래의 잠재적 이익을 단순히 평균화하는 것에 의문을 제기했다. 그는 당장의 사망 위험과 미래의 이익을 동등하게 취급하는 것이 논리적이지 않다고 생각했다.</p></li>
+<li><p><strong>개인과 사회</strong>: 달랑베르는 사회 전체에 대한 이익이 개인의 위험을 정당화하지 못할 수 있다고 주장했다. 그에게는 인두법으로 인한 즉각적 사망 위험을 감수해야 하는 개인의 관점이 중요했다.</p></li>
+</ol>
+<p>이 논쟁은 단순히 수학적 모델의 정확성에 관한 것이 아니라, 의학적 결정에서 위험과 이익을 평가하는 방법과 개인의 자율성 대 공중보건의 관계에 관한 깊은 철학적 질문을 제기했다 <span class="citation" data-cites="ioannidis2020how">(<a href="#ref-ioannidis2020how" role="doc-biblioref">Ioannidis, 2020</a>)</span>. 이는 오늘날까지도 예방접종 정책과 공중보건 윤리에서 중요한 주제로 남아있다.</p>
+</section>
+<section id="베르누이-연구의-역사적-의의" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="베르누이-연구의-역사적-의의"><span class="header-section-number">6</span> 베르누이 연구의 역사적 의의</h2>
+<p>베르누이의 연구는 여러 측면에서 역사적 의미를 갖는다:</p>
+<ol type="1">
+<li><p><strong>역학의 시작</strong>: 베르누이의 모델은 역학(epidemiology)이라는 학문 분야의 수학적 기초를 마련했다 <span class="citation" data-cites="dietz2000bernoulli">(<a href="#ref-dietz2000bernoulli" role="doc-biblioref">Dietz &amp; Heesterbeek, 2000</a>)</span>. 그는 질병의 전파와 인구 동태를 수학적으로 분석하는 방법을 개척했다.</p></li>
+<li><p><strong>증거 기반 의학의 선구자</strong>: 베르누이는 의학적 개입의 효과를 실증적 데이터와 수학적 분석을 통해 평가했다 <span class="citation" data-cites="fine1975ross">(<a href="#ref-fine1975ross" role="doc-biblioref">Fine, 1975</a>)</span>. 이는 현대 증거 기반 의학의 핵심 원칙을 예견한 것이었다.</p></li>
+<li><p><strong>의사결정 이론</strong>: 베르누이의 분석은 불확실성 하에서의 의사결정, 위험-이익 평가 등 현대 의사결정 이론의 중요한 개념들을 도입했다 <span class="citation" data-cites="ioannidis2020how">(<a href="#ref-ioannidis2020how" role="doc-biblioref">Ioannidis, 2020</a>)</span>.</p></li>
+<li><p><strong>공중보건 정책</strong>: 베르누이는 수학적 모델을 활용하여 공중보건 정책을 지지하는 최초의 시도를 했다 <span class="citation" data-cites="blower2004attempt">(<a href="#ref-blower2004attempt" role="doc-biblioref">Blower &amp; Bernoulli, 2004</a>)</span>. 그의 연구는 현대 공중보건 정책 결정에서 모델링의 중요한 역할을 예견했다.</p></li>
+</ol>
+</section>
+<section id="현대적-관점에서-본-베르누이의-연구" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="현대적-관점에서-본-베르누이의-연구"><span class="header-section-number">7</span> 현대적 관점에서 본 베르누이의 연구</h2>
+<p>현대 역학자들은 베르누이의 연구를 재평가하며 그 가치를 재확인했다. 디츠와 히스터벡은 2000년 ’Nature’지에 “베르누이는 현대 역학보다 앞서 있었다”는 제목의 논문을 발표했다 <span class="citation" data-cites="dietz2000bernoulli">(<a href="#ref-dietz2000bernoulli" role="doc-biblioref">Dietz &amp; Heesterbeek, 2000</a>)</span>. 그들은 베르누이가 감염병의 역학에 관한 현대적 통찰을 200년 이상 앞서 제시했음을 강조했다.</p>
+<p>베르누이의 모델은 오늘날의 표준에서 볼 때 단순하지만, 그의 접근 방식의 본질은 여전히 유효하다. 현대 감염병 모델링은 베르누이의 기본 틀을 확장하여 더 복잡한 요소들을 포함하고 있다 <span class="citation" data-cites="anderson1991infectious">(<a href="#ref-anderson1991infectious" role="doc-biblioref">Anderson et al., 1991</a>)</span>:</p>
+<ol type="1">
+<li>연령 의존적 감염률과 치명률</li>
+<li>인구 이질성과 사회적 접촉 패턴</li>
+<li>질병의 잠복기와 전염기</li>
+<li>면역의 획득과 소실</li>
+<li>공간적 확산 패턴</li>
+</ol>
+<p>이러한 발전에도 불구하고, 베르누이가 18세기에 제시한 기본적인 통찰 - 천연두와 같은 질병의 전파 역학을 이해하고 예방 접종과 같은 개입의 효과를 평가하기 위해 수학적 모델을 사용할 수 있다는 생각 - 은 현대 감염병 역학의 근간으로 남아있다 <span class="citation" data-cites="heesterbeek2015modeling">(<a href="#ref-heesterbeek2015modeling" role="doc-biblioref">Heesterbeek et al., 2015</a>)</span>.</p>
+</section>
+<section id="결론-베르누이의-유산" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="결론-베르누이의-유산"><span class="header-section-number">8</span> 결론: 베르누이의 유산</h2>
+<p>다니엘 베르누이의 천연두 연구는 단순히 역사적 호기심 이상의 가치를 지닌다. 그의 연구는 인류가 처음으로 전염병에 대항하는 과학적 도구로서 수학을 활용한 순간을 기록하고 있다 <span class="citation" data-cites="dietz2002daniel">(<a href="#ref-dietz2002daniel" role="doc-biblioref">Dietz &amp; Heesterbeek, 2002</a>)</span>. 베르누이의 업적은 단지 그가 발명한 수식이나 모델에 있지 않다. 그의 진정한 유산은 복잡한 공중보건 문제에 대한 해답을 찾기 위해 수학적 사고를 적용할 수 있다는 아이디어에 있다.</p>
+<p>오늘날 우리가 코로나19를 비롯한 다양한 전염병에 대응하는 방식은 250년 전 베르누이가 개척한 접근법의 직계 후손이다. 그는 “인류의 복지에 밀접한 관련이 있는 문제에 있어서, 약간의 분석과 계산이 제공할 수 있는 모든 지식 없이는 어떤 결정도 내려서는 안 된다”고 주장했다 <span class="citation" data-cites="blower2004attempt">(<a href="#ref-blower2004attempt" role="doc-biblioref">Blower &amp; Bernoulli, 2004</a>)</span>. 이 원칙은 현대 공중보건의 핵심 가치로 남아있다.</p>
+<p>베르누이의 연구는 우리에게 수학은 단순한 추상적 학문이 아니라 생명을 구하고 사회를 보호하는 강력한 도구가 될 수 있음을 상기시킨다. 그의 선구적인 업적은 오늘날까지도 우리에게 영감을 주며, 보이지 않는 적들과의 싸움에서 인류의 가장 강력한 무기 중 하나가 바로 수학임을 보여준다.</p>
+</section>
+<section id="참고문헌" class="level2" data-number="9">
+
+<!-- ```{=html} -->
+<!-- <div id="refs"></div> -->
+<!-- ``` -->
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography"><h2 class="anchored quarto-appendix-heading">9 참고문헌</h2><div id="refs" class="references csl-bib-body hanging-indent" data-line-spacing="2" role="list">
+<div id="ref-anderson1991infectious" class="csl-entry" role="listitem">
+Anderson, R. M., May, R. M., &amp; Anderson, B. (1991). <em>Infectious diseases of humans: Dynamics and control</em>. Oxford university press.
+</div>
+<div id="ref-bacaer2011smallpox" class="csl-entry" role="listitem">
+Bacaër, N. (2011). Daniel bernoulli, d’alembert and the inoculation of smallpox (1760). <em>A Short History of Mathematical Population Dynamics</em>, 21–30.
+</div>
+<div id="ref-bernoulli1766essai" class="csl-entry" role="listitem">
+Bernoulli, D. (1766). Essai d’une nouvelle analyse de la mortalit<span>é</span> caus<span>é</span>e par la petite v<span>é</span>role et des avantages de l’inoculation pour la pr<span>é</span>venir. <em>M<span>é</span>moires de Math<span>é</span>matiques Et de Physique, Acad<span>é</span>mie Royale Des Sciences, Paris</em>, 1–45.
+</div>
+<div id="ref-blower2004attempt" class="csl-entry" role="listitem">
+Blower, S., &amp; Bernoulli, D. (2004). An attempt at a new analysis of the mortality caused by smallpox and of the advantages of inoculation to prevent it. 1766. <em>Reviews in Medical Virology</em>, <em>14</em>(5), 275–288.
+</div>
+<div id="ref-dietz2000bernoulli" class="csl-entry" role="listitem">
+Dietz, K., &amp; Heesterbeek, J. (2000). Bernoulli was ahead of modern epidemiology. <em>Nature</em>, <em>408</em>(6812), 513–514.
+</div>
+<div id="ref-dietz2002daniel" class="csl-entry" role="listitem">
+Dietz, K., &amp; Heesterbeek, J. (2002). Daniel bernoulli’s epidemiological model revisited. <em>Mathematical Biosciences</em>, <em>180</em>(1-2), 1–21.
+</div>
+<div id="ref-fine1975ross" class="csl-entry" role="listitem">
+Fine, P. E. (1975). Ross’s a priori pathometry - a perspective. <em>Proceedings of the Royal Society of Medicine</em>, <em>68</em>(8), 547–551.
+</div>
+<div id="ref-heesterbeek2015modeling" class="csl-entry" role="listitem">
+Heesterbeek, H., Anderson, R. M., Andreasen, V., Bansal, S., De Angelis, D., Dye, C., Eames, K. T., Edmunds, W. J., Frost, S. D., Funk, S., et al. (2015). Modeling infectious disease dynamics in the complex landscape of global health. <em>Science</em>, <em>347</em>(6227).
+</div>
+<div id="ref-ioannidis2020how" class="csl-entry" role="listitem">
+Ioannidis, E. (2020). How history of mathematics can help to face a crisis situation: The case of the polemic between bernoulli and d’alembert about the smallpox epidemic. <em>ZDM Mathematics Education</em>, <em>54</em>, 569–581.
+</div>
+<div id="ref-razzell1977conquest" class="csl-entry" role="listitem">
+Razzell, P. E. (1977). <em>The conquest of smallpox: The impact of inoculation on smallpox mortality in eighteenth century britain</em>. Caliban Books.
+</div>
+<div id="ref-straub1970bernoulli" class="csl-entry" role="listitem">
+Straub, H. (1970). Bernoulli, daniel. <em>Dictionary of Scientific Biography</em>, <em>2</em>, 36–46.
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
