@@ -9,6 +9,8 @@ format:
     number-sections: true
     code-fold: true
 bibliography: references.bib
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -33,7 +35,8 @@ Let:
 - $B$: The full benefit gained by averting an outbreak (e.g., DALYs or cases averted)
 - $C$: The cost of deploying one vaccination campaign
 - $p$: The probability of an outbreak in a given region
-- $r$: The effectiveness of a reactive campaign relative to pre-emptive one (e.g., $r=0.6$ means 60% as effective)
+- $r$: The effectiveness of a reactive campaign relative to pre-emptive one 
+(e.g., $r=0.6$ means 60% as effective)
 
 ### Pre-emptive Vaccination
 
@@ -92,41 +95,65 @@ $$
 library(ggplot2)
 library(dplyr)
 
-# Create a grid of r and p values
-r_vals <- seq(0.1, 0.9, by = 0.01)
+# Parameters
+r_vals <- seq(0.01, 0.99, by = 0.01)
 p_vals <- seq(0.01, 0.99, by = 0.01)
 B <- 1
-C <- 0.4
+C_vals <- c(0.1, 0.5, 1, 3)
 
-# Compute threshold for each r
-grid <- expand.grid(p = p_vals, r = r_vals)
-grid <- grid %>%
-  mutate(p_star = C / (B * (1 - r) + C),
-         decision = ifelse(p > p_star, "Preemptive", "Reactive"))
+# Create grid
+grid <- expand.grid(p = p_vals, r = r_vals, C = C_vals) %>%
+  mutate(
+    p_star = C / (B * (1 - r) + C),
+    decision = ifelse(p > p_star, "Preemptive", "Reactive")
+  )
 
-# Plot heatmap
-ggplot(grid, aes(x = r, y = p, fill = decision)) +
-  geom_tile(color = "white") +
+# Create threshold lines for each C
+threshold_lines <- data.frame()
+for (C_val in C_vals) {
+  df_line <- data.frame(
+    r = r_vals,
+    p_thresh = C_val / (B * (1 - r_vals) + C_val),
+    C = C_val
+  )
+  threshold_lines <- bind_rows(threshold_lines, df_line)
+}
+
+# Create labeled plot
+ggplot(grid, aes(x = r, y = p)) +
+  geom_line(data = threshold_lines, aes(x = r, y = p_thresh, group = C), 
+            color = "black", size = 1, inherit.aes = FALSE) +
+  scale_y_continuous(limits=c(0,1))+
+  scale_x_continuous(limits=c(0,1))+
+  geom_text(data = data.frame(C = rep(C_vals, each = 2),
+                              label = rep(c("Preemptive", "Reactive"), 4),
+                              r = rep(0.05, 8),
+                              p = rep(c(0.95, 0.05), 4)),
+            aes(x = r, y = p, label = label), hjust = 0, 
+            color = "black", size = 4, inherit.aes = FALSE) +
   scale_fill_manual(values = c("Preemptive" = "steelblue", "Reactive" = "tomato")) +
-  labs(title = "Vaccination Strategy Decision Heatmap",
-       x = "Relative Reactive Benefit (r)",
-       y = "Outbreak Probability (p)",
-       fill = "Strategy") +
-  theme_minimal()
+  facet_wrap(~C, labeller = label_bquote(B/C == .(B/C))) +
+  labs(
+    title = "Vaccination Strategy Decision with Threshold",
+    x = "Relative Reactive Benefit (r)",
+    y = "Outbreak Probability (p)",
+    fill = "Strategy"
+  ) +
+  theme_light() +
+  theme(legend.position = 'top')
 ```
 
 
 This plot shows that reactive vaccination is better when $p$ is small, 
 but pre-emptive takes over beyond a break-even point that depends on $r$.
 
-## Additional benefits of pre-emptive vaccination and the cost of not deploying vaccines
+## Extension: Additional benefits of vaccination and the cost of not deploying vaccines
 
 We define two additional parameters:
 
- - $\phi$: The benefit of vaccination when no outbreak occurs (e.g., due to future immunity or prevention). This applies to both pre-emptive and reactive strategies
+ - $\phi$: Vaccination may provide benefits even in the absence of an outbreak—for example, through future immunity or the prevention of future outbreaks. This applies to both pre-emptive and reactive strategies. If the primary concern is outbreaks occurring within the current year, then $\phi$ can be interpreted as the potential preventive benefit of vaccination against outbreaks in subsequent years, measured as a fraction of the full benefit, $B$.
 
  - $D$: The cost or penalty associated with unused vaccines (e.g., due to expiry or logistical waste). This applied to the reactive strategy.
-
 
 ### Pre-emptive Vaccination
 
@@ -135,7 +162,7 @@ If we vaccinate before any outbreak, the expected benefit includes two parts:
 - $pB$ when an outbreak is averted
 - $(1 - p)\phi B$ when no outbreak occurs but future benefit remains
 
-The cost $C$ is always incurred. So the **net expected benefit** is:
+The cost $C$ is always incurred. So the net expected benefit is:
 
 $$
 \text{Net}_{\text{pre}} = pB + (1 - p)\phi B - C
@@ -155,7 +182,7 @@ $$
 \text{Net}_{\text{react}} = p(r+\phi)B - pC - (1 - p)D
 $$
 
-Compare symbolically both strategies under these extended conditions.
+### Symbolically compare both strategies under these extended conditions.
 
 ```{python}
 import sympy as sp
@@ -186,21 +213,20 @@ $$
 p > \frac{- \phi B + C - D}{(1- 2 \phi - r)B + C - D}
 $$
 
-
-### Visualizing the scenario 
+### Visualizing the scenario
 
 ```{r}
 library(ggplot2)
 library(dplyr)
 
 B <- 1
-C <- 0.4
 D <- 0.02
 phi <- 0.1
 r_vals <- seq(0.1, 0.9, by = 0.01)
-p_vals <- seq(0.01, 0.99, by = 0.01)
+p_vals <- seq(0.1, 0.9, by = 0.01)
+C_vals <- c(0.1, 0.5, 1, 3)
 
-compute_net <- function(p, r) {
+compute_net <- function(p, r, B=1, C, phi=0.1, D=0.02) {
   net_pre   <- B * p + (1 - p) * B * phi - C
   net_react <- B * p * (r + phi)  - p * C - (1 - p) * D
   return(data.frame(p = p, r = r,
@@ -209,60 +235,38 @@ compute_net <- function(p, r) {
 }
 
 # Compute threshold for each r
-grid <- expand.grid(p = p_vals, r = r_vals)
+grid <- expand.grid(p = p_vals, r = r_vals, C = C_vals)
 grid <- grid %>% 
-  mutate(pre = compute_net(p,r)$net_pre,
-         react = compute_net(p,r)$net_react,
+  mutate(pre = compute_net(p=p,r=r,C=C)$net_pre,
+         react = compute_net(p=p,r=r,C=C)$net_react,
          decision = ifelse(pre > react, "Preemptive", "Reactive"))
 
-# Plot heatmap
-ggplot(grid, aes(x = r, y = p, fill = decision)) +
-  geom_tile(color = "white") +
+# Create labeled plot
+ggplot(grid, aes(x = r, y = p)) +
+  geom_line(data = threshold_lines, aes(x = r, y = p_thresh, group = C), 
+            color = "black", size = 1, inherit.aes = FALSE) +
+  scale_y_continuous(limits=c(0,1))+
+  scale_x_continuous(limits=c(0,1))+
+  geom_text(data = data.frame(C = rep(C_vals, each = 2),
+                              label = rep(c("Preemptive", "Reactive"), 4),
+                              r = rep(0.05, 8),
+                              p = rep(c(0.95, 0.05), 4)),
+            aes(x = r, y = p, label = label), hjust = 0, 
+            color = "black", size = 4, inherit.aes = FALSE) +
   scale_fill_manual(values = c("Preemptive" = "steelblue", "Reactive" = "tomato")) +
-  labs(title = "Vaccination Strategy Decision Heatmap",
-       x = "Relative Reactive Benefit (r)",
-       y = "Outbreak Probability (p)",
-       fill = "Strategy") +
-  theme_minimal()
+  facet_wrap(~C, labeller = label_bquote(B/C == .(B/C))) +
+  labs(
+    title = "Vaccination Strategy Decision with Threshold",
+    x = "Relative Reactive Benefit (r)",
+    y = "Outbreak Probability (p)",
+    fill = "Strategy"
+  ) +
+  theme_light() +
+  theme(legend.position = 'top')
 ```
 
 
-## Extending to Multiple Sub-populations
-
-Let’s now generalize to $k$ sub-populations, each with its own outbreak probability $p_i$. We have $m$ campaigns to deploy:
-
-- Assign $m_{\text{pre}}$ campaigns pre-emptively
-- Leave $m_{\text{react}} = m - m_{\text{pre}}$ campaigns for reactive use
-
-### Strategy:
-
-- Sort sub-populations by descending $p_i$
-- Pre-emptively vaccinate top $m_{\text{pre}}$ if $p_i > \frac{- \phi B+ C - D}{(1- 2 \phi - r)B + C - D}$
-- Use remaining campaigns reactively
-
-
-### Numerical illustration
-
-We simulate 10 sub-populations with different outbreak probabilities and
-show how many campaigns should be used pre-emptively.
-
-```{r}
-set.seed(42)
-p_i <- sort(runif(10, 0.05, 0.4), decreasing = TRUE)
-threshold_p <- function(B, C, r, phi, D) { (- phi * B + C - D)/((1- 2*phi - r)*B + C - D)}
-
-
-assign_campaigns <- function(p_i, B, C, r, phi, D) {
-  p_star <- threshold_p(B, C, r, phi, D)
-  preemptive <- which(p_i > p_star)
-  data.frame(index = 1:length(p_i), p_i = p_i,
-             decision = ifelse(p_i > p_star, "pre-emptive", "reactive"))
-}
-
-assign_campaigns(p_i, B=1, C=0.4, r=0.4, phi=0.1, D=0.05)
-```
-
-## Further extention 
+## Extension: Multiple Sub-populations, limited vaccine supply, and opportunity costs
 
 We consider a strategic vaccination scenario where oral cholera vaccines (OCVs) are in limited supply. Specifically, the available stockpile is sufficient to cover only 10% of all subpopulations. Epidemiological data suggest that, within the anticipated time frame, fewer than 10% of subpopulations are likely to experience an outbreak. This implies that a fully reactive strategy—in which vaccines are deployed only in response to confirmed outbreaks—could, in principle, respond to all outbreaks without exceeding supply.
 
@@ -270,7 +274,7 @@ However, a recent risk assessment indicates that 20% of the population exceeds t
 
 This raises a strategic dilemma:
 
->Should all subpopulations above the preemptive threshold be vaccinated in advance, despite limited vaccine availability and the potential need for reactive response elsewhere?
+> Should all subpopulations above the preemptive threshold be vaccinated in advance, despite limited vaccine availability and the potential need for reactive response elsewhere?
 
 This scenario highlights the trade-off between targeting high-risk areas proactively versus preserving flexibility to respond where outbreaks actually occur, especially under uncertainty and supply constraints.  That is, we need to consider an opportunity cost of preemptive vaccination under Limited vaccine supply.
 
@@ -308,7 +312,7 @@ $$
 #### Total Expected Benefit
 
 $$
-\text{Total Benefit}_k \approx B \left( \sum_{i=1}^{k} p_i + r \cdot \min(M - k, \mu_k) \right)
+\text{Total Benefit}_k = B \left( \sum_{i=1}^{k} p_i + r \cdot \min(M - k, \mu_k) \right)
 $$
 
 ### Opportunity Cost of Preemptive Vaccination
@@ -325,8 +329,6 @@ $$
 $$
 
 where $X_k \sim \text{Binomial}(n - k, \bar{p}_k)$ or $\text{Poisson}(\mu_k)$.
-
-### Refined Decision Rule
 
 Preemptively vaccinate region $i$ only if:
 
@@ -350,8 +352,8 @@ $$
 
 | Quantity | Expression |
 |---------|------------|
-| Preemptive threshold | $ p^* = \frac{C}{B(1 - r) + C} $ |
-| Preemptive benefit (k regions) | $\sum_{i=1}^k p_i B $|
+| Preemptive threshold \(p^* = \frac{C}{B(1 - r) + C}\) |
+| Preemptive benefit ($k$ regions) | $\sum_{i=1}^k p_i B $|
 | Reactive expected benefit | $ rB \cdot \min(M-k, \mu_k) $ |
 | Total expected benefit | $ B \cdot \left( \sum_{i=1}^k p_i + r \cdot \min(M - k, \mu_k) \right) $ |
 | Opportunity cost of dose $ k+1 $ | $ rB \cdot \mathbb{P}(X_k \ge M - k) $ |
@@ -616,6 +618,8 @@ $${p^* = \frac{- \phi B + C - D}{(1 - 2\phi - r(d)) B + C - D}}$$
 This formulation reflects **operational complexity**, **vaccine scarcity**, and **time-sensitive effectiveness**, guiding more nuanced vaccine allocation strategies in outbreak-prone settings.
 
 ## Discussion
+
+### Further Possible Extenstions
 
 When outbreak risk is high enough, **pre-emptive vaccination** pays off even if the outbreak doesn’t occur.  When outbreak risk is low, and  **reactive** campaigns are effective ($r$ close to 1) and is more cost-effective. The decision threshold depends critically on the relative cost $C$ and the delay penalty $(1 - r)$ in addition to $p$ and $r$
 
