@@ -1,0 +1,284 @@
+---
+title:  "Simulating Correlated Outbreak Parameters Using Copulas"
+author: "Jong-Hoon Kim"
+date: "2025-07-25"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+bibliography: references.bib
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(gridExtra)
+library(tidyr)
+```
+
+I wanted to simulate synthetic outbreaks based on realistic distributions for the following three parameters:
+
+ - $t_{\text{peak}}$: Time to peak (weeks after outbreak start)
+ - $I_{\text{peak}}$: Peak weekly incidence (number of cases)
+ - $D$: Total outbreak duration (in weeks)
+
+These parameters are typically right-skewed, strictly positive, and correlated. A naive approach that samples each parameter independently fails to capture their interdependencies. Instead, we can use a copula-based approach to model their joint distribution realistically.
+
+In this post, we will:
+
+1. Explain copulas and how they help capture correlations between different distributions.
+2. Simulate fake outbreak parameter data using a Gaussian copula.
+3. Fit a hierarchical Bayesian copula model using rstan.
+
+## What is a Copula?
+
+A **copula** is a multivariate distribution that allows us to model **dependence structures** separately from **marginal distributions**. Given random variables $X_1, X_2, X_3$ with different marginal distributions (e.g., log-normal, negative binomial, gamma), a copula binds them together using their **ranks (uniform CDF values)**.
+
+The Gaussian copula uses a multivariate normal distribution on the inverse CDF-transformed variables:
+
+$$
+Z_i = \Phi^{-1}(F_i(X_i))
+$$
+
+Then the joint density is:
+
+$$
+C(u_1, u_2, u_3) = \Phi_\Sigma(\Phi^{-1}(u_1), \Phi^{-1}(u_2), \Phi^{-1}(u_3))
+$$
+
+This allows us to flexibly model each margin while preserving their empirical correlation.
+
+## Step 1: Simulate Fake Data
+
+We simulate fake outbreaks with sparse group-level data. Each group has its own mean parameters, and only a few observations per group.
+```{r}
+library(tidyverse)
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+set.seed(123)
+
+# Global parameters
+G <- 10
+mu_t0 <- log(5)
+mu_I0 <- log(20)
+mu_D0 <- log(15)
+sigma_mu_t <- 0.4
+sigma_mu_I <- 0.6
+sigma_mu_D <- 0.4
+sigma_t <- 0.5
+phi_I <- 0.3
+shape_D <- 4
+
+# Copula correlation matrix
+R <- matrix(c(1, 0.4, 0.5, 0.4, 1, 0.6, 0.5, 0.6, 1), 3, 3)
+L <- chol(R)
+
+mu_t_g <- rnorm(G, mu_t0, sigma_mu_t)
+mu_I_g <- rnorm(G, mu_I0, sigma_mu_I)
+mu_D_g <- rnorm(G, mu_D0, sigma_mu_D)
+
+out_list <- vector("list", G)
+for (g in seq_len(G)) {
+  n_g <- rpois(1, 3) + 1
+  dat <- tibble()
+  while (nrow(dat) < n_g) {
+    z <- t(L) %*% rnorm(3)
+    u <- pnorm(z)
+    t_pk <- max(1L, round(qlnorm(u[1], mu_t_g[g], sigma_t)))
+    I_pk <- max(1L, qnbinom(u[2], size = 1/phi_I, mu = exp(mu_I_g[g])))
+    rate_D <- shape_D / exp(mu_D_g[g])
+    D <- max(t_pk, round(qgamma(u[3], shape_D, rate_D)))
+    dat <- bind_rows(dat, tibble(grp = g, t_peak = t_pk, I_peak = I_pk, D = D))
+  }
+  out_list[[g]] <- dat
+}
+df <- bind_rows(out_list) %>% mutate(grp = factor(grp))
+glimpse(df)
+```
+
+## Step 2: Prepare Data for Stan
+
+```{r}
+stan_data <- list(
+  N = nrow(df),
+  G = nlevels(df$grp),
+  g = as.integer(df$grp),
+  t_pk = df$t_peak,
+  I_pk = df$I_peak,
+  Dur = df$D
+)
+```
+
+
+## Step 3: Write Stan Model to File
+
+```{r}
+stan_code <- "
+data {
+  int<lower=1> N;
+  int<lower=1> G;
+  int<lower=1,upper=G> g[N];
+  vector<lower=0>[N] t_pk;
+  int<lower=1> I_pk[N];
+  vector<lower=0>[N] Dur;
+}
+parameters {
+  real mu_t0;         real mu_I0;          real mu_D0;
+  real<lower=0> sigma_mu_t;   real<lower=0> sigma_mu_I;  real<lower=0> sigma_mu_D;
+  vector[G] mu_t_raw; vector[G] mu_I_raw;  vector[G] mu_D_raw;
+
+  real<lower=0> sigma_t;
+  real<lower=0> phi_I;
+  real<lower=0> shape_D;        real<lower=0> rate_D;
+
+  cholesky_factor_corr[3] L_corr;
+}
+transformed parameters {
+  vector[G] mu_t = mu_t0 + sigma_mu_t * mu_t_raw;
+  vector[G] mu_I = mu_I0 + sigma_mu_I * mu_I_raw;
+  vector[G] mu_D = mu_D0 + sigma_mu_D * mu_D_raw;
+}
+model {
+  // Hyper-priors
+  mu_t0 ~ normal(log(5), 1.5);
+  mu_I0 ~ normal(log(20), 2);
+  mu_D0 ~ normal(log(15), 1.5);
+  sigma_mu_t ~ exponential(1);
+  sigma_mu_I ~ exponential(1);
+  sigma_mu_D ~ exponential(1);
+  mu_t_raw ~ normal(0,1);
+  mu_I_raw ~ normal(0,1);
+  mu_D_raw ~ normal(0,1);
+
+  sigma_t  ~ exponential(1);
+  phi_I    ~ exponential(1);
+  shape_D  ~ gamma(2,0.1);
+  rate_D   ~ gamma(2,0.1);
+  L_corr   ~ lkj_corr_cholesky(2);
+
+  // Likelihood with Gaussian copula
+  for (n in 1:N) {
+    int g_n = g[n];
+    real mu_tn = mu_t[g_n];
+    real mu_In = exp(mu_I[g_n]);
+    real mu_Dn = exp(mu_D[g_n]);
+
+    // Marginal log-densities
+    target += lognormal_lpdf(t_pk[n] | mu_tn, sigma_t);
+    target += neg_binomial_2_lpmf(I_pk[n] | mu_In, 1/phi_I);
+    target += gamma_lpdf(Dur[n] | shape_D, rate_D);
+
+    // Copula part
+    real u1 = lognormal_cdf(t_pk[n], mu_tn, sigma_t);
+    real F_lo = neg_binomial_2_cdf(I_pk[n]-1, mu_In, 1/phi_I);
+    real F_hi = neg_binomial_2_cdf(I_pk[n], mu_In, 1/phi_I);
+    real u2 = 0.5*(F_lo + F_hi);             // mid-CDF for discrete NB
+    real u3 = gamma_cdf(Dur[n], shape_D, rate_D);
+
+    vector[3] z;
+    z[1] = inv_Phi(u1);
+    z[2] = inv_Phi(u2);
+    z[3] = inv_Phi(u3);
+
+    target += multi_normal_cholesky_lpdf(z | rep_vector(0,3), L_corr)
+              - normal_lpdf(z[1] | 0,1) - normal_lpdf(z[2] | 0,1)
+              - normal_lpdf(z[3] | 0,1);
+  }
+}
+"
+writeLines(stan_code, "copula_hier.stan")
+```
+
+
+## Step 4: Compile and Sample
+
+```{r}
+mod <- stan_model("copula_hier.stan")
+fit <- sampling(mod, data = stan_data,
+                chains = 4, iter = 1500, warmup = 750,
+                seed = 2025,
+                control = list(adapt_delta = 0.9))
+
+print(fit, pars = c("mu_t0","mu_I0","mu_D0",
+                    "sigma_t","phi_I","shape_D","rate_D"))
+```
+
+
+Using copulas allows us to flexibly simulate and estimate correlated epidemiological parameters without assuming a joint normal distribution. This approach can be extended to include additional outbreak features (e.g., start week, region, climate covariates) and can be combined with downstream simulations for vaccine impact or ORI strategies.
+
+## Step 5: Compare Posterior Estimates vs. True Values
+```{r}
+posterior <- rstan::extract(fit)
+
+# Compare global means
+cbind(
+  true = c(mu_t0, mu_I0, mu_D0),
+  posterior_mean = c(mean(posterior$mu_t0),
+                     mean(posterior$mu_I0),
+                     mean(posterior$mu_D0)), 
+  posterior_median = c(median(posterior$mu_t0),
+                     median(posterior$mu_I0),
+                     median(posterior$mu_D0)), 
+  posterior_25 = c(quantile(posterior$mu_t0, probs=c(0.25)),
+                     quantile(posterior$mu_I0, probs=c(0.25)),
+                     quantile(posterior$mu_D0, probs=c(0.25))), 
+  posterior_75 = c(quantile(posterior$mu_t0, probs=c(0.75)),
+                     quantile(posterior$mu_I0, probs=c(0.75)),
+                     quantile(posterior$mu_D0, probs=c(0.75))))
+```
+
+
+## Step 6: Posterior Predictive Checks
+
+```{r}
+library(bayesplot)
+
+set.seed(42)
+draw_ids <- sample(seq_along(posterior$sigma_t), size = 200)
+g <- 1  # choose group
+
+obs_t <- df$t_peak[df$grp == g]
+n_obs <- length(obs_t)
+
+# Simulate 200 posterior predictive replicates for each obs
+yrep_t <- matrix(NA, nrow = length(draw_ids), ncol = n_obs)
+
+for (i in seq_along(draw_ids)) {
+  idx <- draw_ids[i]
+  mu <- posterior$mu_t[idx, g]
+  sigma <- posterior$sigma_t[idx]
+  yrep_t[i, ] <- rlnorm(n_obs, meanlog = mu, sdlog = sigma)
+}
+
+ppc_dens_overlay(y = obs_t, yrep = yrep_t) +
+  ggtitle("Posterior Predictive Check: t_peak (Group 1)")
+
+```
+
+## Step 7: Generate Posterior Samples for t_peak, I_peak, and D
+
+```{r}
+# Draw 1000 posterior predictive samples
+posterior_draws <- tibble(
+  t_peak = apply(posterior$mu_t, 1, function(mu) rlnorm(1, mu[1], posterior$sigma_t[1])),
+  I_peak = apply(posterior$mu_I, 1, function(mu) rnbinom(1, mu = exp(mu[1]), size = 1/posterior$phi_I[1])),
+  D      = apply(posterior$mu_D, 1, function(mu) rgamma(1, shape = posterior$shape_D[1], rate = posterior$rate_D[1]))
+)
+
+# Visualize
+posterior_draws |>
+  pivot_longer(everything()) |>
+  ggplot(aes(value)) +
+  geom_density(fill = "skyblue", alpha = 0.6) +
+  facet_wrap(~name, scales = "free") +
+  labs(title = "Posterior Predictive Distributions")
+```
+
