@@ -89,10 +89,12 @@ count(country_region_map, region, name = "n_countries")
 
 Observed meta-parameters per outbreak $n = 1,.., N$
 
-$N_n$: population size; t_n: time to peak (weeks); D_n: duration (weeks);
-$i_n$: peak weekly incidence per person in $(0,1)$; 
-$y_n$: year;
-$r_n \in {1,...,R}$ region; $c_n \in {1,...,C}$ country (nested in region)
+$N_n$: population size; t_n: time to peak (weeks) 
+$D_n$: duration (weeks)
+$i_n$: peak weekly incidence per person in $(0,1)$
+$y_n$: year
+$r_n \in {1,...,R}$: region
+$c_n \in {1,...,C}$: country (nested in region)
 
 Modeling scales (logs and logit)
 
@@ -190,8 +192,10 @@ Quick sanity checks
 # 3.1 basic marginals
 outbk |>
   pivot_longer(c(N_pop, t_peak_weeks, duration_weeks, i_peak_per_person)) |>
-  ggplot(aes(value)) + geom_histogram(bins = 30, fill = "grey70") +
-  facet_wrap(~name, scales = "free") + labs(title = "Marginals (nested generator)")
+  ggplot(aes(value)) + 
+  geom_histogram(bins = 30, fill = "grey70") +
+  facet_wrap(~name, scales = "free") + 
+  labs(title = "Marginals (nested generator)")
 
 # 3.2 transformed pairwise structure (clamp i ∈ (0,1) before qlogis)
 GGally::ggpairs(
@@ -207,10 +211,14 @@ GGally::ggpairs(
 
 # 3.3 expected directionality (quick numerical checks)
 with(outbk, {
-  cat("cor(logN, logt)       =", cor(log(N_pop), log(t_peak_weeks)), "\n")
-  cat("cor(logN, logD)       =", cor(log(N_pop), log(duration_weeks)), "\n")
-  cat("cor(logN, logit(i))   =", cor(log(N_pop), qlogis(pmin(pmax(i_peak_per_person,1e-6),1-1e-6))), "\n")
-  cat("cor(logt, logD)       =", cor(log(t_peak_weeks), log(duration_weeks)), "\n")
+  cat("cor(logN, logt)       =", 
+      cor(log(N_pop), log(t_peak_weeks)), "\n")
+  cat("cor(logN, logD)       =", 
+      cor(log(N_pop), log(duration_weeks)), "\n")
+  cat("cor(logN, logit(i))   =", 
+      cor(log(N_pop), qlogis(pmin(pmax(i_peak_per_person,1e-6),1-1e-6))), "\n")
+  cat("cor(logt, logD)       =", 
+      cor(log(t_peak_weeks), log(duration_weeks)), "\n")
 })
 ```
 
@@ -255,7 +263,8 @@ drop_bad_cols <- function(M) {
     v  <- var(col)
     ok && is.finite(v) && v > 0
   })
-  if (!any(keep)) stop("All columns were dropped as 'bad' in a design matrix. Reduce df or check inputs.")
+  if (!any(keep)) 
+    stop("All columns were dropped as 'bad' in a design matrix. Reduce df or check inputs.")
   M[, keep, drop = FALSE]
 }
 
