@@ -1,5 +1,5 @@
 ---
-title: "Outbreak Simulation"
+title: "Outbreak Simulation [in progress]"
 author: "Jong-Hoon Kim"
 date: "2025-10-13"
 format:
@@ -14,6 +14,16 @@ bibliography: references.bib
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
+
+
+We:
+
+1. **Generate fake historical outbreaks** (~1,000 rows) with columns `year`, `region`, `country`, `N_pop`, `t_peak_weeks`, `duration_weeks`, `i_peak_per_person`.
+2. Build **design matrices** (splines + interactions).
+3. Fit a **Stan model** with four linked regressions (on transformed scales) and **correlated region/country random effects** (multivariate for the 4 outcomes).
+4. **Validate** with posterior predictive checks.
+5. **Simulate new outbreaks** forward in order ($\log N$ to $\log t$ to $\log D$ to $\text{logit}(i_\text{peak})$).
+6. Turn summaries into **weekly curves** (exponential or triangular) and counts using NegBin2; compare distributions to the historical-like data.
 
 
 # Setup
@@ -42,6 +52,17 @@ rnbinom_mu_phi <- function(n, mu, phi) {
 ```
 
 # Generate Fake Historical Outbreaks
+
+Observed meta-parameters per outbreak $n = 1,.., N$
+
+ - $N_n$: population size
+ - $t_n$: time to peak (weeks) 
+ - $D_n$: duration (weeks)
+ - $i_n$: peak weekly incidence per person in $(0,1)$
+ - $y_n$: year
+ - $r_n \in {1,...,R}$: region
+ - $c_n \in {1,...,C}$: country (nested in region)
+
 
 ```{r}
 R <- 10        # number of regions
@@ -84,28 +105,20 @@ stopifnot(
   nrow(country_region_map) == C,
   all(!duplicated(country_region_map$country))
 )
-count(country_region_map, region, name = "n_countries")
+
+# count(country_region_map, region, name="countries")
 ```
-
-Observed meta-parameters per outbreak $n = 1,.., N$
-
-$N_n$: population size; t_n: time to peak (weeks) 
-$D_n$: duration (weeks)
-$i_n$: peak weekly incidence per person in $(0,1)$
-$y_n$: year
-$r_n \in {1,...,R}$: region
-$c_n \in {1,...,C}$: country (nested in region)
 
 Modeling scales (logs and logit)
 
 $$
-\begin{aligned}
-\tilde{N}_n &= \log N_n,\\
-\tilde{t}_n &= \log t_n,\\
-\tilde{D}_n &= \log D_n,\\
-\tilde{i}_n &= \operatorname{logit}(i_n) \;=\; \log\!\frac{i_n}{1-i_n}.
-\end{aligned}
+\tilde{N}_n=\log N_n,\qquad
+\tilde{t}_n=\log t_n,\qquad
+\tilde{D}_n=\log D_n,\qquad
+\tilde{i}_n=\operatorname{logit}(i_n)=\log\!\frac{i_n}{1-i_n}.
 $$
+
+Sample countries and years for outbreaks
 
 ```{r}
 set.seed(2025)
@@ -125,40 +138,138 @@ region <- factor(
 )
 
 year <- sample(years, n_outbreaks, replace = TRUE)
+```
 
-# ----- Shared RE across outcomes (logN, logt, logD, logit_i) -----
+The 4-dimensional random effects at region and country levels are shared and generated using the Cholesky factor:
+$$
+\Sigma_{\text{re}}\in\mathbb{R}^{4\times 4},\quad \Sigma_{\text{re}}\succ 0,\quad
+\Sigma_{\text{re}} = L L^\top,\ \ L=\operatorname{chol}(\Sigma_{\text{re}}).
+$$
+
+If 
+$$z \sim \mathcal{N}(\mathbf{0}, I_4),$$
+$$
+u = Lz \;\sim\; \mathcal{N}(\mathbf{0}, \Sigma).
+$$
+
+Why?
+
+$$
+\operatorname{Cov}(u) = \operatorname{Cov}(Lz) = L, \operatorname{Cov}(z)\, L^\top = L I_4 L^\top = L L^\top = \Sigma.
+$$
+
+```{r}
+# covariance matrix for random effects across outcomes (logN, logt, logD, logit_i) 
 Sigma_re <- matrix(c(
   0.20, 0.05, 0.04, 0.03,
   0.05, 0.25, 0.06, 0.04,
   0.04, 0.06, 0.20, 0.05,
   0.03, 0.04, 0.05, 0.15
 ), 4, 4)
+
+# verifies Sigma_re is positive definite (all eigenvalues > 0), otherwise stops.
 stopifnot(all(eigen(Sigma_re, symmetric = TRUE, only.values = TRUE)$values > 0))
-Lre <- chol(Sigma_re)
+# Cholesky decomposition
+# Note that upper triangular matrix is returned from chol function, hence transpose
+Lre <- t(chol(Sigma_re))
+all.equal(Lre %*% t(Lre), Sigma_re)
 
 R <- nlevels(region)
 C <- nlevels(country)
+
 re_region  <- matrix(NA_real_, 4, R)
 re_country <- matrix(NA_real_, 4, C)
-for (r in 1:R) re_region[,  r] <- drop(t(Lre) %*% rnorm(4))
-for (c in 1:C) re_country[, c] <- drop(t(Lre) %*% rnorm(4))
 
+# correlated random effets via Cholesky factor
+for (r in 1:R) re_region[, r] <- drop(Lre %*% rnorm(4))
+for (c in 1:C) re_country[, c] <- drop(Lre %*% rnorm(4))
+```
+
+Year effect 
+
+$$f_{\text{year}}(y)\;=\;0.2\,\sin\!\left(\tfrac{2\pi}{20}\,(y-2000)\right)$$
+
+```{r}
 f_year <- function(y) 0.2 * sin((y - 2000) / 20 * 2*pi)
+```
 
+Correlated random effect draws (simulation via Cholesky)
+$$
+\mathbf{u}^{(\mathrm{reg})}_r \sim \mathcal{N}(\mathbf{0},\Sigma_{\mathrm{re}}),\quad r=1,\dots,R,
+\qquad
+\mathbf{u}^{(\mathrm{cty})}_c \sim \mathcal{N}(\mathbf{0},\Sigma_{\mathrm{re}}),\quad c=1,\dots,C.
+$$
+
+Components per outcome (ordered as: $\tilde N, \tilde t, \tilde D, \tilde i$)
+$$
+\mathbf{u}^{(\mathrm{reg})}_r=\begin{bmatrix}
+u^{(N)}_{\mathrm{reg},r}\\ u^{(t)}_{\mathrm{reg},r}\\ u^{(D)}_{\mathrm{reg},r}\\ u^{(i)}_{\mathrm{reg},r}
+\end{bmatrix},\qquad
+\mathbf{u}^{(\mathrm{cty})}_c=\begin{bmatrix}
+u^{(N)}_{\mathrm{cty},c}\\ u^{(t)}_{\mathrm{cty},c}\\ u^{(D)}_{\mathrm{cty},c}\\ u^{(i)}_{\mathrm{cty},c}
+\end{bmatrix}.
+$$
+
+Ordered generative mechanism: $\tilde N \to \tilde t \to \tilde D \to \tilde i$
+
+$$
+\tilde{N}_n \;=\; \mu_N(y_n)\;+\;u^{(N)}_{\mathrm{reg},r_n}\;+\;u^{(N)}_{\mathrm{cty},c_n}\;+\;\varepsilon^{(N)}_n,
+\qquad \varepsilon^{(N)}_n\sim\mathcal{N}(0,0.35^2),
+$$
+
+$$
+\mu_N(y)\;=\;12\;+\;0.8\,f_{\text{year}}(y).
+$$
+
+```{r}
 # integer indices for fast lookup
 r_id <- as.integer(region)
 c_id <- as.integer(country)
 
-# ----- Ordered generative mechanism -----
 logN_mu <- 12 + 0.8 * f_year(year)
 logN <- logN_mu + re_region[1, r_id] + re_country[1, c_id] + rnorm(n_outbreaks, 0, 0.35)
+```
 
+$$
+\tilde{t}_n \;=\; \mu_t(y_n,\tilde{N}_n)\;+\;u^{(t)}_{\mathrm{reg},r_n}\;+\;u^{(t)}_{\mathrm{cty},c_n}\;+\;\varepsilon^{(t)}_n,
+\qquad \varepsilon^{(t)}_n\sim\mathcal{N}(0,0.25^2),
+$$
+
+$$
+\mu_t(y,\tilde N)\;=\;1.7 \;+\; 0.15\,(\tilde N-\bar{\tilde N}) \;+\; 0.6\,f_{\text{year}}(y).
+$$
+```{r}
 logt_mu <- 1.7 + 0.15 * (logN - mean(logN)) + 0.6 * f_year(year)
 logt <- logt_mu + re_region[2, r_id] + re_country[2, c_id] + rnorm(n_outbreaks, 0, 0.25)
+```
 
+
+$$
+\tilde{D}_n \;=\; \mu_D(y_n,\tilde{N}_n,\tilde{t}_n)\;+\;u^{(D)}_{\mathrm{reg},r_n}\;+\;u^{(D)}_{\mathrm{cty},c_n}\;+\;\varepsilon^{(D)}_n,
+\qquad \varepsilon^{(D)}_n\sim\mathcal{N}(0,0.25^2),
+$$
+
+$$
+\mu_D(y,\tilde N,\tilde t)\;=\;2.0 \;+\; 0.10\,(\tilde N-\bar{\tilde N}) \;+\; 0.40\,(\tilde t-\bar{\tilde t}) \;+\; 0.5\,f_{\text{year}}(y).
+$$
+
+```{r}
 logD_mu <- 2.0 + 0.10 * (logN - mean(logN)) + 0.40 * (logt - mean(logt)) + 0.5 * f_year(year)
 logD <- logD_mu + re_region[3, r_id] + re_country[3, c_id] + rnorm(n_outbreaks, 0, 0.25)
+```
 
+
+$$
+\tilde{i}_n \;=\; \mu_I(y_n,\tilde{N}_n,\tilde{t}_n,\tilde{D}_n)\;+\;u^{(i)}_{\mathrm{reg},r_n}\;+\;u^{(i)}_{\mathrm{cty},c_n}\;+\;\varepsilon^{(i)}_n,
+\qquad \varepsilon^{(i)}_n\sim\mathcal{N}(0,0.35^2),
+$$
+
+$$
+\mu_I(y,\tilde N,\tilde t,\tilde D)=
+-6.0 \;-\; 0.20\,(\tilde N-\bar{\tilde N}) \;+\; 0.25\,(\tilde t-\bar{\tilde t}) \;-\; 0.10\,(\tilde D-\bar{\tilde D})
+\;+\; 0.4\,f_{\text{year}}(y) \;+\; 0.12\,(\tilde t-\bar{\tilde t})\,(\tilde D-\bar{\tilde D}).
+$$
+```{r}
 logit_i_mu <- -6.0 -
   0.20 * (logN - mean(logN)) +
   0.25 * (logt - mean(logt)) -
@@ -167,8 +278,32 @@ logit_i_mu <- -6.0 -
   0.12 * (logt - mean(logt)) * (logD - mean(logD))
 logit_i <- logit_i_mu + re_region[4, r_id] + re_country[4, c_id] + 
   rnorm(n_outbreaks, 0, 0.35)
+```
 
-# ----- Back-transform -----
+
+Compact vector form
+$$
+\mathbf{y}_n=
+\begin{bmatrix}\tilde N_n\\ \tilde t_n\\ \tilde D_n\\ \tilde i_n\end{bmatrix}
+=
+\begin{bmatrix}
+\mu_N(y_n)\\
+\mu_t(y_n,\tilde N_n)\\
+\mu_D(y_n,\tilde N_n,\tilde t_n)\\
+\mu_I(y_n,\tilde N_n,\tilde t_n,\tilde D_n)
+\end{bmatrix}
+
+\mathbf{u}^{(\mathrm{reg})}_{r_n}
+
+\mathbf{u}^{(\mathrm{cty})}_{c_n}
+
+\boldsymbol{\varepsilon}_n,
+\qquad
+\boldsymbol{\varepsilon}_n\sim\mathcal{N}\!\big(\mathbf{0},\ \mathrm{diag}(0.35^2,0.25^2,0.25^2,0.35^2)\big).
+$$
+
+Back-transform
+```{r}
 N_pop             <- pmax(5e3, round(exp(logN)))
 t_peak_weeks      <- pmax(1, round(exp(logt)))
 duration_weeks    <- pmax(t_peak_weeks + 1, round(exp(logD)))
@@ -183,7 +318,9 @@ outbk %>%
   facet_wrap(~name, scales = "free")
 
 # verify nesting: every country maps to exactly one region
-outbk %>% distinct(country, region) %>% count(country) %>% summarise(all(n == 1))
+outbk %>% 
+  distinct(country, region) %>% 
+  count(country) %>% summarise(all(n == 1))
 ```
 
 Quick sanity checks
@@ -221,6 +358,14 @@ with(outbk, {
       cor(log(t_peak_weeks), log(duration_weeks)), "\n")
 })
 ```
+
+
+Back-transformations and logical bounds used in code
+
+$$
+N^{\mathrm{sim}}_n \;=\; \max\!\big\{5000,\ \lfloor e^{\tilde N_n}\rceil \big\},\qquad
+t^{\mathrm{sim}}_n \;=\; \max\!\big\{1,\ \lfloor e^{\tilde t_n}\rceil \big\},
+$$
 
 # Design Matrices (splines + interactions)
 
