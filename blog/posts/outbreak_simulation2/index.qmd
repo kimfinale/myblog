@@ -38,7 +38,8 @@ library(splines)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-theme_set(bayesplot::theme_default())
+# theme_set(bayesplot::theme_default())
+theme_set(theme_light())
 set.seed(2025)
 
 rmse <- function(x,y) sqrt(mean((x-y)^2))
@@ -210,7 +211,9 @@ u^{(N)}_{\mathrm{cty},c}\\ u^{(t)}_{\mathrm{cty},c}\\ u^{(D)}_{\mathrm{cty},c}\\
 \end{bmatrix}.
 $$
 
-Ordered generative mechanism: $\tilde N \to \tilde t \to \tilde D \to \tilde i$
+# Ordered generative mechanism: $\tilde N \to \tilde t \to \tilde D \to \tilde i$
+
+Population size, $\tilde{N}_n$
 
 $$
 \tilde{N}_n \;=\; \mu_N(y_n)\;+\;u^{(N)}_{\mathrm{reg},r_n}\;+\;u^{(N)}_{\mathrm{cty},c_n}\;+\;\varepsilon^{(N)}_n,
@@ -230,6 +233,9 @@ logN_mu <- 12 + 0.8 * f_year(year)
 logN <- logN_mu + re_region[1, r_id] + re_country[1, c_id] + rnorm(n_outbreaks, 0, 0.35)
 ```
 
+
+Time to peak (weeks), $\tilde{t}_n$
+
 $$
 \tilde{t}_n \;=\; \mu_t(y_n,\tilde{N}_n)\;+\;u^{(t)}_{\mathrm{reg},r_n}\;+\;u^{(t)}_{\mathrm{cty},c_n}\;+\;\varepsilon^{(t)}_n,
 \qquad \varepsilon^{(t)}_n\sim\mathcal{N}(0,0.25^2),
@@ -243,7 +249,7 @@ logt_mu <- 1.7 + 0.15 * (logN - mean(logN)) + 0.6 * f_year(year)
 logt <- logt_mu + re_region[2, r_id] + re_country[2, c_id] + rnorm(n_outbreaks, 0, 0.25)
 ```
 
-
+Outbreak duration (weeks), $tilde{D}_n$
 $$
 \tilde{D}_n \;=\; \mu_D(y_n,\tilde{N}_n,\tilde{t}_n)\;+\;u^{(D)}_{\mathrm{reg},r_n}\;+\;u^{(D)}_{\mathrm{cty},c_n}\;+\;\varepsilon^{(D)}_n,
 \qquad \varepsilon^{(D)}_n\sim\mathcal{N}(0,0.25^2),
@@ -258,6 +264,7 @@ logD_mu <- 2.0 + 0.10 * (logN - mean(logN)) + 0.40 * (logt - mean(logt)) + 0.5 *
 logD <- logD_mu + re_region[3, r_id] + re_country[3, c_id] + rnorm(n_outbreaks, 0, 0.25)
 ```
 
+Peak weekly incidence per person, $\tilde{i}_n$
 
 $$
 \tilde{i}_n \;=\; \mu_I(y_n,\tilde{N}_n,\tilde{t}_n,\tilde{D}_n)\;+\;u^{(i)}_{\mathrm{reg},r_n}\;+\;u^{(i)}_{\mathrm{cty},c_n}\;+\;\varepsilon^{(i)}_n,
@@ -269,6 +276,7 @@ $$
 -6.0 \;-\; 0.20\,(\tilde N-\bar{\tilde N}) \;+\; 0.25\,(\tilde t-\bar{\tilde t}) \;-\; 0.10\,(\tilde D-\bar{\tilde D})
 \;+\; 0.4\,f_{\text{year}}(y) \;+\; 0.12\,(\tilde t-\bar{\tilde t})\,(\tilde D-\bar{\tilde D}).
 $$
+
 ```{r}
 logit_i_mu <- -6.0 -
   0.20 * (logN - mean(logN)) +
@@ -309,13 +317,8 @@ t_peak_weeks      <- pmax(1, round(exp(logt)))
 duration_weeks    <- pmax(t_peak_weeks + 1, round(exp(logD)))
 i_peak_per_person <- plogis(logit_i)
 
-outbk <- tibble(year, region, country, N_pop, t_peak_weeks, duration_weeks, i_peak_per_person)
-
-# quick checks (optional)
-outbk %>%
-  pivot_longer(c(N_pop, t_peak_weeks, duration_weeks, i_peak_per_person)) %>%
-  ggplot(aes(value)) + geom_histogram(bins = 30, fill = "grey70") +
-  facet_wrap(~name, scales = "free")
+outbk <- tibble(year, region, country, N_pop, t_peak_weeks, 
+                duration_weeks, i_peak_per_person)
 
 # verify nesting: every country maps to exactly one region
 outbk %>% 
@@ -326,7 +329,7 @@ outbk %>%
 Quick sanity checks
 
 ```{r}
-# 3.1 basic marginals
+# basic marginals
 outbk |>
   pivot_longer(c(N_pop, t_peak_weeks, duration_weeks, i_peak_per_person)) |>
   ggplot(aes(value)) + 
@@ -334,7 +337,7 @@ outbk |>
   facet_wrap(~name, scales = "free") + 
   labs(title = "Marginals (nested generator)")
 
-# 3.2 transformed pairwise structure (clamp i ∈ (0,1) before qlogis)
+# transformed pairwise structure (clamp i ∈ (0,1) before qlogis)
 GGally::ggpairs(
   outbk |>
     transmute(
@@ -346,7 +349,7 @@ GGally::ggpairs(
   title = "Transformed pairwise (nested)"
 )
 
-# 3.3 expected directionality (quick numerical checks)
+# expected directionality (quick numerical checks)
 with(outbk, {
   cat("cor(logN, logt)       =", 
       cor(log(N_pop), log(t_peak_weeks)), "\n")
@@ -430,7 +433,7 @@ df <- outbk %>%
       logD    = log(duration_weeks),
       logit_i = qlogis(pmin(pmax(i_peak_per_person, 1e-6), 1 - 1e-6))
   )
- ## ---------- Build design matrices ----------
+
 # Expect df tibble is already defined from your fake data step:
 # df has: year (numeric), region (factor), country (factor),
 #         logN, logt, logD, logit_i (numeric)
