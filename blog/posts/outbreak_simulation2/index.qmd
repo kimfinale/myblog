@@ -211,7 +211,10 @@ u^{(N)}_{\mathrm{cty},c}\\ u^{(t)}_{\mathrm{cty},c}\\ u^{(D)}_{\mathrm{cty},c}\\
 \end{bmatrix}.
 $$
 
-# Ordered generative mechanism: $\tilde N \to \tilde t \to \tilde D \to \tilde i$
+# Ordered generative mechanism: 
+
+
+$$\tilde N \to \tilde t \to \tilde D \to \tilde i$$
 
 Population size, $\tilde{N}_n$
 
@@ -370,8 +373,9 @@ $$
 N^{\mathrm{sim}}_n \;=\; \max\!\big\{5000,\ \lfloor e^{\tilde N_n}\rceil \big\},\qquad
 t^{\mathrm{sim}}_n \;=\; \max\!\big\{1,\ \lfloor e^{\tilde t_n}\rceil \big\},
 $$
-# Estimating parameters based on the simulated data
-# Design Matrices (splines + interactions)
+# Estimating parameters using the simulated data
+
+Design matrices (splines + interactions) for a regression model in Stan
 
 ```{r}
 ## ---------- Safe helpers ----------
@@ -424,6 +428,7 @@ has_zero_var <- function(M) {
   any(s == 0)
 }
 
+#
 df <- outbk %>% 
    transmute(
       year    = year,
@@ -435,9 +440,6 @@ df <- outbk %>%
       logit_i = qlogis(pmin(pmax(i_peak_per_person, 1e-6), 1 - 1e-6))
   )
 
-# Expect df tibble is already defined from your fake data step:
-# df has: year (numeric), region (factor), country (factor),
-#         logN, logt, logD, logit_i (numeric)
 stopifnot(all(c("year","region","country","logN","logt","logD","logit_i") 
               %in% names(df)))
 
@@ -446,7 +448,7 @@ x_logN <- as.numeric(scale(df$logN))
 x_logt <- as.numeric(scale(df$logt))
 x_logD <- as.numeric(scale(df$logD))
 
-# --- p(logN) : splines of year only ---
+# --- p(logN): splines of year only with 8 degrees of freedom
 B_year_N <- bs_noi_safe(df$year, target_df = 8)
 B_year_N <- drop_bad_cols(B_year_N)
 XN <- cbind(1, safe_scale(B_year_N))
@@ -1635,6 +1637,52 @@ ggplot(summ, aes(week, cases_mean)) +
   geom_line() +
   labs(title = "Gamma–renewal simulated weekly cases", x = "week", y = "cases") +
   theme_minimal()
+```
+
+# Data
+```{r}
+data <- data.table::fread("C:\\Users\\jonghoon.kim\\Workspace\\myblog\\data\\outbreak_data_summary_20251022.csv")
+data$i_peak_per_person <- data$peak_week_incidence_per_10e3/10e3
+  
+cols <- c("ar_per_10e3", "outbreak_pop", "total_s_ch", "duration_weeks", 
+          "peak_week_incidence_per_10e3", "time_to_peak_week")
+
+```
+
+Quick sanity checks
+
+```{r}
+# basic marginals
+data |>
+  pivot_longer(c(outbreak_pop, time_to_peak_week, duration_weeks, i_peak_per_person)) |>
+  ggplot(aes(value)) + 
+  geom_histogram(bins = 30, fill = "grey70") +
+  facet_wrap(~name, scales = "free") + 
+  labs(title = "Marginals (nested generator)")
+
+# transformed pairwise structure (clamp i ∈ (0,1) before qlogis)
+GGally::ggpairs(
+  data |>
+    transmute(
+      logN   = log(outbreak_pop),
+      logt   = log(time_to_peak_week),
+      logD   = log(duration_weeks),
+      logit_i = qlogis(pmin(pmax(i_peak_per_person, 1e-6), 1 - 1e-6))
+    ),
+  title = "Transformed pairwise (nested)"
+)
+
+# expected directionality (quick numerical checks)
+with(outbk, {
+  cat("cor(logN, logt)       =", 
+      cor(log(N_pop), log(t_peak_weeks)), "\n")
+  cat("cor(logN, logD)       =", 
+      cor(log(N_pop), log(duration_weeks)), "\n")
+  cat("cor(logN, logit(i))   =", 
+      cor(log(N_pop), qlogis(pmin(pmax(i_peak_per_person,1e-6),1-1e-6))), "\n")
+  cat("cor(logt, logD)       =", 
+      cor(log(t_peak_weeks), log(duration_weeks)), "\n")
+})
 ```
 
 # References
