@@ -1,5 +1,5 @@
 ---
-title:  "Optimizing Vaccination Strategies: Pre-emptive vs. Reactive Vaccination"
+title: "To Wait or To Act? Optimizing Reactive vs. Pre-emptive Vaccination Strategies"
 author: "Jong-Hoon Kim"
 date: "2025-06-27"
 format:
@@ -13,9 +13,8 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Setup
-
 ```{r setup, include=FALSE}
+# Setup
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(gridExtra)
@@ -114,7 +113,7 @@ $$
 
 where $c_{\text{dose}}$ = vaccine cost per dose, $c_{\text{delivery}}$ = delivery cost per dose.
 
-## Scenarios
+# Scenarios
 
 Let:
 
@@ -126,15 +125,13 @@ Let:
 -   $f \in (0,1]$ = total vaccination capacity as a fraction of populations,
 -   $\alpha \in [0,1]$ = fraction of vaccination capacity used pre-emptively,
 -   $f_{\mathrm{pre}} = \alpha f$ = fraction of populations vaccinated pre-emptively,
--   $f_{\mathrm{react}} = (1-\alpha)f$ = capacity reserved for reactive campaigns.
+-   $f_{\mathrm{react}} = (1-\alpha)f$ = vaccination capacity reserved for reactive campaigns.
 
 ## One Population
 
 We consider a single population with outbreak probability $p$, outbreak cost $C_{\mathrm{O}}$, vaccination cost $C_{\mathrm{V}}$, and reactive vaccination effectiveness $r \in [0,1]$. The outbreak cost $C_{\mathrm{O}}$ reflects direct medical costs, productivity losses, and mortality-related losses. The vaccination cost $C_{\mathrm{V}}$ includes vaccine and delivery costs.
 
 Let $X \sim \mathrm{Bernoulli}(p)$ denote an indicator of an outbreak, where $X=1$ if an outbreak occurs and $X=0$ otherwise.
-
-
 
 ### Pre-emptive strategy
 
@@ -168,9 +165,7 @@ $$
 
 This calculation assumes no penalty or loss from unused vaccine stock. In practice, vaccine expiry or wastage may incur additional costs, but these are omitted here for analytical clarity.
 
-
-
-### Normalized Expected Costs
+### Normalized Per-Population Expected Costs
 
 Define the outbreak-to-vaccination cost ratio:
 
@@ -199,9 +194,9 @@ $$
 These represent the normalized per-population expected costs of the two strategies with the superscript $(1)$ indicating one-population case.
 
 
-### Threshold Outbreak Probability $p_*$
+### Threshold Outbreak Probability $p^*$
 
-The threshold outbreak probability $p_*$ at which the two strategies yield equal expected cost is given by:
+The threshold outbreak probability $p^*$ at which the two strategies yield equal expected cost is given by:
 
 $$
 c_{\mathrm{pre}}^{(1)} = c_{\mathrm{react}}^{(1)}
@@ -211,28 +206,28 @@ $$
 
 Interpretation:
 
--   **Pre-emptive preferred** when\
+-   **Pre-emptive preferred** when
     $$
-    p > p_*
+    p > p^*
     \quad\Longleftrightarrow\quad
     c_{\mathrm{pre}}^{(1)} < c_{\mathrm{react}}^{(1)}.
     $$
 
--   **Reactive preferred** when\
+-   **Reactive preferred** when
     $$
-    p < p_*
+    p < p^*
     \quad\Longleftrightarrow\quad
     c_{\mathrm{pre}}^{(1)} > c_{\mathrm{react}}^{(1)}.
     $$
 
--   **Indifference point**\
+-   **Indifference point**
     $$
-    p = p_*
+    p = p^*
     \quad\Longleftrightarrow\quad
     c_{\mathrm{pre}}^{(1)} = c_{\mathrm{react}}^{(1)}.
     $$
 
-The threshold $p_*$ decreases as the reactive effectiveness $r$ decreases or the outbreak cost ratio $R$ increases. Thus, pre-emptive vaccination becomes more favorable when reactive vaccination is less effective or when outbreaks are relatively more costly.
+The threshold $p^*$ decreases as the reactive effectiveness $r$ decreases or the outbreak cost ratio $R$ increases. Thus, pre-emptive vaccination becomes more favorable when reactive vaccination is less effective or when outbreaks are relatively more costly.
 
 
 ### Visualization
@@ -302,10 +297,10 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
   )+
   geom_text(
     data = df_pstar,
-    aes(x = p_star, y = Inf, label = "italic(p)['*']"),
+    aes(x = p_star, y = Inf, label = "italic(p)^'*'"),
     parse = TRUE,
     inherit.aes = FALSE,
-    hjust = -0.1,
+    hjust = -0.3,
     vjust = 1.2,
     size  = 4
   ) +
@@ -313,7 +308,7 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
   scale_linetype_discrete(labels = scales::label_parse())+
   labs(
     x = expression("Probability of an outbreak "~italic(p)),
-    y = expression("Normalized per-population expected cost " ~ italic(c)[s]^'(1)'),
+    y = expression("Normalized per-population expected cost  " ~ italic(c)[s]^'(1)'),
     color = "",
     linetype = "")+
   theme_light() +
@@ -325,7 +320,7 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
   )
 ```
 
-$p_*$ as a function of $r$ for $R=1$.
+$p^*$ as a function of $r$ for $R=1$.
 
 ```{r}
 r_vals <- seq(0.01, 0.99, by = 0.01)
@@ -339,14 +334,14 @@ ggplot(data, aes(x = r, y = pstar)) +
   geom_abline(slope=1, intercept = 0, linetype="dotted", 
               linewidth=1, color="firebrick")+
   labs(x = expression("Reactive effectiveness "~italic(r)),
-       y = expression("Threshold outbreak probability "~italic(p)['*']))+
+       y = expression("Threshold outbreak probability  "~italic(p)^'*'))+
   theme_light()+
   theme(legend.position = "top")+
   annotate("text", size=4, x=0,y=1,hjust=0,vjust=1, label="Pre-emptive")+
   annotate("text", size=4, x=1,y=0,hjust=1,vjust=0, label="Reactive")
 ```
 
-$p_*$ as a function of $r$ for varying $R$'s
+$p^*$ as a function of $r$ for varying $R$'s
 
 ```{r}
 r_vals <- seq(0.01, 0.99, by = 0.01)
@@ -360,7 +355,7 @@ ggplot(data, aes(x = r, y = pstar, color = factor(R))) +
   geom_abline(slope=1, intercept = 0, linetype="dotted", 
               linewidth=1, color="firebrick")+
   labs(x = expression("Reactive effectiveness "~italic(r)),
-       y = expression("Threshold outbreak probability "~italic(p)['*']),
+       y = expression("Threshold outbreak probability  "~italic(p)^'*'),
        color = expression(italic(R))) +
   theme_light()+
   theme(legend.position = "top")+
@@ -368,7 +363,7 @@ ggplot(data, aes(x = r, y = pstar, color = factor(R))) +
   annotate("text", size=4, x=1,y=0,hjust=1,vjust=0, label="Reactive")
 ```
 
-3D surface of $p_*$ across $r$ and $R$:
+3D surface of $p^*$ across $r$ and $R$
 
 ```{r}
 # Grid over r and R
@@ -420,7 +415,7 @@ fig_pstar_surface <-
     showscale = TRUE,
     colorbar = list(
       title = list(
-        text = "<i>p<sub>*</sub></i>",
+        text = "<i>p<sup>*</sup></i>",
         font = list(size = titlefontsize)
       ),
       tickfont = list(size = tickfontsize)
@@ -454,7 +449,7 @@ fig_pstar_surface <-
         ticktext = c("0.01", "0.1", "1", "10", "100")
       ),
       zaxis = list(
-        title = "<i>p<sub>*</sub></i>",
+        title = "<i>p<sup>*</sup></i>",
         titlefont = list(size = titlefontsize),
         tickfont = list(size = tickfontsize))
     )
@@ -472,21 +467,19 @@ fig_pstar_surface
 
 ### Key Insight
 
-In a single population, the normalized expected cost of the pre-emptive strategy remains at 1, while the reactive strategy cost increases linearly with the outbreak probability $p$. Their intersection defines the threshold $p_*$. Pre-emptive vaccination is favored when $r$ is low or $R$ is high. This analysis assumes no costs associated with unused vaccines, a simplifying assumption that can be relaxed in more detailed models.
+In a single population, the normalized per-population expected cost of the pre-emptive strategy remains at 1, while the reactive strategy cost increases linearly with the outbreak probability $p$. Their intersection defines the threshold $p^*$. Pre-emptive vaccination is favored when $r$ is low and $R$ is high. This analysis assumes no costs associated with unused vaccines, a simplifying assumption that can be relaxed in more detailed models.
 
 ## Multiple Populations with Equal Risk and Limited Vaccination Capacity
 
-We now extend the model to $n$ independent populations, each with the same outbreak probability $p$. We assume a fixed vaccine stockpile sufficient to vaccinate only a fraction $0 < f \le 1$ of the populations (i.e., we can run $fn$ vaccination campaigns in total). We consider the large–$n$ limit so that fractions of populations behave deterministically (law of large numbers).
+We now extend the model to $n$ independent populations, each with the same outbreak probability $p$. The total vaccine stockpile is limited and can cover only a fraction $0 < f \le 1$ of the populations—equivalently, we can conduct $fn$ pre-emptive or reactive vaccination campaigns in total. We analyze the large-$n$ limit, in which population-level fractions converge deterministically by the law of large numbers.
+
+Importantly, we treat vaccination at the population level: each population is either fully vaccinated or not vaccinated at all. We do not consider scenarios where all populations receive reduced coverage; instead, the capacity constraint applies solely to the number of populations that can be vaccinated.
 
 The superscript $(n)$ in $c_{\mathrm{pre}}^{(n)}$, $c_{\mathrm{react}}^{(n)}$, and $c_{\mathrm{mixed}}^{(n)}$ indicates that these are normalized per-population costs in the $n$-population equal-risk setting.
 
-
-
-### Pure pre-emptive and pure reactive strategies
-
 We first consider two benchmark strategies that both respect the capacity constraint.
 
-#### Pure pre-emptive strategy
+1. Pure pre-emptive strategy
 
 All $fn$ campaigns are used pre-emptively:
 
@@ -508,7 +501,7 @@ c_{\mathrm{pre}}^{(n)}
 = f + (1-f)pR.
 $$
 
-#### Pure reactive strategy
+2. Pure reactive strategy
 
 Under the pure reactive strategy, **no** population is vaccinated pre-emptively, and all $fn$ campaigns are reserved for outbreak response.
 
@@ -520,57 +513,57 @@ $$
 
 We can deploy at most $fn$ reactive campaigns. Two regimes arise:
 
--   **Vaccine-rich reactive regime** ($f \ge p$):
+- Vaccine-rich reactive regime($f \ge p$):
 
-    Capacity is sufficient to respond to essentially all outbreaks ($fn \ge pn$). For each population,
+Capacity is sufficient to respond to essentially all outbreaks ($fn \ge pn$). For each population, 
 
-    -   with probability $p$: an outbreak occurs and is reactively vaccinated, cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}$;
-    -   with probability $(1-p)$: no outbreak, no cost.
+  - with probability $p$: an outbreak occurs and is reactively vaccinated, cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}$;
+  - with probability $(1-p)$: no outbreak occurs and no cost is incurred.
 
-    Thus
+Thus
 
-    $$
+$$
     C_{\mathrm{react}}^{(n)}
     = p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr), 
     \qquad
     c_{\mathrm{react}}^{(n)}
     = p\bigl[1 + (1-r)R\bigr],
     \quad\text{for } f \ge p.
-    $$
+$$
 
--   **Vaccine-limited reactive regime** ($f < p$):
+- Vaccine-limited reactive regime ($f < p$):
 
-    On average there are more outbreaks than available campaigns ($pn > fn$). Assuming reactive campaigns are allocated uniformly at random among outbreaks, the fraction of outbreaks that receive a reactive campaign is approximately $f/p$.
+On average there are more outbreaks than available campaigns ($pn > fn$). Assuming reactive campaigns are allocated uniformly at random among outbreaks, the fraction of outbreaks that receive a reactive campaign is approximately $f/p$.
 
-    For a given population:
+For a given population:
 
-    -   with probability $p$: an outbreak occurs;
-        -   conditional on outbreak, with probability $f/p$: receives reactive vaccination, cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}$;\
-        -   conditional on outbreak, with probability $1 - f/p$: receives no vaccine, cost $C_{\mathrm{O}}$.
+  - with probability $p$: an outbreak occurs;
+    - conditional on outbreak, with probability $f/p$: receives reactive vaccination, cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}$;
+    - conditional on outbreak, with probability $1 - f/p$: receives no vaccine, cost $C_{\mathrm{O}}$.
 
-    The per-population expected cost is
+The per-population expected cost is
 
-    $$
-    \begin{aligned}
-    C_{\mathrm{react}}^{(n)}
-    &= p \left[
-       \frac{f}{p}\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr)
-       + \left(1 - \frac{f}{p}\right) C_{\mathrm{O}}
-       \right] \\
-    &= f\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr)
-       + (p-f) C_{\mathrm{O}} \\
-    &= f C_{\mathrm{V}} + \bigl[p - fr\bigr] C_{\mathrm{O}}.
-    \end{aligned}
-    $$
+$$
+\begin{aligned}
+C_{\mathrm{react}}^{(n)}
+&= p \left[
+   \frac{f}{p}\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr)
+   + \left(1 - \frac{f}{p}\right) C_{\mathrm{O}}
+   \right] \\
+&= f\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr)
+   + (p-f) C_{\mathrm{O}} \\
+&= f C_{\mathrm{V}} + \bigl[p - fr\bigr] C_{\mathrm{O}}.
+\end{aligned}
+$$
 
-    Normalizing,
+Normalizing,
 
-    $$
+$$
     c_{\mathrm{react}}^{(n)}
     = \frac{C_{\mathrm{react}}^{(n)}}{C_{\mathrm{V}}}
     = f + \bigl[p - fr\bigr] R,
     \qquad \text{for } f < p.
-    $$
+$$
 
 We can summarize the pure reactive cost as
 
@@ -581,8 +574,6 @@ f + (p - fr)R, & f < p,\\[6pt]
 p\bigl[1 + (1-r)R\bigr], & f \ge p.
 \end{cases}
 $$
-
-
 
 ### Visualization (equal-risk, multi-population)
 
@@ -935,11 +926,11 @@ We define the **multi-population threshold** $p_*^{(n)}$ as the value of $p$ at 
 c_{\mathrm{pre}}^{(n)} = c_{\mathrm{react}}^{(n)}.
 $$
 
-Because $c_{\mathrm{react}}^{(n)}$ is piecewise, $p_*^{(n)}$ also has a **piecewise form**.
+Because $c_{\mathrm{react}}^{(n)}$ is piecewise, $p_*^{(n)}$ also has a piecewise form.
 
 #### Case 1: capacity scarce or just sufficient at the threshold ($f \le p_*^{(n)}$)
 
-Here the equality occurs in the **reactive-limited** regime, so we set $$
+Here the equality occurs in the **reactive-limited regime**, so we set $$
 c_{\mathrm{pre}}^{(n)} = f + (1-f)pR, \qquad
 c_{\mathrm{react}}^{(n)} = f + (p - fr)R.
 $$
@@ -950,13 +941,13 @@ f + (1-f)p_*^{(n)}R = f + \bigl(p_*^{(n)} - fr\bigr)R
 p_*^{(n)} = r.
 $$
 
-Consistency with the reactive-limited regime requires $f \le p_*^{(n)} = r$.\
+Consistency with the reactive-limited regime requires $f \le p_*^{(n)} = r$.
 So, **when capacity is relatively scarce** ($f \le r$), the threshold is $$
 p_*^{(n)} = r,
 \qquad \text{if } f \le r.
 $$
 
-In this regime, the threshold is **independent of** $R$: only the relative size of $f$ and $r$ matters.
+In this regime, the threshold is independent of $R$: only the relative size of $f$ and $r$ matters.
 
 #### Case 2: capacity abundant at the threshold ($f \ge p_*^{(n)}$)
 
@@ -965,18 +956,19 @@ c_{\mathrm{pre}}^{(n)} = f + (1-f)pR, \qquad
 c_{\mathrm{react}}^{(n)} = p\bigl[1 + (1-r)R\bigr].
 $$
 
-Equating and solving for $p$: $$
+Equating and solving for $p$: 
+$$
 f + (1-f)p_*^{(n)}R = p_*^{(n)}\bigl[1 + (1-r)R\bigr]
 \quad\Longrightarrow\quad
 p_*^{(n)} = \frac{f}{1 + R(f - r)}.
 $$
 
-Consistency with the reactive-rich regime requires $p_*^{(n)} \le f$, which holds whenever $f \ge r$ and $R > 0$. Thus, **when capacity is relatively abundant** ($f \ge r$), the threshold is $$
+Consistency with the reactive-rich regime requires $p_*^{(n)} \le f$, which holds whenever $f \ge r$ and $R > 0$. Thus, when capacity is relatively abundant ($f \ge r$), the threshold is 
+
+$$
 p_*^{(n)} = \frac{f}{1 + R(f - r)},
 \qquad \text{if } f \ge r.
 $$
-
-
 
 ### Summary (equal-risk multi-population threshold)
 
@@ -991,7 +983,7 @@ $$
 
 **Interpretation:**
 
--   When vaccine capacity is **scarce** relative to reactive effectiveness ($f \le r$), the threshold does not depend on $R$ and is simply $p_*^{(n)} = r$.\
+-   When vaccine capacity is **scarce** relative to reactive effectiveness ($f \le r$), the threshold does not depend on $R$ and is simply $p_*^{(n)} = r$.
 -   When capacity is **abundant** ($f > r$), the threshold depends on the outbreak–to–vaccination cost ratio:
     -   larger $R$ (more costly outbreaks) $\Rightarrow$ smaller $p_*^{(n)}$,
     -   larger $f$ (more capacity) $\Rightarrow$ larger $p_*^{(n)}$ for fixed $R$ and $r$.
