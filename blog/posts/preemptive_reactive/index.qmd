@@ -292,9 +292,10 @@ p_star_one <- function(R, r) {
 ```
 
 #### Normalized per-population costs across $p$ for varying $r$. 
-
 In the figure below, $c_s^{(1)}$ denotes the normalized per-population expected
 cost for strategy $s \in \{\mathrm{pre}, \mathrm{react}\}$.
+
+The cost remains constant for the pre-emptive strategy whereas it increases with probability $p$ for the reactive strategy.
 
 ```{r}
 # --- Parameters for the illustration ---
@@ -531,9 +532,7 @@ fig_pstar_surface
 
 ### Key Insight
 
-In a single population, the normalized per-population expected cost of
-the pre-emptive strategy remains at 1, while the reactive strategy cost
-increases linearly with the outbreak probability $p$. Their intersection
+In a single population, the normalized per-population expected cost of the pre-emptive strategy remains at 1, while the reactive strategy cost increases linearly with the outbreak probability $p$. Their intersection
 defines the threshold $p^*$. Pre-emptive vaccination is favored when $r$
 is low and $R$ is high. This analysis assumes no costs associated with
 unused vaccines, a simplifying assumption that can be relaxed in more
@@ -676,6 +675,8 @@ $$
 
 ### Visualization (equal-risk, multi-population)
 
+#### Functions
+
 ```{r}
 cost_pre_multi <- function(p, R, r, f) {
   f + (1 - f) * p * R
@@ -744,12 +745,16 @@ p_star_multi <- function(R, r, f, tol = 1e-10) {
 }
 ```
 
-$c_{\mathrm{pre}}^{(n)}$ and $c_{\mathrm{react}}^{(n)}$ for
-$p = 0.4, R = 1$:
+#### $c_{\mathrm{pre}}^{(n)}$ and $c_{\mathrm{react}}^{(n)}$ 
+
+Expected cost of pre-emptive strategy $c_{\mathrm{pre}}^{(n)}$ increases as $f$ increases whereas expected cost of reactive strategy $c_{\mathrm{react}}^{(n)}$ increases only up to a point where $f=p$ and then remains constant. In other words, $c_{\mathrm{react}}^{(n)}$ is not a function of $f$ for $f>p$.
+
+$p = 0.5, R = 0.9$
+Cost increases with $f$ for $p \cdot R > 1$
 
 ```{r}
 p_val  <- 0.4
-R_val  <- 1
+R_val  <- 0.9
 r_vals <- c(0.2, 0.4, 0.6)
 
 f_grid <- seq(0, 1, by = 0.01)
@@ -806,11 +811,12 @@ ggplot(df_cost, aes(x = f, y = cost, color = strategy)) +
   )
 ```
 
+Cost decreases as $f$ increases for the costly outbreaks ($R > 1$)
 $p = 0.4, R = 10$:
 
 ```{r}
 p_val  <- 0.4
-R_val  <- 10
+R_val  <- 5
 r_vals <- c(0.2, 0.4, 0.6)
 
 f_grid <- seq(0, 1, by = 0.01)
@@ -866,6 +872,7 @@ ggplot(df_cost, aes(x = f, y = cost, color = strategy)) +
     legend.position = "top"
   )
 ```
+
 
 $p^*$ in case of multipopulation of equal-risk for $f = 0.5$:
 
