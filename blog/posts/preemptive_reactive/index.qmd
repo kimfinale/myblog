@@ -432,7 +432,7 @@ ggplot(data, aes(x = r, y = pstar, color = factor(R))) +
   annotate("text", size=4, x=1,y=0,hjust=1,vjust=0, label="Reactive")
 ```
 
-3D surface of $p_{\mathrm{thr}}^{(1)}$ across $p$ $r$ and $R$
+#### 3D surface of $p_{\mathrm{thr}}^{(1)}$ across $p$, $r$, and $R$
 
 ```{r}
 # Grid over r and R
@@ -906,7 +906,7 @@ ggplot(df_multi, aes(x = r, y = p_star, color = factor(R))) +
   scale_y_continuous(limits = c(0, 1)) +
   labs(
     x = expression(italic(r)),
-    y = expression(italic(p)['*']),
+    y = expression(italic(p)[thr]^(italic(n))),
     color = expression(italic(R))
   ) +
   theme_light() +
@@ -1423,7 +1423,7 @@ ggplot(df, aes(x = alpha, y = cost)) +
                      italic(R) == .(R) ~ "," ~
                      italic(f) == .(f)),
     x = expression("Fraction of capacity pre-emptive " ~ italic(alpha)),
-    y = expression("Normalized per-population expected cost  " ~ italic(c)[mix]^"(n)")
+    y = expression("Normalized per-population expected cost  " ~ italic(c)[mixed]^(italic(n)))
   ) +
    geom_vline(
     xintercept = alpha_star_anal$alpha_star,
@@ -1431,17 +1431,6 @@ ggplot(df, aes(x = alpha, y = cost)) +
     color      = "firebrick",
     linewidth  = 0.9
   ) +
-  # annotate(
-  #   "text",
-  #   x     = alpha_star,
-  #   y     = max(df$cost, na.rm = TRUE),
-  #   label = "alpha^'*'",
-  #   parse = TRUE,
-  #   hjust = -0.1,
-  #   vjust = 1.2,
-  #   color = "firebrick",
-  #   size  = 4
-  # ) +
   annotate(
     "text",
     x     = alpha_star_anal$alpha_star,
@@ -1529,7 +1518,12 @@ fig_alpha_surface
 
 ```
 
-## Multiple Populations with Two Risk Groups and Limited Vaccination Capacity
+## Two Risk Groups and Limited Vaccination Capacity
+
+- $f_H$: fraction of the high-risk population.
+- $f_L = 1- f_H$: fraction of the low-risk population.
+- $p_H$: probability of an outbreak in the high-risk population.
+- $p_L$: probability of an outbreak in the low-risk population.
 
 ### Optimal Allocation Strategy ($\alpha^*$) in the Two-Risk Model
 
@@ -1537,7 +1531,7 @@ We determine the optimal fraction of capacity $\alpha^*$ to allocate
 pre-emptively. This depends on the total capacity regime ($f$ vs mean
 risk $\bar{p}$) and the specific parameters ($r, R, p_H, p_L$).
 
-Let $\bar{p} = w_H p_H + w_L p_L$ be the mean outbreak probability.
+Let $\bar{p} = f_H p_H + f_L p_L$ be the mean outbreak probability.
 
 #### 1. Scarce Capacity Regime ($f \le \bar{p}$)
 
@@ -1550,7 +1544,7 @@ $$
 \alpha^* =
 \begin{cases}
 1 \quad (\text{pure pre-emptive}), & \text{if } r < p_L \\
-\min\left(1, \frac{w_H}{f}\right) \quad (\text{focused on high-risk}), & \text{if } p_L \le r \le p_H \\
+\min\left(1, \frac{f_H}{f}\right) \quad (\text{focused on high-risk}), & \text{if } p_L \le r \le p_H \\
 0 \quad (\text{pure reactive}), & \text{if } r > p_H
 \end{cases}
 $$
@@ -1579,7 +1573,7 @@ $$
 \alpha^* =
 \begin{cases}
 0 \quad (\text{pure reactive}), & \text{if } R < R_H^* \\
-\min\left(1, \frac{w_H}{f}\right) \quad (\text{focused on high-risk}), & \text{if } R_H^* \le R < R_L^* \\
+\min\left(1, \frac{f_H}{f}\right) \quad (\text{focused on high-risk}), & \text{if } R_H^* \le R < R_L^* \\
 1 \quad (\text{pure pre-emptive}), & \text{if } R \ge R_L^*
 \end{cases}
 $$
@@ -1592,25 +1586,25 @@ $$
 
 ### Cost of the Focused Strategy
 
-The intermediate strategy $\alpha = \min(1, w_H/f)$ is the "Focused"
+The intermediate strategy $\alpha = \min(1, f_H/f)$ is the "Focused"
 strategy where high-risk populations are prioritized. The total expected
 cost $c(\alpha)$ varies based on whether the specific capacity
 constraints for high-risk and low-risk groups are met.
 
 | Capacity Scenario | Condition | Optimal $\alpha$ | Total Cost $c(\alpha)$ |
 |:-----------------|:-----------------|:-----------------|:-----------------|
-| **Insufficient for High-Risk** | $f < w_H$ | $1$ | $f + R \big[ (w_H - f)p_H + w_L p_L \big]$ |
-| **Sufficient for H, Limited for L** | $w_H \le f < w_H + w_L p_L$ | $\frac{w_H}{f}$ | $f + R \big[ w_L p_L - (f - w_H)r \big]$ |
-| **Sufficient for H, Abundant for L** | $f \ge w_H + w_L p_L$ | $\frac{w_H}{f}$ | $w_H + w_L p_L \big[ 1 + (1-r)R \big]$ |
+| **Insufficient for High-Risk** | $f < f_H$ | $1$ | $f + R \big[ (f_H - f)p_H + f_L p_L \big]$ |
+| **Sufficient for H, Limited for L** | $f_H \le f < f_H + f_L p_L$ | $\frac{f_H}{f}$ | $f + R \big[ f_L p_L - (f - f_H)r \big]$ |
+| **Sufficient for H, Abundant for L** | $f \ge f_H + f_L p_L$ | $\frac{f_H}{f}$ | $f_H + f_L p_L \big[ 1 + (1-r)R \big]$ |
 
 **Breakdown:** 1. **Insufficient:** We use all $f$ on High-Risk. Zero
 reactive capacity. Cost is vaccination + all unprevented outbreaks in
-both groups. 2. **Limited for L:** We saturate High-Risk ($w_H$).
-Remaining capacity ($f-w_H$) is used reactively on Low-Risk but is
+both groups. 2. **Limited for L:** We saturate high-risk ($f_H$).
+Remaining capacity ($f-f_H$) is used reactively on low-risk but is
 exhausted. Cost is total capacity $f$ + net unprevented outbreaks in
-Low-Risk. 3. **Abundant for L:** We saturate High-Risk ($w_H$).
+Low-Risk. 3. **Abundant for L:** We saturate high-risk ($f_H$).
 Remaining capacity is sufficient to cover all Low-Risk outbreaks. Cost
-is pre-emptive ($w_H$) + reactive campaigns used ($w_L p_L$) + failed
+is pre-emptive ($f_H$) + reactive campaigns used ($f_L p_L$) + failed
 reactive attempts.
 
 ## Multiple Populations with Heterogeneous Outbreak Risk
