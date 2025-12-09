@@ -30,6 +30,7 @@ library(data.table)
 library(scales)
 library(purrr)
 library(plotly)
+library(ggbrace)
 # source("R/utils.R")
 # Figure dimensions
 figure_size <- data.table(
@@ -298,8 +299,10 @@ p_star_one <- function(R, r) {
 In the figure below, $c_s^{(1)}$ denotes the normalized per-population
 expected cost for strategy $s \in \{\mathrm{pre}, \mathrm{react}\}$.
 
-The cost remains constant for the pre-emptive strategy whereas it
-increases with probability $p$ for the reactive strategy.
+Key insights are:
+  1. The cost remains constant for the pre-emptive strategy whereas it increases with outbreak probability $p$ for the reactive strategy.
+  2. There is a threshold outbreak probability, $p_{\mathrm{thr}}^{(1)}$ where the cost for the pre-emptive and reactive strategies equal and under which reactive vaccination is economically prefereable. 
+  3. $p_{\mathrm{thr}}^{(1)}$ is larger for higher effectiveness of the reactive strategy, $r$. 
 
 ```{r}
 # --- Parameters for the illustration ---
@@ -336,6 +339,13 @@ df_pstar <- expand.grid(r = r_vals, R = R_vals) |>
     r_label = paste0("r = ", r)
   )
 
+# data for braces
+
+cost_react_max1 <- max(filter(df_cost, strategy == "Reactive", r_label == "italic(r)==0.7")$cost)
+cost_react_max2 <- max(filter(df_cost, strategy == "Reactive", r_label == "italic(r)==0.3")$cost)
+df_brace1 <- data.frame(x=c(0.95,1), y=c(1,cost_react_max1))
+df_brace2 <- data.frame(x=c(0.97,1), y=c(1,cost_react_max2))
+
 ggplot(df_cost, aes(x = p, y = cost, color = strategy, 
                     linetype = r_label)) +
   geom_line(linewidth = 1) +
@@ -354,6 +364,26 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
     vjust = 1.2,
     size  = 4
   ) +
+  
+  ggbrace::stat_brace(
+    data = df_brace1,
+    mapping = aes(x, y),
+    outside = FALSE, rotate = 270, 
+    linewidth = 1, inherit.aes = FALSE
+  )+
+  annotate("text", x = min(df_brace1$x)-0.01, y = mean(df_brace1$y), 
+           label = "Cost of\ndelayed response", 
+           hjust = 1, size = 3, lineheight = 0.9) +
+  ggbrace::stat_brace(
+    data = df_brace2,
+    mapping = aes(x, y),
+    outside = FALSE, rotate = 270, 
+    linewidth = 1, inherit.aes = FALSE
+  )+
+  annotate("text", x = min(df_brace2$x)-0.01, y = mean(df_brace2$y), 
+           label =  "Cost of\ndelayed response", 
+           hjust = 1, size = 3, lineheight = 0.9) +
+  
   scale_color_manual("", values=c("firebrick","steelblue"))+
   scale_linetype_discrete(labels = scales::label_parse())+
   labs(
@@ -369,6 +399,7 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
     )
   )
 ```
+Reactive vaccination becomes more practical 
 
 #### $p_{\mathrm{thr}}^{(1)}$ as a function of $r$ for $R=1$.
 
