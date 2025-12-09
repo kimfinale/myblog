@@ -121,10 +121,10 @@ Where:
 -   $r_{\text{discount}}$: discount rate (e.g., 0.03)
 -   $V$: estimated value of statistical life (in USD)
 
-The total outbreak cost is
+The total outbreak cost or the cost from infection is
 
 $$
-C_{\text{outbreak}} = C_{\text{O}} = C_{\text{illness}}^{\text{direct}} + C_{\text{illness}}^{\text{indirect}} + C_{\text{death}}.
+C_{\text{outbreak}} = C_{\text{I}} = C_{\text{illness}}^{\text{direct}} + C_{\text{illness}}^{\text{indirect}} + C_{\text{death}}.
 $$
 
 ## Cost of a Cholera Vaccination Program
@@ -143,10 +143,10 @@ delivery cost per dose.
 Let:
 
 -   $p_i$ = outbreak probability for population $i$, $i = 1,\dots,n$,
--   $C_{\mathrm{O}}$ = outbreak cost,
+-   $C_{\mathrm{I}}$ = outbreak cost arising from infections,
 -   $C_{\mathrm{V}}$ = vaccination cost,
 -   $r \in [0,1]$ = effectiveness of reactive vaccination,
--   $R = C_{\mathrm{O}}/C_{\mathrm{V}}$ = outbreak–to–vaccination cost
+-   $R = C_{\mathrm{I}}/C_{\mathrm{V}}$ = outbreak–to–vaccination cost
     ratio,
 -   $f \in (0,1]$ = total vaccination capacity as a fraction of
     populations,
@@ -160,9 +160,9 @@ Let:
 ## One Population
 
 We consider a single population with outbreak probability $p$, outbreak
-cost $C_{\mathrm{O}}$, vaccination cost $C_{\mathrm{V}}$, and reactive
+cost $C_{\mathrm{I}}$, vaccination cost $C_{\mathrm{V}}$, and reactive
 vaccination effectiveness $r \in [0,1]$. The outbreak cost
-$C_{\mathrm{O}}$ reflects direct medical costs, productivity losses, and
+$C_{\mathrm{I}}$ reflects direct medical costs, productivity losses, and
 mortality-related losses. The vaccination cost $C_{\mathrm{V}}$ includes
 vaccine and delivery costs.
 
@@ -189,18 +189,18 @@ $$
 
 Under reactive vaccination, the population is vaccinated only if an
 outbreak occurs. If $X=1$, the vaccination cost $C_{\mathrm{V}}$ is
-incurred and residual outbreak costs equal $(1-r) C_{\mathrm{O}}$. If
+incurred and residual outbreak costs equal $(1-r) C_{\mathrm{I}}$. If
 $X=0$, there is no cost. The total cost random variable is:
 
 $$
-C_{\mathrm{react}}(X) = X\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr).
+C_{\mathrm{react}}(X) = X\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr).
 $$
 
 Taking expectation,
 
 $$
 \mathbb{E}[C_{\mathrm{react}}]
-= p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr).
+= p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr).
 $$
 
 This calculation assumes no penalty or loss from unused vaccine stock.
@@ -212,7 +212,7 @@ these are omitted here for analytical clarity.
 Define the outbreak-to-vaccination cost ratio:
 
 $$
-R = \frac{C_{\mathrm{O}}}{C_{\mathrm{V}}}.
+R = \frac{C_{\mathrm{I}}}{C_{\mathrm{V}}}.
 $$
 
 Normalizing by $C_{\mathrm{V}}$:
@@ -384,7 +384,7 @@ ggplot(data, aes(x = r, y = pstar)) +
   geom_abline(slope=1, intercept = 0, linetype="dotted", 
               linewidth=1, color="firebrick")+
   labs(x = expression("Reactive effectiveness "~italic(r)),
-       y = expression("Threshold outbreak probability  "~italic(p)^'*'))+
+       y = expression("Threshold outbreak probability  "~italic(p)[thr]^(1)))+
   theme_light()+
   theme(legend.position = "top")+
   annotate("text", size=4, x=0,y=1,hjust=0,vjust=1, label="Pre-emptive")+
@@ -403,7 +403,7 @@ data <- expand.grid(r = r_vals, R = R_vals) %>%
 ggplot(data, aes(x = R, y = pstar)) +
   geom_line(linewidth = 1) +
   labs(x = expression("Cost ratio "~italic(R)),
-       y = expression("Threshold outbreak probability  "~italic(p)^'*'))+
+       y = expression("Threshold outbreak probability  "~italic(p)[thr]^(1)))+
   theme_light()+
   theme(legend.position = "top")+
   annotate("text", size=4, x=10,y=1,hjust=0,vjust=1, label="Pre-emptive")+
@@ -424,7 +424,7 @@ ggplot(data, aes(x = r, y = pstar, color = factor(R))) +
   geom_abline(slope=1, intercept = 0, linetype="dotted", 
               linewidth=1, color="firebrick")+
   labs(x = expression("Reactive effectiveness "~italic(r)),
-       y = expression("Threshold outbreak probability  "~italic(p)[thr]^'(1)'),
+       y = expression("Threshold outbreak probability  "~italic(p)[thr]^(1)),
        color = expression(italic(R))) +
   theme_light()+
   theme(legend.position = "top")+
@@ -510,7 +510,7 @@ fig_pstar_surface <-
         titlefont = list(size = titlefontsize),
         tickfont = list(size = tickfontsize)),
       xaxis = list(
-        title = "<i>R</i>=C<sub>O</sub>/C<sub>V</sub>",
+        title = "<i>R</i>=C<sub>I</sub>/C<sub>V</sub>",
         titlefont = list(size = titlefontsize),
         tickfont = list(size = tickfontsize), 
         type  = "log",
@@ -578,13 +578,13 @@ All $fn$ campaigns are used pre-emptively:
 -   The remaining fraction $(1 - f)$ is not vaccinated pre-emptively;
     each such population experiences an outbreak with probability $p$
     and, under a pure pre-emptive strategy, receives **no** reactive
-    vaccination. Outbreaks in this group cost $C_{\mathrm{O}}$.
+    vaccination. Outbreaks in this group cost $C_{\mathrm{I}}$.
 
 The per-population expected cost is
 
 $$
 C_{\mathrm{pre}}^{(n)}
-= f C_{\mathrm{V}} + (1-f)\,p C_{\mathrm{O}}.
+= f C_{\mathrm{V}} + (1-f)\,p C_{\mathrm{I}}.
 $$
 
 Normalizing by $C_{\mathrm{V}}$ gives
@@ -615,7 +615,7 @@ Capacity is sufficient to respond to essentially all outbreaks
 ($fn \ge pn$). For each population,
 
 -   with probability $p$: an outbreak occurs and is reactively
-    vaccinated, cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}$;
+    vaccinated, cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$;
 -   with probability $(1-p)$: no outbreak occurs and no cost is
     incurred.
 
@@ -623,7 +623,7 @@ Thus
 
 $$
     C_{\mathrm{react}}^{(n)}
-    = p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr), 
+    = p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr), 
     \qquad
     c_{\mathrm{react}}^{(n)}
     = p\bigl[1 + (1-r)R\bigr],
@@ -642,9 +642,9 @@ For a given population:
 -   with probability $p$: an outbreak occurs;
     -   conditional on outbreak, with probability $f/p$: receives
         reactive vaccination, cost
-        $C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}$;
+        $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$;
     -   conditional on outbreak, with probability $1 - f/p$: receives no
-        vaccine, cost $C_{\mathrm{O}}$.
+        vaccine, cost $C_{\mathrm{I}}$.
 
 The per-population expected cost is
 
@@ -652,12 +652,12 @@ $$
 \begin{aligned}
 C_{\mathrm{react}}^{(n)}
 &= p \left[
-   \frac{f}{p}\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr)
-   + \left(1 - \frac{f}{p}\right) C_{\mathrm{O}}
+   \frac{f}{p}\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr)
+   + \left(1 - \frac{f}{p}\right) C_{\mathrm{I}}
    \right] \\
-&= f\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr)
-   + (p-f) C_{\mathrm{O}} \\
-&= f C_{\mathrm{V}} + \bigl[p - fr\bigr] C_{\mathrm{O}}.
+&= f\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr)
+   + (p-f) C_{\mathrm{I}} \\
+&= f C_{\mathrm{V}} + \bigl[p - fr\bigr] C_{\mathrm{I}}.
 \end{aligned}
 $$
 
@@ -1018,7 +1018,7 @@ fig_pstar_multi <-
         titlefont = list(size = titlefontsize),
         tickfont = list(size = tickfontsize)),
       xaxis = list(
-        title = "<i>R</i> =C<sub>O</sub>/C<sub>V</sub>",
+        title = "<i>R</i> =C<sub>I</sub>/C<sub>V</sub>",
         type  = "log",
         tickvals = c(0.01, 0.1, 1, 10, 100),
         ticktext = c("0.01", "0.1", "1", "10", "100"),
@@ -1159,21 +1159,21 @@ non-pre-emptive group can receive a reactive campaign.
 For non-pre-emptive populations:
 
 -   with probability $p$: outbreak occurs and is reactively vaccinated,
-    cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}$;
+    cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$;
 -   with probability $(1-p)$: no outbreak, no cost.
 
 Thus the reactive component is
 
 $$
 C_{\mathrm{react\text{-}part}}^{(n)}
-= (1-\alpha f)\, p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr).
+= (1-\alpha f)\, p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr).
 $$
 
 Total per-population cost for the mixed strategy is:
 
 $$
 C_{\mathrm{mixed}}^{(n)}
-= \alpha f C_{\mathrm{V}} + (1-\alpha f)\, p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr).
+= \alpha f C_{\mathrm{V}} + (1-\alpha f)\, p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr).
 $$
 
 Normalizing,
@@ -1198,8 +1198,8 @@ $$
 
 Among non-pre-emptive populations that experience an outbreak:
 
--   with probability $q$: cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}$,
--   with probability $1-q$: cost $C_{\mathrm{O}}$.
+-   with probability $q$: cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$,
+-   with probability $1-q$: cost $C_{\mathrm{I}}$.
 
 The reactive component is
 
@@ -1208,13 +1208,13 @@ $$
 C_{\mathrm{react\text{-}part}}^{(n)}
 &= (1-f_{\mathrm{pre}})p
 \Bigl[
-q\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr)
-+ (1-q)C_{\mathrm{O}}
+q\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr)
++ (1-q)C_{\mathrm{I}}
 \Bigr] \\
-&= f_{\mathrm{react}}\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{O}}\bigr)
-+ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{O}} \\
+&= f_{\mathrm{react}}\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr)
++ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{I}} \\
 &= f_{\mathrm{react}} C_{\mathrm{V}}
-+ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{O}}.
++ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{I}}.
 \end{aligned}
 $$
 
@@ -1224,8 +1224,8 @@ $$
 \begin{aligned}
 C_{\mathrm{mixed}}^{(n)}
 &= f_{\mathrm{pre}} C_{\mathrm{V}} + f_{\mathrm{react}} C_{\mathrm{V}}
-+ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{O}}\\
-&= f C_{\mathrm{V}} + \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{O}}.
++ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{I}}\\
+&= f C_{\mathrm{V}} + \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{I}}.
 \end{aligned}
 $$
 
@@ -1499,7 +1499,7 @@ fig_alpha_surface <-
         titlefont = list(size = titlefontsize),
         tickfont = list(size = tickfontsize)),
       xaxis = list(
-        title    = "<i>R</i> = C<sub>O</sub> / C<sub>V</sub>",
+        title    = "<i>R</i> = C<sub>I</sub> / C<sub>V</sub>",
         titlefont = list(size = titlefontsize),
         tickfont = list(size = tickfontsize),
         type     = "log",
@@ -2177,7 +2177,7 @@ fig_alpha_star_multi <-
         tickfont  = list(size = tickfontsize)
       ),
       xaxis = list(
-        title    = "<i>R</i> = C<sub>O</sub>/C<sub>V</sub>",
+        title    = "<i>R</i> = C<sub>I</sub>/C<sub>V</sub>",
         type     = "log",
         tickvals = c(0.01, 0.1, 1, 10, 100),
         ticktext = c("0.01", "0.1", "1", "10", "100"),
