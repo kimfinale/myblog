@@ -333,10 +333,19 @@ df_cost <- expand.grid(
   )
 
 # threshold probability
+# df_pstar <- expand.grid(r = r_vals, R = R_vals) |>
+#   dplyr::mutate(
+#     p_star  = p_star_one(R, r),
+#     r_label = paste0("r = ", r)
+#   )
 df_pstar <- expand.grid(r = r_vals, R = R_vals) |>
   dplyr::mutate(
     p_star  = p_star_one(R, r),
-    r_label = paste0("r = ", r)
+    r_label = paste0("r = ", r),
+    
+    # [NEW] Create the dynamic label string here
+    # ~ adds a space, italic(r)==r adds the value
+    label_expr = paste0("italic(p)[thr]^(1) ~ (italic(r) == ", r, ")")
   )
 
 # data for braces
@@ -357,12 +366,12 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
   )+
   geom_text(
     data = df_pstar,
-    aes(x = p_star, y = Inf, label = "~italic(p)[thr]^(1)"),
+    aes(x = p_star, y = Inf, label = label_expr),
     parse = TRUE,
     inherit.aes = FALSE,
-    hjust = -0.3,
-    vjust = 1.2,
-    size  = 4
+    hjust = -0.03,
+    vjust = 1.1,
+    size  = 3
   ) +
   
   ggbrace::stat_brace(
@@ -463,109 +472,64 @@ ggplot(data, aes(x = r, y = pstar, color = factor(R))) +
   annotate("text", size=4, x=1,y=0,hjust=1,vjust=0, label="Reactive")
 ```
 
-#### 3D surface of $p_{\mathrm{thr}}^{(1)}$ across $p$, $r$, and $R$
+#### Heatmap of $p_{\mathrm{thr}}^{(1)}$ across $r$, and $R$
 
 ```{r}
 # Grid over r and R
 r_vals <- seq(0, 1, length.out = 100)
-
-# R from 0.01 to 100 on log scale
 R_vals <- 10 ^ seq(-2, 2, length.out = 100)
 
-# Matrix of p*(r, R)
-p_mat <- outer(
-  R_vals, r_vals, 
-  Vectorize(function(R, r) p_star_one(R, r))
-)
+# --- 2. Create Tidy Data for ggplot ---
+# Instead of outer(), we use expand.grid() to get x, y, z columns
+df_heatmap <- expand.grid(R = R_vals, r = r_vals) %>%
+  mutate(p_val = p_star_one(R, r))
 
-p_mat_t <- t(p_mat)
-
-# Choose two locations to label regions
-R_pre  <- 10
-r_pre  <- 0.2
-p_pre_star <- p_star_one(R_pre, r_pre)
-p_pre  <- min(1, p_pre_star + 0.6)
-
-R_reac  <- 0.1
-r_reac  <- 0.9
-p_reac_star <- p_star_one(R_reac, r_reac)
-p_reac <- max(0, p_reac_star - 0.6)
-
+# --- 3. Create Label Data ---
+# Locations to label regions (Pre-emptive vs Reactive)
 df_labels <- data.frame(
-  R   = c(R_pre, R_reac),
-  r   = c(r_pre, r_reac),
-  p   = c(p_pre, p_reac),
-  lab = c("pre-emptive", "reactive")
+  R   = c(10, 0.1),  # R_pre, R_reac
+  r   = c(0.2, 0.9), # r_pre, r_reac
+  lab = c("Pre-emptive\nregion", "Reactive\nregion")
 )
 
-camera <- list(
-  eye = list(x = 0.1, y = 0.08, z = 0.1)
-)
-
-titlefontsize <- 29
-tickfontsize <- 17
-
-fig_pstar_surface <-
-  plot_ly() %>%
-  add_surface(
-    x = R_vals,
-    y = r_vals,
-    z = p_mat_t,
-    colorscale = "Viridis",
-    showscale = TRUE,
-    colorbar = list(
-      title = list(
-        text = "<i>p</i><sub>thr</sub><sup>(1)</sup>",
-        font = list(size = titlefontsize)
-      ),
-      tickfont = list(size = tickfontsize)
-    )
-  ) %>%
-  add_trace(
-    data = df_labels,
-    x = ~R,
-    y = ~r,
-    z = ~p,
-    type = "scatter3d",
-    mode = "text",
-    text = ~lab,
-    textposition = "middle center",
-    textfont = list(size = titlefontsize, color = "black"),
-    showlegend = FALSE
-  ) %>%
-  layout(
-    scene = list(
-      camera = camera,
-      yaxis = list(
-        title = "<i>r</i>",
-        titlefont = list(size = titlefontsize),
-        tickfont = list(size = tickfontsize)),
-      xaxis = list(
-        title = "<i>R</i>=C<sub>I</sub>/C<sub>V</sub>",
-        titlefont = list(size = titlefontsize),
-        tickfont = list(size = tickfontsize), 
-        type  = "log",
-        tickvals = c(0.01, 0.1, 1, 10, 100),
-        ticktext = c("0.01", "0.1", "1", "10", "100")
-      ),
-      zaxis = list(
-        # title = "<i>p<sup>*</sup></i>",
-        title = "<i>p</i>",
-        titlefont = list(size = titlefontsize),
-        tickfont = list(size = tickfontsize))
-    )
+# --- 4. Plotting ---
+ggplot(df_heatmap, aes(x = R, y = r)) +
+  # Use geom_raster for heatmaps (faster/smoother than geom_tile for dense grids)
+  geom_raster(aes(fill = p_val)) +
+  
+  # Add text labels for the regions
+  geom_text(data = df_labels, aes(label = lab), 
+            color = "white", size = 4) +
+  
+  # Scales
+  scale_x_log10(
+    breaks = c(0.01, 0.1, 1, 10, 100),
+    labels = c("0.01", "0.1", "1", "10", "100"),
+    expand = c(0,0) # Removes whitespace at edges
+  ) +
+  scale_y_continuous(expand = c(0,0)) +
+  
+  # Colors (Viridis matches your original Plotly choice)
+  scale_fill_viridis_c(
+    option = "viridis",
+    name = expression(italic(p)[thr]^(1)) # Mathematical expression for legend
+  ) +
+  
+  # Labels and Theme
+  labs(
+    x = expression("cost ratio "~italic(R) == C[I] / C[V]),
+    y = expression("reactive effectiveness "~italic(r))
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(), # Heatmaps usually look better without grids
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12),
+    legend.key.height = unit(1.5, "cm") # Make legend bar taller
   )
-
-fig_pstar_surface
-# library(htmlwidgets)
-# 
-# htmlwidgets::saveWidget(
-#   fig_pstar_surface,
-#   file = "plots/fig_pstar_surface.html",
-#   selfcontained = TRUE
-# )
-```
-
+```  
 ### Key Insight
 
 In a single population, the normalized per-population expected cost of
