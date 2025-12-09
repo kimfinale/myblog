@@ -237,9 +237,9 @@ $$
 These represent the normalized per-population expected costs of the two
 strategies with the superscript $(1)$ indicating one-population case.
 
-### Threshold Outbreak Probability $p^*$
+### Threshold Outbreak Probability $p_{\mathrm{thr}}^{(1)}$
 
-The threshold outbreak probability $p^*$ at which the two strategies
+The threshold outbreak probability $p_{\mathrm{thr}}^{(1)}$ at which the two strategies
 yield equal expected cost is given by:
 
 $$
@@ -255,19 +255,20 @@ $$
     p > p_{\mathrm{thr}}^{(1)}
     \quad\Longleftrightarrow\quad
     c_{\mathrm{pre}}^{(1)} < c_{\mathrm{react}}^{(1)}.
-    $$
+$$
 
--   **Reactive preferred** when $$
+-   **Reactive preferred** when 
+$$
     p < p_{\mathrm{thr}}^{(1)}
     \quad\Longleftrightarrow\quad
     c_{\mathrm{pre}}^{(1)} > c_{\mathrm{react}}^{(1)}.
-    $$
-
--   **Indifference point** $$
+$$
+-   **Indifference point** 
+$$
     p = p_{\mathrm{thr}}^{(1)}
     \quad\Longleftrightarrow\quad
     c_{\mathrm{pre}}^{(1)} = c_{\mathrm{react}}^{(1)}.
-    $$
+$$
 
 The threshold $p_{\mathrm{thr}}^{(1)}$ decreases as the reactive effectiveness $r$
 decreases or the outbreak cost ratio $R$ increases. Thus, pre-emptive
@@ -300,9 +301,10 @@ In the figure below, $c_s^{(1)}$ denotes the normalized per-population
 expected cost for strategy $s \in \{\mathrm{pre}, \mathrm{react}\}$.
 
 Key insights are:
-  1. The cost remains constant for the pre-emptive strategy whereas it increases with outbreak probability $p$ for the reactive strategy.
-  2. There is a threshold outbreak probability, $p_{\mathrm{thr}}^{(1)}$ where the cost for the pre-emptive and reactive strategies equal and under which reactive vaccination is economically prefereable. 
-  3. $p_{\mathrm{thr}}^{(1)}$ is larger for higher effectiveness of the reactive strategy, $r$. 
+  1. The cost remains constant for the pre-emptive strategy whereas it increases with the outbreak probability $p$ for the reactive strategy.
+  2. There is a threshold outbreak probability $p_{\mathrm{thr}}^{(1)}$ at which the costs of the pre-emptive and reactive strategies are equal, below which reactive vaccination is economically preferable.
+  3. The threshold $p_{\mathrm{thr}}^{(1)}$ is higher for greater effectiveness of the reactive strategy, $r$.
+  4. As long as vaccine-induced protection at the population level is maintained, the pre-emptive strategy becomes preferable over an extended period of duration as the overall probability of an outbreak would increase over time.
 
 ```{r}
 # --- Parameters for the illustration ---
@@ -352,8 +354,14 @@ df_pstar <- expand.grid(r = r_vals, R = R_vals) |>
 
 cost_react_max1 <- max(filter(df_cost, strategy == "Reactive", r_label == "italic(r)==0.7")$cost)
 cost_react_max2 <- max(filter(df_cost, strategy == "Reactive", r_label == "italic(r)==0.3")$cost)
-df_brace1 <- data.frame(x=c(0.95,1), y=c(1,cost_react_max1))
+df_brace1 <- data.frame(x=c(0.96,1), y=c(1,cost_react_max1))
 df_brace2 <- data.frame(x=c(0.97,1), y=c(1,cost_react_max2))
+df_brace3 <- data.frame(x=c(0,0.03), y=c(0,1))
+
+# convenient variables for the overhead-cost text position
+text_overhead_x <- max(df_brace3$x) + 0.01  # 0.04
+text_overhead_y <- mean(df_brace3$y) + 1    # 1.5
+annot_text_size <- 4
 
 ggplot(df_cost, aes(x = p, y = cost, color = strategy, 
                     linetype = r_label)) +
@@ -380,9 +388,10 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
     outside = FALSE, rotate = 270, 
     linewidth = 1, inherit.aes = FALSE
   )+
-  annotate("text", x = min(df_brace1$x)-0.01, y = mean(df_brace1$y), 
-           label = "Cost of\ndelayed response", 
-           hjust = 1, size = 3, lineheight = 0.9) +
+  annotate("text", x = min(df_brace1$x)-0.01, 
+           y = mean(df_brace1$y), 
+           label = "Cost of delayed\nresponse (r=0.7)", 
+           hjust = 1, size = annot_text_size, lineheight = 0.9) +
   ggbrace::stat_brace(
     data = df_brace2,
     mapping = aes(x, y),
@@ -390,9 +399,25 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
     linewidth = 1, inherit.aes = FALSE
   )+
   annotate("text", x = min(df_brace2$x)-0.01, y = mean(df_brace2$y), 
-           label =  "Cost of\ndelayed response", 
-           hjust = 1, size = 3, lineheight = 0.9) +
-  
+           label =  "Cost of delayed\nresponse (r=0.3)", 
+           hjust = 1, size = annot_text_size, lineheight = 0.9) +
+  ggbrace::stat_brace(
+    data = df_brace3,
+    mapping = aes(x, y),
+    outside = FALSE, rotate = 90, 
+    linewidth = 1, inherit.aes = FALSE
+  )+
+  annotate("text", x = max(df_brace3$x)+0.01, 
+           y= mean(df_brace3$y)+1, 
+           label =  "Vaccination cost", 
+           hjust = 0, size = annot_text_size, lineheight = 0.9) +
+  annotate("segment", 
+             x = text_overhead_x + 0.03,  
+             y = text_overhead_y - 0.1, 
+             xend = 0.02,  yend = 0.75, 
+    arrow = arrow(length = grid::unit(0.15, "cm")),
+    colour = "black"
+  ) +
   scale_color_manual("", values=c("firebrick","steelblue"))+
   scale_linetype_discrete(labels = scales::label_parse())+
   labs(
@@ -408,7 +433,7 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
     )
   )
 ```
-Reactive vaccination becomes more practical 
+
 
 #### $p_{\mathrm{thr}}^{(1)}$ as a function of $r$ for $R=1$.
 
@@ -472,7 +497,7 @@ ggplot(data, aes(x = r, y = pstar, color = factor(R))) +
   annotate("text", size=4, x=1,y=0,hjust=1,vjust=0, label="Reactive")
 ```
 
-#### Heatmap of $p_{\mathrm{thr}}^{(1)}$ across $r$, and $R$
+#### Heatmap of $p_{\mathrm{thr}}^{(1)}$ across $r$ and $R$
 
 ```{r}
 # Grid over r and R
@@ -518,7 +543,7 @@ ggplot(df_heatmap, aes(x = R, y = r)) +
   # Labels and Theme
   labs(
     x = expression("cost ratio "~italic(R) == C[I] / C[V]),
-    y = expression("reactive effectiveness "~italic(r))
+    y = expression("reactive effectiveness  "~italic(r))
   ) +
   theme_minimal() +
   theme(
@@ -546,9 +571,7 @@ We now extend the model to $n$ independent populations, each with the
 same outbreak probability $p$. The total vaccine stockpile is limited
 and can cover only a fraction $0 < f \le 1$ of the
 populations—equivalently, we can conduct $fn$ pre-emptive or reactive
-vaccination campaigns in total. We analyze the large-$n$ limit, in which
-population-level fractions converge deterministically by the law of
-large numbers.
+vaccination campaigns in total. 
 
 Importantly, we treat vaccination at the population level: each
 population is either fully vaccinated or not vaccinated at all. We do
@@ -630,7 +653,7 @@ $$
 On average there are more outbreaks than available campaigns
 ($pn > fn$). Assuming reactive campaigns are allocated uniformly at
 random among outbreaks, the fraction of outbreaks that receive a
-reactive campaign is approximately $f/p$.
+reactive campaign is $f/p$.
 
 For a given population:
 
@@ -755,7 +778,7 @@ $c_{\mathrm{react}}^{(n)}$ increases only up to a point where $f=p$ and
 then remains constant. In other words, $c_{\mathrm{react}}^{(n)}$ is not
 a function of $f$ for $f>p$.
 
-$p = 0.5, R = 0.9$ Cost increases with $f$ for $p \cdot R > 1$
+$p = 0.4, R = 0.9$. Cost increases with $f$ for $p \cdot R > 1$
 
 ```{r}
 p_val  <- 0.4
@@ -816,8 +839,7 @@ ggplot(df_cost, aes(x = f, y = cost, color = strategy)) +
   )
 ```
 
-Cost decreases as $f$ increases for the costly outbreaks ($R > 1$)
-$p = 0.4, R = 10$:
+$p = 0.4, R = 5$. Cost decreases as $f$ increases for the costly outbreaks ($R > 1$)
 
 ```{r}
 p_val  <- 0.4
