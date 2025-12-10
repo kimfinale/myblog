@@ -517,15 +517,49 @@ df_labels <- data.frame(
   lab = c("Pre-emptive\nregion", "Reactive\nregion")
 )
 
+# Compute the curve p_thr^(1)=0.5 ---
+# For each r, find R such that p_star_one(R,r)=0.5
+df_boundary <- lapply(r_vals, function(rr) {
+  # Define function in R to solve
+  f_root <- function(R) p_star_one(R, rr) - 0.5
+  
+  # Solve in log10(R) space for stability
+  sol <- tryCatch(
+    uniroot(f_root, interval = c(0.01, 100)),
+    error = function(e) NULL
+  )
+  
+  if (is.null(sol)) return(NULL)
+  
+  data.frame(
+    r = rr,
+    R = sol$root
+  )
+}) %>% bind_rows()
+
+# Pick a midpoint location for annotation
+i_mid <- round(nrow(df_boundary) / 2)
+annot_R <- df_boundary$R[i_mid]
+annot_r <- df_boundary$r[i_mid]
+
 # --- 4. Plotting ---
 ggplot(df_heatmap, aes(x = R, y = r)) +
   # Use geom_raster for heatmaps (faster/smoother than geom_tile for dense grids)
   geom_raster(aes(fill = p_val)) +
-  
+  # Add red boundary line
+  geom_line(data = df_boundary, aes(x = R, y = r),
+            color = "firebrick", linewidth=1) +
+    # Add annotation for p=0.5
+  annotate("text",
+           x = annot_R,
+           y = annot_r,
+           label = expression(italic(p) == 0.5),
+           color = "firebrick",
+           size = 4,
+           hjust = -0.2) +
   # Add text labels for the regions
   geom_text(data = df_labels, aes(label = lab), 
             color = "white", size = 4) +
-  
   # Scales
   scale_x_log10(
     breaks = c(0.01, 0.1, 1, 10, 100),
@@ -533,13 +567,11 @@ ggplot(df_heatmap, aes(x = R, y = r)) +
     expand = c(0,0) # Removes whitespace at edges
   ) +
   scale_y_continuous(expand = c(0,0)) +
-  
   # Colors (Viridis matches your original Plotly choice)
   scale_fill_viridis_c(
     option = "viridis",
     name = expression(italic(p)[thr]^(1)) # Mathematical expression for legend
   ) +
-  
   # Labels and Theme
   labs(
     x = expression("Cost ratio "~italic(R) == C[I] / C[V]),
@@ -621,15 +653,10 @@ response.
 
 Two regimes arise:
 
-- Vaccine-rich reactive regime($f \ge p$):
+1. Vaccine-rich reactive regime ($f \ge p$)
 
 Capacity is sufficient to respond to essentially all outbreaks
-($fn \ge pn$). For each population,
-
-- with probability $p$: an outbreak occurs and is reactively
-  vaccinated, cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$;
-- with probability $(1-p)$: no outbreak occurs and no cost is
-  incurred.
+($fn \ge pn$). For each population, with probability $p$, an outbreak occurs and is reactively vaccinated. The associated cost is $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$. With probability $(1-p)$, no outbreak occurs and no cost is incurred.
 
 Thus
 
@@ -642,18 +669,12 @@ c_{\mathrm{react}}^{(n)}
 \quad\text{for } f \ge p.
 $$
 
-- Vaccine-limited reactive regime ($f < p$):
+2. Vaccine-limited reactive regime ($f < p$):
 
 On average there are more outbreaks than available campaigns
 ($pn > fn$). Assuming reactive campaigns are allocated uniformly at random among outbreaks, the fraction of outbreaks that receive a reactive campaign is $f/p$.
 
-For a given population:
-
-- with probability $p$: an outbreak occurs;
-    - conditional on outbreak, with probability $f/p$: receives
-    reactive vaccination, cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$;
-    - conditional on outbreak, with probability $1 - f/p$:
-    receives no vaccine, cost $C_{\mathrm{I}}$.
+For a given population, with probability $p$, an outbreak occurs and conditional on outbreak, with probability $f/p$, reactive vaccination occurs. The associated cost is $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$. Also, conditional on outbreak, with probability $1 - f/p$, no campaign occurs and the associated cost is simply $C_{\mathrm{I}}$.
 
 The per-population expected cost is
 
@@ -669,7 +690,6 @@ C_{\mathrm{react}}^{(n)}
 &= f C_{\mathrm{V}} + \bigl[p - fr\bigr] C_{\mathrm{I}}.
 \end{aligned}
 $$
-
 Normalizing,
 
 $$
@@ -763,17 +783,12 @@ p_star_multi <- function(R, r, f, tol = 1e-10) {
 
 #### $c_{\mathrm{pre}}^{(n)}$ and $c_{\mathrm{react}}^{(n)}$
 
-Expected cost of pre-emptive strategy $c_{\mathrm{pre}}^{(n)}$ increases
-as $f$ increases whereas expected cost of reactive strategy
-$c_{\mathrm{react}}^{(n)}$ increases only up to a point where $f=p$ and
-then remains constant. In other words, $c_{\mathrm{react}}^{(n)}$ is not
-a function of $f$ for $f>p$.
+The normalzied per-population expected cost linearly increases with $f$ for the pre-emptive strategy whereas, in case of reactive strategy, it increases only up to a point where $f=p$ and then remains constant.
 
-$p = 0.4, R = 0.9$. Cost increases with $f$ for $p \cdot R > 1$
-
+$p = 0.4, R = 1$.
 ```{r}
 p_val  <- 0.4
-R_val  <- 0.9
+R_val  <- 1
 r_vals <- c(0.2, 0.4, 0.6)
 
 f_grid <- seq(0, 1, by = 0.01)
@@ -830,8 +845,7 @@ ggplot(df_cost, aes(x = f, y = cost, color = strategy)) +
   )
 ```
 
-$p = 0.4, R = 5$. Cost decreases as $f$ increases for the costly outbreaks ($R > 1$)
-
+$p = 0.4, R = 5$.
 ```{r}
 p_val  <- 0.4
 R_val  <- 5
@@ -891,7 +905,7 @@ ggplot(df_cost, aes(x = f, y = cost, color = strategy)) +
   )
 ```
 
-$p_{\mathrm{thr}}^{(n)}$ in case of multipopulation of equal-risk for $f = 0.5$:
+#### $p_{\mathrm{thr}}^{(n)}$ in case of multi-population of equal-risk for $f = 0.5$:
 
 ```{r}
 r_vals  <- seq(0, 1, by = 0.005)
@@ -930,7 +944,7 @@ ggplot(df_multi, aes(x = r, y = p_star, color = factor(R))) +
            label = expression(italic(f)))
 ```
 
-3D surface of $p_{\mathrm{thr}}^{(n)}$ across $p$, $R$, and $r$
+#### 3d surface of $p_{\mathrm{thr}}^{(n)}$ across $R$ and $r$
 
 ```{r}
 f_val <- 0.3
@@ -1042,6 +1056,262 @@ fig_pstar_multi <-
 
 fig_pstar_multi
 ```
+
+#### Heatmap 
+$f=0.5$
+```{r}
+# Parameters
+f_val <- 0.5      # capacity fraction
+p_val <- 0.6      # mean outbreak probability (not directly used here)
+
+r_vals <- seq(0, 1, length.out = 200)
+R_vals <- 10 ^ seq(-2, 2, length.out = 200)
+
+# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
+df_heatmap_n <- expand.grid(R = R_vals, r = r_vals) %>%
+  mutate(
+    p_thr_n = mapply(
+      function(R_single, r_single) {
+        p_star_multi(R = R_single, r = r_single, f = f_val)
+      },
+      R, r
+    )
+  )
+
+# --- 2. Multiple boundary curves for p_thr^(n) ---
+p_levels <- seq(0.2, 0.7, by = 0.1)
+
+df_boundary_n <- lapply(p_levels, function(p_target) {
+  tmp <- lapply(R_vals, function(RR) {
+    f_root <- function(r) p_star_multi(R = RR, r = r, f = f_val) - p_target
+    
+    sol <- tryCatch(
+      uniroot(f_root, interval = c(0, 1)),
+      error = function(e) NULL
+    )
+    
+    if (is.null(sol)) return(NULL)
+    
+    data.frame(
+      R        = RR,
+      r        = sol$root,
+      p_target = p_target
+    )
+  }) %>% bind_rows()
+  
+  tmp
+}) %>% bind_rows()
+
+# --- 3. Midpoints along each boundary curve for annotation ---
+df_boundary_labels <- df_boundary_n %>%
+  group_by(p_target) %>%
+  slice(round(n() / 2)) %>%
+  ungroup() %>%
+  mutate(
+    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
+  )
+
+# --- 4. Region labels (optional) ---
+R_pre  <- 10
+r_pre  <- 0.2
+R_reac <- 10
+r_reac <- 0.8
+
+df_labels_n <- data.frame(
+  R   = c(R_pre,        R_reac),
+  r   = c(r_pre,        r_reac),
+  lab = c("pre-emptive", "reactive")
+)
+
+# --- 5. Heatmap with multiple boundary lines (all same style) ---
+ggplot(df_heatmap_n, aes(x = R, y = r)) +
+  # Heatmap
+  geom_raster(aes(fill = p_thr_n)) +
+  
+  # Boundary curves (same color, no legend)
+  geom_line(
+    data = df_boundary_n,
+    aes(x = R, y = r, group = p_target),
+    color = "firebrick",
+    linewidth = 0.8
+  ) +
+  
+  # Line labels
+  geom_text(
+    data  = df_boundary_labels,
+    aes(x = R, y = r, label = label),
+    color = "firebrick",
+    size  = 3.5,
+    vjust = -0.3,
+    parse = TRUE
+  ) +
+  
+  # Region labels
+  geom_text(
+    data = df_labels_n,
+    aes(label = lab),
+    color = "white",
+    size = 4
+  ) +
+  
+  # Axes
+  scale_x_log10(
+    breaks = c(0.01, 0.1, 1, 10, 100),
+    labels = c("0.01", "0.1", "1", "10", "100"),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(expand = c(0, 0)) +
+  
+  # Colorbar
+  scale_fill_viridis_c(
+    option = "viridis",
+    name = expression(italic(p)[thr]^{(n)})
+  ) +
+  
+  # Axis labels
+  labs(
+    x = expression("Cost ratio " * italic(R) == italic(C)[I] / italic(C)[V]),
+    y = expression("Reactive effectiveness " * italic(r))
+  ) +
+  
+  theme_minimal() +
+  theme(
+    panel.grid       = element_blank(),
+    axis.title       = element_text(size = 14),
+    axis.text        = element_text(size = 12),
+    legend.title     = element_text(size = 14),
+    legend.text      = element_text(size = 12),
+    legend.key.height = unit(1.5, "cm")
+  )
+```
+
+$f=0.3$
+```{r}
+# Parameters
+f_val <- 0.3      # capacity fraction
+p_val <- 0.6      # mean outbreak probability (not directly used here)
+
+r_vals <- seq(0, 1, length.out = 200)
+R_vals <- 10 ^ seq(-2, 2, length.out = 200)
+
+# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
+df_heatmap_n <- expand.grid(R = R_vals, r = r_vals) %>%
+  mutate(
+    p_thr_n = mapply(
+      function(R_single, r_single) {
+        p_star_multi(R = R_single, r = r_single, f = f_val)
+      },
+      R, r
+    )
+  )
+
+# --- 2. Multiple boundary curves for p_thr^(n) ---
+p_levels <- seq(0.2, 0.7, by = 0.1)
+
+df_boundary_n <- lapply(p_levels, function(p_target) {
+  tmp <- lapply(R_vals, function(RR) {
+    f_root <- function(r) p_star_multi(R = RR, r = r, f = f_val) - p_target
+    
+    sol <- tryCatch(
+      uniroot(f_root, interval = c(0, 1)),
+      error = function(e) NULL
+    )
+    
+    if (is.null(sol)) return(NULL)
+    
+    data.frame(
+      R        = RR,
+      r        = sol$root,
+      p_target = p_target
+    )
+  }) %>% bind_rows()
+  
+  tmp
+}) %>% bind_rows()
+
+# --- 3. Midpoints along each boundary curve for annotation ---
+df_boundary_labels <- df_boundary_n %>%
+  group_by(p_target) %>%
+  slice(round(n() / 2)) %>%
+  ungroup() %>%
+  mutate(
+    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
+  )
+
+# --- 4. Region labels (optional) ---
+R_pre  <- 10
+r_pre  <- 0.2
+R_reac <- 10
+r_reac <- 0.8
+
+df_labels_n <- data.frame(
+  R   = c(R_pre,        R_reac),
+  r   = c(r_pre,        r_reac),
+  lab = c("pre-emptive", "reactive")
+)
+
+# --- 5. Heatmap with multiple boundary lines (all same style) ---
+ggplot(df_heatmap_n, aes(x = R, y = r)) +
+  # Heatmap
+  geom_raster(aes(fill = p_thr_n)) +
+  
+  # Boundary curves (same color, no legend)
+  geom_line(
+    data = df_boundary_n,
+    aes(x = R, y = r, group = p_target),
+    color = "firebrick",
+    linewidth = 0.8
+  ) +
+  
+  # Line labels
+  geom_text(
+    data  = df_boundary_labels,
+    aes(x = R, y = r, label = label),
+    color = "firebrick",
+    size  = 3.5,
+    vjust = -0.3,
+    parse = TRUE
+  ) +
+  
+  # Region labels
+  geom_text(
+    data = df_labels_n,
+    aes(label = lab),
+    color = "white",
+    size = 4
+  ) +
+  
+  # Axes
+  scale_x_log10(
+    breaks = c(0.01, 0.1, 1, 10, 100),
+    labels = c("0.01", "0.1", "1", "10", "100"),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(expand = c(0, 0)) +
+  
+  # Colorbar
+  scale_fill_viridis_c(
+    option = "viridis",
+    name = expression(italic(p)[thr]^{(n)})
+  ) +
+  
+  # Axis labels
+  labs(
+    x = expression("Cost ratio " * italic(R) == italic(C)[I] / italic(C)[V]),
+    y = expression("Reactive effectiveness " * italic(r))
+  ) +
+  
+  theme_minimal() +
+  theme(
+    panel.grid       = element_blank(),
+    axis.title       = element_text(size = 14),
+    axis.text        = element_text(size = 12),
+    legend.title     = element_text(size = 14),
+    legend.text      = element_text(size = 12),
+    legend.key.height = unit(1.5, "cm")
+  )
+```
+
 
 ### Threshold outbreak probability $p_{\mathrm{thr}}^{(n)}$ 
 
