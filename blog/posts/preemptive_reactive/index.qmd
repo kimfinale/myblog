@@ -434,45 +434,98 @@ ggplot(df_cost, aes(x = p, y = cost, color = strategy,
   )
 ```
 
-
-#### $p_{\mathrm{thr}}^{(1)}$ as a function of $r$ for $R=1$.
-
+#### Phase diagram of $p$ vs $r$ for $R=1$.
 ```{r}
 r_vals <- seq(0.01, 0.99, by = 0.01)
-R_vals <- c(1)
+R_vals <- c(1, 10)
 
 data <- expand.grid(r = r_vals, R = R_vals) %>%
-  dplyr::mutate(pstar = p_star_one(R=R, r=r))
+  dplyr::mutate(
+    pstar = p_star_one(R = R, r = r),
+    R_label = factor(
+      R,
+      levels = c(1, 10),
+      labels = c("R = 1", "R = 10")
+    )
+  )
+# LaTeX labels for xdvir::geom_latex()
+eq_labels <- c(
+    "$c_{\\text{pre}}^{(1)} < c_{\\text{react}}^{(1)}$", 
+    "$c_{\\text{pre}}^{(1)} > c_{\\text{react}}^{(1)}$")
 
-ggplot(data, aes(x = r, y = pstar)) +
-  geom_line(linewidth = 1) +
-  geom_abline(slope=1, intercept = 0, linetype="dotted", 
-              linewidth=1, color="firebrick")+
-  labs(x = expression("Reactive effectiveness "~italic(r)),
-       y = expression("Threshold outbreak probability  "~italic(p)[thr]^(1)))+
-  theme_light()+
-  theme(legend.position = "top")+
-  annotate("text", size=4, x=0,y=1,hjust=0,vjust=1, label="Pre-emptive")+
-  annotate("text", size=4, x=1,y=0,hjust=1,vjust=0, label="Reactive")
+pthr_labels <- c("$p_{\\text{thr}}^{(1)}(R=1)$",
+                "$p_{\\text{thr}}^{(1)}(R=10)$")
+
+plt <- ggplot(data, aes(x = r, y = pstar, linetype = R_label)) +
+  geom_line()+
+  # geom_abline(
+  #   slope = 1, intercept = 0,
+  #   linetype = "dotted",
+  #   linewidth = 1,
+  #   color = "firebrick"
+  # ) +
+  labs(
+    x = expression("Reactive effectiveness " ~ italic(r)),
+    y = expression("Outbreak probability  " ~ italic(p))
+  ) +
+  theme_light() +
+  theme(legend.position = "top") +
+  # Existing text labels
+  annotate("text", size = 4, x = 0, y = 1,
+           hjust = 0, vjust = 1,
+           label = "Pre-emptive favored") +
+  annotate("text", size = 4, x = 1, y = 0,
+           hjust = 1, vjust = 0,
+           label = "Reactive favored") +
+  annotate(
+    "latex",
+    x = 0, y = 0.93,
+    label = eq_labels[1],
+    size = 4, hjust = 0, vjust = 1
+  ) +
+  annotate(
+    "latex",
+    x = 1, y = 0.07,
+    label = eq_labels[2],
+    size = 4, hjust = 1, vjust = 0
+  ) +
+  annotate(
+    "latex",
+    x = 0.62, y = 0.74,
+    label = pthr_labels[1],
+    size = 4, hjust = 1, vjust = 0
+  )  +
+  annotate(
+    "latex",
+    x = 0.62, y = 0.22,
+    label = pthr_labels[2],
+    size = 4, hjust = 1, vjust = 0
+  ) +
+  guides(linetype = "none")
+
+plt
+# ggsave("p_thr_1.pdf",
+#          plt,
+#          device = cairo_pdf, width = 70*2,
+#          height = 50*2, units = "mm")
 ```
 
 #### $p_{\mathrm{thr}}^{(1)}$ as a function of $R$ for $r=0.5$.
 
 ```{r}
-r_vals <- 0.5
+r_vals <- c(0.3, 0.5, 0.7)
 R_vals <- seq(0.1, 50, by=0.1)
 
 data <- expand.grid(r = r_vals, R = R_vals) %>%
   dplyr::mutate(pstar = p_star_one(R=R, r=r))
 
-ggplot(data, aes(x = R, y = pstar)) +
+ggplot(data, aes(x = R, y = pstar, color = factor(r))) +
   geom_line(linewidth = 1) +
   labs(x = expression("Cost ratio "~italic(R)),
-       y = expression("Threshold outbreak probability  "~italic(p)[thr]^(1)))+
+       y = expression("Threshold outbreak probability  "~italic(p)[thr]^(1)), 
+       color = expression(italic(r)))+
   theme_light()+
-  theme(legend.position = "top")+
-  annotate("text", size=4, x=10,y=1,hjust=0,vjust=1, label="Pre-emptive")+
-  annotate("text", size=4, x=10,y=0,hjust=0,vjust=0, label="Reactive")
+  theme(legend.position = "top")
 ```
 
 #### $p_{\mathrm{thr}}^{(1)}$ as a function of $r$ for varying $R$'s
@@ -492,9 +545,7 @@ ggplot(data, aes(x = r, y = pstar, color = factor(R))) +
        y = expression("Threshold outbreak probability  "~italic(p)[thr]^(1)),
        color = expression(italic(R))) +
   theme_light()+
-  theme(legend.position = "top")+
-  annotate("text", size=4, x=0,y=1,hjust=0,vjust=1, label="Pre-emptive")+
-  annotate("text", size=4, x=1,y=0,hjust=1,vjust=0, label="Reactive")
+  theme(legend.position = "top")
 ```
 
 #### Heatmap of $p_{\mathrm{thr}}^{(1)}$ across $r$ and $R$
@@ -557,9 +608,9 @@ ggplot(df_heatmap, aes(x = R, y = r)) +
            color = "firebrick",
            size = 4,
            hjust = -0.2) +
-  # Add text labels for the regions
-  geom_text(data = df_labels, aes(label = lab), 
-            color = "white", size = 4) +
+  # # Add text labels for the regions
+  # geom_text(data = df_labels, aes(label = lab), 
+  #           color = "white", size = 4) +
   # Scales
   scale_x_log10(
     breaks = c(0.01, 0.1, 1, 10, 100),
@@ -574,8 +625,8 @@ ggplot(df_heatmap, aes(x = R, y = r)) +
   ) +
   # Labels and Theme
   labs(
-    x = expression("Cost ratio "~italic(R) == C[I] / C[V]),
-    y = expression("Reactive effectiveness "~italic(r))
+    x = expression("Cost ratio "~italic(R) == italic(C)[I] / italic(C)[V]),
+    y = expression("Reactive effectiveness  "~italic(r))
   ) +
   theme_minimal() +
   theme(
@@ -944,6 +995,96 @@ ggplot(df_multi, aes(x = r, y = p_star, color = factor(R))) +
            label = expression(italic(f)))
 ```
 
+#### Phase diagram of p vs r for multipop equal-risk, given f
+```{r}
+r_vals <- seq(0.01, 0.99, by = 0.01)
+R_vals <- c(1, 10)
+
+# Choose capacity fraction f (change as needed)
+f_val <- 0.5
+
+data <- expand.grid(r = r_vals, R = R_vals) %>%
+  dplyr::mutate(
+    pstar = mapply(
+      function(R_i, r_i) p_star_multi(R = R_i, r = r_i, f = f_val),
+      R, r
+    ),
+    R_label = factor(
+      R,
+      levels = c(1, 10),
+      labels = c("R = 1", "R = 10")
+    )
+  )
+
+# LaTeX labels for xdvir::geom_latex()
+eq_labels <- c(
+  "$c_{\\text{pre}}^{(n)} < c_{\\text{react}}^{(n)}$", 
+  "$c_{\\text{pre}}^{(n)} > c_{\\text{react}}^{(n)}$"
+)
+
+# You can switch to (n) if you want to emphasize multipop: p_thr^{(n)}
+pthr_labels <- c(
+  "$p_{\\text{thr}}^{(n)}(R=1)$",
+  "$p_{\\text{thr}}^{(n)}(R=10)$"
+)
+
+plt <- ggplot(data, aes(x = r, y = pstar, linetype = R_label)) +
+  geom_line() +
+  # geom_abline(
+  #   slope = 1, intercept = 0,
+  #   linetype = "dotted",
+  #   linewidth = 1,
+  #   color = "firebrick"
+  # ) +
+  labs(
+    x = expression("Reactive effectiveness " ~ italic(r)),
+    y = expression("Outbreak probability  " ~ italic(p))
+  ) +
+  theme_light() +
+  theme(legend.position = "top") +
+  # Existing text labels
+  annotate("text", size = 4, x = 0, y = 1,
+           hjust = 0, vjust = 1,
+           label = "Pre-emptive favored") +
+  annotate("text", size = 4, x = 1, y = 0,
+           hjust = 1, vjust = 0,
+           label = "Reactive favored") +
+  annotate(
+    "latex",
+    x = 0, y = 0.93,
+    label = eq_labels[1],
+    size = 4, hjust = 0, vjust = 1
+  ) +
+  annotate(
+    "latex",
+    x = 1, y = 0.07,
+    label = eq_labels[2],
+    size = 4, hjust = 1, vjust = 0
+  ) +
+  annotate(
+    "latex",
+    x = 0.37, y = 0.45,
+    label = pthr_labels[1],
+    size = 4, hjust = 1, vjust = 0
+  ) +
+  annotate(
+    "latex",
+    x = 0.37, y = 0.22,
+    label = pthr_labels[2],
+    size = 4, hjust = 1, vjust = 0
+  ) +
+  guides(linetype = "none")
+
+ggsave(
+  "p_thr_multi_f03.pdf",
+  plt,
+  device = cairo_pdf,
+  width = 70 * 2,
+  height = 50 * 2,
+  units = "mm"
+)
+```
+
 #### 3d surface of $p_{\mathrm{thr}}^{(n)}$ across $R$ and $r$
 
 ```{r}
@@ -1058,133 +1199,6 @@ fig_pstar_multi
 ```
 
 #### Heatmap 
-$f=0.5$
-```{r}
-# Parameters
-f_val <- 0.5      # capacity fraction
-p_val <- 0.6      # mean outbreak probability (not directly used here)
-
-r_vals <- seq(0, 1, length.out = 200)
-R_vals <- 10 ^ seq(-2, 2, length.out = 200)
-
-# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
-df_heatmap_n <- expand.grid(R = R_vals, r = r_vals) %>%
-  mutate(
-    p_thr_n = mapply(
-      function(R_single, r_single) {
-        p_star_multi(R = R_single, r = r_single, f = f_val)
-      },
-      R, r
-    )
-  )
-
-# --- 2. Multiple boundary curves for p_thr^(n) ---
-p_levels <- seq(0.2, 0.7, by = 0.1)
-
-df_boundary_n <- lapply(p_levels, function(p_target) {
-  tmp <- lapply(R_vals, function(RR) {
-    f_root <- function(r) p_star_multi(R = RR, r = r, f = f_val) - p_target
-    
-    sol <- tryCatch(
-      uniroot(f_root, interval = c(0, 1)),
-      error = function(e) NULL
-    )
-    
-    if (is.null(sol)) return(NULL)
-    
-    data.frame(
-      R        = RR,
-      r        = sol$root,
-      p_target = p_target
-    )
-  }) %>% bind_rows()
-  
-  tmp
-}) %>% bind_rows()
-
-# --- 3. Midpoints along each boundary curve for annotation ---
-df_boundary_labels <- df_boundary_n %>%
-  group_by(p_target) %>%
-  slice(round(n() / 2)) %>%
-  ungroup() %>%
-  mutate(
-    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
-  )
-
-# --- 4. Region labels (optional) ---
-R_pre  <- 10
-r_pre  <- 0.2
-R_reac <- 10
-r_reac <- 0.8
-
-df_labels_n <- data.frame(
-  R   = c(R_pre,        R_reac),
-  r   = c(r_pre,        r_reac),
-  lab = c("pre-emptive", "reactive")
-)
-
-# --- 5. Heatmap with multiple boundary lines (all same style) ---
-ggplot(df_heatmap_n, aes(x = R, y = r)) +
-  # Heatmap
-  geom_raster(aes(fill = p_thr_n)) +
-  
-  # Boundary curves (same color, no legend)
-  geom_line(
-    data = df_boundary_n,
-    aes(x = R, y = r, group = p_target),
-    color = "firebrick",
-    linewidth = 0.8
-  ) +
-  
-  # Line labels
-  geom_text(
-    data  = df_boundary_labels,
-    aes(x = R, y = r, label = label),
-    color = "firebrick",
-    size  = 3.5,
-    vjust = -0.3,
-    parse = TRUE
-  ) +
-  
-  # Region labels
-  geom_text(
-    data = df_labels_n,
-    aes(label = lab),
-    color = "white",
-    size = 4
-  ) +
-  
-  # Axes
-  scale_x_log10(
-    breaks = c(0.01, 0.1, 1, 10, 100),
-    labels = c("0.01", "0.1", "1", "10", "100"),
-    expand = c(0, 0)
-  ) +
-  scale_y_continuous(expand = c(0, 0)) +
-  
-  # Colorbar
-  scale_fill_viridis_c(
-    option = "viridis",
-    name = expression(italic(p)[thr]^{(n)})
-  ) +
-  
-  # Axis labels
-  labs(
-    x = expression("Cost ratio " * italic(R) == italic(C)[I] / italic(C)[V]),
-    y = expression("Reactive effectiveness " * italic(r))
-  ) +
-  
-  theme_minimal() +
-  theme(
-    panel.grid       = element_blank(),
-    axis.title       = element_text(size = 14),
-    axis.text        = element_text(size = 12),
-    legend.title     = element_text(size = 14),
-    legend.text      = element_text(size = 12),
-    legend.key.height = unit(1.5, "cm")
-  )
-```
-
 $f=0.3$
 ```{r}
 # Parameters
@@ -1298,7 +1312,7 @@ ggplot(df_heatmap_n, aes(x = R, y = r)) +
   # Axis labels
   labs(
     x = expression("Cost ratio " * italic(R) == italic(C)[I] / italic(C)[V]),
-    y = expression("Reactive effectiveness " * italic(r))
+    y = expression("Reactive effectiveness  " * italic(r))
   ) +
   
   theme_minimal() +
@@ -1312,6 +1326,346 @@ ggplot(df_heatmap_n, aes(x = R, y = r)) +
   )
 ```
 
+$f=0.5$
+```{r, include=FALSE}
+# Parameters
+f_val <- 0.5      # capacity fraction
+p_val <- 0.6      # mean outbreak probability (not directly used here)
+
+r_vals <- seq(0, 1, length.out = 200)
+R_vals <- 10 ^ seq(-2, 2, length.out = 200)
+
+# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
+df_heatmap_n <- expand.grid(R = R_vals, r = r_vals) %>%
+  mutate(
+    p_thr_n = mapply(
+      function(R_single, r_single) {
+        p_star_multi(R = R_single, r = r_single, f = f_val)
+      },
+      R, r
+    )
+  )
+
+# --- 2. Multiple boundary curves for p_thr^(n) ---
+p_levels <- seq(0.2, 0.7, by = 0.1)
+
+df_boundary_n <- lapply(p_levels, function(p_target) {
+  tmp <- lapply(R_vals, function(RR) {
+    f_root <- function(r) p_star_multi(R = RR, r = r, f = f_val) - p_target
+    
+    sol <- tryCatch(
+      uniroot(f_root, interval = c(0, 1)),
+      error = function(e) NULL
+    )
+    
+    if (is.null(sol)) return(NULL)
+    
+    data.frame(
+      R        = RR,
+      r        = sol$root,
+      p_target = p_target
+    )
+  }) %>% bind_rows()
+  
+  tmp
+}) %>% bind_rows()
+
+# --- 3. Midpoints along each boundary curve for annotation ---
+df_boundary_labels <- df_boundary_n %>%
+  group_by(p_target) %>%
+  slice(round(n() / 2)) %>%
+  ungroup() %>%
+  mutate(
+    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
+  )
+
+# --- 4. Region labels (optional) ---
+R_pre  <- 10
+r_pre  <- 0.2
+R_reac <- 10
+r_reac <- 0.8
+
+df_labels_n <- data.frame(
+  R   = c(R_pre,        R_reac),
+  r   = c(r_pre,        r_reac),
+  lab = c("pre-emptive", "reactive")
+)
+
+# --- 5. Heatmap with multiple boundary lines (all same style) ---
+ggplot(df_heatmap_n, aes(x = R, y = r)) +
+  # Heatmap
+  geom_raster(aes(fill = p_thr_n)) +
+  
+  # Boundary curves (same color, no legend)
+  geom_line(
+    data = df_boundary_n,
+    aes(x = R, y = r, group = p_target),
+    color = "firebrick",
+    linewidth = 0.8
+  ) +
+  
+  # Line labels
+  geom_text(
+    data  = df_boundary_labels,
+    aes(x = R, y = r, label = label),
+    color = "firebrick",
+    size  = 3.5,
+    vjust = -0.3,
+    parse = TRUE
+  ) +
+  
+  # Region labels
+  geom_text(
+    data = df_labels_n,
+    aes(label = lab),
+    color = "white",
+    size = 4
+  ) +
+  
+  # Axes
+  scale_x_log10(
+    breaks = c(0.01, 0.1, 1, 10, 100),
+    labels = c("0.01", "0.1", "1", "10", "100"),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(expand = c(0, 0)) +
+  
+  # Colorbar
+  scale_fill_viridis_c(
+    option = "viridis",
+    name = expression(italic(p)[thr]^{(n)})
+  ) +
+  
+  # Axis labels
+  labs(
+    x = expression("Cost ratio " * italic(R) == italic(C)[I] / italic(C)[V]),
+    y = expression("Reactive effectiveness  " * italic(r))
+  ) +
+  
+  theme_minimal() +
+  theme(
+    panel.grid       = element_blank(),
+    axis.title       = element_text(size = 14),
+    axis.text        = element_text(size = 12),
+    legend.title     = element_text(size = 14),
+    legend.text      = element_text(size = 12),
+    legend.key.height = unit(1.5, "cm")
+  )
+```
+
+$R=0.5$
+```{r, include=FALSE}
+# Parameters
+R_val <- 0.5      # capacity fraction
+r_vals <- seq(0, 1, length.out = 200)
+f_vals <- seq(0, 1, length.out = 200)
+
+# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
+df_heatmap_n <- expand.grid(f = f_vals, r = r_vals) %>%
+  mutate(
+    p_thr_n = mapply(
+      function(f_single, r_single) {
+        p_star_multi(R = R_val, r = r_single, f = f_single)
+      },
+      f, r
+    )
+  )
+
+# --- 2. Multiple boundary curves for p_thr^(n) ---
+p_levels <- seq(0.2, 0.7, by = 0.1)
+
+df_boundary_n <- lapply(p_levels, function(p_target) {
+  tmp <- lapply(f_vals, function(ff) {
+    f_root <- function(r) p_star_multi(R = R_val, r = r, f = ff) - p_target
+    
+    sol <- tryCatch(
+      uniroot(f_root, interval = c(0, 1)),
+      error = function(e) NULL
+    )
+    
+    if (is.null(sol)) return(NULL)
+    
+    data.frame(
+      f        = ff,
+      r        = sol$root,
+      p_target = p_target
+    )
+  }) %>% bind_rows()
+  
+  tmp
+}) %>% bind_rows()
+
+# # --- 3. Midpoints along each boundary curve for annotation ---
+df_boundary_labels <- df_boundary_n %>%
+  group_by(p_target) %>%
+  slice(round(n() / 2)) %>%
+  ungroup() %>%
+  mutate(
+    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
+  )
+
+# --- 4. Region labels (optional) ---
+f_pre  <- 0.1
+r_pre  <- 0.1
+f_reac <- 0.9
+r_reac <- 0.9
+
+df_labels_n <- data.frame(
+  f   = c(f_pre,        f_reac),
+  r   = c(r_pre,        r_reac),
+  lab = c("pre-emptive", "reactive")
+)
+
+# --- 5. Heatmap with multiple boundary lines (all same style) ---
+ggplot(df_heatmap_n, aes(x = f, y = r)) +
+  geom_raster(aes(fill = p_thr_n)) +
+  # Boundary curves (same color, no legend)
+  geom_line(
+    data = df_boundary_n,
+    aes(x = f, y = r, group = p_target),
+    color = "firebrick",
+    linewidth = 0.8
+  ) +
+  geom_text(
+    data  = df_boundary_labels,
+    aes(x = f, y = r, label = label),
+    color = "firebrick",
+    size  = 3.5,
+    vjust = -0.3,
+    parse = TRUE
+  ) +
+  geom_text(
+    data = df_labels_n,
+    aes(label = lab),
+    color = "white",
+    size = 4
+  ) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_fill_viridis_c(
+    option = "viridis",
+    name = expression(italic(p)[thr]^{(italic(n))})
+  ) +
+  labs(
+    x = expression("Vaccinated fraction " * italic(f)),
+    y = expression("Reactive effectiveness  " * italic(r))
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid       = element_blank(),
+    axis.title       = element_text(size = 14),
+    axis.text        = element_text(size = 12),
+    legend.title     = element_text(size = 14),
+    legend.text      = element_text(size = 12),
+    legend.key.height = unit(1.5, "cm")
+  )
+```
+
+$R=5$
+```{r, include=FALSE}
+# Parameters
+R_val <- 5      # capacity fraction
+r_vals <- seq(0, 1, length.out = 200)
+f_vals <- seq(0, 1, length.out = 200)
+
+# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
+df_heatmap_n <- expand.grid(f = f_vals, r = r_vals) %>%
+  mutate(
+    p_thr_n = mapply(
+      function(f_single, r_single) {
+        p_star_multi(R = R_val, r = r_single, f = f_single)
+      },
+      f, r
+    )
+  )
+
+# --- 2. Multiple boundary curves for p_thr^(n) ---
+p_levels <- seq(0.2, 0.7, by = 0.1)
+
+df_boundary_n <- lapply(p_levels, function(p_target) {
+  tmp <- lapply(f_vals, function(ff) {
+    f_root <- function(r) p_star_multi(R = R_val, r = r, f = ff) - p_target
+    
+    sol <- tryCatch(
+      uniroot(f_root, interval = c(0, 1)),
+      error = function(e) NULL
+    )
+    
+    if (is.null(sol)) return(NULL)
+    
+    data.frame(
+      f        = ff,
+      r        = sol$root,
+      p_target = p_target
+    )
+  }) %>% bind_rows()
+  
+  tmp
+}) %>% bind_rows()
+
+# # --- 3. Midpoints along each boundary curve for annotation ---
+df_boundary_labels <- df_boundary_n %>%
+  group_by(p_target) %>%
+  slice(round(n() / 2)) %>%
+  ungroup() %>%
+  mutate(
+    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
+  )
+
+# --- 4. Region labels (optional) ---
+f_pre  <- 0.1
+r_pre  <- 0.1
+f_reac <- 0.9
+r_reac <- 0.9
+
+df_labels_n <- data.frame(
+  f   = c(f_pre,        f_reac),
+  r   = c(r_pre,        r_reac),
+  lab = c("pre-emptive", "reactive")
+)
+
+# --- 5. Heatmap with multiple boundary lines (all same style) ---
+ggplot(df_heatmap_n, aes(x = f, y = r)) +
+  geom_raster(aes(fill = p_thr_n)) +
+  # Boundary curves (same color, no legend)
+  geom_line(
+    data = df_boundary_n,
+    aes(x = f, y = r, group = p_target),
+    color = "firebrick",
+    linewidth = 0.8
+  ) +
+  geom_text(
+    data  = df_boundary_labels,
+    aes(x = f, y = r, label = label),
+    color = "firebrick",
+    size  = 3.5,
+    vjust = -0.3,
+    parse = TRUE
+  ) +
+  geom_text(
+    data = df_labels_n,
+    aes(label = lab),
+    color = "white",
+    size = 4
+  ) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_fill_viridis_c(
+    option = "viridis",
+    name = expression(italic(p)[thr]^{(italic(n))})
+  ) +
+  labs(
+    x = expression("Vaccinated fraction " * italic(f)),
+    y = expression("Reactive effectiveness  " * italic(r))
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid       = element_blank(),
+    axis.title       = element_text(size = 14),
+    axis.text        = element_text(size = 12),
+    legend.title     = element_text(size = 14),
+    legend.text      = element_text(size = 12),
+    legend.key.height = unit(1.5, "cm")
+  )
+```
 
 ### Threshold outbreak probability $p_{\mathrm{thr}}^{(n)}$ 
 
@@ -1370,6 +1724,160 @@ $$
         $p_{\mathrm{thr}}^{(n)}$,
     - larger $f$ (more capacity) $\Rightarrow$ larger $p_{\mathrm{thr}}^{(n)}$, for fixed $R$ and $r$.
 
+
+
+```{r econ-demo-data, include=FALSE}
+# Load life expectancy and GDP data
+life_exp_data <- 
+  as.data.frame(fread("C:/Users/jonghoon.kim/Workspace/myblog/data/cholera_cost/wpp_life_expectancy_20241022.csv"))
+# life expectancy at age 25 during 2010-2020, mean age for cholera
+life_exp_data %>% 
+  filter(Year >= 2010, Year <= 2020, 
+         `Region, subregion, country or area *` == "Sub-Saharan Africa") %>% 
+  pull(`25`) %>%  
+  as.numeric() -> life_exp_25
+
+# Load population by age data 
+# prop of under 5 during 2010-2020
+age_dist <- 
+  as.data.frame(fread("C:/Users/jonghoon.kim/Workspace/myblog/data/cholera_cost/wpp_pop_by_age_20241022.csv"))
+age_dist %>% 
+  filter(Year >= 2010, Year <= 2020,
+         `Region, subregion, country or area *` == "Sub-Saharan Africa") %>% 
+  pull(prop_u5) -> prop_U5
+
+# gdp data from World Bank during 2010-2020
+gdp_data <- read_xls("C:/Users/jonghoon.kim/Workspace/myblog/data/cholera_cost/GDP_WorldBank.xls")
+gdp_data %>% 
+  filter(`Country Name` == "Sub-Saharan Africa (IDA & IBRD countries)") %>%
+  select(c(`2010`:`2020`)) |> 
+  as.numeric() -> gdp_ssa
+
+# workforce data
+workforce_data <- read_xls("C:/Users/jonghoon.kim/Workspace/myblog/data/cholera_cost/Workforce_Worldbank.xls")
+workforce_data %>% 
+  filter(`Country Name` == "Sub-Saharan Africa (excluding high income)")%>%
+  select(c(`2010`:`2020`)) |> 
+  as.numeric() -> wf_ssa
+
+## Cost-effectiveness parameters
+
+parm <- fread("C:/Users/jonghoon.kim/Workspace/myblog/data/cholera_cost/parameters.csv")
+parm <- parm[Disease == "Cholera"]
+# GBD data deleted and replaced with Mbewe (2025) Open Forum Infect Dis data
+# it is assumed that moderate and severe cases are reported 
+parm <- parm[!(Parameter == "Prop_Moderate" & Value == 0.289)]
+parm <- parm[!(Parameter == "Prop_Severe" & Value == 0.069)]
+
+# Disease burden parameters
+day_ill <- parm[Parameter == "Duration_Illness", Value]
+pr_moderate <- parm[Parameter == "Prop_Moderate", Value]
+pr_severe <- parm[Parameter == "Prop_Severe", Value]
+wt_moderate <- parm[Parameter == "Disability_Weight_Moderate", Value]
+wt_severe <- parm[Parameter == "Disability_Weight_Severe", Value]
+
+# Vaccination costs
+vacc_price_per_dose <- parm[Parameter == "Vaccine_Cost", Value]
+vacc_delivery_cost <- parm[Parameter == "Vaccine_Delivery_Cost", Value]
+vacc_shipping_cost <- parm[Parameter == "Vaccine_Shipping_Cost", Value]
+
+# Direct medical costs
+patient_cost_hosp <- parm[Parameter == "Patient_Cost_Hosp", Value]
+patient_cost_outpt <- parm[Parameter == "Patient_Cost_Outpt", Value]
+public_cost_hosp <- parm[Parameter == "Public_Cost_Hosp", Value]
+public_cost_outpt <- parm[Parameter == "Public_Cost_Outpt", Value] 
+
+# Productivity costs
+patient_workday_lost <- parm[Parameter == "Pt_Workdays_Lost", Value]
+caregiver_workday_lost <- parm[Parameter == "Caregiver_Workdays_Lost", Value]
+mean_age_inf <- parm[Parameter == "Mean_Age_Infection", Value]
+
+mean_gdp <- mean(gdp_ssa)
+mean_remaining_life <- mean(life_exp_25)
+mean_cfr <- 0.01 # across countries and year
+mean_prop_workforce <- mean(wf_ssa)/100 # across countries and year
+pr_tot <- pr_moderate + pr_severe
+mean_dis_wt <- wt_moderate * pr_moderate / pr_tot + 
+  wt_moderate * pr_severe / pr_tot
+```
+
+### Costs
+
+This section uses some parameter values that are not displayed here 
+
+```{r}
+N_pop <- 1e6 
+dose_per_person <- 1  # Single-dose regimen
+
+# Vaccination costs per person (do not depend on GDP in this setup)
+vacc_cost_per_person <- (vacc_price_per_dose + vacc_delivery_cost + vacc_shipping_cost) * dose_per_person
+
+C_vac_per_person <- vacc_cost_per_person
+
+prop_vacc_cov <- 0.9
+C_V <- N_pop * prop_vacc_cov * C_vac_per_person
+
+# Function to build cost-ratio df for a given year_val and label
+build_cost_df <- function(year_val, scen_label) {
+  indirect_coi_per_patient <- (day_ill / 365) * mean_dis_wt * year_val
+  
+  productivity_lost_per_patient <- 
+    mean_prop_workforce * (
+      patient_workday_lost / 365 +
+      caregiver_workday_lost / 365
+    ) * year_val
+  
+  indirect_cod_per_patient <- 
+    mean_cfr * mean_remaining_life * year_val
+  
+  pr_tot <- pr_moderate + pr_severe 
+  
+  direct_cost_per_patient <- 
+    pr_moderate / pr_tot * (patient_cost_outpt + public_cost_outpt) + 
+    pr_severe  / pr_tot * (patient_cost_hosp + public_cost_hosp)
+  
+  indirect_cost_per_patient <- 
+    indirect_coi_per_patient + 
+    indirect_cod_per_patient + 
+    productivity_lost_per_patient
+  
+  C_case <- direct_cost_per_patient + indirect_cost_per_patient
+  
+  # Use strictly positive attack rates for log scale
+  attack_rates <- seq(0.001, 0.1, by = 0.001)
+  
+  tibble(
+    attack_rate = attack_rates
+  ) |>
+    mutate(
+      cases   = N_pop * attack_rate,
+      C_I     = cases * C_case,
+      C_V     = C_V,
+      R_ratio = C_I / C_V,
+      scenario = scen_label
+    )
+}
+
+# Build data for GDP and 3x GDP
+df_costs_gdp   <- build_cost_df(mean_gdp,        "GDP")
+df_costs_3gdp  <- build_cost_df(3 * mean_gdp,    "3 \u00D7 GDP")
+
+df_costs_all <- bind_rows(df_costs_gdp, df_costs_3gdp)
+
+# Plot
+ggplot(df_costs_all, 
+       aes(x = attack_rate, y = R_ratio, color = scenario)) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 1, linetype = "dotted") +
+  scale_x_log10() +
+  labs(
+    x = "Fraction of population infected",
+    y = expression(italic(R) == italic(C)[I] / italic(C)[V]),
+    color = "Year value"
+  ) +
+  theme_light()
+```
+
 ## Multiple Populations with Equal Risk, Limited Vaccination Capacity, and A Mixed strategy
 
 We now allow the fixed capacity $f$ to be split between pre-emptive and reactive use.
@@ -1378,9 +1886,7 @@ Let
 
 -   $f_{\mathrm{pre}}$ = fraction of populations vaccinated
     pre-emptively,
--   $f_{\mathrm{react}}$ = capacity available for reactive campaigns,
-
-subject to the capacity constraint
+-   $f_{\mathrm{react}}$ = capacity available for reactive campaigns as a fraction of population, subject to the capacity constraint
 
 $$
 f_{\mathrm{pre}} + f_{\mathrm{react}} = f.
@@ -1527,48 +2033,27 @@ $$
 
 which makes the linear dependence on $\alpha$ explicit.
 
-### Optimal Allocation Strategy ($\alpha^*$)
+$c_{\mathrm{mixed}}^{(n)}(\alpha)$ are affine (linear + constant) in $\alpha$ in both regimes. 
 
-Let $\alpha^*$ denote the optimal fraction of vaccine capacity $f$
-allocated to **pre-emptive** vaccination. The optimal strategy depends
-on whether vaccine capacity is scarce ($f \le p$) or abundant ($f > p$).
-
-#### 1. Scarce Capacity ($f \le p$)
-
-When capacity is insufficient to cover the expected outbreak size, the
-strategy is a simple corner solution determined entirely by the reactive
-effectiveness $r$:
-
+Therefore within each regime, the optimal $\alpha$ is always at the boundary of that regime’s feasible $\alpha$-interval (a corner).
+The only other candidate is the switching point where the regime changes (a kink). So the global minimizer, $\alpha^*$ over $\alpha\in[0,1]$ must be in  
 $$
-\alpha^* =
-\begin{cases}
-0 \quad (\text{pure reactive}), & \text{if } r > p \\
-1 \quad (\text{pure pre-emptive}), & \text{if } r < p \\
-\text{any } \alpha \in [0,1], & \text{if } r = p
-\end{cases}
+\alpha^*\in \{0,\alpha_c,1\},
 $$
 
-#### 2. Abundant Capacity ($f > p$)
-
-When capacity exceeds the expected outbreak size, the optimal strategy
-depends on the cost ratio $R$ relative to the threshold $R_{\mathrm{thr}}$:
-
+- Step 1. Find the regime-switch (kink) point $\bar\alpha$
+The boundary between regimes is 
 $$
-\alpha^* =
-\begin{cases}
-1 \quad (\text{pure pre-emptive}), & \text{if } r < p \\
-0 \quad (\text{pure reactive}), & \text{if } r > p \text{ and } R < R_{\mathrm{thr}} \\
-\frac{f - p}{f(1 - p)} \quad (\text{mixed strategy}), & \text{if } r > p \text{ and } R \ge R_{\mathrm{thr}}
-\end{cases}
+(1-\alpha)f = (1-\alpha f)
 $$
 
-> **Note:** In the abundant regime with high outbreak costs
-> ($R \ge R_{\mathrm{thr}}$), the mixed strategy $\alpha^* = \frac{f - p}{f(1 - p)}$
-> ensures that pre-emptive vaccination is maximized just enough so that
-> the remaining capacity can fully cover the remaining risk reactively.
+$$
+\alpha_c = \frac{f-p}{f(1-p)}
+$$
 
 ### Visualization of $c_{\mathrm{mixed}}^{(n)}(\alpha)$ and $\alpha^*$
 
+Functions
 ```{r}
 # Mixed strategy cost c_mix^{(n)}(alpha)
 cost_mix_multi <- function(alpha, p, R, r, f) {
@@ -1585,7 +2070,7 @@ cost_mix_multi <- function(alpha, p, R, r, f) {
   ifelse(cond_rich, c_rich, c_lim)
 }
 
-opt_alpha_multi <- function(p, R, r, f, grid_len = 1001) {
+opt_alpha_equalrisk <- function(p, R, r, f, grid_len = 1001) {
   alpha_grid <- seq(0, 1, length.out = grid_len)
   costs <- cost_mix_multi(alpha = alpha_grid,
                           p = p, R = R, r = r, f = f)
@@ -1600,83 +2085,40 @@ opt_alpha_multi <- function(p, R, r, f, grid_len = 1001) {
   )
 }
 
-## ============================================================
-## 1. Analytic solution for alpha* (equal-risk, large-n)
-## ============================================================
-
-alpha_star_equal_analytic <- function(p, R, r, f, tol = 1e-6) {
-  stopifnot(p > 0, p < 1, f > 0, f <= 1, R >= 0, r >= 0, r <= 1)
-  
-  regime_capacity <- if (f <= p + tol) "scarce" else "abundant"
-  
-  # Handle degenerate case r = p explicitly
-  if (abs(r - p) < tol) {
-    # Many alphas can be optimal; we pick a convenient representative
-    return(list(
-      alpha_star = 0,  # arbitrary choice in [0,1]
-      regime_capacity = regime_capacity,
-      regime_detail   = "degenerate_r_eq_p",
-      R_star          = NA_real_,
-      alpha_bar       = if (regime_capacity == "abundant") (f - p) / (f * (1 - p)) else NA_real_
-    ))
+alpha_star_equalrisk <- function(p, R, r, f, eps = 1e-12) {
+  # ensure r is in [0,1]
+  r <- pmin(1, pmax(0, r))
+  # ---- Scarce capacity: f <= p ----
+  if (f <= p + eps) {
+    return(
+      ifelse(r > p + eps, 0,
+      ifelse(r < p - eps, 1, NA_real_))  # NA when r == p (any alpha optimal)
+    )
+  }
+  # ---- Abundant capacity: f > p ----
+  alpha_c <- (f - p) / (f * (1 - p))
+  alpha_star <- rep(NA_real_, length(r))
+  # r < p  -> pure pre-emptive
+  alpha_star[r < p - eps] <- 1
+  # r > p  -> compare R with R_thr
+  idx <- which(r > p + eps)
+  if (length(idx) > 0) {
+    R_thr <- (1 - p) / (p * pmax(1 - r[idx], eps))  # stabilize near r=1
+    alpha_star[idx] <- ifelse(R < R_thr - eps, 0, alpha_c)
   }
   
-  if (regime_capacity == "scarce") {
-    # f <= p
-    if (r > p) {
-      alpha_star <- 0  # pure reactive
-      regime_detail <- "scarce_pure_reactive"
-    } else {          # r < p
-      alpha_star <- 1  # pure pre-emptive
-      regime_detail <- "scarce_pure_preemptive"
-    }
-    return(list(
-      alpha_star      = alpha_star,
-      regime_capacity = regime_capacity,
-      regime_detail   = regime_detail,
-      R_star          = NA_real_,
-      alpha_bar       = NA_real_
-    ))
-  }
-  
-  # Abundant capacity: f > p
-  alpha_bar <- (f - p) / (f * (1 - p))   # regime boundary
-  alpha_bar <- max(min(alpha_bar, 1), 0) # safety clamp
-  
-  if (r < p) {
-    # Pure pre-emptive
-    alpha_star    <- 1
-    regime_detail <- "abundant_pure_preemptive"
-    R_star        <- NA_real_
-  } else {
-    # r > p
-    R_star <- (1 - p) / (p * (1 - r))
-    if (R < R_star) {
-      alpha_star    <- 0
-      regime_detail <- "abundant_pure_reactive"
-    } else {
-      alpha_star    <- alpha_bar
-      regime_detail <- "abundant_mixed_at_boundary"
-    }
-  }
-  
-  list(
-    alpha_star      = alpha_star,
-    regime_capacity = regime_capacity,
-    regime_detail   = regime_detail,
-    R_star          = if (exists("R_star")) R_star else NA_real_,
-    alpha_bar       = alpha_bar
-  )
+  alpha_star
 }
 ```
+Cost $c_{\mathrm{mixed}}(\alpha)^{(n)}$
 
 ```{r}
 p <- 0.3
-R <- 10
-r <- 0.6
+R <- 5
+r <- 0.4
 f <- 0.5
 
-opt_res <- opt_alpha_multi(p = p, R = R, r = r, f = f,
+opt_res <- opt_alpha_equalrisk(p = p, R = R, r = r, f = f,
                            grid_len = 1001)
 df <- tibble::tibble(
   alpha = opt_res$alpha_grid,
@@ -1684,8 +2126,7 @@ df <- tibble::tibble(
 )
 alpha_star <- opt_res$alpha_star
 
-alpha_star_anal <- alpha_star_equal_analytic(p = p, R = R, r = r, f = f, tol = 1e-6)
-  
+alpha_star_anal <- alpha_star_equalrisk(p = p, R = R, r = r, f = f, eps = 1e-6)
   
 ggplot(df, aes(x = alpha, y = cost)) +
   geom_line(linewidth = 1) +
@@ -1704,14 +2145,14 @@ ggplot(df, aes(x = alpha, y = cost)) +
     y = expression("Normalized per-population expected cost  " ~ italic(c)[mixed]^(italic(n)))
   ) +
    geom_vline(
-    xintercept = alpha_star_anal$alpha_star,
+    xintercept = alpha_star_anal,
     linetype   = "dotted",
     color      = "firebrick",
     linewidth  = 0.9
   ) +
   annotate(
     "text",
-    x     = alpha_star_anal$alpha_star,
+    x     = alpha_star_anal,
     y     = max(df$cost, na.rm = TRUE),
     label = "alpha^'*'",
     parse = TRUE,
@@ -1723,7 +2164,45 @@ ggplot(df, aes(x = alpha, y = cost)) +
   theme_light()
 ```
 
-3D surface of $\alpha^*(R,r)$:
+$\alpha^*$ across $r$
+```{r}
+R_val <- 5
+p_val <- 0.3
+f_val <- 0.5
+
+df_alpha <- data.frame(
+  r = seq(0, 1, by = 0.001)
+)
+
+df_alpha$alpha_star <- alpha_star_equalrisk(
+  r = df_alpha$r,
+  R = R_val,
+  p = p_val,
+  f = f_val
+)
+
+# Reference value of alpha_c
+alpha_c <- ifelse(f_val > p_val, (f_val - p_val) / (f_val * (1 - p_val)), NA_real_)
+
+# df_alpha[is.na(df_alpha$alpha_star),]$alpha_star <- 1
+  
+ggplot(df_alpha, aes(x = r, y = alpha_star)) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  geom_hline(yintercept = 1, linetype = "dotted") +
+  geom_vline(xintercept = p_val, linetype = "dashed") +
+  geom_hline(yintercept = alpha_c, linetype = "dashed") +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    x = expression("Reactive effectiveness "~italic(r)),
+    y = expression("Optimal pre-emptive fraction "~italic(alpha)^"*"),
+    title =bquote(italic(p) == .(p_val) ~ "," ~
+                     italic(R) == .(R_val) ~ "," ~
+                     italic(f) == .(f_val))) +
+  theme_light()
+```
+
+3d surface of $\alpha^*(R,r)$:
 
 ```{r}
 titlefontsize <- 34
@@ -1738,7 +2217,7 @@ R_vals <- 10 ^ seq(-2, 2, length.out = 100)
 alpha_mat <- outer(
   R_vals, r_vals,
   Vectorize(function(R, r) {
-    opt_alpha_multi(
+    opt_alpha_equalrisk(
       p = p_val,
       R = R,
       r = r,
@@ -1793,107 +2272,60 @@ fig_alpha_surface <-
   )
 
 fig_alpha_surface
-
 ```
 
-## Two Risk Groups and Limited Vaccination Capacity
+### Optimal allocation Strategy ($\alpha^*$)
 
-- $f_H$: fraction of the high-risk population.
-- $f_L = 1- f_H$: fraction of the low-risk population.
-- $p_H$: probability of an outbreak in the high-risk population.
-- $p_L$: probability of an outbreak in the low-risk population.
+Let $\alpha^*$ denote the optimal fraction of vaccine capacity $f$
+allocated to pre-emptive vaccination. The optimal strategy depends
+on whether vaccine capacity is scarce ($f \le p$) or abundant ($f > p$).
 
-### Optimal Allocation Strategy ($\alpha^*$) in the Two-Risk Model
+#### 1. Scarce capacity ($f \le p$)
 
-We determine the optimal fraction of capacity $\alpha^*$ to allocate
-pre-emptively. This depends on the total capacity regime ($f$ vs mean
-risk $\bar{p}$) and the specific parameters ($r, R, p_H, p_L$).
-
-Let $\bar{p} = f_H p_H + f_L p_L$ be the mean outbreak probability.
-
-#### 1. Scarce Capacity Regime ($f \le \bar{p}$)
-
-In this regime, capacity is insufficient to cover all expected
-outbreaks. The system is **Reactive-Limited**. Decisions are driven by
-comparing reactive effectiveness ($r$) directly to risk probabilities
-($p_H, p_L$).
+When capacity is insufficient to cover the expected outbreak size, the
+strategy is a simple corner solution determined entirely by the reactive
+effectiveness $r$:
 
 $$
 \alpha^* =
 \begin{cases}
-1 \quad (\text{pure pre-emptive}), & \text{if } r < p_L \\
-\min\left(1, \frac{f_H}{f}\right) \quad (\text{focused on high-risk}), & \text{if } p_L \le r \le p_H \\
-0 \quad (\text{pure reactive}), & \text{if } r > p_H
+0 \quad (\text{pure reactive}), & \text{if } r > p \\
+1 \quad (\text{pure pre-emptive}), & \text{if } r < p \\
+\text{any } \alpha \in [0,1], & \text{if } r = p
 \end{cases}
 $$
 
-> **Interpretation:** $r < p_L$: Reactive vaccination is weak.
-> Pre-empt everyone possible. $p_L \le r \le p_H$: Reactive is better
-> than pre-empting low-risk, but worse than pre-empting high-risk.
-> Prioritize High-Risk. $r > p_H$: Reactive is highly effective. Wait
-> and respond to outbreaks.
+#### 2. Abundant Capacity ($f > p$)
 
-
-#### 2. Abundant Capacity Regime ($f > \bar{p}$)
-
-In this regime, capacity exceeds expected outbreaks. The system is
-initially **reactive-rich**. Pre-emptive vaccination is only justified if the cost of outbreaks ($R$) is high enough to outweigh the efficiency of waiting.
-
-We define two cost thresholds: 
-$$
-R_H^* = \frac{1 - p_H}{p_H(1-r)}, \quad R_L^* = \frac{1 - p_L}{p_L(1-r)}
-$$ 
-
-(*Note:* since $p_H > p_L$, it implies $R_H^* < R_L^*$. It is
-"cheaper" to justify protecting high-risk groups.)
+When capacity exceeds the expected outbreak size, the optimal strategy
+depends on the cost ratio $R$ relative to the threshold $R_{\mathrm{thr}}$:
 
 $$
 \alpha^* =
 \begin{cases}
-0 \quad (\text{pure reactive}), & \text{if } R < R_H^* \\
-\min\left(1, \frac{f_H}{f}\right) \quad (\text{focused on high-risk}), & \text{if } R_H^* \le R < R_L^* \\
-1 \quad (\text{pure pre-emptive}), & \text{if } R \ge R_L^*
+1 \quad (\text{pure pre-emptive}), & \text{if } r < p \\
+0 \quad (\text{pure reactive}), & \text{if } r > p \text{ and } R < R_{\mathrm{thr}} \\
+\frac{f - p}{1 - p} \quad (\text{mixed strategy}), & \text{if } r > p \text{ and } R \ge R_{\mathrm{thr}}
 \end{cases}
 $$
+where
+$$
+R_{\mathrm{thr}} = \frac{1-p}{p(1-r)}
+$$
+> **Note:** In the abundant regime with high outbreak costs
+> ($R \ge R_{\mathrm{thr}}$), the mixed strategy $\alpha^* = \frac{f - p}{f(1 - p)}$
+> ensures that pre-emptive vaccination is maximized just enough so that
+> the remaining capacity can fully cover the remaining risk reactively.
 
-> **Interpretation:** $R < R_H^*$: Outbreaks are cheap. Use pure
-> reactive strategy. $R_H^* \le R < R_L^*$: Outbreaks are costly
-> enough to pre-empt high-risk, but low-risk is still effectively
-> managed reactively. $R \ge R_L^*$: Outbreaks are catastrophic.
-> Pre-empt everyone possible.
-
-### Cost of the Focused Strategy
-
-The intermediate strategy $\alpha = \min(1, f_H/f)$ is the "Focused"
-strategy where high-risk populations are prioritized. The total expected
-cost $c(\alpha)$ varies based on whether the specific capacity
-constraints for high-risk and low-risk groups are met.
-
-| Capacity Scenario | Condition | Optimal $\alpha$ | Total Cost $c(\alpha)$ |
-|:-----------------|:-----------------|:-----------------|:-----------------|
-| **Insufficient for High-Risk** | $f < f_H$ | $1$ | $f + R \big[ (f_H - f)p_H + f_L p_L \big]$ |
-| **Sufficient for H, Limited for L** | $f_H \le f < f_H + f_L p_L$ | $\frac{f_H}{f}$ | $f + R \big[ f_L p_L - (f - f_H)r \big]$ |
-| **Sufficient for H, Abundant for L** | $f \ge f_H + f_L p_L$ | $\frac{f_H}{f}$ | $f_H + f_L p_L \big[ 1 + (1-r)R \big]$ |
-
-**Breakdown:** 1. **Insufficient:** We use all $f$ on High-Risk. Zero
-reactive capacity. Cost is vaccination + all unprevented outbreaks in
-both groups. 2. **Limited for L:** We saturate high-risk ($f_H$).
-Remaining capacity ($f-f_H$) is used reactively on low-risk but is
-exhausted. Cost is total capacity $f$ + net unprevented outbreaks in
-Low-Risk. 3. **Abundant for L:** We saturate high-risk ($f_H$).
-Remaining capacity is sufficient to cover all Low-Risk outbreaks. Cost
-is pre-emptive ($f_H$) + reactive campaigns used ($f_L p_L$) + failed
-reactive attempts.
+The quantity, $\alpha_{\mathrm{c}}$, is not chosen by minimizing a smooth function. Instead, it arises from a feasibility constraint: it is the largest fraction of capacity that can be allocated to pre-emptive vaccination without creating a shortfall in reactive response among the remaining populations. The denominator, $1 - p$, may be interpreted as the fraction of non-outbreak populations and the numerator, $(f-p)/f$, refers to the fraction of $f$ of resources that may be left after covering all outbreak populations. $R_{\mathrm{thr}}$ is the outbreak cost ratio at which the expected cost of relying on reactive vaccination (denominator, $p(1-r)$) equals the cost of vaccinating pre-emptively (numerator, $1-p$).
 
 ## Multiple Populations with Heterogeneous Outbreak Risk
 
-We extend the equal-risk $n$-population model to allow **heterogeneous
-outbreak probabilities** across populations and to incorporate
-**targeting accuracy** for pre-emptive vaccination. Costs are normalized
-by $C_{\mathrm{V}}$, and the superscript $(n)$ denotes the
-$n$-population setting.
+We extend the equal-risk $n$-population model to allow heterogeneous
+outbreak probabilities across populations and to incorporate
+targeting accuracy for pre-emptive vaccination. 
 
-The pre-emptive and reactive fractions satisfy\
+The pre-emptive and reactive fractions satisfy
 $$
 f_{\mathrm{pre}} + f_{\mathrm{react}} = f.
 $$
@@ -1906,22 +2338,22 @@ $$
 \Lambda_i \sim \mathrm{Exponential}(\theta), \qquad \theta > 0.
 $$
 
-The outbreak probability for population $i$ is\
+The outbreak probability for population $i$ is
 $$
 p_i = 1 - e^{-\Lambda_i}, \qquad p_i \in (0,1).
 $$
 
-Using the transformation $p = 1 - e^{-\lambda}$, we obtain the density\
+Using the transformation $p = 1 - e^{-\lambda}$, we obtain the density
 $$
 f_P(p) = \theta (1-p)^{\theta - 1}, \qquad 0 < p < 1,
-$$ so the outbreak-probability random variable\
+$$ so the outbreak-probability random variable
 $$
 P \sim \mathrm{Beta}(1,\theta).
 $$
 
 Key properties:
 
--   Mean outbreak probability\
+-   Mean outbreak probability
     $$
     p_{\mathrm{mean}} = \mathbb{E}[P] = \frac{1}{1+\theta}.
     $$
@@ -1935,32 +2367,34 @@ Key properties:
 
 We treat $p_i$ as i.i.d. draws from $\mathrm{Beta}(1,\theta)$.
 
-### Tail selection under perfect targeting ($\rho = 1$)
+### Tail selection under perfect targeting ($\rho=1$)
 
-Under **perfect ranking**, pre-emptive vaccination targets the
-populations with the highest outbreak probabilities.
+Under perfect ranking, populations can be ordered by their outbreak
+probabilities $p_i$ from highest to lowest.
 
-Let\
+Suppose a fraction 
 $$
 q = f_{\mathrm{pre}} = \alpha f
-$$ be the pre-emptively vaccinated population fraction.
+$$ 
+of populations is vaccinated pre-emptively. This corresponds to vaccinating the top $q$ fraction of the risk distribution.
 
-### Tail cutoff
 
-Let $p_{\mathrm{cut}}(q)$ satisfy\
+### Risk cutoff associated with vaccinating fraction $q$
+
+Define the cutoff $p_{\mathrm{cut}}(q)$ as the unique value satisfying
 $$
 \Pr(P \ge p_{\mathrm{cut}}(q)) = q.
 $$
+$p_{\mathrm{cut}}(q)$ is the minimum outbreak probability required to
+be included among the top $q$ populations. It is a deterministic function of $q$.
 
-The CDF of $P \sim \mathrm{Beta}(1,\theta)$ is\
-$$
-F_P(p) = 1 - (1-p)^\theta,
-$$ so\
+For $P \sim \mathrm{Beta}(1,\theta)$,
+
 $$
 \Pr(P \ge t) = (1-t)^\theta.
 $$
 
-Thus,\
+Thus,
 $$
 q = (1 - p_{\mathrm{cut}}(q))^\theta
 \quad\Longrightarrow\quad
@@ -1969,12 +2403,12 @@ $$
 
 ### Mean outbreak probability in the pre-emptive (top-risk) group
 
-Define\
+Define
 $$
 p_{\mathrm{pre}}(q) = \mathbb{E}[P \mid P \ge p_{\mathrm{cut}}(q)].
 $$
 
-Direct calculation yields\
+Direct calculation yields
 $$
 p_{\mathrm{pre}}(q)
 = 1 - \frac{\theta}{\theta + 1}\, q^{1/\theta},
@@ -1983,29 +2417,31 @@ $$
 
 Checks:
 
--   If $q = 1$:\
+-   If $q = 1$:
     $$
     p_{\mathrm{pre}}(1) = \frac{1}{1+\theta} = p_{\mathrm{mean}}.
     $$
 
--   As $q \to 0$:\
+-   As $q \to 0$:
     $$
     p_{\mathrm{pre}}(q) \to 1.
     $$
 
 ### Mean outbreak probability in the remaining group
 
-Let\
+Let
 $$
 p_{\mathrm{rem}}(q) = \mathbb{E}[P \mid P < p_{\mathrm{cut}}(q)].
 $$
 
-Using the law of total expectation:\
+Using the law of total expectation:
 $$
 p_{\mathrm{mean}}
 = q\,p_{\mathrm{pre}}(q)
 + (1-q)\,p_{\mathrm{rem}}(q),
-$$ so\
+$$ 
+so
+
 $$
 p_{\mathrm{rem}}(q)
 = \frac{p_{\mathrm{mean}} - q\,p_{\mathrm{pre}}(q)}{1-q}.
@@ -2024,11 +2460,13 @@ p_{\mathrm{rem}}(q)
 }{1 - q}.
 $$
 
-Using $q = f_{\mathrm{pre}} = \alpha f$, we write\
+Using $q = f_{\mathrm{pre}} = \alpha f$, we write
 $$
 p_{\mathrm{pre}}(\alpha f)
 = 1 - \frac{\theta}{\theta+1}(\alpha f)^{1/\theta},
-$$ $$
+$$ 
+
+$$
 p_{\mathrm{rem}}(\alpha f)
 =
 \frac{
@@ -2063,12 +2501,12 @@ $$
 p' = p_{\mathrm{rem}}(\alpha f).
 $$
 
-Reactive capacity:\
+Reactive capacity:
 $$
 f_{\mathrm{react}} = (1-\alpha)f.
 $$
 
-Effective capacity per remaining population:\
+Effective capacity per remaining population:
 $$
 f' = \frac{f_{\mathrm{react}}}{1 - f_{\mathrm{pre}}}
 = \frac{(1-\alpha)f}{1 - \alpha f}.
@@ -2081,7 +2519,7 @@ c_{\mathrm{rem}}^{(n)}(p',f')
 = f' + \bigl(p' - fr' \bigr)R.
 $$
 
-Total cost:\
+Total cost:
 $$
 c_{\mathrm{mixed}}^{(n)}(\alpha)
 = f + R\Bigl[(1-\alpha f)p' - (1-\alpha)f r \Bigr].
@@ -2101,725 +2539,990 @@ c_{\mathrm{mixed}}^{(n)}(\alpha)
 + (1-\alpha f)\,p'\,\bigl[1 + (1-r)R\bigr].
 $$
 
-Unlike the equal-risk case, $p'$ is **nonlinear**, so
+Unlike the equal-risk case, $p'$ is nonlinear, so
 $c_{\mathrm{mixed}}^{(n)}(\alpha)$ is not piecewise-linear, and no
 closed-form optimal $\alpha^*$ exists.
 
-We therefore compute $\alpha^*$ by **1D minimization**: $$
+We therefore compute $\alpha^*$ by 1D minimization: 
+$$
 \alpha^* = 
 \arg\min_{\alpha\in[0,1]} c_{\mathrm{mixed}}^{(n)}(\alpha).
 $$
 
-## Imperfect targeting
 
-For incomplete ranking, we interpolate between perfect ranking
-($\rho = 1$) and random targeting ($\rho = 0$):
+## Imperfect Targeting 
+
+We model imperfect targeting using a noisy prioritization score, such
+that the targeting parameter $\rho$ retains its literal interpretation as a rank correlation between true outbreak risk and the score used for prioritization.
+
+We allocate a fraction $q=\alpha f$ of total capacity to pre-emptive vaccination and reserve the remainder $(1-\alpha)f$ for reactive campaigns. Under heterogeneous risk and imperfect targeting, the pre-emptively vaccinated set is defined by ranking populations by a noisy score $S=\Lambda+\varepsilon$ that has Spearman's rank correlation $\rho$ with the true hazard $\Lambda$. This induces an $\alpha$-dependent remaining-group mean outbreak probability $p' = p_{\mathrm{rem}}(\alpha f,\rho)$, which is generally nonlinear in $\alpha$. Conditional on $p'$, the remaining group behaves like an equal-risk subproblem with effective reactive capacity $f'=(1-\alpha)f/(1-\alpha f)$, yielding reactive-rich and reactive-limited regimes depending on whether $f'\ge p'$ or $f'<p'$. Because $p'$ varies with $\alpha$, the mixed-strategy cost $c_{\mathrm{mix}}^{(n)}(\alpha)$ is not affine, so $\alpha^*$ is obtained by one-dimensional numerical minimization.
+
+### Latent outbreak risk
+
+Each population $i$ has a latent outbreak hazard
 
 $$
-  p_{\mathrm{pre}}(\rho, q)
-= p_{\mathrm{mean}}
-  + \rho\bigl(p_{\mathrm{pre}}^{*}(q) - p_{\mathrm{mean}}\bigr),
-  $$
-
-```         
+\Lambda_i \sim \mathrm{Exponential}(\theta), \qquad \theta > 0.
 $$
-p_{\mathrm{rem}}(\rho, q)
+
+The outbreak probability for population $i$ is
+
+$$
+P_i = 1 - e^{-\Lambda_i}, \qquad P_i \in (0,1).
+$$
+
+Marginally,
+
+$$
+P \sim \mathrm{Beta}(1,\theta),
+$$
+
+with mean outbreak probability
+
+$$
+p_{\mathrm{mean}} = \mathbb{E}[P] = \frac{1}{1+\theta}.
+$$
+
+Because $P$ is a strictly increasing function of $\Lambda$, ranking
+populations by $P$ or by $\Lambda$ is equivalent.
+
+### Noisy prioritization score and definition of $\rho$
+
+True outbreak risk is not directly observed. Instead, populations are
+ranked according to a noisy score
+
+$$
+S_i = \Lambda_i + \varepsilon_i,
+$$
+
+where
+
+$$
+\varepsilon_i \stackrel{i.i.d.}{\sim} \mathcal{N}(0,\sigma^2),
+\qquad
+\varepsilon_i \perp \Lambda_i.
+$$
+Targeting accuracy is defined as the rank correlation
+
+$$
+\rho \equiv \mathrm{corr}_{\mathrm{rank}}(\Lambda, S),
+$$
+
+where $\mathrm{corr}_{\mathrm{rank}}(\cdot,\cdot)$ denotes Spearman’s
+rank correlation.
+
+- $\sigma = 0$ implies $\rho = 1$ (perfect ranking).
+- $\sigma \to \infty$ implies $\rho = 0$ (random ranking).
+
+For exponential $\Lambda$ and additive Gaussian noise, the mapping
+$\sigma \mapsto \rho$ is monotone but does not admit a closed-form
+expression. In practice, $\sigma(\rho)$ is obtained numerically and
+treated as known.
+
+### Selection rule for pre-emptive vaccination
+
+Let
+
+$$
+q = f_{\mathrm{pre}} = \alpha f
+$$
+
+denote the fraction of populations vaccinated pre-emptively.
+
+Populations are ranked by the score $S$, and the pre-emptive group
+consists of those satisfying
+
+$$
+S \ge s_{\mathrm{cut}}(q),
+$$
+
+where the score cutoff $s_{\mathrm{cut}}(q)$ is defined implicitly by
+
+$$
+\Pr(S \ge s_{\mathrm{cut}}(q)) = q.
+$$
+
+Since $S = \Lambda + \varepsilon$, we have
+
+$$
+\Pr(S \ge s)
+=
+\mathbb{E}\!\left[
+1 - \Phi\!\left(\frac{s-\Lambda}{\sigma}\right)
+\right],
+\qquad
+\Lambda \sim \mathrm{Exponential}(\theta),
+$$
+
+where $\Phi(\cdot)$ denotes the standard normal CDF. The cutoff
+$s_{\mathrm{cut}}(q)$ is obtained by solving this equation for a given $q$.
+
+### Mean outbreak probability in the pre-emptive group
+
+The mean outbreak probability among pre-emptively vaccinated
+populations is
+
+$$
+p_{\mathrm{pre}}(q,\sigma)
+=
+\mathbb{E}[P \mid S \ge s_{\mathrm{cut}}(q)]
+=
+\mathbb{E}[1 - e^{-\Lambda} \mid S \ge s_{\mathrm{cut}}(q)].
+$$
+
+Using Bayes’ rule, this can be written as
+
+$$
+p_{\mathrm{pre}}(q,\sigma)
+=
+\frac{
+\mathbb{E}\!\left[
+(1 - e^{-\Lambda})
+\left\{
+1 - \Phi\!\left(\frac{s_{\mathrm{cut}}(q)-\Lambda}{\sigma}\right)
+\right\}
+\right]
+}{
+\mathbb{E}\!\left[
+1 - \Phi\!\left(\frac{s_{\mathrm{cut}}(q)-\Lambda}{\sigma}\right)
+\right]
+}.
+$$
+
+By construction, the denominator equals $q$, so
+
+$$
+p_{\mathrm{pre}}(q,\sigma)
+=
+\frac{1}{q}
+\mathbb{E}\!\left[
+(1 - e^{-\Lambda})
+\left\{
+1 - \Phi\!\left(\frac{s_{\mathrm{cut}}(q)-\Lambda}{\sigma}\right)
+\right\}
+\right].
+$$
+
+### Mean outbreak probability in the remaining group
+
+The mean outbreak probability among the remaining populations is
+
+$$
+p_{\mathrm{rem}}(q,\sigma)
+=
+\mathbb{E}[P \mid S < s_{\mathrm{cut}}(q)].
+$$
+
+Equivalently,
+
+$$
+p_{\mathrm{rem}}(q,\sigma)
+=
+\frac{1}{1-q}
+\mathbb{E}\!\left[
+(1 - e^{-\Lambda})
+\Phi\!\left(\frac{s_{\mathrm{cut}}(q)-\Lambda}{\sigma}\right)
+\right].
+$$
+
+By construction, the overall mean is preserved:
+
+$$
+q\,p_{\mathrm{pre}}(q,\sigma)
++
+(1-q)\,p_{\mathrm{rem}}(q,\sigma)
+=
+p_{\mathrm{mean}}.
+$$
+
+
+## Overview and Process
+
+This section mirrors the logic and visualization strategy used in the
+multi-population **equal-risk** model, but extends it to the case of
+**heterogeneous outbreak risk** with **imperfect targeting**.
+The goal is to (i) explain how the optimal pre-emptive fraction
+$\alpha^*$ is determined and (ii) generate plots analogous to those in
+the equal-risk setting.
+
+## Step 1: Allocation and Mixing Parameter
+
+Let $f$ denote total vaccination capacity, expressed as a fraction of
+populations. We split this capacity between pre-emptive and reactive use:
+
+$$
+f_{\mathrm{pre}} + f_{\mathrm{react}} = f.
+$$
+
+We parameterize this split by $\alpha \in [0,1]$:
+
+$$
+f_{\mathrm{pre}} = \alpha f,
+\qquad
+f_{\mathrm{react}} = (1-\alpha)f.
+$$
+
+- $\alpha = 1$: pure pre-emptive strategy  
+- $\alpha = 0$: pure reactive strategy  
+
+Define
+$$
+q = f_{\mathrm{pre}} = \alpha f
+$$
+as the fraction of populations vaccinated pre-emptively.
+
+## Step 2: Heterogeneous Risk and Imperfect Targeting
+
+Each population has a latent outbreak hazard
+$$
+\Lambda \sim \mathrm{Exponential}(\theta),
+$$
+which induces outbreak probability
+$$
+P = 1 - e^{-\Lambda}.
+$$
+
+Targeting is based on a noisy score
+$$
+S = \Lambda + \varepsilon,
+\qquad
+\varepsilon \sim \mathcal{N}(0,\sigma^2),
+\qquad
+\varepsilon \perp \Lambda.
+$$
+
+Targeting accuracy is defined as the Spearman rank correlation
+$$
+\rho = \mathrm{corr}_{\mathrm{rank}}(\Lambda, S).
+$$
+
+For a given $\rho$, the noise level $\sigma$ is calibrated numerically
+so that the induced rank correlation equals $\rho$.
+
+## Step 3: Selection and Remaining-Group Risk
+
+Populations are ranked by $S$. The pre-emptive group consists of the top
+fraction $q$, defined by the cutoff
+$$
+S \ge s_{\mathrm{cut}}(q),
+\qquad
+\Pr(S \ge s_{\mathrm{cut}}(q)) = q.
+$$
+
+The mean outbreak probability among the **remaining** populations is
+$$
+p' = p_{\mathrm{rem}}(q,\rho)
+= \mathbb{E}[P \mid S < s_{\mathrm{cut}}(q)].
+$$
+
+Unlike the equal-risk case, $p'$ depends nonlinearly on $\alpha$ through
+$q = \alpha f$.
+
+## Step 4: Effective Reactive Capacity
+
+Among the remaining fraction $1-q = 1-\alpha f$ of populations:
+
+$$
+f_{\mathrm{react}} = (1-\alpha)f,
+\qquad
+f' = \frac{f_{\mathrm{react}}}{1-q}
+= \frac{(1-\alpha)f}{1-\alpha f}.
+$$
+
+The remaining group behaves like an equal-risk subproblem with outbreak
+probability $p'$ and effective capacity $f'$.
+
+## Step 5: Remaining-Group Cost Regimes
+
+Two regimes arise:
+
+### Reactive-rich remaining group ($f' \ge p'$)
+
+$$
+c_{\mathrm{rem,per}} = p'\,[1 + (1-r)R].
+$$
+
+### Reactive-limited remaining group ($f' < p'$)
+
+$$
+c_{\mathrm{rem,per}} = f' + (p' - f'r)R.
+$$
+
+## Step 6: Total Mixed-Strategy Cost
+
+The normalized expected cost per population is
+$$
+c_{\mathrm{mix}}^{(n)}(\alpha)
+= q + (1-q)\,c_{\mathrm{rem,per}},
+$$
+where $q = \alpha f$.
+
+Because $p'$ varies with $\alpha$, the function
+$c_{\mathrm{mix}}^{(n)}(\alpha)$ is generally **nonlinear**, unlike the
+piecewise-linear form in the equal-risk model.
+
+## Step 7: Determination of the Optimal Pre-emptive Fraction
+
+The optimal allocation is obtained by one-dimensional minimization:
+$$
+\alpha^*
+=
+\arg\min_{\alpha \in [0,1]}
+c_{\mathrm{mix}}^{(n)}(\alpha).
+$$
+
+This replaces the closed-form corner/kink solution available in the
+equal-risk case.
+
+### Visualization Strategy
+
+To parallel the equal-risk analysis, we generate:
+
+1. **Cost profiles** $c_{\mathrm{mix}}^{(n)}(\alpha)$ vs $\alpha$ with
+   a vertical line at $\alpha^*$.
+2. **Optimal $\alpha^*$ vs $r$**, holding $(R,f,p_{\mathrm{mean}},\rho)$
+   fixed.
+3. **Heatmaps of $\alpha^*(R,r)$**, for fixed $(f,p_{\mathrm{mean}},\rho)$.
+4. Optionally, **$\alpha^*$ vs $\rho$**, illustrating how declining
+   targeting accuracy shifts the optimum toward reactive strategies.
+
+This workflow preserves the interpretability of the equal-risk model
+while allowing for heterogeneous risk and imperfect targeting.
+
+#### Core simulation utilities
+```{r}
+# ---- Utility: simulate Lambda and convert to P ----
+
+sim_lambda_P <- function(M, theta, seed = 1) {
+ set.seed(seed)
+ lambda <- rexp(M, rate = theta)         # Lambda ~ Exp(theta)
+ P <- 1 - exp(-lambda)                   # P = 1 - exp(-Lambda)
+ list(lambda = lambda, P = P)
+}
+
+# ---- Given sigma, compute Spearman rank correlation between Lambda and S ----
+
+spearman_rho_given_sigma <- function(lambda, sigma, seed = 1) {
+ set.seed(seed)
+ S <- lambda + rnorm(length(lambda), mean = 0, sd = sigma)
+ suppressWarnings(cor(lambda, S, method = "spearman"))
+}
+
+# ---- Calibrate sigma so that Spearman cor(Lambda, S) ~= rho_target ----
+
+calibrate_sigma_for_rho <- function(lambda, rho_target,
+sigma_hi = 50, seed = 1) {
+
+ # monotone: rho decreases as sigma increases
+ f_obj <- function(log_sigma) {
+  sigma <- exp(log_sigma)
+  rho_hat <- spearman_rho_given_sigma(lambda, sigma, seed = seed)
+  rho_hat - rho_target
+ }
+
+ # bracket in log-space
+  
+ lo <- log(1e-6)
+ hi <- log(sigma_hi)
+  
+ # ensure bracket contains root
+  
+ f_lo <- f_obj(lo)
+ f_hi <- f_obj(hi)
+ if (f_lo < 0) return(0)        # already below target even at tiny sigma
+ if (f_hi > 0) return(exp(hi))  # still above target even at huge sigma
+  
+ uniroot(f_obj, lower = lo, upper = hi)$root |> exp()
+}
+
+# ---- Given q, compute score cutoff s_cut so that Pr(S >= s_cut) = q ----
+
+score_cutoff <- function(S, q) {
+ # top q => (1-q) quantile
+ as.numeric(stats::quantile(S, probs = 1 - q, names = FALSE, type = 7))
+}
+
+# ---- Estimate p_pre and p_rem by Monte Carlo under calibrated sigma ----
+
+estimate_pre_rem_means <- function(lambda, P, sigma, q, seed = 1) {
+ set.seed(seed)
+ S <- lambda + rnorm(length(lambda), mean = 0, sd = sigma)
+  
+  if (q <= 0) {
+    return(list(p_pre = NA_real_, p_rem = mean(P)))
+  }
+  if (q >= 1) {
+    return(list(p_pre = mean(P), p_rem = NA_real_))
+  }
+  
+  s_cut <- score_cutoff(S, q = q)
+  sel <- S >= s_cut
+  
+  p_pre <- mean(P[sel])
+  p_rem <- mean(P[!sel])
+  
+  list(p_pre = p_pre, p_rem = p_rem, s_cut = s_cut)
+}
+
 ```
 
-= p\_{\mathrm{mean}} + \rho\bigl(p\_{\mathrm{rem}}\^{\*}(q) -
-p\_{\mathrm{mean}}\bigr), \$\$
+#### Mixed cost and optimization over $\alpha$
+```{r}
+# ---- Mixed-strategy cost under Option 2 ----
+cost_mix_heterorisk <- function(alpha, f, r, R, theta, rho,
+                          lambda, P, seed_sigma = 1, seed_score = 2,
+                          sigma_cache = NULL) {
 
-```         
-  where $p_{\mathrm{pre}}^{*}(q)$ and $p_{\mathrm{rem}}^{*}(q)$ correspond to $\rho = 1$.
+  alpha <- max(0, min(1, alpha))
+  q <- alpha * f
+
+  # calibrate sigma if not provided
+
+  sigma <- if (is.null(sigma_cache)) {
+    calibrate_sigma_for_rho(lambda, rho_target = rho, 
+                            seed = seed_sigma)
+  } else {
+    sigma_cache
+  }
+
+  # estimate remaining mean risk p' = p_rem(q, rho)
   
-  - $\rho = 1$: perfect targeting  
-  - $\rho = 0$: random targeting  
-  - $0 < \rho < 1$: partial enrichment
+  pre_rem <- estimate_pre_rem_means(lambda, P, sigma = sigma, q = q, seed = seed_score)
+  p_prime <- pre_rem$p_rem
   
-  Mixed-cost formulas remain unchanged, replacing $p'$ with $p_{\mathrm{rem}}(\rho,\alpha f)$.
+  # effective reactive capacity among remaining group
+  
+  frac_rem <- 1 - q
+  f_react <- (1 - alpha) * f
+  f_prime <- f_react / frac_rem
+  
+  # pre-emptive cost (normalized by C_V)
+  
+  c_pre <- q
+
+  # remaining-group per-pop cost (same two regimes as equal-risk subproblem)
+  
+  if (f_prime < p_prime) {
+    c_rem_per <- f_prime + (p_prime - f_prime * r) * R
+  } else {
+    c_rem_per <- p_prime * (1 + (1 - r) * R)
+  }
+  
+    c_pre + frac_rem * c_rem_per
+  }
+
+# ---- Grid-search for alpha* ----
+
+opt_alpha_heterorisk <- function(f, r, R, theta, rho,
+  lambda, P,
+  grid_len = 501,
+  seed_sigma = 1, seed_score = 2) {
+  
+  # calibrate sigma once per scenario for speed/consistency
+  
+  sigma <- calibrate_sigma_for_rho(lambda, rho_target = rho, seed = seed_sigma)
+  
+  alpha_grid <- seq(0, 1, length.out = grid_len)
+  cost_grid <- sapply(alpha_grid, function(a) {
+    cost_mix_heterorisk(a, f=f, r=r, R=R, theta=theta, rho=rho,
+                  lambda=lambda, P=P, seed_sigma = seed_sigma,
+                  seed_score = seed_score, sigma_cache = sigma)
+  })
+  
+  idx <- which.min(cost_grid)
+  
+  list(alpha_star = alpha_grid[idx],
+  cost_star  = cost_grid[idx],
+  alpha_grid = alpha_grid,
+  cost_grid  = cost_grid,
+  sigma      = sigma)
+}
+
 ```
 
-As $\rho$ decreases, enrichment weakens and the optimal pre-emptive
-share $\alpha^*(\rho)$ shifts toward 0.
-
-### Visualization
-
-The functions below implement:
-
--   tail means under perfect targeting,
--   interpolation for imperfect targeting,
--   the mixed-strategy cost $c_{\mathrm{mix}}^{(n)}(\alpha)$,
--   and a grid search for $\alpha^*$.
+Plot 1 — cost profile $c_{\mathrm{mix}}^{(n)}(\alpha)$ with $\alpha^*$
 
 ```{r}
-mu_pre_star_beta1theta <- function(q, theta) {
-  1 - theta / (theta + 1) * q^(1/theta)
+# ---- choose one scenario ----
+f_val    <- 0.5
+r_val    <- 0.4
+R_val    <- 5
+p_mean   <- 0.3
+theta    <- 1 / p_mean - 1
+rho_val  <- 0.6
+
+# ---- simulate latent risks once (large M helps smooth curves) ----
+M <- 1000
+# M <- 200000
+sim <- sim_lambda_P(M = M, theta = theta, seed = 1)
+lambda <- sim$lambda
+P      <- sim$P
+
+opt <- opt_alpha_heterorisk(f=f_val, r=r_val, R=R_val, 
+                            theta=theta, rho=rho_val,
+                            lambda=lambda, P=P,
+                            grid_len = 401)
+
+df <- data.frame(alpha = opt$alpha_grid, cost = opt$cost_grid)
+alpha_star <- opt$alpha_star
+
+ggplot(df, aes(x = alpha, y = cost)) +
+  geom_line(linewidth = 1) +
+  geom_vline(xintercept = alpha_star,
+  linetype = "dashed", color = "firebrick", linewidth = 0.9) +
+  labs(
+  title = bquote(italic(p)[mean]==.(p_mean)~","~
+    italic(r)==.(r_val)~","~
+    italic(R)==.(R_val)~","~
+    italic(f)==.(f_val)~","~
+    italic(rho)==.(rho_val)),
+  x = expression("Fraction of capacity pre-emptive " ~ italic(alpha)),
+  y = expression("Normalized per-population expected cost " ~ italic(c)[mix]^(italic(n)))
+) +
+theme_light()
+```
+
+Plot 2 — $\alpha^*$ vs $r$ (fixed $R,f,p_{\mathrm{mean}},\rho$)
+```{r}
+r_grid <- seq(0, 1, by = 0.05)
+
+alpha_star_vec <- sapply(r_grid, function(r_i) {
+  opt_alpha_heterorisk(f=f_val, r=r_i, R=R_val,
+                    theta=theta, rho=rho_val,
+                    lambda=lambda, P=P,
+                    grid_len = 301)$alpha_star
+})
+
+df_ar <- data.frame(r = r_grid, alpha_star = alpha_star_vec)
+
+ggplot(df_ar, aes(x = r, y = alpha_star)) +
+  geom_line(linewidth = 1) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    title = bquote(italic(p)[mean]==.(p_mean)~","~
+                     italic(R)==.(R_val)~","~
+                     italic(f)==.(f_val)~","~
+                     italic(rho)==.(rho_val)),
+    x = expression("Reactive effectiveness " ~ italic(r)),
+    y = expression("Optimal pre-emptive fraction " ~
+                     italic(alpha)^"*")) +
+  theme_light()
+```
+
+Plot 3 — Heatmap of $\alpha^*(R,r)$ (fixed $f,p_{\mathrm{mean}},\rho$)
+
+```{r}
+r_vals <- seq(0, 1, length.out = 20)
+R_vals <- 10 ^ seq(-2, 2, length.out = 20)
+
+grid <- expand.grid(r = r_vals, R = R_vals)
+
+grid$alpha_star <- mapply(function(r_i, R_i) {
+  opt_alpha_heterorisk(f=f_val, r=r_i, R=R_i,
+                     theta=theta, rho=rho_val,
+                     lambda=lambda, P=P,
+                     grid_len = 201)$alpha_star}, grid$R, grid$r)
+
+ggplot(grid, aes(x = r, y = R, fill = alpha_star)) +
+  geom_tile() +
+  scale_y_log10() +
+    # Colorbar
+  scale_fill_viridis_c(
+    option = "viridis",
+    name = expression(italic(alpha)^"*")
+  ) +
+  labs(
+    title = bquote(italic(p)[mean]==.(p_mean)~","~
+      italic(f)==.(f_val)~","~
+      italic(rho)==.(rho_val)),
+    x = expression(italic(r)),
+    y = expression(italic(R)),
+    fill = expression(italic(alpha)^"*")
+  ) +
+  theme_light()
+
+```
+
+Plot 4 — $\alpha^*$ vs $\rho$
+
+This plot supports the qualitative statement that **as targeting worsens**
+(lower rank correlation $\rho$), the optimal pre-emptive share
+$\alpha^*(\rho)$ typically shifts toward **more reactive use** (smaller
+$\alpha^*$), all else equal.
+
+The code below implements noisy-score targeting, calibrates
+$\sigma$ to match a target Spearman rank correlation $\rho$, computes
+$\alpha^*$ by 1D grid search, and then plots $\alpha^*$ as a function of
+$\rho$.
+
+```{r, include=FALSE}
+# ---- Utility: simulate Lambda and convert to P ----
+sim_lambda_P <- function(M, theta, seed = 1) {
+  set.seed(seed)
+  lambda <- rexp(M, rate = theta)         # Lambda ~ Exp(theta)
+  P <- 1 - exp(-lambda)                   # P = 1 - exp(-Lambda)
+  list(lambda = lambda, P = P)
 }
 
-mu_rem_star_beta1theta <- function(q, theta) {
-  mu <- 1 / (1 + theta)
-  if (q <= 0) return(mu)
+# ---- Given sigma, compute Spearman rank correlation between Lambda and S ----
+spearman_rho_given_sigma <- function(lambda, sigma, seed = 1) {
+  set.seed(seed)
+  S <- lambda + rnorm(length(lambda), mean = 0, sd = sigma)
+  suppressWarnings(cor(lambda, S, method = "spearman"))
+}
+
+# ---- Calibrate sigma so that Spearman cor(Lambda, S) ~= rho_target ----
+calibrate_sigma_for_rho <- function(lambda, rho_target,
+                                    sigma_hi = 50, seed = 1) {
+  # monotone: rho decreases as sigma increases
+  f_obj <- function(log_sigma) {
+    sigma <- exp(log_sigma)
+    rho_hat <- spearman_rho_given_sigma(lambda, sigma, seed = seed)
+    rho_hat - rho_target
+  }
+
+  # bracket in log-space
+  lo <- log(1e-6)
+  hi <- log(sigma_hi)
+
+  f_lo <- f_obj(lo)
+  f_hi <- f_obj(hi)
+
+  # if already below target at tiny sigma, return ~0
+  if (f_lo < 0) return(0)
+
+  # if still above target at large sigma, return sigma_hi
+  if (f_hi > 0) return(exp(hi))
+
+  uniroot(f_obj, lower = lo, upper = hi)$root |> exp()
+}
+
+# ---- Given q, compute score cutoff s_cut so that Pr(S >= s_cut) = q ----
+score_cutoff <- function(S, q) {
+  as.numeric(stats::quantile(S, probs = 1 - q, names = FALSE, type = 7))
+}
+
+# ---- Estimate p_rem by Monte Carlo under calibrated sigma ----
+estimate_p_rem <- function(lambda, P, sigma, q, seed = 2) {
+  set.seed(seed)
+  S <- lambda + rnorm(length(lambda), mean = 0, sd = sigma)
+
+  if (q <= 0) return(mean(P))
   if (q >= 1) return(NA_real_)
-  mu_pre <- mu_pre_star_beta1theta(q, theta)
-  (mu - q * mu_pre) / (1 - q)
+
+  s_cut <- score_cutoff(S, q = q)
+  sel <- S >= s_cut
+  mean(P[!sel])
 }
 
-mu_pre_beta1theta_rho <- function(q, theta, rho) {
-  mu  <- 1 / (1 + theta)
-  mu_star <- mu_pre_star_beta1theta(q, theta)
-  mu + rho * (mu_star - mu)
-}
+# ---- Mixed-strategy cost under Option 2 ----
+cost_mix_heterorisk <- function(alpha, f, r, R, theta, rho,
+                          lambda, P,
+                          seed_sigma = 1, seed_score = 2,
+                          sigma_cache = NULL) {
 
-mu_rem_beta1theta_rho <- function(q, theta, rho) {
-  mu  <- 1 / (1 + theta)
-  mu_star <- mu_rem_star_beta1theta(q, theta)
-  mu + rho * (mu_star - mu)
-}
-
-c_mix_beta1theta <- function(alpha, f, r, R, p_mean, rho) {
-  theta <- 1 / p_mean - 1
+  alpha <- max(0, min(1, alpha))
   q <- alpha * f
-  if (q < 0 || q >= 1) return(Inf)
+  if (q >= 1) return(Inf)
+
+  sigma <- if (is.null(sigma_cache)) {
+    calibrate_sigma_for_rho(lambda, rho_target = rho, seed = seed_sigma)
+  } else sigma_cache
+
+  p_prime <- estimate_p_rem(lambda, P, sigma = sigma, q = q, seed = seed_score)
 
   frac_rem <- 1 - q
-  f_react  <- (1 - alpha) * f
-
-  mu_rem <- mu_rem_beta1theta_rho(q, theta, rho)
-
+  f_react <- (1 - alpha) * f
   f_prime <- f_react / frac_rem
-  p_prime <- mu_rem
 
   c_pre <- q
 
   if (f_prime < p_prime) {
-    c_rem_per_pop <- f_prime + (p_prime - f_prime * r) * R
+    c_rem_per <- f_prime + (p_prime - f_prime * r) * R
   } else {
-    c_rem_per_pop <- p_prime * (1 + (1 - r) * R)
+    c_rem_per <- p_prime * (1 + (1 - r) * R)
   }
-  c_rem_total <- frac_rem * c_rem_per_pop
 
-  c_pre + c_rem_total
+  c_pre + frac_rem * c_rem_per
 }
 
-opt_alpha_beta1theta <- function(f, r, R, p_mean, rho,
-                                 grid_len = 201) {
+# ---- Grid-search for alpha* ----
+opt_alpha_option2 <- function(f, r, R, theta, rho,
+                              lambda, P,
+                              grid_len = 401,
+                              seed_sigma = 1, seed_score = 2) {
+
+  sigma <- calibrate_sigma_for_rho(lambda, rho_target = rho, seed = seed_sigma)
+
   alpha_grid <- seq(0, 1, length.out = grid_len)
-  costs <- sapply(alpha_grid, function(a)
-    c_mix_beta1theta(a, f = f, r = r, R = R,
-                     p_mean = p_mean, rho = rho)
-  )
-  idx_min <- which.min(costs)
+  cost_grid <- sapply(alpha_grid, function(a) {
+    cost_mix_heterorisk(a, f=f, r=r, R=R, theta=theta, rho=rho,
+                        lambda=lambda, P=P,
+                        seed_sigma = seed_sigma,
+                        seed_score = seed_score, sigma_cache = sigma)
+  })
+
+  idx <- which.min(cost_grid)
+  list(alpha_star = alpha_grid[idx], sigma = sigma)
+}
+```
+
+```{r}
+f_val    <- 0.5
+r_val    <- 0.6
+R_val    <- 20
+p_mean   <- 0.3
+theta    <- 1 / p_mean - 1
+
+# ---- Simulate latent risks once ----
+# M <- 200000
+M <- 1000
+sim <- sim_lambda_P(M = M, theta = theta, seed = 1)
+lambda <- sim$lambda
+P      <- sim$P
+
+# ---- Compute alpha* across rho ----
+rho_grid <- seq(0, 1, by = 0.05)
+
+alpha_star_vec <- sapply(rho_grid, function(rho_i) {
+  opt_alpha_heterorisk(f=f_val, r=r_val, R=R_val, theta=theta,
+                       rho=rho_i, lambda=lambda, P=P, 
+                       grid_len = 401)$alpha_star
+})
+
+df_rho <- data.frame(rho = rho_grid, alpha_star = alpha_star_vec)
+
+# ---- Plot ----
+ggplot(df_rho, aes(x = rho, y = alpha_star)) +
+  geom_line(linewidth = 1) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    title = bquote(italic(p)[mean]==.(p_mean)~","~
+                   italic(r)==.(r_val)~","~
+                   italic(R)==.(R_val)~","~
+                   italic(f)==.(f_val)),
+    x = expression("Targeting accuracy (Spearman rank correlation) " ~ italic(rho)),
+    y = expression("Optimal pre-emptive fraction " ~ italic(alpha)^"*")
+  ) +
+  theme_light()
+```
+
+```{r}
+# # ---- Simulate Lambda and P ----
+# sim_lambda_P <- function(M, theta, seed = 1) {
+#   set.seed(seed)
+#   lambda <- rexp(M, rate = theta)         # Lambda ~ Exp(theta)
+#   P <- 1 - exp(-lambda)                   # P = 1 - exp(-Lambda)
+#   list(lambda = lambda, P = P)
+# }
+# 
+# # ---- Spearman rho(Lambda, Lambda + N(0, sigma^2)) for a given sigma ----
+# spearman_rho_given_sigma <- function(lambda, sigma, seed = 1) {
+#   set.seed(seed)
+#   S <- lambda + rnorm(length(lambda), mean = 0, sd = sigma)
+#   suppressWarnings(cor(lambda, S, method = "spearman"))
+# }
+# 
+# # ---- Calibrate sigma to match target Spearman rho ----
+# calibrate_sigma_for_rho <- function(lambda, rho_target, sigma_hi = 50, seed = 1) {
+#   f_obj <- function(log_sigma) {
+#     sigma <- exp(log_sigma)
+#     spearman_rho_given_sigma(lambda, sigma, seed = seed) - rho_target
+#   }
+# 
+#   lo <- log(1e-6)
+#   hi <- log(sigma_hi)
+# 
+#   f_lo <- f_obj(lo)
+#   f_hi <- f_obj(hi)
+# 
+#   # If already below target at tiny sigma, return ~0
+#   if (f_lo < 0) return(0)
+# 
+#   # If still above target at very large sigma, return sigma_hi
+#   if (f_hi > 0) return(exp(hi))
+# 
+#   exp(uniroot(f_obj, lower = lo, upper = hi)$root)
+# }
+# 
+# ---- Build cache of p_rem(q, rho) on a q-grid and return an interpolator ----
+build_prem_cache <- function(theta, rho,
+                             M = 200000,
+                             q_grid = seq(0, 0.99, by = 0.01),
+                             seed_lambda = 1,
+                             seed_sigma  = 2,
+                             seed_score  = 3,
+                             sigma_hi = 50) {
+
+  # simulate Lambda, P once
+  sim <- sim_lambda_P(M = M, theta = theta, seed = seed_lambda)
+  lambda <- sim$lambda
+  P <- sim$P
+  p_mean <- mean(P)
+
+  # calibrate sigma for target rho
+  sigma <- calibrate_sigma_for_rho(lambda, rho_target = rho, sigma_hi = sigma_hi, seed = seed_sigma)
+
+  # simulate S once for this (theta, rho)
+  set.seed(seed_score)
+  S <- lambda + rnorm(length(lambda), mean = 0, sd = sigma)
+
+  # sort once to get cutoffs quickly
+  o <- order(S)
+  P_sorted <- P[o]
+  n <- length(P_sorted)
+
+  # prefix sums for fast head mean (remaining group = bottom n-k)
+  csum_P <- c(0, cumsum(P_sorted))
+
+  p_rem_grid <- numeric(length(q_grid))
+
+  for (j in seq_along(q_grid)) {
+    q <- q_grid[j]
+
+    if (q <= 0) {
+      p_rem_grid[j] <- p_mean
+      next
+    }
+    if (q >= 1) {
+      p_rem_grid[j] <- NA_real_
+      next
+    }
+
+    k <- max(1, floor(q * n))      # number selected (top-k)
+    idx_cut <- n - k               # remaining are 1:idx_cut
+
+    if (idx_cut <= 0) {
+      p_rem_grid[j] <- NA_real_
+    } else {
+      p_rem_grid[j] <- (csum_P[idx_cut + 1] - csum_P[1]) / idx_cut
+    }
+  }
+
+  # interpolator (monotone cubic helps avoid wiggles)
+  p_rem_fun <- stats::splinefun(q_grid, p_rem_grid, method = "monoH.FC")
 
   list(
-    alpha_star = alpha_grid[idx_min],
-    alpha_grid = alpha_grid,
-    cost_grid  = costs
-  )
-}
-
-cost_profile_df <- function(f, r, R, p_mean, rho_vals,
-                            alpha_grid = seq(0, 1, by = 0.01)) {
-  purrr::map_dfr(rho_vals, function(rho_i) {
-    costs <- sapply(alpha_grid, function(a)
-      c_mix_beta1theta(
-        alpha   = a,
-        f       = f,
-        r       = r,
-        R       = R,
-        p_mean  = p_mean,
-        rho     = rho_i
-      )
-    )
-
-    alpha_star_i <- opt_alpha_beta1theta(
-      f      = f,
-      r      = r,
-      R      = R,
-      p_mean = p_mean,
-      rho    = rho_i
-    )$alpha_star
-
-    tibble::tibble(
-      alpha      = alpha_grid,
-      cost       = costs,
-      rho        = rho_i,
-      alpha_star = alpha_star_i
-    )
-  })
-}
-```
-
-Example scan across parameters
-
-```{r}
-R_vals   <- c(5, 20, 50)
-r_vals   <- c(0.3, 0.6, 0.9)
-f_vals   <- c(0.1, 0.3, 0.6)
-p_vals   <- c(0.1, 0.3, 0.6)
-rho_vals <- c(0, 0.5, 1.0)
-
-param_grid <- expand.grid(
-  R = R_vals,
-  r = r_vals,
-  f = f_vals,
-  p_mean = p_vals,
-  rho = rho_vals,
-  KEEP.OUT.ATTRS = FALSE
-)
-
-results <- param_grid %>%
-  dplyr::mutate(
-    opt = purrr::pmap(
-      list(f, r, R, p_mean, rho),
-      ~ opt_alpha_beta1theta(
-        f = ..1, r = ..2, R = ..3,
-        p_mean = ..4, rho = ..5,
-        grid_len = 201
-      )
-    ),
-    alpha_star = purrr::map_dbl(opt, "alpha_star")
-  )
-```
-
-Cost profiles and the $\alpha^*$ by $\rho$:
-
-```{r}
-f_val      <- 0.3
-r_val      <- 0.6
-R_val      <- 20
-p_mean_val <- 0.4
-
-# Title with italic symbols
-
-title_expr <- bquote(
-  "Mixed strategy cost vs " * alpha ~
-  "(" *
-    italic(f) == .(f_val) * "," ~
-    italic(r) == .(r_val) * "," ~
-    italic(R) == .(R_val) * "," ~
-    italic(p)[mean] == .(p_mean_val) *
-  ")"
-)
-
-# title_expr <- bquote(
-#   "Mixed strategy cost vs " * alpha ~
-#   "(" *
-#     italic(f) == .(f_val) * "," ~
-#     italic(r) == .(r_val) * "," ~
-#     italic(R) == .(R_val) * "," ~
-#     italic(p)[mean] == .(p_mean_val) *
-#   ")"
-# )
-
-rho_vals <- c(1, 0.5, 0)
-
-df_cost <- 
-  cost_profile_df(
-    f        = f_val,
-    r        = r_val,
-    R        = R_val,
-    p_mean   = p_mean_val,
-    rho_vals = rho_vals
-  ) |>
-  dplyr::mutate(
-    rho_lab = factor(
-    rho,
-      levels = rho_vals,
-      labels = paste0("italic(rho)==", rho_vals)
-    )
-  )
-
-# Vertical-line positions (one per facet)
-
-df_vline <- df_cost |>
-dplyr::distinct(rho_lab, alpha_star)
-
-# Label positions for α*
-
-df_label <- df_cost |>
-  dplyr::group_by(rho_lab) |>
-  dplyr::summarise(
-    alpha_star = dplyr::first(alpha_star),
-    y          = max(cost, na.rm = TRUE),
-    .groups    = "drop"
-)
-
-
-axis_title_size <- 18 # axis label size
-axis_text_size <- 14 # tick label size
-facet_title_size <- 16 # facet label size
-
-plt <- ggplot(df_cost, aes(x = alpha, y = cost)) +
-  geom_line(linewidth = 1) +
-  geom_vline(
-    data     = df_vline,
-    aes(xintercept = alpha_star),
-    linetype = "dashed",
-    color    = "firebrick",
-    linewidth = 0.9
-  ) +
-  geom_text(
-    data  = df_label,
-    aes(x = alpha_star, y = max(y)),
-    label = "alpha^'*'",
-    parse = TRUE,
-    hjust = -0.1,        # nudges label right of the line
-    vjust = 1.2,         # slightly above the top
-    color = "firebrick",
-    size  = 4
-  ) +
-  facet_wrap(~ rho_lab, labeller = label_parsed) +
-  labs(
-    title = title_expr,
-    x     = expression("Fraction of capacity pre-emptive " * alpha),
-    y     = expression(italic(c)[mix]^"(n)")
-  ) +
-  scale_x_continuous(
-    breaks = seq(0, 1, by = 0.25),
-    labels = function(x) sub(".00$", "", sprintf("%.2f", x))
-  )+
-  theme_light(base_size=14)+
-  theme(
-    axis.title.x = element_text(size = axis_title_size),
-    axis.title.y = element_text(size = axis_title_size),
-    axis.text.x  = element_text(size = axis_text_size),
-    axis.text.y  = element_text(size = axis_text_size),
-    strip.text   = element_text(size = facet_title_size)
-  )
-
-plt
-```
-
-3D surface of $\alpha^*$
-
-```{r}
-f_val    <- 0.3          # vaccination capacity fraction
-theta    <- 4            # Beta(1, theta) heterogeneity (choose as desired)
-rho_val  <- 0.6          # targeting accuracy rho
-p_mean   <- 1 / (1 + theta)
-
-r_vals   <- seq(0, 1, length.out = 100)
-R_vals   <- 10 ^ seq(-2, 2, length.out = 100)
-
-alpha_star_multi <- function(R, r, f, p_mean, rho) {
-  opt_alpha_beta1theta(
-    f      = f,
-    r      = r,
-    R      = R,
+    theta = theta,
+    rho   = rho,
+    sigma = sigma,
     p_mean = p_mean,
-    rho    = rho,
-    grid_len = 301
-  )$alpha_star
+    q_grid = q_grid,
+    p_rem_grid = p_rem_grid,
+    p_rem_fun  = p_rem_fun
+  )
 }
 
-alpha_mat <- outer(
-  R_vals, r_vals,
-  Vectorize(function(R, r) {
-    alpha_star_multi(
-      R      = R,
-      r      = r,
-      f      = f_val,
-      p_mean = p_mean,
-      rho    = rho_val
-    )
-  })
-)
+# ---- Mixed cost using cached p_rem interpolator ----
+cost_mix_heterorisk_cached <- function(alpha, f, r, R, cache) {
 
-alpha_mat_t <- t(alpha_mat)
+  alpha <- max(0, min(1, alpha))
+  q <- alpha * f
+  if (q >= 1) return(Inf)
 
-camera <- list(eye = list(x = 0.1, y = 0.08, z = 0.1))
-titlefontsize <- 34
-tickfontsize  <- 17
+  # remaining mean outbreak probability from cache
+  p_prime <- cache$p_rem_fun(q)
 
-fig_alpha_star_multi <-
-  plot_ly() %>%
-  add_surface(
-    x = R_vals,
-    y = r_vals,
-    z = alpha_mat_t,
-    colorscale = "Viridis",
-    showscale = TRUE,
-    colorbar = list(
-      title = list(
-        text = "<i>α</i><sup>*</sup>",
-        font = list(size = titlefontsize)
-      )
-    )
-  ) %>%
-  layout(
-    scene = list(
-      camera = camera,
-      yaxis = list(
-        title = "<i>r</i>",
-        titlefont = list(size = titlefontsize),
-        tickfont  = list(size = tickfontsize)
-      ),
-      xaxis = list(
-        title    = "<i>R</i> = C<sub>I</sub>/C<sub>V</sub>",
-        type     = "log",
-        tickvals = c(0.01, 0.1, 1, 10, 100),
-        ticktext = c("0.01", "0.1", "1", "10", "100"),
-        titlefont = list(size = titlefontsize),
-        tickfont  = list(size = tickfontsize)
-      ),
-      zaxis = list(
-        title    = "<i>α</i><sup>*</sup>",
-        titlefont = list(size = titlefontsize),
-        tickfont  = list(size = tickfontsize)
-      )
-    )
-  )
+  frac_rem <- 1 - q
+  f_react  <- (1 - alpha) * f
+  f_prime  <- f_react / frac_rem
 
-fig_alpha_star_multi
+  c_pre <- q
+
+  if (f_prime < p_prime) {
+    c_rem_per <- f_prime + (p_prime - f_prime * r) * R
+  } else {
+    c_rem_per <- p_prime * (1 + (1 - r) * R)
+  }
+
+  c_pre + frac_rem * c_rem_per
+}
+
+# ---- Optimize alpha* using cached cost (grid search; fast) ----
+opt_alpha_heterorisk_cached <- function(f, r, R, cache, grid_len = 801) {
+  alpha_grid <- seq(0, 1, length.out = grid_len)
+  cost_grid <- sapply(alpha_grid, function(a) cost_mix_heterorisk_cached(a, f=f, r=r, R=R, cache=cache))
+  idx <- which.min(cost_grid)
+  list(alpha_star = alpha_grid[idx],
+       cost_star  = cost_grid[idx],
+       alpha_grid = alpha_grid,
+       cost_grid  = cost_grid)
+}
+
+# ---- Example: build cache once, then compute alpha* quickly ----
+f_val    <- 0.5
+r_val    <- 0.6
+R_val    <- 20
+p_mean   <- 0.3
+theta    <- 1 / p_mean - 1
+rho_val  <- 0.6
+
+cache <- build_prem_cache(theta = theta, rho = rho_val,
+                          M = 1000,
+                          q_grid = seq(0, 0.99, by = 0.01))
+
+opt <- opt_alpha_heterorisk_cached(f=f_val, r=r_val, R=R_val, 
+                               cache=cache, grid_len = 801)
+
+df_cost <- data.frame(alpha = opt$alpha_grid, cost = opt$cost_grid)
+
+ggplot(df_cost, aes(x = alpha, y = cost)) +
+  geom_line(linewidth = 1) +
+  geom_vline(xintercept = opt$alpha_star, linetype = "dashed", 
+             color = "firebrick", linewidth = 0.9) +
+  labs(
+    title = bquote(italic(p)[mean]==.(p_mean)~","~
+                   italic(r)==.(r_val)~","~
+                   italic(R)==.(R_val)~","~
+                   italic(f)==.(f_val)~","~
+                   italic(rho)==.(rho_val)),
+    x = expression("Fraction of capacity pre-emptive " ~ italic(alpha)),
+    y = expression("Normalized expected cost " ~ italic(c)[mix]^(italic(n)))
+  ) +
+  theme_light()
 ```
 
-### First-order conditions for $\alpha^*$
 
-Optimal $\alpha^*$ satisfies: $$
-\alpha^* = \arg\min_{\alpha \in [0,1]} c_{\mathrm{mixed}}^{(n)}(\alpha;\rho),
-$$ considering both regime boundaries and interior solutions.
-
-Let $$
-p'(\alpha) := \mu_{\mathrm{rem}}(\rho,\alpha f),
-\qquad
-p'_{\alpha}(\alpha) := \frac{d}{d\alpha} p'(\alpha).
-$$
-
-#### 1. Interior optimum in the reactive-limited regime
-
-The derivative is: $$
-  \frac{\partial}{\partial \alpha}
-c_{\mathrm{mix}}^{(n)}(\alpha;\rho)
-= R \Bigl[ f r - f p'(\alpha)
-+ (1-\alpha f)\, p'_{\alpha}(\alpha) \Bigr].
-$$
-
-Setting to zero: \$\$
-
-f r - f p'(\alpha\_\*) + (1-\alpha\*\* f), p'\*{\alpha}(\alpha\_\*) = 0.
-
-\$\$
-
-Equivalently, define the effective risk threshold $$
-  p_{\mathrm{eff}}^{\mathrm{RL}}(\alpha;\rho,\theta)
-= p'(\alpha)
-- \frac{1-\alpha f}{f}\, p'_{\alpha}(\alpha).
-$$
-
-Then interior optimality implies: \$\$
-
-r = p\_{\mathrm{eff}}\^{\mathrm{RL}}(\alpha\_\*;\rho,\theta).
-
-\$\$
-
-#### 2. Interior optimum in the reactive-rich regime
-
-Derivative: $$
-  \frac{\partial}{\partial \alpha}
-c_{\mathrm{mix}}^{(n)}(\alpha;\rho)
-= f +
-  \Bigl[-f p'(\alpha)
-+ (1-\alpha f) p'_{\alpha}(\alpha)\Bigr]
-\bigl[1 + (1-r)R\bigr].
-$$
-
-Interior optimum satisfies: $$
-    f + \Bigl[-f p'(\alpha_*)
-+ (1-\alpha_* f) p'_{\alpha}(\alpha_*)\Bigr]
-    \bigl[1 + (1-r)R\bigr] = 0.
-$$
-
-This may be written as: $$
-  r = p_{\mathrm{eff}}^{\mathrm{RR}}(\alpha_*;\rho,\theta,R).
-$$
-
-#### Corner solutions and global regimes
-
-As in the equal-risk case, optimal $\alpha_*$ often occurs at
-boundaries:
-
--   **Pure reactive**: $\alpha_* = 0$
--   **Pure pre-emptive**: $\alpha_* = 1$
--   **Boundary between regimes**: $\alpha = \bar{\alpha}$ solving
-    $f'(\alpha) = p'(\alpha)$
--   **Interior**: solution to the derivative equations above
-
-#### Conditions:
-
-##### Global scarce-capacity regime
-
-If $$
-  f'(\alpha) < p'(\alpha) \quad \forall \alpha,
-$$ the entire domain is reactive-limited, the derivative has the form
-
-$$
-  \frac{\partial c_{\mathrm{mix}}^{(n)}}{\partial \alpha}
-= f R \bigl[r - p_{\mathrm{eff}}^{\mathrm{RL}}(\alpha)\bigr].
-$$
-
-Thus: - If $r > p_{\mathrm{eff}}^{\mathrm{RL}}(\alpha)$ for all
-$\alpha$: **pure reactive**, $\alpha_* = 0$. - If
-$r < p_{\mathrm{eff}}^{\mathrm{RL}}(\alpha)$ for all $\alpha$: **pure
-pre-emptive**, $\alpha_* = 1$. - Otherwise: **unique interior**
-$\alpha_*$ solving
-$r = p_{\mathrm{eff}}^{\mathrm{RL}}(\alpha_*;\rho,\theta)$.
-
-##### Global abundant-capacity regime
-
-If $$
-  f'(\alpha) \ge p'(\alpha) \quad \forall \alpha,
-  $$ then the derivative equality $$
-  \frac{\partial c_{\mathrm{mix}}^{(n)}}{\partial \alpha} = 0
-  $$ gives the interior condition $$
-  r = p_{\mathrm{eff}}^{\mathrm{RR}}(\alpha_*;\rho,\theta,R).
-$$
-
-Corner solutions occur if the derivative’s sign is constant.
-
-#### Intermediate capacity regime
-
-If $f'(\alpha)$ crosses $p'(\alpha)$, candidates for $\alpha^*$ include:
-
--   $\alpha = 0$
--   $\alpha = 1$
--   $\alpha = \bar{\alpha}$ where $$
-      f'(\bar{\alpha}) = p'(\bar{\alpha})
-    $$
--   any interior root of the FOCs in the appropriate regime
-
-The optimal solution is whichever yields the smallest
-$c_{\mathrm{mixed}}^{(n)}$.
-
-#### Special cases
-
-##### 1. No targeting ($\rho = 0$)
-
-Then $p'(\alpha) = \mu$ and $p'_\alpha(\alpha) = 0$. The heterogeneous
-model collapses to the equal-risk model with $p=\mu$.
-
-In the reactive-limited regime: $$
-  \frac{\partial c_{\mathrm{mix}}^{(n)}}{\partial \alpha}
-= fR(r - \mu),
-$$ a constant.
-
-Thus: $$
-  \alpha_* =
-  \begin{cases}
-0, & r > \mu,\\
-1, & r < \mu,\\
-\text{any } \alpha, & r = \mu.
-\end{cases}
-$$
-
-In the reactive-rich regime, the cost is linear in $\alpha$ and the
-solution depends on $R$ exactly as in the equal-risk abundant-capacity
-case.
-
-#### 2. Perfect targeting (\*\*$\rho = 1$) with $\mathrm{Beta}(1,2)$
-
-For $\theta = 2$, $$
-  \mu_{\mathrm{rem}}^*(q) = 
-  \frac{\frac{1}{3} - q + \frac{2}{3} q^{3/2}}{1 - q}.
-$$
-
-In the reactive-limited regime, the mixed cost becomes: $$
-  c_{\mathrm{mixed}}^{(n)}(q)
-= f + \frac{R}{3}(2q^{3/2} - 3q - 3r(f-q) + 1),
-\qquad q = \alpha f.
-$$
-
-Differentiating: $$
-  \frac{d c}{d q} = 0
-\quad\Longrightarrow\quad
-\sqrt{q_*} + r - 1 = 0.
-$$
-
-Thus: \$\$ q\_\*\^{\mathrm{RL}} = (1-r)\^2, \qquad
-\alpha\_\*\^{\mathrm{RL}} = \frac{(1-r)^2}{f},
-
-\$\$
-
-subject to regime consistency ($f'(\alpha_*) < p'(\alpha_*)$) and
-$0 \le \alpha_* \le 1$.
-
-This illustrates how strong heterogeneity and perfect targeting yield
-explicit closed forms. For general $\theta$ and $\rho$, $\alpha_*$
-satisfies the implicit analytic FOCs above.
-
-#### Summary
-
--   Heterogeneity and targeting modify the effective mean risk in the
-    remaining group: $$
-      p'(\alpha;\rho,\theta) = \mu_{\mathrm{rem}}(\rho,\alpha f).
-    $$
-
--   The mixed cost remains piecewise analytic; $\alpha^*$ must be one
-    of:
-
-    -   $0$ (pure reactive),
-    -   $1$ (pure pre-emptive),
-    -   the regime boundary $\bar{\alpha}$ where
-        $f'(\alpha)=p'(\alpha)$,
-    -   an interior solution of the derivative conditions.
-
--   **No targeting (**$\rho=0$): collapses exactly to the equal-risk
-    case.
-
--   **Perfect targeting and fatter tails:** increase the value of
-    pre-emptive use; interior optimum may be explicit (e.g., $(1-r)^2/f$
-    for $\mathrm{Beta}(1,2)$).
-
-## Beta mixture risk distribution for fatter tails
-
-To allow **fatter right tails** while remaining analytically tractable,
-we model the outbreak probability $p_i$ as a **mixture of two Beta
-components**:
-
--   a **baseline** component with mostly low–to–moderate risk, and
--   a **high–risk** component that concentrates more mass near
-    $p_i \approx 1$.
-
-Formally, let $$
-  p_i \sim (1-\omega)\,\mathrm{Beta}(1,\theta_{\mathrm{L}})
-+ \omega\,\mathrm{Beta}(1,\theta_{\mathrm{H}}),
-\qquad
-0 \le \omega \le 1,\quad
-0 < \theta_{\mathrm{H}} < \theta_{\mathrm{L}}.
-$$
-
-Here: - $\omega$ is the **mixture weight** for the high–risk
-component, - $\theta_{\mathrm{L}}$ controls the baseline risk
-distribution (mostly lower risks), - $\theta_{\mathrm{H}}$ controls the
-high–risk tail (smaller $\theta_{\mathrm{H}}$ $\Rightarrow$ more mass
-near 1).
-
-The resulting density on $(0,1)$ is $$
-  f(p)
-= (1-\omega)\,\theta_{\mathrm{L}}(1-p)^{\theta_{\mathrm{L}}-1}
-+ \omega\,\theta_{\mathrm{H}}(1-p)^{\theta_{\mathrm{H}}-1},
-\qquad 0 < p < 1.
-$$
-
-The mean outbreak probability remains explicit: $$
-  \mu := \mathbb{E}[p_i]
-= (1-\omega)\,\frac{1}{1+\theta_{\mathrm{L}}}
-+ \omega\,\frac{1}{1+\theta_{\mathrm{H}}}.
-$$
-
-If we wish to parameterize the model by a target mean
-$p_{\mathrm{mean}}$ and a “tail–heaviness” configuration
-$(\omega,\theta_{\mathrm{H}})$, we can set $$
-  p_{\mathrm{mean}} = \mu
-\quad\Longrightarrow\quad
-\frac{1}{1+\theta_{\mathrm{L}}}
-= \frac{p_{\mathrm{mean}} - \omega/(1+\theta_{\mathrm{H}})}{1-\omega},
-$$ which yields $$
-  \theta_{\mathrm{L}}
-= \frac{1-\omega}{p_{\mathrm{mean}} - \dfrac{\omega}{1+\theta_{\mathrm{H}}}} - 1,
-$$ provided $p_{\mathrm{mean}} > \omega/(1+\theta_{\mathrm{H}})$ so that
-the baseline component is well–defined.
-
-#### Tail selection under perfect ranking
-
-Under perfect targeting ($\rho = 1$), we again vaccinate the
-highest–risk fraction $$
-  q = f_{\mathrm{pre}} = \alpha f
-$$ of populations. There exists a threshold $t(q)$ such that $$
-  \Pr(p_i \ge t(q)) = q.
-$$ In the mixture model, $$
-  \Pr(p_i \ge t)
-= (1-\omega)(1-t)^{\theta_{\mathrm{L}}}
-+ \omega(1-t)^{\theta_{\mathrm{H}}},
-$$ so $t(q)$ is defined implicitly by $$
-  q
-= (1-\omega)\bigl(1-t(q)\bigr)^{\theta_{\mathrm{L}}}
-+ \omega\bigl(1-t(q)\bigr)^{\theta_{\mathrm{H}}}.
-$$
-
-There is generally no closed–form for $t(q)$, but it is
-**one–dimensional and smooth**, so $t(q)$ can be obtained numerically
-for any given $(\omega,\theta_{\mathrm{L}},\theta_{\mathrm{H}})$.
-
-Conditional means in the pre–emptive and remaining groups are still
-analytically expressible because each component is Beta:
-
--   Pre–emptive (top–$q$) group:
-
-$$
-  \mu_{\mathrm{pre}}(q)
-= \mathbb{E}[p_i \mid p_i \ge t(q)]
-= \frac{\displaystyle \int_{t(q)}^{1} p\,f(p)\,\mathrm{d}p}{q},
-$$ - Remaining group:
-
-$$
-  \mu_{\mathrm{rem}}(q)
-= \mathbb{E}[p_i \mid p_i < t(q)]
-= \frac{\displaystyle \int_{0}^{t(q)} p\,f(p)\,\mathrm{d}p}{1-q}.
-$$
-
-Each integral decomposes into a weighted sum of Beta–type integrals such
-as $$
-  \int p(1-p)^{\theta_k-1}\,\mathrm{d}p,
-\qquad k \in \{\mathrm{L},\mathrm{H}\},
-$$ which have simple closed forms in terms of powers of $(1-p)$.
-
-Setting $q = \alpha f$ as before, we obtain $$
-  \mu_{\mathrm{pre}}(\alpha f), \qquad
-\mu_{\mathrm{rem}}(\alpha f),
-$$ and plug these into the same mixed–strategy cost expressions as in
-the $\mathrm{Beta}(1,\theta)$ case.
-
-#### Mixed–strategy cost
-
-Let $f_{\mathrm{pre}} = \alpha f$ and $f_{\mathrm{react}} = (1-\alpha)f$
-as before. In the heterogeneous mixture setting:
-
--   the **pre–emptive cost component** is still
-
-$$
-  c_{\mathrm{pre\text{-}part}}^{(n)}(\alpha) = f_{\mathrm{pre}} = \alpha f,
-$$
-
--   the **remaining group** has mean risk $$
-    p' = \mu_{\mathrm{rem}}(\alpha f),
-    $$ and effective reactive capacity
-
-$$
-    f' = \frac{f_{\mathrm{react}}}{1-f_{\mathrm{pre}}}
-= \frac{(1-\alpha)f}{1-\alpha f}.
-$$
-
-We then reuse the equal–risk formulas on the remaining group:
-
--   If $f' < p'$ (reactive–limited among remaining populations),
-
-$$
-  c_{\mathrm{mixed}}^{(n)}(\alpha)
-= f + R\Bigl[(1-\alpha f)\,\mu_{\mathrm{rem}}(\alpha f)
-             - (1-\alpha)f r\Bigr].
-$$ - If $f' \ge p'$ (reactive–rich among remaining populations),
-
-$$
-  c_{\mathrm{mixed}}^{(n)}(\alpha)
-= \alpha f + (1-\alpha f)\,\mu_{\mathrm{rem}}(\alpha f)\bigl[1 + (1-r)R\bigr].
-$$
-
-As in the single–Beta case, the **optimal pre–emptive fraction**
-
-$$
-  \alpha^* = \arg\min_{0 \le \alpha \le 1} c_{\mathrm{mix}}^{(n)}(\alpha)
-$$
-
-characterizes the best split of capacity between pre–emptive and
-reactive use. The mixture mainly changes the mapping
-
-$$
-  \alpha \;\mapsto\; \mu_{\mathrm{rem}}(\alpha f)
-$$
-
-by enriching the high–risk tail through $(\omega,\theta_{\mathrm{H}})$,
-typically pushing $\alpha^*$ upward (i.e., making pre–emptive
-vaccination more attractive) when a small subset of populations carries
-substantially higher outbreak risk.
-
+## Plot 5 - $\alpha^*$ vs $\rho$ 
+
+Once caching is in place, the expensive work happens only in
+`build_prem_cache()` (once per $\rho$). Computing $\alpha^*$ then
+becomes cheap.
+
+```{r}
+# ---- Fixed parameters for the scan ----
+f_val    <- 0.5
+r_val    <- 0.6
+R_val    <- 20
+p_mean   <- 0.3
+theta    <- 1 / p_mean - 1
+
+rho_grid <- seq(0, 1, by = 0.05)
+
+alpha_star_vec <- sapply(rho_grid, function(rho_i) {
+  cache_i <- build_prem_cache(theta = theta, rho = rho_i,
+                              M = 1000,
+                              q_grid = seq(0, 0.99, by = 0.01),
+                              seed_lambda = 1,
+                              seed_sigma  = 2,
+                              seed_score  = 3)
+  opt_i <- opt_alpha_heterorisk_cached(f=f_val, r=r_val, R=R_val, cache=cache_i, grid_len = 801)
+  opt_i$alpha_star
+})
+
+df_rho <- data.frame(rho = rho_grid, alpha_star = alpha_star_vec)
+
+ggplot(df_rho, aes(x = rho, y = alpha_star)) +
+  geom_line(linewidth = 1) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    title = bquote(italic(p)[mean]==.(p_mean)~","~
+                   italic(r)==.(r_val)~","~
+                   italic(R)==.(R_val)~","~
+                   italic(f)==.(f_val)),
+    x = expression("Targeting accuracy (Spearman rank correlation) " ~ italic(rho)),
+    y = expression("Optimal pre-emptive fraction " ~ italic(alpha)^"*")
+  ) +
+  theme_light()
+```
 ## References
