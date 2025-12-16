@@ -1,7 +1,7 @@
 ---
 title: "To Wait or To Act? Optimizing Reactive vs. Pre-emptive Vaccination Strategies"
 author: "Jong-Hoon Kim"
-date: "2025-06-27"
+date: "2025-12-16"
 format:
   html:
     toc: true
@@ -1539,23 +1539,19 @@ ggplot(df_costs_all,
 
 ## Multiple populations with equal risk and a mixed strategy
 
-We consider $n$ independent populations. Each population experiences an outbreak with probability $p$ (equal risk across populations). A central stockpile can fund vaccination campaigns in at most a fraction $0 < f \le 1$ of populations (i.e., $fn$ campaigns total). Campaigns can be deployed **pre-emptively** (before observing outbreaks) and/or **reactively** (only if an outbreak occurs).
-
-We study the large-$n$ limit so that population fractions are deterministic.
+We extend the multi-population model by allowing a fraction $0 < \alpha \leq 1$ of the vaccines $f$ (expressed as a fraction of the population) to be used pre-emptively, while the remaining $(1 - \alpha) f$ are used reactively.
 
 ### Strategy parameterization
 
-Let $f_{\mathrm{pre}}$ be the fraction vaccinated pre-emptively and $f_{\mathrm{react}}$ the fraction reserved for reactive use. The capacity constraint is
-$$
-f_{\mathrm{pre}} + f_{\mathrm{react}} = f.
-$$
+Let $f_{\mathrm{pre}}$ be the fraction vaccinated pre-emptively and $f_{\mathrm{react}}$ the fraction reserved for reactive use. 
 
 Parameterize by a mixing weight $\alpha \in [0,1]$:
 
   - $f_{\mathrm{pre}} = \alpha f$
   - $f_{\mathrm{react}} = (1-\alpha)f$
+  - $f_{\mathrm{pre}} + f_{\mathrm{react}} = f$
 
-Thus $\alpha=1$ is **pure pre-emptive** and $\alpha=0$ is **pure reactive**.
+Thus $\alpha=1$ is pure pre-emptive and $\alpha=0$ is pure reactive.
 
 ### Cost model
 
@@ -1572,12 +1568,12 @@ $$
 
 Among the non-pre-emptively vaccinated fraction $(1-\alpha f)$, the expected outbreak fraction is $p(1-\alpha f)$, while reactive capacity is $(1-\alpha)f$. Two regimes arise:
 
-- **Reactive-rich** (enough reactive campaigns to cover all outbreaks among the non-pre-emptive group):
+  - Reactive-rich (enough reactive campaigns to cover all outbreaks among the non-pre-emptive group):
 $$
 (1-\alpha)f \;\ge\; p(1-\alpha f).
 $$
 
-- **Reactive-limited** (not enough reactive campaigns):
+  - Reactive-limited (not enough reactive campaigns):
 $$
 (1-\alpha)f \;<\; p(1-\alpha f).
 $$
@@ -1633,9 +1629,10 @@ $$
 
 ### Geometry in $\alpha$ and candidate optima
 
-In **both** regimes, $c_{\mathrm{mixed}}^{(n)}(\alpha)$ is affine (linear + constant) in $\alpha$. Therefore:
-- within each regime, the minimizer is attained at a **boundary** (a corner), and
-- the only interior candidate is the **kink** where the regime switches.
+In both regimes, $c_{\mathrm{mixed}}^{(n)}(\alpha)$ is affine (linear + constant) in $\alpha$. Therefore: 
+
+  - within each regime, the minimizer is attained at a boundary, and
+  - the only interior candidate is the kink where the regime switches.
 
 Thus the global optimizer over $\alpha \in [0,1]$ satisfies
 $$
@@ -1657,7 +1654,7 @@ If $f \le p$, then $\alpha_c \le 0$ and the reactive-rich regime is not attainab
 
 ### Closed-form optimal strategy $\alpha^*$
 
-Let $\alpha^*$ denote the optimal fraction of capacity allocated to **pre-emptive** vaccination.
+Let $\alpha^*$ denote the optimal fraction of capacity allocated to pre-emptive vaccination.
 
 #### 1) Scarce capacity: $f \le p$
 
@@ -1679,12 +1676,16 @@ $$
 
 Now $\alpha_c \in (0,1)$ is feasible.
 
-- If $r < p$, the reactive-limited cost decreases with $\alpha$, so $\alpha^*=1$ (pure pre-emptive).
-- If $r > p$, compare the two corners $\alpha=0$ (pure reactive) and $\alpha=\alpha_c$ (largest feasible pre-emptive share while keeping the remaining group reactive-rich). The switching threshold is
+  - If $r < p$, the reactive-limited cost decreases with $\alpha$, so $\alpha^*=1$ (pure pre-emptive).
+  - If $r > p$, compare the two corners $\alpha=0$ (pure reactive) and $\alpha=\alpha_c$ (largest feasible pre-emptive share while keeping the remaining group reactive-rich). 
+  
+The switching threshold is
 $$
 R_{\mathrm{thr}} = \frac{1-p}{p(1-r)}.
 $$
+
 Then
+
 $$
 \alpha^* =
 \begin{cases}
@@ -1694,9 +1695,9 @@ $$
 \end{cases}
 $$
 
-**Interpretation of $\alpha_c$.** $\alpha_c$ is **not** found by minimizing a smooth function; it is the **feasibility limit** for staying reactive-rich among the remaining populations. It is the largest pre-emptive share such that the remaining reactive stockpile can still cover all expected outbreaks in the non-pre-emptive group.
+$\alpha_c$ is not found by minimizing a smooth function; it is the feasibility limit for staying reactive-rich among the remaining populations. It is the largest pre-emptive share such that the remaining reactive stockpile can still cover all expected outbreaks in the non-pre-emptive group.
 
-**Interpretation of $R_{\mathrm{thr}}$.** When $r>p$ and $f>p$, the choice is between:
+When $r>p$ and $f>p$, the choice is between:
 
   - vaccinate reactively only (saving vaccines when no outbreak occurs), versus
   - vaccinate some pre-emptively to guarantee reactive-richness for the remainder.
