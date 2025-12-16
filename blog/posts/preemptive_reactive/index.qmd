@@ -1326,347 +1326,6 @@ ggplot(df_heatmap_n, aes(x = R, y = r)) +
   )
 ```
 
-$f=0.5$
-```{r, include=FALSE}
-# Parameters
-f_val <- 0.5      # capacity fraction
-p_val <- 0.6      # mean outbreak probability (not directly used here)
-
-r_vals <- seq(0, 1, length.out = 200)
-R_vals <- 10 ^ seq(-2, 2, length.out = 200)
-
-# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
-df_heatmap_n <- expand.grid(R = R_vals, r = r_vals) %>%
-  mutate(
-    p_thr_n = mapply(
-      function(R_single, r_single) {
-        p_star_multi(R = R_single, r = r_single, f = f_val)
-      },
-      R, r
-    )
-  )
-
-# --- 2. Multiple boundary curves for p_thr^(n) ---
-p_levels <- seq(0.2, 0.7, by = 0.1)
-
-df_boundary_n <- lapply(p_levels, function(p_target) {
-  tmp <- lapply(R_vals, function(RR) {
-    f_root <- function(r) p_star_multi(R = RR, r = r, f = f_val) - p_target
-    
-    sol <- tryCatch(
-      uniroot(f_root, interval = c(0, 1)),
-      error = function(e) NULL
-    )
-    
-    if (is.null(sol)) return(NULL)
-    
-    data.frame(
-      R        = RR,
-      r        = sol$root,
-      p_target = p_target
-    )
-  }) %>% bind_rows()
-  
-  tmp
-}) %>% bind_rows()
-
-# --- 3. Midpoints along each boundary curve for annotation ---
-df_boundary_labels <- df_boundary_n %>%
-  group_by(p_target) %>%
-  slice(round(n() / 2)) %>%
-  ungroup() %>%
-  mutate(
-    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
-  )
-
-# --- 4. Region labels (optional) ---
-R_pre  <- 10
-r_pre  <- 0.2
-R_reac <- 10
-r_reac <- 0.8
-
-df_labels_n <- data.frame(
-  R   = c(R_pre,        R_reac),
-  r   = c(r_pre,        r_reac),
-  lab = c("pre-emptive", "reactive")
-)
-
-# --- 5. Heatmap with multiple boundary lines (all same style) ---
-ggplot(df_heatmap_n, aes(x = R, y = r)) +
-  # Heatmap
-  geom_raster(aes(fill = p_thr_n)) +
-  
-  # Boundary curves (same color, no legend)
-  geom_line(
-    data = df_boundary_n,
-    aes(x = R, y = r, group = p_target),
-    color = "firebrick",
-    linewidth = 0.8
-  ) +
-  
-  # Line labels
-  geom_text(
-    data  = df_boundary_labels,
-    aes(x = R, y = r, label = label),
-    color = "firebrick",
-    size  = 3.5,
-    vjust = -0.3,
-    parse = TRUE
-  ) +
-  
-  # Region labels
-  geom_text(
-    data = df_labels_n,
-    aes(label = lab),
-    color = "white",
-    size = 4
-  ) +
-  
-  # Axes
-  scale_x_log10(
-    breaks = c(0.01, 0.1, 1, 10, 100),
-    labels = c("0.01", "0.1", "1", "10", "100"),
-    expand = c(0, 0)
-  ) +
-  scale_y_continuous(expand = c(0, 0)) +
-  
-  # Colorbar
-  scale_fill_viridis_c(
-    option = "viridis",
-    name = expression(italic(p)[thr]^{(n)})
-  ) +
-  
-  # Axis labels
-  labs(
-    x = expression("Cost ratio " * italic(R) == italic(C)[I] / italic(C)[V]),
-    y = expression("Reactive effectiveness  " * italic(r))
-  ) +
-  
-  theme_minimal() +
-  theme(
-    panel.grid       = element_blank(),
-    axis.title       = element_text(size = 14),
-    axis.text        = element_text(size = 12),
-    legend.title     = element_text(size = 14),
-    legend.text      = element_text(size = 12),
-    legend.key.height = unit(1.5, "cm")
-  )
-```
-
-$R=0.5$
-```{r, include=FALSE}
-# Parameters
-R_val <- 0.5      # capacity fraction
-r_vals <- seq(0, 1, length.out = 200)
-f_vals <- seq(0, 1, length.out = 200)
-
-# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
-df_heatmap_n <- expand.grid(f = f_vals, r = r_vals) %>%
-  mutate(
-    p_thr_n = mapply(
-      function(f_single, r_single) {
-        p_star_multi(R = R_val, r = r_single, f = f_single)
-      },
-      f, r
-    )
-  )
-
-# --- 2. Multiple boundary curves for p_thr^(n) ---
-p_levels <- seq(0.2, 0.7, by = 0.1)
-
-df_boundary_n <- lapply(p_levels, function(p_target) {
-  tmp <- lapply(f_vals, function(ff) {
-    f_root <- function(r) p_star_multi(R = R_val, r = r, f = ff) - p_target
-    
-    sol <- tryCatch(
-      uniroot(f_root, interval = c(0, 1)),
-      error = function(e) NULL
-    )
-    
-    if (is.null(sol)) return(NULL)
-    
-    data.frame(
-      f        = ff,
-      r        = sol$root,
-      p_target = p_target
-    )
-  }) %>% bind_rows()
-  
-  tmp
-}) %>% bind_rows()
-
-# # --- 3. Midpoints along each boundary curve for annotation ---
-df_boundary_labels <- df_boundary_n %>%
-  group_by(p_target) %>%
-  slice(round(n() / 2)) %>%
-  ungroup() %>%
-  mutate(
-    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
-  )
-
-# --- 4. Region labels (optional) ---
-f_pre  <- 0.1
-r_pre  <- 0.1
-f_reac <- 0.9
-r_reac <- 0.9
-
-df_labels_n <- data.frame(
-  f   = c(f_pre,        f_reac),
-  r   = c(r_pre,        r_reac),
-  lab = c("pre-emptive", "reactive")
-)
-
-# --- 5. Heatmap with multiple boundary lines (all same style) ---
-ggplot(df_heatmap_n, aes(x = f, y = r)) +
-  geom_raster(aes(fill = p_thr_n)) +
-  # Boundary curves (same color, no legend)
-  geom_line(
-    data = df_boundary_n,
-    aes(x = f, y = r, group = p_target),
-    color = "firebrick",
-    linewidth = 0.8
-  ) +
-  geom_text(
-    data  = df_boundary_labels,
-    aes(x = f, y = r, label = label),
-    color = "firebrick",
-    size  = 3.5,
-    vjust = -0.3,
-    parse = TRUE
-  ) +
-  geom_text(
-    data = df_labels_n,
-    aes(label = lab),
-    color = "white",
-    size = 4
-  ) +
-  scale_y_continuous(expand = c(0, 0)) +
-  scale_fill_viridis_c(
-    option = "viridis",
-    name = expression(italic(p)[thr]^{(italic(n))})
-  ) +
-  labs(
-    x = expression("Vaccinated fraction " * italic(f)),
-    y = expression("Reactive effectiveness  " * italic(r))
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid       = element_blank(),
-    axis.title       = element_text(size = 14),
-    axis.text        = element_text(size = 12),
-    legend.title     = element_text(size = 14),
-    legend.text      = element_text(size = 12),
-    legend.key.height = unit(1.5, "cm")
-  )
-```
-
-$R=5$
-```{r, include=FALSE}
-# Parameters
-R_val <- 5      # capacity fraction
-r_vals <- seq(0, 1, length.out = 200)
-f_vals <- seq(0, 1, length.out = 200)
-
-# --- 1. Heatmap data: p_thr^(n) across (R, r) ---
-df_heatmap_n <- expand.grid(f = f_vals, r = r_vals) %>%
-  mutate(
-    p_thr_n = mapply(
-      function(f_single, r_single) {
-        p_star_multi(R = R_val, r = r_single, f = f_single)
-      },
-      f, r
-    )
-  )
-
-# --- 2. Multiple boundary curves for p_thr^(n) ---
-p_levels <- seq(0.2, 0.7, by = 0.1)
-
-df_boundary_n <- lapply(p_levels, function(p_target) {
-  tmp <- lapply(f_vals, function(ff) {
-    f_root <- function(r) p_star_multi(R = R_val, r = r, f = ff) - p_target
-    
-    sol <- tryCatch(
-      uniroot(f_root, interval = c(0, 1)),
-      error = function(e) NULL
-    )
-    
-    if (is.null(sol)) return(NULL)
-    
-    data.frame(
-      f        = ff,
-      r        = sol$root,
-      p_target = p_target
-    )
-  }) %>% bind_rows()
-  
-  tmp
-}) %>% bind_rows()
-
-# # --- 3. Midpoints along each boundary curve for annotation ---
-df_boundary_labels <- df_boundary_n %>%
-  group_by(p_target) %>%
-  slice(round(n() / 2)) %>%
-  ungroup() %>%
-  mutate(
-    label = sprintf("p[thr]^{(n)}==%.1f", p_target)
-  )
-
-# --- 4. Region labels (optional) ---
-f_pre  <- 0.1
-r_pre  <- 0.1
-f_reac <- 0.9
-r_reac <- 0.9
-
-df_labels_n <- data.frame(
-  f   = c(f_pre,        f_reac),
-  r   = c(r_pre,        r_reac),
-  lab = c("pre-emptive", "reactive")
-)
-
-# --- 5. Heatmap with multiple boundary lines (all same style) ---
-ggplot(df_heatmap_n, aes(x = f, y = r)) +
-  geom_raster(aes(fill = p_thr_n)) +
-  # Boundary curves (same color, no legend)
-  geom_line(
-    data = df_boundary_n,
-    aes(x = f, y = r, group = p_target),
-    color = "firebrick",
-    linewidth = 0.8
-  ) +
-  geom_text(
-    data  = df_boundary_labels,
-    aes(x = f, y = r, label = label),
-    color = "firebrick",
-    size  = 3.5,
-    vjust = -0.3,
-    parse = TRUE
-  ) +
-  geom_text(
-    data = df_labels_n,
-    aes(label = lab),
-    color = "white",
-    size = 4
-  ) +
-  scale_y_continuous(expand = c(0, 0)) +
-  scale_fill_viridis_c(
-    option = "viridis",
-    name = expression(italic(p)[thr]^{(italic(n))})
-  ) +
-  labs(
-    x = expression("Vaccinated fraction " * italic(f)),
-    y = expression("Reactive effectiveness  " * italic(r))
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid       = element_blank(),
-    axis.title       = element_text(size = 14),
-    axis.text        = element_text(size = 12),
-    legend.title     = element_text(size = 14),
-    legend.text      = element_text(size = 12),
-    legend.key.height = unit(1.5, "cm")
-  )
-```
-
 ### Threshold outbreak probability $p_{\mathrm{thr}}^{(n)}$ 
 
 Because $c_{\mathrm{react}}^{(n)}$ is piecewise, $p_{\mathrm{thr}}^{(n)}$ also has a
@@ -1878,191 +1537,183 @@ ggplot(df_costs_all,
   theme_light()
 ```
 
-## Multiple Populations with Equal Risk, Limited Vaccination Capacity, and A Mixed strategy
+## Multiple populations with equal risk and a mixed strategy
 
-We now allow the fixed capacity $f$ to be split between pre-emptive and reactive use.
+We consider $n$ independent populations. Each population experiences an outbreak with probability $p$ (equal risk across populations). A central stockpile can fund vaccination campaigns in at most a fraction $0 < f \le 1$ of populations (i.e., $fn$ campaigns total). Campaigns can be deployed **pre-emptively** (before observing outbreaks) and/or **reactively** (only if an outbreak occurs).
 
-Let
+We study the large-$n$ limit so that population fractions are deterministic.
 
--   $f_{\mathrm{pre}}$ = fraction of populations vaccinated
-    pre-emptively,
--   $f_{\mathrm{react}}$ = capacity available for reactive campaigns as a fraction of population, subject to the capacity constraint
+### Strategy parameterization
 
+Let $f_{\mathrm{pre}}$ be the fraction vaccinated pre-emptively and $f_{\mathrm{react}}$ the fraction reserved for reactive use. The capacity constraint is
 $$
 f_{\mathrm{pre}} + f_{\mathrm{react}} = f.
 $$
 
-We parameterize by a mixing parameter $\alpha \in [0,1]$:
+Parameterize by a mixing weight $\alpha \in [0,1]$:
 
--   pre-emptive fraction: $f_{\mathrm{pre}} = \alpha f$,
--   reactive fraction: $f_{\mathrm{react}} = (1-\alpha) f$.
+  - $f_{\mathrm{pre}} = \alpha f$
+  - $f_{\mathrm{react}} = (1-\alpha)f$
 
-$\alpha = 1$ means the pure pre-emptive strategy whereas $\alpha = 0$ means the pure reactive strategy.
+Thus $\alpha=1$ is **pure pre-emptive** and $\alpha=0$ is **pure reactive**.
 
-### Cost components
+### Cost model
 
-The pre-emptive component is straightforward:
+#### Pre-emptive component
 
--   a fraction $f_{\mathrm{pre}} = \alpha f$ is vaccinated
-    pre-emptively, yielding per-population cost
-
+A fraction $f_{\mathrm{pre}}=\alpha f$ is vaccinated regardless of whether an outbreak occurs:
 $$
-C_{\mathrm{pre\text{-}part}}^{(n)} = f_{\mathrm{pre}} C_{\mathrm{V}} = \alpha f C_{\mathrm{V}}.
-$$
-
-The remaining fraction $(1 - f_{\mathrm{pre}}) = (1 - \alpha f)$ is not pre-emptively vaccinated. Among these:
-
--   each population has outbreak probability $p$;
--   expected number of outbreaks among non-pre-emptive populations is
-    $\approx p(1-\alpha f)n$;
--   available reactive campaigns: $f_{\mathrm{react}} n = (1-\alpha)fn$.
-
-Two regimes arise, depending on whether reactive capacity is rich or limited **among non-pre-emptive populations**:
-
--   Reactive-rich:
-
-$$
-f_{\mathrm{react}} \ge p(1 - f_{\mathrm{pre}})
-    \quad\Longleftrightarrow\quad
-    (1-\alpha)f \ge p(1-\alpha f).
+C_{\mathrm{pre}}^{(n)} = \alpha f\, C_{\mathrm{V}},
+\qquad
+c_{\mathrm{pre}}^{(n)} = \alpha f.
 $$
 
--   Reactive-limited:
+#### Reactive component and the two regimes
 
+Among the non-pre-emptively vaccinated fraction $(1-\alpha f)$, the expected outbreak fraction is $p(1-\alpha f)$, while reactive capacity is $(1-\alpha)f$. Two regimes arise:
+
+- **Reactive-rich** (enough reactive campaigns to cover all outbreaks among the non-pre-emptive group):
 $$
-f_{\mathrm{react}} < p(1 - f_{\mathrm{pre}})
-    \quad\Longleftrightarrow\quad
-    (1-\alpha)f < p(1-\alpha f).
-$$
-
-#### Regime A: reactive-rich among non-pre-emptive populations
-
-If $(1-\alpha)f \ge p(1-\alpha f)$, then every outbreak in the
-non-pre-emptive group can receive a reactive campaign.
-
-For non-pre-emptive populations:
-
--   with probability $p$: outbreak occurs and is reactively vaccinated,
-    cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$;
--   with probability $(1-p)$: no outbreak, no cost.
-
-Thus the reactive component is
-
-$$
-C_{\mathrm{react\text{-}part}}^{(n)}
-= (1-\alpha f)\, p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr).
+(1-\alpha)f \;\ge\; p(1-\alpha f).
 $$
 
-Total per-population cost for the mixed strategy is:
-
+- **Reactive-limited** (not enough reactive campaigns):
 $$
-C_{\mathrm{mixed}}^{(n)}
-= \alpha f C_{\mathrm{V}} + (1-\alpha f)\, p\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr).
+(1-\alpha)f \;<\; p(1-\alpha f).
 $$
 
-Normalizing,
+##### Regime A: reactive-rich
 
+Every outbreak among the non-pre-emptive group receives a reactive campaign. For any non-pre-emptive population, the expected cost is
+
+  - outbreak w.p. $p$: $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$
+  - no outbreak w.p. $1-p$: $0$
+
+Hence
+$$
+C_{\mathrm{react}}^{(n)}(\alpha)
+= (1-\alpha f)\,p\left(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\right),
+$$
+and the total normalized cost is
 $$
 c_{\mathrm{mixed}}^{(n)}(\alpha)
-= \frac{C_{\mathrm{mixed}}^{(n)}}{C_{\mathrm{V}}}
-= \alpha f + (1-\alpha f)\, p\bigl[1 + (1-r)R\bigr],
-\quad \text{if } (1-\alpha)f \ge p(1-\alpha f).
+= \alpha f + (1-\alpha f)\,p\left[1 + (1-r)R\right],
+\qquad \text{if } (1-\alpha)f \ge p(1-\alpha f).
 $$
 
-#### Regime B: reactive-limited among non-pre-emptive populations
+##### Regime B: reactive-limited
 
-If $(1-\alpha)f < p(1-\alpha f)$, there are more outbreaks than
-available reactive campaigns in the non-pre-emptive group. The fraction
-of such outbreaks that receive a campaign is
-
+Only a fraction of outbreaks among the non-pre-emptive group can be reactively vaccinated. The fraction of outbreaks that receive a reactive campaign is
 $$
-q = \frac{f_{\mathrm{react}}}{p(1-f_{\mathrm{pre}})}
-= \frac{(1-\alpha)f}{p(1-\alpha f)}.
+q(\alpha) = \frac{(1-\alpha)f}{p(1-\alpha f)} \in (0,1).
 $$
 
-Among non-pre-emptive populations that experience an outbreak:
+Conditioning on an outbreak in the non-pre-emptive group:
+- with probability $q(\alpha)$: pay $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$,
+- with probability $1-q(\alpha)$: pay $C_{\mathrm{I}}$.
 
--   with probability $q$: cost $C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}$,
--   with probability $1-q$: cost $C_{\mathrm{I}}$.
-
-The reactive component is
-
+A convenient simplification yields
 $$
-\begin{aligned}
-C_{\mathrm{react\text{-}part}}^{(n)}
-&= (1-f_{\mathrm{pre}})p
-\Bigl[
-q\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr)
-+ (1-q)C_{\mathrm{I}}
-\Bigr] \\
-&= f_{\mathrm{react}}\bigl(C_{\mathrm{V}} + (1-r)C_{\mathrm{I}}\bigr)
-+ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{I}} \\
-&= f_{\mathrm{react}} C_{\mathrm{V}}
-+ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{I}}.
-\end{aligned}
+C_{\mathrm{react}}^{(n)}(\alpha)
+= f_{\mathrm{react}} C_{\mathrm{V}}
++ \left[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r\right] C_{\mathrm{I}},
 $$
-
-Total per-population cost:
-
-$$
-\begin{aligned}
-C_{\mathrm{mixed}}^{(n)}
-&= f_{\mathrm{pre}} C_{\mathrm{V}} + f_{\mathrm{react}} C_{\mathrm{V}}
-+ \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{I}}\\
-&= f C_{\mathrm{V}} + \bigl[(1-f_{\mathrm{pre}})p - f_{\mathrm{react}}r \bigr] C_{\mathrm{I}}.
-\end{aligned}
-$$
-
-Substituting $f_{\mathrm{pre}} = \alpha f$,
-$f_{\mathrm{react}} = (1-\alpha)f$ and normalizing,
-
+so total normalized cost becomes
 $$
 c_{\mathrm{mixed}}^{(n)}(\alpha)
-= \frac{C_{\mathrm{mixed}}^{(n)}}{C_{\mathrm{V}}}
-= f + R\Bigl[(1-\alpha f)p - (1-\alpha)f r \Bigr],
-\quad \text{if } (1-\alpha)f < p(1-\alpha f).
+= f + R\left[(1-\alpha f)p - (1-\alpha)fr\right],
+\qquad \text{if } (1-\alpha)f < p(1-\alpha f).
 $$
-
-An equivalent form is
-
+Equivalently,
 $$
 c_{\mathrm{mixed}}^{(n)}(\alpha)
-= f + R\Bigl[p - f r + \alpha f(r-p)\Bigr],
-\quad \text{if } (1-\alpha)f < p(1-\alpha f),
+= f + R\left[p - fr + \alpha f(r-p)\right],
+\qquad \text{(reactive-limited)}.
 $$
 
-which makes the linear dependence on $\alpha$ explicit.
+### Geometry in $\alpha$ and candidate optima
 
-$c_{\mathrm{mixed}}^{(n)}(\alpha)$ are affine (linear + constant) in $\alpha$ in both regimes. 
+In **both** regimes, $c_{\mathrm{mixed}}^{(n)}(\alpha)$ is affine (linear + constant) in $\alpha$. Therefore:
+- within each regime, the minimizer is attained at a **boundary** (a corner), and
+- the only interior candidate is the **kink** where the regime switches.
 
-Therefore within each regime, the optimal $\alpha$ is always at the boundary of that regime’s feasible $\alpha$-interval (a corner).
-The only other candidate is the switching point where the regime changes (a kink). So the global minimizer, $\alpha^*$ over $\alpha\in[0,1]$ must be in  
+Thus the global optimizer over $\alpha \in [0,1]$ satisfies
 $$
-\alpha^*\in \{0,\alpha_c,1\},
+\alpha^* \in \{0,\alpha_c,1\},
+$$
+where $\alpha_c$ is the regime-switch point.
+
+#### Regime-switch point $\alpha_c$
+
+Solve the boundary condition
+$$
+(1-\alpha)f = p(1-\alpha f).
+$$
+For $f>p$, this yields
+$$
+\alpha_c = \frac{f-p}{f(1-p)} \in (0,1).
+$$
+If $f \le p$, then $\alpha_c \le 0$ and the reactive-rich regime is not attainable for any $\alpha \in [0,1]$ (reactive capacity is always limited).
+
+### Closed-form optimal strategy $\alpha^*$
+
+Let $\alpha^*$ denote the optimal fraction of capacity allocated to **pre-emptive** vaccination.
+
+#### 1) Scarce capacity: $f \le p$
+
+Reactive capacity is always limited. From the reactive-limited cost
+$$
+c_{\mathrm{mixed}}^{(n)}(\alpha)=f + R\left[p-fr+\alpha f(r-p)\right],
+$$
+the slope in $\alpha$ is proportional to $(r-p)$, so
+$$
+\alpha^* =
+\begin{cases}
+0, & r > p \quad (\text{pure reactive})\\
+1, & r < p \quad (\text{pure pre-emptive})\\
+\text{any }\alpha \in [0,1], & r = p.
+\end{cases}
 $$
 
-- Step 1. Find the regime-switch (kink) point $\bar\alpha$
-The boundary between regimes is 
+#### 2) Abundant capacity: $f > p$
+
+Now $\alpha_c \in (0,1)$ is feasible.
+
+- If $r < p$, the reactive-limited cost decreases with $\alpha$, so $\alpha^*=1$ (pure pre-emptive).
+- If $r > p$, compare the two corners $\alpha=0$ (pure reactive) and $\alpha=\alpha_c$ (largest feasible pre-emptive share while keeping the remaining group reactive-rich). The switching threshold is
 $$
-(1-\alpha)f = (1-\alpha f)
+R_{\mathrm{thr}} = \frac{1-p}{p(1-r)}.
+$$
+Then
+$$
+\alpha^* =
+\begin{cases}
+0, & r > p \text{ and } R < R_{\mathrm{thr}} \quad (\text{pure reactive})\\
+\alpha_c, & r > p \text{ and } R \ge R_{\mathrm{thr}} \quad (\text{mixed at the kink})\\
+1, & r < p \quad (\text{pure pre-emptive}).
+\end{cases}
 $$
 
-$$
-\alpha_c = \frac{f-p}{f(1-p)}
-$$
+**Interpretation of $\alpha_c$.** $\alpha_c$ is **not** found by minimizing a smooth function; it is the **feasibility limit** for staying reactive-rich among the remaining populations. It is the largest pre-emptive share such that the remaining reactive stockpile can still cover all expected outbreaks in the non-pre-emptive group.
 
-### Visualization of $c_{\mathrm{mixed}}^{(n)}(\alpha)$ and $\alpha^*$
+**Interpretation of $R_{\mathrm{thr}}$.** When $r>p$ and $f>p$, the choice is between:
 
-Functions
+  - vaccinate reactively only (saving vaccines when no outbreak occurs), versus
+  - vaccinate some pre-emptively to guarantee reactive-richness for the remainder.
+
+$R_{\mathrm{thr}}$ is the outbreak cost ratio at which these two options have equal expected cost; it increases as reactive effectiveness improves (as $1-r$ shrinks).
+
+Helper functions
 ```{r}
-# Mixed strategy cost c_mix^{(n)}(alpha)
+# Mixed strategy cost c_mix^{(n)}(alpha) = C_mix^{(n)} / C_V
 cost_mix_multi <- function(alpha, p, R, r, f) {
   alpha <- pmax(pmin(alpha, 1), 0)
 
   f_pre   <- alpha * f
   f_react <- (1 - alpha) * f
 
-  cond_rich <- (1 - alpha) * f >= p * (1 - f_pre)
+  # Reactive-rich among non-pre-emptive populations
+  cond_rich <- f_react >= p * (1 - f_pre)
 
   c_rich <- f_pre + (1 - f_pre) * p * (1 + (1 - r) * R)
   c_lim  <- f + R * ((1 - f_pre) * p - f_react * r)
@@ -2070,10 +1721,10 @@ cost_mix_multi <- function(alpha, p, R, r, f) {
   ifelse(cond_rich, c_rich, c_lim)
 }
 
+# Numerical optimizer over a grid (useful for plotting / validation)
 opt_alpha_equalrisk <- function(p, R, r, f, grid_len = 1001) {
   alpha_grid <- seq(0, 1, length.out = grid_len)
-  costs <- cost_mix_multi(alpha = alpha_grid,
-                          p = p, R = R, r = r, f = f)
+  costs <- cost_mix_multi(alpha = alpha_grid, p = p, R = R, r = r, f = f)
 
   idx_min <- which.min(costs)
 
@@ -2085,32 +1736,38 @@ opt_alpha_equalrisk <- function(p, R, r, f, grid_len = 1001) {
   )
 }
 
+# Closed-form alpha^* for equal-risk multi-population case
 alpha_star_equalrisk <- function(p, R, r, f, eps = 1e-12) {
-  # ensure r is in [0,1]
   r <- pmin(1, pmax(0, r))
-  # ---- Scarce capacity: f <= p ----
+
+  # Scarce capacity: f <= p
   if (f <= p + eps) {
     return(
       ifelse(r > p + eps, 0,
       ifelse(r < p - eps, 1, NA_real_))  # NA when r == p (any alpha optimal)
     )
   }
-  # ---- Abundant capacity: f > p ----
+
+  # Abundant capacity: f > p
   alpha_c <- (f - p) / (f * (1 - p))
+
   alpha_star <- rep(NA_real_, length(r))
-  # r < p  -> pure pre-emptive
+
+  # r < p -> pure pre-emptive
   alpha_star[r < p - eps] <- 1
-  # r > p  -> compare R with R_thr
+
+  # r > p -> compare alpha=0 vs alpha=alpha_c
   idx <- which(r > p + eps)
   if (length(idx) > 0) {
     R_thr <- (1 - p) / (p * pmax(1 - r[idx], eps))  # stabilize near r=1
     alpha_star[idx] <- ifelse(R < R_thr - eps, 0, alpha_c)
   }
-  
+
   alpha_star
 }
 ```
-Cost $c_{\mathrm{mixed}}(\alpha)^{(n)}$
+
+#### $c_{\mathrm{mixed}}^{(n)}(\alpha)$ and $\alpha^*$
 
 ```{r}
 p <- 0.3
@@ -2118,206 +1775,104 @@ R <- 5
 r <- 0.4
 f <- 0.5
 
-opt_res <- opt_alpha_equalrisk(p = p, R = R, r = r, f = f,
-                           grid_len = 1001)
-df <- tibble::tibble(
-  alpha = opt_res$alpha_grid,
-  cost  = opt_res$cost_grid
-)
-alpha_star <- opt_res$alpha_star
+opt_res <- opt_alpha_equalrisk(p = p, R = R, r = r, f = f, grid_len = 1001)
 
+df <- data.frame(alpha = opt_res$alpha_grid, cost = opt_res$cost_grid)
+alpha_star_num  <- opt_res$alpha_star
 alpha_star_anal <- alpha_star_equalrisk(p = p, R = R, r = r, f = f, eps = 1e-6)
-  
+
 ggplot(df, aes(x = alpha, y = cost)) +
   geom_line(linewidth = 1) +
-  geom_vline(
-    xintercept = alpha_star,
-    linetype   = "dashed",
-    color      = "firebrick",
-    linewidth  = 0.9
-  ) +
+  # geom_vline(xintercept = alpha_star_num, linetype = "dashed", linewidth = 0.9) +
+  geom_vline(xintercept = alpha_star_anal, linetype = "dotted", 
+             color = "firebrick", linewidth = 0.9) +
   labs(
-    title = bquote(italic(p) == .(p) ~ "," ~
-                     italic(r) == .(r) ~ "," ~
-                     italic(R) == .(R) ~ "," ~
-                     italic(f) == .(f)),
+    title = bquote(italic(p) == .(p) ~ "," ~ italic(r) == .(r) ~ "," ~
+                   italic(R) == .(R) ~ "," ~ italic(f) == .(f)),
     x = expression("Fraction of capacity pre-emptive " ~ italic(alpha)),
-    y = expression("Normalized per-population expected cost  " ~ italic(c)[mixed]^(italic(n)))
-  ) +
-   geom_vline(
-    xintercept = alpha_star_anal,
-    linetype   = "dotted",
-    color      = "firebrick",
-    linewidth  = 0.9
-  ) +
-  annotate(
-    "text",
-    x     = alpha_star_anal,
-    y     = max(df$cost, na.rm = TRUE),
-    label = "alpha^'*'",
-    parse = TRUE,
-    hjust = -0.1,
-    vjust = 1.2,
-    color = "firebrick",
-    size  = 4
+    y = expression("Normalized per-population expected cost " ~ italic(c)[mixed]^{(italic(n))})
   ) +
   theme_light()
 ```
 
-$\alpha^*$ across $r$
+#### $\alpha^*$ across $r$
+
 ```{r}
 R_val <- 5
 p_val <- 0.3
 f_val <- 0.5
 
-df_alpha <- data.frame(
-  r = seq(0, 1, by = 0.001)
-)
+# grid
 
+df_alpha <- data.frame(r = seq(0, 1, by = 0.001))
 df_alpha$alpha_star <- alpha_star_equalrisk(
-  r = df_alpha$r,
-  R = R_val,
-  p = p_val,
-  f = f_val
+  r = df_alpha$r, R = R_val, p = p_val, f = f_val
 )
 
-# Reference value of alpha_c
-alpha_c <- ifelse(f_val > p_val, (f_val - p_val) / (f_val * (1 - p_val)), NA_real_)
+# alpha_c
 
-# df_alpha[is.na(df_alpha$alpha_star),]$alpha_star <- 1
-  
+alpha_c <- ifelse(
+  f_val > p_val,
+  (f_val - p_val) / (f_val * (1 - p_val)),
+  NA_real_
+)
+
+# r where R = R_thr(r) = (1-p)/(p(1-r))
+
+r_thr <- 1 - (1 - p_val) / (p_val * R_val)
+r_thr <- pmin(1, pmax(0, r_thr))
+
+# --- FORCE DISCONNECTIONS (create NA gaps) ---
+
+dr <- df_alpha$r[2] - df_alpha$r[1]     # step size (0.001 here)
+gap <- 1.5 * dr                         # small gap width around thresholds
+
+df_alpha$alpha_star[
+  abs(df_alpha$r - p_val)  <= gap |
+    abs(df_alpha$r - r_thr)  <= gap
+] <- NA_real_
+
 ggplot(df_alpha, aes(x = r, y = alpha_star)) +
   geom_line(linewidth = 1) +
   geom_hline(yintercept = 0, linetype = "dotted") +
   geom_hline(yintercept = 1, linetype = "dotted") +
+  # p = r line + label
   geom_vline(xintercept = p_val, linetype = "dashed") +
+  annotate(
+    "text",
+    x = p_val, y = 0.98,
+    label = "italic(p)==italic(r)",
+    parse = TRUE,
+    hjust = -0.05, vjust = 1
+  ) +
+  
+  # R = R_thr line + label (at r = r_thr for fixed R)
+  geom_vline(xintercept = r_thr, linetype = "dotted", linewidth = 1) +
+  annotate(
+    "text",
+    x = r_thr, y = 0.90,
+    label = "italic(R)==italic(R)[thr]",
+    parse = TRUE,
+    hjust = -0.05, vjust = 1
+  ) +
+  
+  annotate(
+    "text",
+    x = max(0.02, r_thr * 0.8), y = 0.62,
+    label = "italic(R) > italic(R)[thr]",
+    parse = TRUE,
+    hjust = 0
+  ) +
   geom_hline(yintercept = alpha_c, linetype = "dashed") +
   coord_cartesian(ylim = c(0, 1)) +
   labs(
-    x = expression("Reactive effectiveness "~italic(r)),
-    y = expression("Optimal pre-emptive fraction "~italic(alpha)^"*"),
-    title =bquote(italic(p) == .(p_val) ~ "," ~
-                     italic(R) == .(R_val) ~ "," ~
-                     italic(f) == .(f_val))) +
+    x = expression("Reactive effectiveness " ~ italic(r)),
+    y = expression("Optimal pre-emptive fraction " ~ italic(alpha)^"*"),
+    title = bquote(italic(p) == .(p_val) ~ "," ~ italic(R) == .(R_val) ~ "," ~ italic(f) == .(f_val))
+  ) +
   theme_light()
+
 ```
-
-3d surface of $\alpha^*(R,r)$:
-
-```{r}
-titlefontsize <- 34
-tickfontsize <- 17
-
-p_val <- 0.3
-f_val <- 0.6
-
-r_vals <- seq(0, 1, length.out = 100)
-R_vals <- 10 ^ seq(-2, 2, length.out = 100)
-
-alpha_mat <- outer(
-  R_vals, r_vals,
-  Vectorize(function(R, r) {
-    opt_alpha_equalrisk(
-      p = p_val,
-      R = R,
-      r = r,
-      f = f_val,
-      grid_len = 301
-    )$alpha_star
-  })
-)
-
-alpha_mat_t <- t(alpha_mat)
-
-camera <- list(
-  eye = list(x = 0.1, y = 0.08, z = 0.1)
-)
-
-fig_alpha_surface <-
-  plot_ly() %>%
-  add_surface(
-    x = R_vals,
-    y = r_vals,
-    z = alpha_mat_t,
-    colorscale = "Viridis",
-    showscale = TRUE,
-    colorbar = list(
-      title = list(
-        text = "<i>α</i><sup>*</sup>",
-        font = list(size = titlefontsize)
-      )
-    )
-  ) %>%
-  layout(
-    scene = list(
-      camera = camera,
-      yaxis = list(
-        title = "<i>r</i>",
-        titlefont = list(size = titlefontsize),
-        tickfont = list(size = tickfontsize)),
-      xaxis = list(
-        title    = "<i>R</i> = C<sub>I</sub> / C<sub>V</sub>",
-        titlefont = list(size = titlefontsize),
-        tickfont = list(size = tickfontsize),
-        type     = "log",
-        tickvals = c(0.01, 0.1, 1, 10, 100),
-        ticktext = c("0.01", "0.1", "1", "10", "100")
-      ),
-      zaxis = list(
-        title = "<i>α</i><sup>*</sup>",
-        titlefont = list(size = titlefontsize),
-        tickfont = list(size = tickfontsize)
-      )
-    )
-  )
-
-fig_alpha_surface
-```
-
-### Optimal allocation Strategy ($\alpha^*$)
-
-Let $\alpha^*$ denote the optimal fraction of vaccine capacity $f$
-allocated to pre-emptive vaccination. The optimal strategy depends
-on whether vaccine capacity is scarce ($f \le p$) or abundant ($f > p$).
-
-#### 1. Scarce capacity ($f \le p$)
-
-When capacity is insufficient to cover the expected outbreak size, the
-strategy is a simple corner solution determined entirely by the reactive
-effectiveness $r$:
-
-$$
-\alpha^* =
-\begin{cases}
-0 \quad (\text{pure reactive}), & \text{if } r > p \\
-1 \quad (\text{pure pre-emptive}), & \text{if } r < p \\
-\text{any } \alpha \in [0,1], & \text{if } r = p
-\end{cases}
-$$
-
-#### 2. Abundant Capacity ($f > p$)
-
-When capacity exceeds the expected outbreak size, the optimal strategy
-depends on the cost ratio $R$ relative to the threshold $R_{\mathrm{thr}}$:
-
-$$
-\alpha^* =
-\begin{cases}
-1 \quad (\text{pure pre-emptive}), & \text{if } r < p \\
-0 \quad (\text{pure reactive}), & \text{if } r > p \text{ and } R < R_{\mathrm{thr}} \\
-\frac{f - p}{1 - p} \quad (\text{mixed strategy}), & \text{if } r > p \text{ and } R \ge R_{\mathrm{thr}}
-\end{cases}
-$$
-where
-$$
-R_{\mathrm{thr}} = \frac{1-p}{p(1-r)}
-$$
-> **Note:** In the abundant regime with high outbreak costs
-> ($R \ge R_{\mathrm{thr}}$), the mixed strategy $\alpha^* = \frac{f - p}{f(1 - p)}$
-> ensures that pre-emptive vaccination is maximized just enough so that
-> the remaining capacity can fully cover the remaining risk reactively.
-
-The quantity, $\alpha_{\mathrm{c}}$, is not chosen by minimizing a smooth function. Instead, it arises from a feasibility constraint: it is the largest fraction of capacity that can be allocated to pre-emptive vaccination without creating a shortfall in reactive response among the remaining populations. The denominator, $1 - p$, may be interpreted as the fraction of non-outbreak populations and the numerator, $(f-p)/f$, refers to the fraction of $f$ of resources that may be left after covering all outbreak populations. $R_{\mathrm{thr}}$ is the outbreak cost ratio at which the expected cost of relying on reactive vaccination (denominator, $p(1-r)$) equals the cost of vaccinating pre-emptively (numerator, $1-p$).
 
 ## Multiple Populations with Heterogeneous Outbreak Risk
 
