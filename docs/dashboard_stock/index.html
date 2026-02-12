@@ -59,7 +59,7 @@
 
 import {define} from "./_observablehq/client.0d9d15e7.js";
 
-define({id: "8cba8456", outputs: ["Plot","Inputs","d3","DATA_URL","response","data","summary","history","holdings","accounts","formatCurrency","formatPercent","formatNumber","calculateRisk","riskMetrics","topHoldings","concentration"], body: async () => {
+define({id: "e4118fd1", outputs: ["Plot","Inputs","d3","DATA_URL","response","data","summary","history","holdings","accounts","virtualAccounts","strategyMap","strategies","formatCurrency","formatPercent","formatNumber","calculateRisk","riskMetrics","topHoldings","concentration"], body: async () => {
 const [Plot, Inputs, d3] = await Promise.all([import("./_npm/@observablehq/plot@0.6.17/7c43807f.js"), import("./_observablehq/stdlib/inputs.4ef1d259.js"), import("./_npm/d3@7.9.0/e324157d.js")]);
 
 // Load data directly from GitHub (fetches fresh data on every page load)
@@ -70,6 +70,23 @@ const summary = data.summary;
 const history = data.history.map(d => ({date: new Date(d.date), value: d.value}));
 const holdings = data.holdings;
 const accounts = data.accounts;
+const virtualAccounts = data.virtual_accounts || [];
+
+// Aggregate virtual accounts by strategy (e.g., Samsung_1..5 → Samsung)
+const strategyMap = new Map();
+for (const va of virtualAccounts) {
+  const strategy = va.name.replace(/_\d+$/, "");
+  if (!strategyMap.has(strategy)) {
+    strategyMap.set(strategy, {name: strategy, sector: va.sector, total_value: 0, cash: 0, equity: 0, total_pnl: 0, count: 0});
+  }
+  const s = strategyMap.get(strategy);
+  s.total_value += va.total_value;
+  s.cash += va.cash;
+  s.equity += va.equity;
+  s.total_pnl += va.total_pnl;
+  s.count += 1;
+}
+const strategies = Array.from(strategyMap.values()).sort((a, b) => b.total_value - a.total_value);
 
 // Formatters
 const formatCurrency = d3.format(",.0f");
@@ -106,7 +123,7 @@ function calculateRisk(hist) {
 const riskMetrics = calculateRisk(history);
 const topHoldings = holdings.slice().sort((a, b) => b.value - a.value).slice(0, 3);
 const concentration = d3.sum(topHoldings, d => d.value) / summary.total_value * 100;
-return {Plot,Inputs,d3,DATA_URL,response,data,summary,history,holdings,accounts,formatCurrency,formatPercent,formatNumber,calculateRisk,riskMetrics,topHoldings,concentration};
+return {Plot,Inputs,d3,DATA_URL,response,data,summary,history,holdings,accounts,virtualAccounts,strategyMap,strategies,formatCurrency,formatPercent,formatNumber,calculateRisk,riskMetrics,topHoldings,concentration};
 }});
 
 define({id: "54963472", mode: "inline", inputs: ["formatCurrency","summary","display"], body: async (formatCurrency,summary,display) => {
@@ -190,14 +207,18 @@ display(await(
 ))
 }});
 
-define({id: "e4a24aa2", inputs: ["Inputs","Generators","holdings"], outputs: ["timeRangeInput","timeRange","searchInput","filteredHoldings"], body: (Inputs,Generators,holdings) => {
+define({id: "3f0f155d", inputs: ["Inputs","Generators","holdings","virtualAccounts"], outputs: ["timeRangeInput","timeRange","searchInput","filteredHoldings","vaSearchInput","filteredVA"], body: (Inputs,Generators,holdings,virtualAccounts) => {
 const timeRangeInput = Inputs.radio(["1M", "3M", "6M", "1Y", "All"], {label: "Time Range", value: "All"});
 const timeRange = Generators.input(timeRangeInput);
 
 // Text search for holdings
 const searchInput = Inputs.search(holdings, {placeholder: "Search stocks..."});
 const filteredHoldings = Generators.input(searchInput);
-return {timeRangeInput,timeRange,searchInput,filteredHoldings};
+
+// Text search for virtual accounts
+const vaSearchInput = Inputs.search(virtualAccounts, {placeholder: "Search virtual accounts..."});
+const filteredVA = Generators.input(vaSearchInput);
+return {timeRangeInput,timeRange,searchInput,filteredHoldings,vaSearchInput,filteredVA};
 }});
 
 define({id: "a9af394b", mode: "inline", inputs: ["Plot","holdings","display"], body: async (Plot,holdings,display) => {
@@ -296,6 +317,74 @@ display(await(
 ))
 }});
 
+define({id: "938d32d6", mode: "inline", inputs: ["Plot","strategies","display"], body: async (Plot,strategies,display) => {
+display(await(
+            Plot.plot({
+                marginBottom: 60,
+                x: {label: null, tickRotate: -30},
+                y: {label: "Value (KRW)", tickFormat: "s", grid: true},
+                color: {legend: true},
+                marks: [
+                    Plot.barY(strategies, {x: "name", y: "total_value", fill: "sector", tip: true}),
+                    Plot.ruleY([0])
+                ]
+            })
+        
+))
+}});
+
+define({id: "ed0d44e6", mode: "inline", inputs: ["Plot","strategies","display"], body: async (Plot,strategies,display) => {
+display(await(
+            Plot.plot({
+                marginBottom: 60,
+                x: {label: null, tickRotate: -30},
+                y: {label: "P&L (KRW)", grid: true},
+                marks: [
+                    Plot.barY(strategies, {
+                        x: "name",
+                        y: "total_pnl",
+                        fill: d => d.total_pnl >= 0 ? "#51cf66" : "#ff6b6b",
+                        tip: true
+                    }),
+                    Plot.ruleY([0])
+                ]
+            })
+        
+))
+}});
+
+define({id: "13a6b20c", mode: "inline", inputs: ["vaSearchInput","display"], body: async (vaSearchInput,display) => {
+display(await(
+vaSearchInput
+))
+}});
+
+define({id: "95d3e48d", mode: "inline", inputs: ["Inputs","filteredVA","formatCurrency","display"], body: async (Inputs,filteredVA,formatCurrency,display) => {
+display(await(
+            Inputs.table(filteredVA, {
+                columns: ["name", "sector", "allocation_ratio", "total_value", "cash", "equity", "total_pnl"],
+                header: {
+                    name: "Account",
+                    sector: "Sector",
+                    allocation_ratio: "Allocation",
+                    total_value: "Total Value",
+                    cash: "Cash",
+                    equity: "Equity",
+                    total_pnl: "P&L"
+                },
+                sort: "name",
+                format: {
+                    total_value: x => `₩${formatCurrency(x)}`,
+                    cash: x => `₩${formatCurrency(x)}`,
+                    equity: x => `₩${formatCurrency(x)}`,
+                    total_pnl: x => `₩${formatCurrency(x)}`,
+                    allocation_ratio: x => `${(x * 100).toFixed(1)}%`
+                }
+            })
+        
+))
+}});
+
 </script>
 </head>
 <body>
@@ -306,7 +395,7 @@ display(await(
 </aside>
 <main id="observablehq-main" class="observablehq">
 <h1 id="stock-investment-dashboard" tabindex="-1"><a class="observablehq-header-anchor" href="#stock-investment-dashboard">Stock Investment Dashboard</a></h1>
-<div class="observablehq observablehq--block"><!--:8cba8456:--></div>
+<div class="observablehq observablehq--block"><!--:e4118fd1:--></div>
 <div class="grid grid-cols-4">
   <div class="card">
     <h2>Total Portfolio Value</h2>
@@ -344,7 +433,7 @@ display(await(
     <observablehq-loading></observablehq-loading><!--:c3f7107f:-->
   </div>
 </div>
-<div class="observablehq observablehq--block"><!--:e4a24aa2:--></div>
+<div class="observablehq observablehq--block"><!--:3f0f155d:--></div>
 <div class="grid grid-cols-2">
   <div class="card">
     <h2>Asset Allocation</h2>
@@ -389,9 +478,26 @@ display(await(
          <observablehq-loading></observablehq-loading><!--:a83ac749:-->
     </div>
 </div>
+<div class="grid grid-cols-2">
+    <div class="card">
+        <h2>Strategy Allocation</h2>
+        <observablehq-loading></observablehq-loading><!--:938d32d6:-->
+    </div>
+    <div class="card">
+        <h2>Strategy P&amp;L</h2>
+        <observablehq-loading></observablehq-loading><!--:ed0d44e6:-->
+    </div>
+</div>
+<div class="grid grid-cols-1">
+    <div class="card">
+        <h2>Virtual Accounts</h2>
+        <div style="margin-bottom: 10px;"><observablehq-loading></observablehq-loading><!--:13a6b20c:--></div>
+        <observablehq-loading></observablehq-loading><!--:95d3e48d:-->
+    </div>
+</div>
 </main>
 <footer id="observablehq-footer">
-<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-11T09:00:50">Feb 11, 2026</a>.</div>
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-12T07:00:41">Feb 12, 2026</a>.</div>
 </footer>
 </div>
 </body>
