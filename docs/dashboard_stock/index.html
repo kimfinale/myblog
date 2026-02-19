@@ -59,7 +59,7 @@
 
 import {define} from "./_observablehq/client.0d9d15e7.js";
 
-define({id: "e4118fd1", outputs: ["Plot","Inputs","d3","DATA_URL","response","data","summary","history","holdings","accounts","virtualAccounts","strategyMap","strategies","formatCurrency","formatPercent","formatNumber","calculateRisk","riskMetrics","topHoldings","concentration"], body: async () => {
+define({id: "f82b7e85", outputs: ["Plot","Inputs","d3","DATA_URL","response","data","summary","history","holdings","accounts","virtualAccounts","strategyMap","strategies","formatCurrency","formatPercent","formatNumber","calculateRisk","riskMetrics","topHoldings","concentration"], body: async () => {
 const [Plot, Inputs, d3] = await Promise.all([import("./_npm/@observablehq/plot@0.6.17/7c43807f.js"), import("./_observablehq/stdlib/inputs.4ef1d259.js"), import("./_npm/d3@7.9.0/e324157d.js")]);
 
 // Load data directly from GitHub (fetches fresh data on every page load)
@@ -77,13 +77,14 @@ const strategyMap = new Map();
 for (const va of virtualAccounts) {
   const strategy = va.name.replace(/_\d+$/, "");
   if (!strategyMap.has(strategy)) {
-    strategyMap.set(strategy, {name: strategy, sector: va.sector, total_value: 0, cash: 0, equity: 0, total_pnl: 0, count: 0});
+    strategyMap.set(strategy, {name: strategy, sector: va.sector, total_value: 0, cash: 0, equity: 0, unrealized_pnl: 0, realized_pnl: 0, count: 0});
   }
   const s = strategyMap.get(strategy);
   s.total_value += va.total_value;
   s.cash += va.cash;
   s.equity += va.equity;
-  s.total_pnl += va.total_pnl;
+  s.unrealized_pnl += (va.unrealized_pnl || 0);
+  s.realized_pnl += (va.realized_pnl || 0);
   s.count += 1;
 }
 const strategies = Array.from(strategyMap.values()).sort((a, b) => b.total_value - a.total_value);
@@ -332,10 +333,10 @@ vaSearchInput
 ))
 }});
 
-define({id: "e5a051f2", mode: "inline", inputs: ["Inputs","filteredVA","formatCurrency","display"], body: async (Inputs,filteredVA,formatCurrency,display) => {
+define({id: "61c6c8f8", mode: "inline", inputs: ["Inputs","filteredVA","formatCurrency","display"], body: async (Inputs,filteredVA,formatCurrency,display) => {
 display(await(
             Inputs.table(filteredVA, {
-                columns: ["name", "sector", "strategy_type", "rise_pct", "dip_pct", "allocation_ratio", "total_value", "cash", "equity", "total_pnl", "buy_count", "sell_count"],
+                columns: ["name", "sector", "strategy_type", "rise_pct", "dip_pct", "allocation_ratio", "total_value", "cash", "equity", "unrealized_pnl", "realized_pnl", "buy_count", "sell_count"],
                 header: {
                     name: "Account",
                     sector: "Sector",
@@ -346,12 +347,13 @@ display(await(
                     total_value: "Total Value",
                     cash: "Cash",
                     equity: "Equity",
-                    total_pnl: "P&L",
+                    unrealized_pnl: "평가손익",
+                    realized_pnl: "실현손익",
                     buy_count: "Buys",
                     sell_count: "Sells"
                 },
                 width: {
-                    name: 160,
+                    name: 150,
                     sector: 90,
                     strategy_type: 80,
                     rise_pct: 55,
@@ -360,7 +362,8 @@ display(await(
                     total_value: 100,
                     cash: 100,
                     equity: 90,
-                    total_pnl: 90,
+                    unrealized_pnl: 85,
+                    realized_pnl: 85,
                     buy_count: 50,
                     sell_count: 50
                 },
@@ -369,7 +372,8 @@ display(await(
                     total_value: x => `₩${formatCurrency(x)}`,
                     cash: x => `₩${formatCurrency(x)}`,
                     equity: x => `₩${formatCurrency(x)}`,
-                    total_pnl: x => `₩${formatCurrency(x)}`,
+                    unrealized_pnl: x => `₩${formatCurrency(x)}`,
+                    realized_pnl: x => `₩${formatCurrency(x)}`,
                     allocation_ratio: x => `${(x * 100).toFixed(1)}%`,
                     rise_pct: x => `${x}%`,
                     dip_pct: x => x ? `${x}%` : "—"
@@ -399,7 +403,7 @@ display(await(
   min-width: 700px;
 }
 </style>
-<div class="observablehq observablehq--block"><!--:e4118fd1:--></div>
+<div class="observablehq observablehq--block"><!--:f82b7e85:--></div>
 <div class="grid grid-cols-4">
   <div class="card">
     <h2>Total Portfolio Value</h2>
@@ -486,12 +490,12 @@ display(await(
     <div class="card">
         <h2>Virtual Accounts</h2>
         <div style="margin-bottom: 10px;"><observablehq-loading></observablehq-loading><!--:13a6b20c:--></div>
-        <div class="table-scroll"><observablehq-loading></observablehq-loading><!--:e5a051f2:--></div>
+        <div class="table-scroll"><observablehq-loading></observablehq-loading><!--:61c6c8f8:--></div>
     </div>
 </div>
 </main>
 <footer id="observablehq-footer">
-<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-13T05:52:05">Feb 13, 2026</a>.</div>
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-19T04:28:22">Feb 19, 2026</a>.</div>
 </footer>
 </div>
 </body>
