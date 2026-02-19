@@ -59,7 +59,7 @@
 
 import {define} from "./_observablehq/client.0d9d15e7.js";
 
-define({id: "f82b7e85", outputs: ["Plot","Inputs","d3","DATA_URL","response","data","summary","history","holdings","accounts","virtualAccounts","strategyMap","strategies","formatCurrency","formatPercent","formatNumber","calculateRisk","riskMetrics","topHoldings","concentration"], body: async () => {
+define({id: "850ac29b", outputs: ["Plot","Inputs","d3","DATA_URL","response","data","summary","history","holdings","accounts","virtualAccounts","strategyMap","strategies","formatCurrency","formatPercent","formatNumber","calculateRisk","riskMetrics","topHoldings","concentration"], body: async () => {
 const [Plot, Inputs, d3] = await Promise.all([import("./_npm/@observablehq/plot@0.6.17/7c43807f.js"), import("./_observablehq/stdlib/inputs.4ef1d259.js"), import("./_npm/d3@7.9.0/e324157d.js")]);
 
 // Load data directly from GitHub (fetches fresh data on every page load)
@@ -96,24 +96,27 @@ const formatNumber = d3.format(",.2f");
 
 // Helper to calculate risk metrics
 function calculateRisk(hist) {
+  if (hist.length < 2) return {volatility: 0, maxDrawdown: 0, sharpe: 0};
+
   const returns = [];
   let maxVal = 0;
   let maxDD = 0;
-  
+
   for (let i = 1; i < hist.length; i++) {
     const r = (hist[i].value - hist[i-1].value) / hist[i-1].value;
     returns.push(r);
-    
+
     if (hist[i].value > maxVal) maxVal = hist[i].value;
     const dd = (maxVal - hist[i].value) / maxVal;
     if (dd > maxDD) maxDD = dd;
   }
-  
+
   const meanReturn = d3.mean(returns);
   const stdDev = d3.deviation(returns);
+  if (!stdDev || stdDev === 0) return {volatility: 0, maxDrawdown: maxDD * 100, sharpe: 0};
   const annualizedVol = stdDev * Math.sqrt(252);
   const sharpe = (meanReturn / stdDev) * Math.sqrt(252); // Assuming 0 risk-free
-  
+
   return {
     volatility: annualizedVol * 100,
     maxDrawdown: maxDD * 100,
@@ -175,9 +178,11 @@ timeRangeInput
 ))
 }});
 
-define({id: "c3f7107f", mode: "inline", inputs: ["Plot","history","timeRange","d3","display"], body: async (Plot,history,timeRange,d3,display) => {
+define({id: "53cd958b", mode: "inline", inputs: ["history","html","Plot","timeRange","d3","display"], body: async (history,html,Plot,timeRange,d3,display) => {
 display(await(
-      Plot.plot({
+history.length === 0
+      ? html`<p style="text-align: center; color: #888; padding: 40px 0;">No history data yet. Run the portfolio generator to start collecting data.</p>`
+      : Plot.plot({
         y: {grid: true, label: "Value (KRW)", tickFormat: "s"},
         x: {label: "Date"},
         marks: [
@@ -187,7 +192,7 @@ display(await(
              if (timeRange === "3M") return d.date > d3.timeMonth.offset(now, -3);
              if (timeRange === "6M") return d.date > d3.timeMonth.offset(now, -6);
              if (timeRange === "1Y") return d.date > d3.timeYear.offset(now, -1);
-             return true; 
+             return true;
           }), {x: "date", y: "value", tip: true, stroke: "steelblue"}),
           Plot.ruleY([0])
         ]
@@ -391,7 +396,7 @@ display(await(
   min-width: 700px;
 }
 </style>
-<div class="observablehq observablehq--block"><!--:f82b7e85:--></div>
+<div class="observablehq observablehq--block"><!--:850ac29b:--></div>
 <div class="grid grid-cols-4">
   <div class="card">
     <h2>Total Portfolio Value</h2>
@@ -426,7 +431,7 @@ display(await(
   <div class="card">
     <h2>Portfolio Value Over Time</h2>
     <div style="display: flex; justify-content: flex-end;"><observablehq-loading></observablehq-loading><!--:34e38d77:--></div>
-    <observablehq-loading></observablehq-loading><!--:c3f7107f:-->
+    <observablehq-loading></observablehq-loading><!--:53cd958b:-->
   </div>
 </div>
 <div class="observablehq observablehq--block"><!--:3f0f155d:--></div>
@@ -483,7 +488,7 @@ display(await(
 </div>
 </main>
 <footer id="observablehq-footer">
-<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-19T05:07:41">Feb 19, 2026</a>.</div>
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-19T05:24:44">Feb 19, 2026</a>.</div>
 </footer>
 </div>
 </body>
