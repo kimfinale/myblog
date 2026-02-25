@@ -172,18 +172,24 @@ formatCurrency(summary.realized_pnl || 0)
 ))
 }});
 
+define({id: "7a75e2dd", mode: "inline", inputs: ["yScaleInput","display"], body: async (yScaleInput,display) => {
+display(await(
+yScaleInput
+))
+}});
+
 define({id: "34e38d77", mode: "inline", inputs: ["timeRangeInput","display"], body: async (timeRangeInput,display) => {
 display(await(
 timeRangeInput
 ))
 }});
 
-define({id: "53cd958b", mode: "inline", inputs: ["history","html","Plot","timeRange","d3","display"], body: async (history,html,Plot,timeRange,d3,display) => {
+define({id: "21e096cb", mode: "inline", inputs: ["history","html","Plot","yScale","d3","timeRange","display"], body: async (history,html,Plot,yScale,d3,timeRange,display) => {
 display(await(
 history.length === 0
       ? html`<p style="text-align: center; color: #888; padding: 40px 0;">No history data yet. Run the portfolio generator to start collecting data.</p>`
       : Plot.plot({
-        y: {grid: true, label: "Value (KRW)", tickFormat: "s"},
+        y: {grid: true, label: "Value (KRW)", tickFormat: "s", ...(yScale === "From 0" ? {domain: [0, d3.max(history, d => d.value) * 1.05]} : {})},
         x: {label: "Date"},
         marks: [
           Plot.lineY(history.filter(d => {
@@ -193,17 +199,19 @@ history.length === 0
              if (timeRange === "6M") return d.date > d3.timeMonth.offset(now, -6);
              if (timeRange === "1Y") return d.date > d3.timeYear.offset(now, -1);
              return true;
-          }), {x: "date", y: "value", tip: true, stroke: "steelblue"}),
-          Plot.ruleY([0])
+          }), {x: "date", y: "value", tip: true, stroke: "steelblue"})
         ]
       })
     
 ))
 }});
 
-define({id: "3f0f155d", inputs: ["Inputs","Generators","holdings","virtualAccounts"], outputs: ["timeRangeInput","timeRange","searchInput","filteredHoldings","vaSearchInput","filteredVA"], body: (Inputs,Generators,holdings,virtualAccounts) => {
+define({id: "da24c4ea", inputs: ["Inputs","Generators","holdings","virtualAccounts"], outputs: ["timeRangeInput","timeRange","yScaleInput","yScale","searchInput","filteredHoldings","vaSearchInput","filteredVA"], body: (Inputs,Generators,holdings,virtualAccounts) => {
 const timeRangeInput = Inputs.radio(["1M", "3M", "6M", "1Y", "All"], {label: "Time Range", value: "All"});
 const timeRange = Generators.input(timeRangeInput);
+
+const yScaleInput = Inputs.radio(["Auto", "From 0"], {label: "Y-Axis", value: "Auto"});
+const yScale = Generators.input(yScaleInput);
 
 // Text search for holdings
 const searchInput = Inputs.search(holdings, {placeholder: "Search stocks..."});
@@ -212,7 +220,7 @@ const filteredHoldings = Generators.input(searchInput);
 // Text search for virtual accounts
 const vaSearchInput = Inputs.search(virtualAccounts, {placeholder: "Search virtual accounts..."});
 const filteredVA = Generators.input(vaSearchInput);
-return {timeRangeInput,timeRange,searchInput,filteredHoldings,vaSearchInput,filteredVA};
+return {timeRangeInput,timeRange,yScaleInput,yScale,searchInput,filteredHoldings,vaSearchInput,filteredVA};
 }});
 
 define({id: "a9af394b", mode: "inline", inputs: ["Plot","holdings","display"], body: async (Plot,holdings,display) => {
@@ -430,11 +438,11 @@ display(await(
 <div class="grid grid-cols-1">
   <div class="card">
     <h2>Portfolio Value Over Time</h2>
-    <div style="display: flex; justify-content: flex-end;"><observablehq-loading></observablehq-loading><!--:34e38d77:--></div>
-    <observablehq-loading></observablehq-loading><!--:53cd958b:-->
+    <div style="display: flex; justify-content: flex-end; gap: 20px;"><observablehq-loading></observablehq-loading><!--:7a75e2dd:--> <observablehq-loading></observablehq-loading><!--:34e38d77:--></div>
+    <observablehq-loading></observablehq-loading><!--:21e096cb:-->
   </div>
 </div>
-<div class="observablehq observablehq--block"><!--:3f0f155d:--></div>
+<div class="observablehq observablehq--block"><!--:da24c4ea:--></div>
 <div class="grid grid-cols-2">
   <div class="card">
     <h2>Asset Allocation</h2>
@@ -488,7 +496,7 @@ display(await(
 </div>
 </main>
 <footer id="observablehq-footer">
-<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-19T05:24:44">Feb 19, 2026</a>.</div>
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-25T00:25:27">Feb 25, 2026</a>.</div>
 </footer>
 </div>
 </body>
