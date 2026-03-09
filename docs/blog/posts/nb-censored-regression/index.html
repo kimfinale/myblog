@@ -206,22 +206,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>d1 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"2008_Mossong_POLYMOD_participant_common.csv"</span>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># d1 &lt;- fread("data/2008_Mossong_POLYMOD_participant_common.csv")</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>d2 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"2008_Mossong_POLYMOD_contact_common.csv"</span>)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># d2 &lt;- fread("data/2008_Mossong_POLYMOD_contact_common.csv")</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># count the number of contacts for each participant using part_id variable</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>d2 <span class="sc">|&gt;</span> <span class="fu">group_by</span>(part_id) <span class="sc">|&gt;</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">contacts =</span> <span class="fu">n</span>()) <span class="ot">-&gt;</span> d2_contacts</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>d12 <span class="ot">&lt;-</span> <span class="fu">left_join</span>(d1, d2_contacts, <span class="at">by=</span><span class="st">"part_id"</span>)</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># add household information</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>d3 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"2008_Mossong_POLYMOD_hh_common.csv"</span>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># d3 &lt;- fread("data/2008_Mossong_POLYMOD_hh_common.csv")</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>d123 <span class="ot">&lt;-</span> <span class="fu">left_join</span>(d12, d3, <span class="at">by=</span><span class="st">"hh_id"</span>)</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># add day of week information</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>d4 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"2008_Mossong_POLYMOD_sday.csv"</span>)</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co"># d4 &lt;- fread("data/2008_Mossong_POLYMOD_sday.csv")</span></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">left_join</span>(d123, d4, <span class="at">by=</span><span class="st">"part_id"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>d1 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="fu">here</span>(<span class="st">"data"</span>, <span class="st">"2008_Mossong_POLYMOD_participant_common.csv"</span>))</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>d2 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="fu">here</span>(<span class="st">"data"</span>, <span class="st">"2008_Mossong_POLYMOD_contact_common.csv"</span>))</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># count the number of contacts for each participant using part_id variable</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>d2 <span class="sc">|&gt;</span> <span class="fu">group_by</span>(part_id) <span class="sc">|&gt;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">contacts =</span> <span class="fu">n</span>()) <span class="ot">-&gt;</span> d2_contacts</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>d12 <span class="ot">&lt;-</span> <span class="fu">left_join</span>(d1, d2_contacts, <span class="at">by=</span><span class="st">"part_id"</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># add household information</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>d3 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="fu">here</span>(<span class="st">"data"</span>, <span class="st">"2008_Mossong_POLYMOD_hh_common.csv"</span>))</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>d123 <span class="ot">&lt;-</span> <span class="fu">left_join</span>(d12, d3, <span class="at">by=</span><span class="st">"hh_id"</span>)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co"># add day of week information</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>d4 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="fu">here</span>(<span class="st">"data"</span>, <span class="st">"2008_Mossong_POLYMOD_sday.csv"</span>))</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">left_join</span>(d123, d4, <span class="at">by=</span><span class="st">"part_id"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="data-manipulation" class="level3">
@@ -359,30 +355,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">find_age_row_column</span>(dat)</span>
-<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a><span class="co"># wlist &lt;- rio::import_list("data/sampling_weight.xlsx")</span></span>
-<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>wlist <span class="ot">&lt;-</span> rio<span class="sc">::</span><span class="fu">import_list</span>(<span class="st">"sampling_weight.xlsx"</span>)</span>
-<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>classify_weight <span class="ot">&lt;-</span> <span class="cf">function</span>(d){</span>
-<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>  d<span class="sc">$</span>wt <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
-<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>  cnames <span class="ot">&lt;-</span> <span class="fu">names</span>(wlist)</span>
-<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(cnames)) {</span>
-<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>    wtable <span class="ot">&lt;-</span> wlist[[i]]</span>
-<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>    w1 <span class="ot">&lt;-</span> wtable[wtable<span class="sc">$</span><span class="st">`</span><span class="at">Household size</span><span class="st">`</span> <span class="sc">==</span> <span class="st">"Ratio C/S"</span>,] <span class="co"># sampling weight</span></span>
-<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>    W <span class="ot">&lt;-</span> w1[<span class="sc">!</span><span class="fu">is.na</span>(w1<span class="sc">$</span><span class="st">`</span><span class="at">Household size</span><span class="st">`</span>),] <span class="co"># remove the first row</span></span>
-<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>    <span class="co"># View(W)</span></span>
-<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(d)){</span>
-<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span>(d<span class="sc">$</span>country[j] <span class="sc">==</span> cnames[i]) {</span>
-<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>        d<span class="sc">$</span>wt[j] <span class="ot">&lt;-</span> W[d<span class="sc">$</span>age_row[j], d<span class="sc">$</span>hh_col[j]<span class="sc">+</span><span class="dv">2</span>]</span>
-<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>      }</span>
-<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(d)</span>
-<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a><span class="co"># grep("-", as.character(d$wt), value = T)</span></span>
-<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a><span class="co"># hist(as.numeric(d$wt))</span></span>
-<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">classify_weight</span>(dat)</span>
-<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a>dat<span class="sc">$</span>wt <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(dat<span class="sc">$</span>wt)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>wlist <span class="ot">&lt;-</span> rio<span class="sc">::</span><span class="fu">import_list</span>(<span class="fu">here</span>(<span class="st">"data"</span>, <span class="st">"sampling_weight.xlsx"</span>))</span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>classify_weight <span class="ot">&lt;-</span> <span class="cf">function</span>(d){</span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>  d<span class="sc">$</span>wt <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>  cnames <span class="ot">&lt;-</span> <span class="fu">names</span>(wlist)</span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(cnames)) {</span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>    wtable <span class="ot">&lt;-</span> wlist[[i]]</span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>    w1 <span class="ot">&lt;-</span> wtable[wtable<span class="sc">$</span><span class="st">`</span><span class="at">Household size</span><span class="st">`</span> <span class="sc">==</span> <span class="st">"Ratio C/S"</span>,] <span class="co"># sampling weight</span></span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>    W <span class="ot">&lt;-</span> w1[<span class="sc">!</span><span class="fu">is.na</span>(w1<span class="sc">$</span><span class="st">`</span><span class="at">Household size</span><span class="st">`</span>),] <span class="co"># remove the first row</span></span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>    <span class="co"># View(W)</span></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(d)){</span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span>(d<span class="sc">$</span>country[j] <span class="sc">==</span> cnames[i]) {</span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>        d<span class="sc">$</span>wt[j] <span class="ot">&lt;-</span> W[d<span class="sc">$</span>age_row[j], d<span class="sc">$</span>hh_col[j]<span class="sc">+</span><span class="dv">2</span>]</span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(d)</span>
+<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a><span class="co"># grep("-", as.character(d$wt), value = T)</span></span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a><span class="co"># hist(as.numeric(d$wt))</span></span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">classify_weight</span>(dat)</span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>dat<span class="sc">$</span>wt <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(dat<span class="sc">$</span>wt)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="data-for-fitting-only-complete-cases" class="level3">
