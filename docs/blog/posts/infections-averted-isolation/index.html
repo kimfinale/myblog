@@ -185,7 +185,7 @@ div.csl-indent {
 
 </header>
 
-<p>When a newly infected person successfully isolates, how many downstream infections does that prevent? The answer depends on the structure of transmission — not just the average reproduction number <span class="math inline">\(\mathcal{R}_c\)</span>, but also on how heterogeneous transmission is, and critically, on how many other infected individuals are circulating at the same time.</p>
+<p>When a newly infected person successfully isolates, how many downstream infections does that prevent? The answer depends on the structure of transmission — not just the average reproduction number <span class="math inline">\(\mathcal{R}_c\)</span> (denoting a reproduction number under control), but also on how heterogeneous transmission is, and critically, on how many other infected individuals are circulating at the same time.</p>
 <section id="setting-up-the-problem" class="level2">
 <h2 class="anchored" data-anchor-id="setting-up-the-problem">Setting up the problem</h2>
 <p>Consider a large, well-mixed susceptible population. Each infected individual generates a random number of secondary infections drawn from an <strong>offspring distribution</strong> with probability mass function <span class="math inline">\(p_k = \Pr(K = k)\)</span> and mean <span class="math inline">\(\mathcal{R}_c\)</span>. We work with two canonical choices:</p>
@@ -199,19 +199,54 @@ div.csl-indent {
 </section>
 <section id="the-attack-rate" class="level2">
 <h2 class="anchored" data-anchor-id="the-attack-rate">The attack rate</h2>
-<p>In a large epidemic, the fraction of the population ultimately infected — the <em>attack rate</em> <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)\)</span> — satisfies the implicit equation <span class="math display">\[
-\mathcal{A}(\mathcal{R}_c) = 1 - e^{-\mathcal{R}_c \, \mathcal{A}(\mathcal{R}_c)},
-\]</span> derived from the observation that each individual receives a Poisson-distributed number of transmissions with mean <span class="math inline">\(\mathcal{R}_c \mathcal{A}(\mathcal{R}_c)\)</span>, and is infected if she receives at least one. This can be solved iteratively starting from <span class="math inline">\(\mathcal{A}_0 = 1\)</span>.</p>
+<p>In a large well-mixed epidemic, the attack rate <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)\)</span> depends only on the mean offspring <span class="math inline">\(\mathcal{R}_c\)</span>, not on its distribution <span class="citation" data-cites="roberts2023quantifying">(<a href="#ref-roberts2023quantifying" role="doc-biblioref">Roberts et al. 2023</a>)</span>. The argument is that from any susceptible’s perspective, the total number of transmission attempts she receives is Poisson-distributed with mean <span class="math inline">\(\mathcal{R}_c \mathcal{A}\)</span>, regardless of how heterogeneous those transmissions are across infectors. She escapes infection only if she receives zero attempts, giving the implicit equation <span class="math display">\[
+\mathcal{A} = 1 - e^{-\mathcal{R}_c \, \mathcal{A}},
+\]</span> solved iteratively from <span class="math inline">\(\mathcal{A}_0 = 1\)</span>.</p>
+<p>An important consequence is that <span class="math inline">\(\mathcal{R}_\infty = (1-\mathcal{A})\mathcal{R}_c &lt; 1\)</span> for all <span class="math inline">\(\mathcal{R}_c &gt; 1\)</span>: the SIR overshoot guarantees that the effective reproduction number at epidemic’s end is always subcritical. This ensures the geometric series for <span class="math inline">\(\mathcal{F}\)</span> (below) always converges.</p>
+<p>Note that using a branching-process-specific final size (e.g.&nbsp;<span class="math inline">\(\mathcal{A} = 1 - \bigl(1 + \mathcal{R}_c\mathcal{A}/\kappa\bigr)^{-\kappa}\)</span> for NB) can violate this guarantee: for heavy-tailed offspring near <span class="math inline">\(\mathcal{R}_c = 1\)</span>, <span class="math inline">\((1-\mathcal{A})\mathcal{R}_c\)</span> may exceed 1, causing <span class="math inline">\(\mathcal{F}\)</span> to diverge.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-attack-rate" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="index_files/figure-html/fig-attack-rate-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure&nbsp;1: The attack rate <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)\)</span> as a function of <span class="math inline">\(\mathcal{R}_c\)</span>. The curve is identical for both offspring distributions — the attack rate depends only on <span class="math inline">\(\mathcal{R}_c\)</span>, not on the shape of the offspring distribution.</figcaption>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="expected-infections-averted-the-residual-offspring-distribution" class="level2">
 <h2 class="anchored" data-anchor-id="expected-infections-averted-the-residual-offspring-distribution">Expected infections averted: the residual offspring distribution</h2>
-<p>When individual <span class="math inline">\(u\)</span> isolates immediately after becoming infected, she prevents all infections in her <strong>residual transmission tree</strong> — but only those that would not have occurred anyway through another route. This is the crux of the problem.</p>
-<p><span class="citation" data-cites="roberts2023quantifying">Roberts et al. (<a href="#ref-roberts2023quantifying" role="doc-biblioref">2023</a>)</span> show that the relevant quantity is the <strong>effective reproduction number at the end of the epidemic</strong>, <span class="math display">\[
+<p>When individual <span class="math inline">\(u\)</span> isolates immediately after becoming infected, she prevents all infections in her <strong>residual offspring distribution</strong> — offspring distribution who would not be reachable along any other transmission.</p>
+<p>If an individual would cause <span class="math inline">\(i\)</span> transmissions, a fraction <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)\)</span> of them go to individuals who would otherwise be infected through a different chain, as would all their descendants. Therefore, only a fraction <span class="math inline">\(1 - \mathcal{A}(\mathcal{R}_c)\)</span> of offspring is residual offspring.</p>
+<p><span class="citation" data-cites="roberts2023quantifying">Roberts et al. (<a href="#ref-roberts2023quantifying" role="doc-biblioref">2023</a>)</span> show that the average of the residual offspring distribution is the same as the <strong>effective reproduction number at the end of the epidemic</strong>, <span class="math display">\[
 \mathcal{R}_\infty = \bigl[1 - \mathcal{A}(\mathcal{R}_c)\bigr] \, \mathcal{R}_c.
-\]</span> This is the initial reproduction number scaled down by the fraction of the population that remains susceptible when the epidemic burns out. It captures the fact that, near the end of a large epidemic, most transmission attempts hit immune individuals and therefore have no effect.</p>
-<p>The expected number of infections averted when <span class="math inline">\(u\)</span> isolates is then the sum of a geometric series: <span class="math display">\[
+\]</span></p>
+<p>This is the initial reproduction number scaled down by the fraction of the population that remains susceptible when the epidemic burns out.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-R-inf" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="index_files/figure-html/fig-R-inf-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure&nbsp;2: The effective reproduction number at the end of the epidemic, <span class="math inline">\(\mathcal{R}_\infty\)</span>.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The expected number of infections averted among those at generation <span class="math inline">\(g\)</span> from <span class="math inline">\(u\)</span> is <span class="math inline">\(\mathcal{R}_\infty^g\)</span>. Thus, the expected number of infections averted when <span class="math inline">\(u\)</span> isolates is then the sum of a geometric series: <span class="math display">\[
 \mathcal{F}(\mathcal{R}_c) = \sum_{g=1}^{\infty} \mathcal{R}_\infty^g = \frac{\mathcal{R}_\infty}{1 - \mathcal{R}_\infty}.
-\]</span> The intuition is clear: each generation of <span class="math inline">\(u\)</span>’s descendant chain is expected to have <span class="math inline">\(\mathcal{R}_\infty\)</span> times as many infections as the previous one, and <span class="math inline">\(\mathcal{F}(\mathcal{R}_c)\)</span> sums this over all generations.</p>
+\]</span></p>
+<p>The intuition is clear: each generation of <span class="math inline">\(u\)</span>’s descendant chain is expected to have <span class="math inline">\(\mathcal{R}_\infty\)</span> times as many infections as the previous one, and <span class="math inline">\(\mathcal{F}(\mathcal{R}_c)\)</span> sums this over all generations.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-F-R" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="index_files/figure-html/fig-F-R-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure&nbsp;3: The expected number of infections averted <span class="math inline">\(\mathcal{F}(\mathcal{R}_c)\)</span>.</figcaption>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="overdetermination-limits-the-benefit-at-high-mathcalr_c" class="level2">
 <h2 class="anchored" data-anchor-id="overdetermination-limits-the-benefit-at-high-mathcalr_c">Overdetermination limits the benefit at high <span class="math inline">\(\mathcal{R}_c\)</span></h2>
@@ -221,12 +256,56 @@ div.csl-indent {
 <section id="the-benefit-is-greatest-near-the-epidemic-threshold" class="level2">
 <h2 class="anchored" data-anchor-id="the-benefit-is-greatest-near-the-epidemic-threshold">The benefit is greatest near the epidemic threshold</h2>
 <p>When <span class="math inline">\(\mathcal{R}_c\)</span> is only slightly above 1, a large epidemic is still possible, but many potential transmission chains die out on their own. A small reduction in transmission — like a single person isolating — can tip a borderline chain from an expanding outbreak to extinction. Formally, as <span class="math inline">\(\mathcal{R}_c \to 1^+\)</span>, we have <span class="math inline">\(\mathcal{A} \to 0\)</span> and <span class="math inline">\(\mathcal{R}_\infty \to \mathcal{R}_c\)</span>, so <span class="math inline">\(\mathcal{F}(\mathcal{R}_c) \to \mathcal{R}_c / (1 - \mathcal{R}_c) \to \infty\)</span>. A careful limiting argument using L’Hôpital’s rule shows that the <em>expected infections averted multiplied by the probability of the epidemic</em>, <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)[1 + \mathcal{F}(\mathcal{R}_c)]\)</span>, approaches <strong>2</strong> as <span class="math inline">\(\mathcal{R}_c \to 1^+\)</span> <span class="citation" data-cites="roberts2023quantifying">(<a href="#ref-roberts2023quantifying" role="doc-biblioref">Roberts et al. 2023</a>)</span>.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-A-times-F" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="index_files/figure-html/fig-A-times-F-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure&nbsp;4: The expected benefit multiplied by epidemic probability, <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)[1 + \mathcal{F}(\mathcal{R}_c)]\)</span>. The dashed line indicates the theoretical limit of 2 as <span class="math inline">\(\mathcal{R}_c \to 1^+\)</span>.</figcaption>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="the-full-distribution-rare-but-large-cascades" class="level2">
 <h2 class="anchored" data-anchor-id="the-full-distribution-rare-but-large-cascades">The full distribution: rare but large cascades</h2>
-<p>The <em>expected</em> benefit is only part of the story. <span class="citation" data-cites="roberts2023quantifying">Roberts et al. (<a href="#ref-roberts2023quantifying" role="doc-biblioref">2023</a>)</span> also derive the full distribution of infections averted, whose PGF <span class="math inline">\(\Omega_\infty(x)\)</span> satisfies <span class="math display">\[
+<p>The <em>expected</em> benefit is only part of the story. <span class="citation" data-cites="roberts2023quantifying">Roberts et al. (<a href="#ref-roberts2023quantifying" role="doc-biblioref">2023</a>)</span> also derive the full distribution of infections averted. The derivation rests on two ingredients.</p>
+<p><strong>Ingredient 1: the Galton-Watson total-progeny identity.</strong> For any branching process starting from a single root, where every node’s offspring follows a distribution with PGF <span class="math inline">\(g(s)\)</span>, the PGF of the <em>total tree size</em> <span class="math inline">\(T\)</span> (root plus all descendants) satisfies the fixed-point equation <span class="math display">\[
+T(x) = x\cdot g\bigl(T(x)\bigr).
+\]</span> This holds because <span class="math inline">\(T = 1 + T_1 + \cdots + T_K\)</span>, where <span class="math inline">\(K\)</span> offspring each independently seed a subtree of the same structure: <span class="math display">\[
+E[x^T] = x\cdot E\!\bigl[(T(x))^K\bigr] = x\cdot g\bigl(T(x)\bigr).
+\]</span></p>
+<p><strong>Ingredient 2: the residual offspring distribution.</strong> Among <span class="math inline">\(u\)</span>’s <span class="math inline">\(K\)</span> potential offspring, each is <em>residual</em> — not reachable through any alternative chain — independently with probability <span class="math inline">\(\mathcal{R}_\infty\)</span>. Binomial thinning of a distribution with PGF <span class="math inline">\(\mu(s)\)</span> at retention probability <span class="math inline">\(\mathcal{R}_\infty\)</span> gives: <span class="math display">\[
+\mu_{\text{res}}(s) = \mu\!\bigl(1 - \mathcal{R}_\infty + \mathcal{R}_\infty\, s\bigr).
+\]</span></p>
+<p><strong>Combining.</strong> The infections averted form a Galton-Watson tree with offspring PGF <span class="math inline">\(\mu_{\text{res}}\)</span>. Substituting into the total-progeny identity gives the PGF <span class="math inline">\(\Omega_\infty(x)\)</span> of the number of infections averted: <span class="math display">\[
 \Omega_\infty(x) = x\,\mu\bigl[1 - \mathcal{R}_\infty + \mathcal{R}_\infty \Omega_\infty(x)\bigr],
-\]</span> solved iteratively from <span class="math inline">\(\Omega_0(x) = 1\)</span>. Near <span class="math inline">\(\mathcal{R}_c = 1\)</span>, this distribution has a heavy tail: most isolations prevent zero or very few infections, but occasionally they cut off a large cascade. The large average <span class="math inline">\(\mathcal{F}(\mathcal{R}_c)\)</span> near threshold is driven by these rare high-impact events, a direct consequence of superspreading in the negative-binomial case.</p>
+\]</span> solved iteratively from <span class="math inline">\(\Omega_0(x) = 1\)</span>. Note that <span class="math inline">\(\Omega_\infty\)</span> and <span class="math inline">\(\mu\)</span> are distinct objects: <span class="math inline">\(\mu(x)\)</span> encodes the offspring of a single individual (a one-step distribution), while <span class="math inline">\(\Omega_\infty(x)\)</span> encodes the size of an entire cascade.</p>
+<p>Near <span class="math inline">\(\mathcal{R}_c = 1\)</span>, this distribution has a heavy tail: most isolations prevent zero or very few infections, but occasionally they cut off a large cascade. The large average <span class="math inline">\(\mathcal{F}(\mathcal{R}_c)\)</span> near threshold is driven by these rare high-impact events, a direct consequence of superspreading in the negative-binomial case.</p>
+</section>
+<section id="computing-the-distribution-via-the-cauchy-integral" class="level2">
+<h2 class="anchored" data-anchor-id="computing-the-distribution-via-the-cauchy-integral">Computing the distribution via the Cauchy integral</h2>
+<p>The Taylor coefficients <span class="math inline">\(c_k = \Pr(\text{avert exactly } k \text{ infections})\)</span> of <span class="math inline">\(\Omega_\infty\)</span> have no closed form for a general offspring distribution, but the <strong>Cauchy integral formula</strong> extracts them from values of <span class="math inline">\(\Omega_\infty\)</span> on the unit circle <span class="math inline">\(|x| = 1\)</span>: <span class="math display">\[
+c_k = \frac{1}{2\pi i} \oint_{|x|=1} \frac{\Omega_\infty(x)}{x^{k+1}} \, dx.
+\]</span> Parametrising by <span class="math inline">\(x = e^{i\theta}\)</span> turns this into a Fourier coefficient, <span class="math display">\[
+c_k = \frac{1}{2\pi} \int_0^{2\pi} \Omega_\infty(e^{i\theta})\, e^{-ik\theta}\, d\theta,
+\]</span> so the entire probability mass function <span class="math inline">\(\{c_k\}\)</span> is the <strong>discrete Fourier transform</strong> of <span class="math inline">\(\Omega_\infty\)</span> sampled at <span class="math inline">\(N\)</span> equally-spaced angles. The algorithm is:</p>
+<ol type="1">
+<li>Set <span class="math inline">\(z_j = e^{2\pi i j/N}\)</span>, <span class="math inline">\(j = 0, \ldots, N-1\)</span>.</li>
+<li>Iterate <span class="math inline">\(\Omega_{g+1}(z_j) = z_j\,\mu\!\bigl[1 - \mathcal{R}_\infty + \mathcal{R}_\infty\,\Omega_g(z_j)\bigr]\)</span> from <span class="math inline">\(\Omega_0 \equiv 1\)</span> until convergence (guaranteed for all <span class="math inline">\(|z| \le 1\)</span> when <span class="math inline">\(\mathcal{R}_\infty &lt; 1\)</span>).</li>
+<li>Extract <span class="math inline">\(c_k \approx \tfrac{1}{N}\operatorname{Re}\!\bigl[\operatorname{FFT}(\Omega_\infty)\bigr]_k\)</span>.</li>
+</ol>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-dist-averted" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="index_files/figure-html/fig-dist-averted-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption class="figure-caption">Figure&nbsp;5: Distribution of the number of infections averted when one infected individual isolates, computed via the Cauchy integral method. Shown on a log–log scale to reveal the power-law tail near <span class="math inline">\(\mathcal{R}_c = 1\)</span>.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>At <span class="math inline">\(\mathcal{R}_c = 1\)</span> the distribution follows a power law <span class="math inline">\(c_k \sim k^{-3/2}\)</span> for the Poisson case, visible as a straight line with slope <span class="math inline">\(-3/2\)</span> on the log–log axes. The negative-binomial case has a heavier tail at the same <span class="math inline">\(\mathcal{R}_c\)</span>, reflecting the additional variance from superspreading: while both distributions share the same mean <span class="math inline">\(\mathcal{F}(\mathcal{R}_c)\)</span>, superspreading inflates the probability of both very small and very large cascades.</p>
 </section>
 <section id="key-takeaways" class="level2">
 <h2 class="anchored" data-anchor-id="key-takeaways">Key takeaways</h2>
