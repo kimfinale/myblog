@@ -1,0 +1,76 @@
+---
+title: "How many infections does one isolation prevent?"
+author: "Jong-Hoon Kim"
+date: "2026-03-10"
+categories: [epidemiology, branching process, isolation, overdetermination]
+bibliography: ../../../references.bib
+---
+
+When a newly infected person successfully isolates, how many downstream infections does that prevent? The answer depends on the structure of transmission — not just the average reproduction number $\mathcal{R}_c$, but also on how heterogeneous transmission is, and critically, on how many other infected individuals are circulating at the same time.
+
+## Setting up the problem
+
+Consider a large, well-mixed susceptible population. Each infected individual generates a random number of secondary infections drawn from an **offspring distribution** with probability mass function $p_k = \Pr(K = k)$ and mean $\mathcal{R}_c$. We work with two canonical choices:
+
+- **Poisson** with mean $\mathcal{R}_c$: all individuals are equally infectious on average.
+- **Negative binomial** with mean $\mathcal{R}_c$ and dispersion $\kappa = 0.16$: a small fraction of individuals cause a disproportionately large fraction of transmissions (*superspreading*).
+
+The probability generating function (PGF) of the offspring distribution is
+$$
+\mu(x) = \sum_{k=0}^{\infty} p_k x^k,
+$$
+with $\mathcal{R}_c = \mu'(1)$.
+
+## The attack rate
+
+In a large epidemic, the fraction of the population ultimately infected — the *attack rate* $\mathcal{A}(\mathcal{R}_c)$ — satisfies the implicit equation
+$$
+\mathcal{A}(\mathcal{R}_c) = 1 - e^{-\mathcal{R}_c \, \mathcal{A}(\mathcal{R}_c)},
+$$
+derived from the observation that each individual receives a Poisson-distributed number of transmissions with mean $\mathcal{R}_c \mathcal{A}(\mathcal{R}_c)$, and is infected if she receives at least one. This can be solved iteratively starting from $\mathcal{A}_0 = 1$.
+
+## Expected infections averted: the residual offspring distribution
+
+When individual $u$ isolates immediately after becoming infected, she prevents all infections in her **residual transmission tree** — but only those that would not have occurred anyway through another route. This is the crux of the problem.
+
+@roberts2023quantifying show that the relevant quantity is the **effective reproduction number at the end of the epidemic**,
+$$
+\mathcal{R}_\infty = \bigl[1 - \mathcal{A}(\mathcal{R}_c)\bigr] \, \mathcal{R}_c.
+$$
+This is the initial reproduction number scaled down by the fraction of the population that remains susceptible when the epidemic burns out. It captures the fact that, near the end of a large epidemic, most transmission attempts hit immune individuals and therefore have no effect.
+
+The expected number of infections averted when $u$ isolates is then the sum of a geometric series:
+$$
+\mathcal{F}(\mathcal{R}_c) = \sum_{g=1}^{\infty} \mathcal{R}_\infty^g = \frac{\mathcal{R}_\infty}{1 - \mathcal{R}_\infty}.
+$$
+The intuition is clear: each generation of $u$'s descendant chain is expected to have $\mathcal{R}_\infty$ times as many infections as the previous one, and $\mathcal{F}(\mathcal{R}_c)$ sums this over all generations.
+
+## Overdetermination limits the benefit at high $\mathcal{R}_c$
+
+**Overdetermination** occurs when a susceptible individual has more than one sufficient cause of infection — meaning she would have been infected even if one of the transmission chains leading to her had been broken. In a high-transmission setting, most susceptibles are reached by multiple independent chains. Removing one chain — by isolating one infected individual — therefore has no effect on the eventual fate of many of those susceptibles.
+
+Formally, this is reflected in $\mathcal{R}_\infty$ becoming small when $\mathcal{R}_c$ is large: a large epidemic infects almost everyone ($\mathcal{A} \approx 1$), leaving few susceptibles at the end, so $\mathcal{R}_\infty = (1 - \mathcal{A})\mathcal{R}_c \approx 0$ and $\mathcal{F}(\mathcal{R}_c) \approx 0$.
+
+## The benefit is greatest near the epidemic threshold
+
+When $\mathcal{R}_c$ is only slightly above 1, a large epidemic is still possible, but many potential transmission chains die out on their own. A small reduction in transmission — like a single person isolating — can tip a borderline chain from an expanding outbreak to extinction. Formally, as $\mathcal{R}_c \to 1^+$, we have $\mathcal{A} \to 0$ and $\mathcal{R}_\infty \to \mathcal{R}_c$, so $\mathcal{F}(\mathcal{R}_c) \to \mathcal{R}_c / (1 - \mathcal{R}_c) \to \infty$. A careful limiting argument using L'Hôpital's rule shows that the *expected infections averted multiplied by the probability of the epidemic*, $\mathcal{A}(\mathcal{R}_c)[1 + \mathcal{F}(\mathcal{R}_c)]$, approaches **2** as $\mathcal{R}_c \to 1^+$ [@roberts2023quantifying].
+
+## The full distribution: rare but large cascades
+
+The *expected* benefit is only part of the story. @roberts2023quantifying also derive the full distribution of infections averted, whose PGF $\Omega_\infty(x)$ satisfies
+$$
+\Omega_\infty(x) = x\,\mu\bigl[1 - \mathcal{R}_\infty + \mathcal{R}_\infty \Omega_\infty(x)\bigr],
+$$
+solved iteratively from $\Omega_0(x) = 1$. Near $\mathcal{R}_c = 1$, this distribution has a heavy tail: most isolations prevent zero or very few infections, but occasionally they cut off a large cascade. The large average $\mathcal{F}(\mathcal{R}_c)$ near threshold is driven by these rare high-impact events, a direct consequence of superspreading in the negative-binomial case.
+
+## Key takeaways
+
+- **Near the epidemic threshold** ($\mathcal{R}_c \approx 1$), each isolation has the largest expected public-health benefit.
+- **At high transmission** ($\mathcal{R}_c \gg 1$), overdetermination greatly reduces the marginal benefit of a single isolation — many infections will occur through alternative chains regardless.
+- **Collective compliance has synergistic effects**: as more individuals isolate, the effective $\mathcal{R}_c$ falls, overdetermination declines, and the per-isolator benefit rises.
+- The benefit of isolation is **heterogeneous**: most isolations prevent few infections, but rare events prevent large cascades — a point with important implications for how we communicate the value of individual public-health actions.
+
+## Reference
+
+::: {#refs}
+:::
