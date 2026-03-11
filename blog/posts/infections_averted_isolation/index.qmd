@@ -14,12 +14,9 @@ When a newly infected person successfully isolates, how many downstream infectio
 
 ## Setting up the problem
 
-Consider a large, well-mixed susceptible population. Each infected individual generates a random number of secondary infections drawn from an **offspring distribution** with probability mass function $p_k = \Pr(K = k)$ and mean $\mathcal{R}_c$. We work with two canonical choices:
+Consider a large, well-mixed susceptible population. Each infected individual generates a random number of secondary infections drawn from an **offspring distribution** with probability mass function $p_k = \Pr(K = k)$ and mean $\mathcal{R}_c$. We work with two canonical choices: Poisson and negative binomial distributions. Both have the same mean $\mathcal{R}_c$ but the negative binomial distrubtion has a additional parameter dispersion $\kappa = 0.16$, which means that a small fraction of individuals cause a disproportionately large fraction of transmissions (*superspreading*).
 
-- **Poisson** with mean $\mathcal{R}_c$: all individuals are equally infectious on average.
-- **Negative binomial** with mean $\mathcal{R}_c$ and dispersion $\kappa = 0.16$: a small fraction of individuals cause a disproportionately large fraction of transmissions (*superspreading*).
-
-The probability generating function (PGF) of the offspring distribution is
+We make use of the probability generating function (PGF) of the offspring distribution:
 $$
 \mu(x) = \sum_{k=0}^{\infty} p_k x^k,
 $$
@@ -27,13 +24,14 @@ with $\mathcal{R}_c = \mu'(1)$.
 
 ## The attack rate
 
-In a large well-mixed epidemic, the attack rate $\mathcal{A}(\mathcal{R}_c)$ depends only on the mean offspring $\mathcal{R}_c$, not on its distribution [@roberts2023quantifying]. The argument is that from any susceptible's perspective, the total number of transmission attempts she receives is Poisson-distributed with mean $\mathcal{R}_c \mathcal{A}$, regardless of how heterogeneous those transmissions are across infectors. She escapes infection only if she receives zero attempts, giving the implicit equation
+In a large well-mixed epidemic, the final size of the epidemic, or the attack rate $\mathcal{A}(\mathcal{R}_c)$, depends only on the mean offspring $\mathcal{R}_c$, not on its distribution [@roberts2023quantifying]. The argument is that from any susceptible's perspective, the total number of transmission attempts she receives is Poisson-distributed with mean $\mathcal{R}_c \mathcal{A}$, regardless of how heterogeneous those transmissions are across infectors. She escapes infection only if she receives zero attempts, giving the implicit equation
 $$
-\mathcal{A} = 1 - e^{-\mathcal{R}_c \, \mathcal{A}},
+\mathcal{A} = 1 - e^{-\mathcal{R}_c \, \mathcal{A}}.
 $$
-solved iteratively from $\mathcal{A}_0 = 1$.
 
-An important consequence is that $\mathcal{R}_\infty = (1-\mathcal{A})\mathcal{R}_c < 1$ for all $\mathcal{R}_c > 1$: the SIR overshoot guarantees that the effective reproduction number at epidemic's end is always subcritical. This ensures the geometric series for $\mathcal{F}$ (below) always converges.
+This transcendental equation can be solved iteratively from $\mathcal{A}_0 = 1$.
+
+An important consequence is that $\mathcal{R}_\infty = (1-\mathcal{A})\mathcal{R}_c < 1$ for all $\mathcal{R}_c > 1$, which guarantees that the effective reproduction number at epidemic's end is always subcritical. This ensures the geometric series for $\mathcal{F}$ (below) always converges.
 
 Note that using a branching-process-specific final size (e.g.\ $\mathcal{A} = 1 - \bigl(1 + \mathcal{R}_c\mathcal{A}/\kappa\bigr)^{-\kappa}$ for NB) can violate this guarantee: for heavy-tailed offspring near $\mathcal{R}_c = 1$, $(1-\mathcal{A})\mathcal{R}_c$ may exceed 1, causing $\mathcal{F}$ to diverge.
 
@@ -75,16 +73,16 @@ ggplot(df_ar, aes(x = R0, y = A)) +
 
 ## Expected infections averted: the residual offspring distribution
 
-When individual $u$ isolates immediately after becoming infected, she prevents all infections in her **residual offspring distribution** — offspring distribution who would not be reachable along any other transmission. 
+When an individual $u$ isolates immediately after becoming infected, this will prevent all infections in her **residual offspring** — offspring who would not be reachable along any other transmission. 
 
-If an individual would cause $i$ transmissions, a fraction $\mathcal{A}(\mathcal{R}_c)$ of them go to individuals who would otherwise be infected through a different chain, as would all their descendants. Therefore, only a fraction $1 - \mathcal{A}(\mathcal{R}_c)$ of offspring is residual offspring. 
+If an individual would cause $i$ transmissions, a fraction $\mathcal{A}(\mathcal{R}_c)$ of them go to individuals who would otherwise be infected through a different chain, as would all their descendants. Therefore, residual offspring is a fraction $1 - \mathcal{A}(\mathcal{R}_c)$ of the offspring. 
 
 @roberts2023quantifying show that the average of the residual offspring distribution is the same as the **effective reproduction number at the end of the epidemic**,
 $$
 \mathcal{R}_\infty = \bigl[1 - \mathcal{A}(\mathcal{R}_c)\bigr] \, \mathcal{R}_c.
 $$
 
-This is the initial reproduction number scaled down by the fraction of the population that remains susceptible when the epidemic burns out.
+In other words, the expected number of offspring averted by isolating $u$ (immediately after infection) is $\mathcal{R}_\infty$. This is the initial reproduction number scaled down by the fraction of the population that remains susceptible when the epidemic burns out.
 
 ```{r}
 #| label: fig-R-inf
@@ -102,12 +100,12 @@ ggplot(df_ar, aes(x = R0, y = R_inf)) +
     )
 ```
 
-The expected number of infections averted among those at generation $g$ from $u$ is $\mathcal{R}_\infty^g$. Thus, the expected number of infections averted when $u$ isolates is then the sum of a geometric series:
+Now let's consider all the descendants and not just the (direct) offspring. The expected number of descendantss averted among those at generation $g$ by isolating $u$ is $\mathcal{R}_\infty^g$. Thus, the overall expected number of infections averted when $u$ isolates is the sum of a geometric series:
 $$
 \mathcal{F}(\mathcal{R}_c) = \sum_{g=1}^{\infty} \mathcal{R}_\infty^g = \frac{\mathcal{R}_\infty}{1 - \mathcal{R}_\infty}.
 $$
 
-The intuition is clear: each generation of $u$'s descendant chain is expected to have $\mathcal{R}_\infty$ times as many infections as the previous one, and $\mathcal{F}(\mathcal{R}_c)$ sums this over all generations.
+Each generation of $u$'s descendant chain is expected to have $\mathcal{R}_\infty$ times as many infections as the previous one, and $\mathcal{F}(\mathcal{R}_c)$ sums this over all generations.
 
 ```{r}
 #| label: fig-F-R
@@ -128,7 +126,7 @@ ggplot(df_ar, aes(x = R0, y = F_R)) +
 
 ## Overdetermination limits the benefit at high $\mathcal{R}_c$
 
-**Overdetermination** occurs when a susceptible individual has more than one sufficient cause of infection — meaning she would have been infected even if one of the transmission chains leading to her had been broken. In a high-transmission setting, most susceptibles are reached by multiple independent chains. Removing one chain — by isolating one infected individual — therefore has no effect on the eventual fate of many of those susceptibles.
+**Overdetermination** occurs when a susceptible individual has more than one sufficient cause of infection — meaning she would have been infected even if one of the transmission chains leading to her had been broken. In a high-transmission setting, most susceptibles are reached by multiple independent chains. Removing one chain — by isolating one infected individual — therefore has no effect on the eventual fate of many of those susceptibles. In other words, one's descendents are overdetermined except for one's residual descendants. 
 
 Formally, this is reflected in $\mathcal{R}_\infty$ becoming small when $\mathcal{R}_c$ is large: a large epidemic infects almost everyone ($\mathcal{A} \approx 1$), leaving few susceptibles at the end, so $\mathcal{R}_\infty = (1 - \mathcal{A})\mathcal{R}_c \approx 0$ and $\mathcal{F}(\mathcal{R}_c) \approx 0$.
 
@@ -148,7 +146,7 @@ df_ar <- df_ar %>%
 ggplot(df_ar %>% filter(R0 > 1), aes(x = R0, y = A_times_1_plus_F)) +
     geom_line(linewidth = 1) +
     geom_hline(yintercept = 2, linetype = "dashed", color = "black") +
-    coord_cartesian(ylim = c(0, 5)) +
+    coord_cartesian(ylim = c(1, 2)) +
     labs(
         x = expression(italic(R)[c]),
         y = expression(italic(A) %.% (1 + italic(F)))
@@ -157,19 +155,30 @@ ggplot(df_ar %>% filter(R0 > 1), aes(x = R0, y = A_times_1_plus_F)) +
 
 ## The full distribution: rare but large cascades
 
-The *expected* benefit is only part of the story. @roberts2023quantifying also derive the full distribution of infections averted. The derivation rests on two ingredients.
+@roberts2023quantifying also derive the full distribution of infections averted. The derivation rests on two ingredients.
 
 **Ingredient 1: the Galton-Watson total-progeny identity.**
-For any branching process starting from a single root, where every node's offspring follows a distribution with PGF $g(s)$, the PGF of the *total tree size* $T$ (root plus all descendants) satisfies the fixed-point equation
+$$E[x^T] = \sum_t \Pr(T=t),x^t$$
+
+Let $T$ be the total number of individuals in the cascade (root plus all descendants). The root has $K$ offspring — drawn from a distribution with PGF $g(s) = E[s^K]$ — and each offspring seeds an independent sub-cascade of the same kind, so
 $$
-T(x) = x\cdot g\bigl(T(x)\bigr).
+T = 1 + T_1 + T_2 + \cdots + T_K,
 $$
-This holds because $T = 1 + T_1 + \cdots + T_K$, where $K$ offspring each independently seed a subtree of the same structure:
+where $T_1, T_2, \ldots$ are i.i.d.\ copies of $T$. Just as $\mu(x) = \sum_{k=0}^\infty p_k x^k$ is the PGF of the offspring count $K$, let $T(x) = \sum_{t=0}^\infty \Pr(T=t)\,x^t$ be the PGF of $T$. Substituting the decomposition $T = 1 + T_1 + \cdots + T_K$ into $\sum_t \Pr(T=t)\,x^t$ is equivalent to computing
 $$
-E[x^T] = x\cdot E\!\bigl[(T(x))^K\bigr] = x\cdot g\bigl(T(x)\bigr).
+T(x) = \sum_{t} \Pr(T=t)\,x^t = x \cdot \sum_{t_1,\ldots,t_K} \Pr(T_1=t_1)\cdots\Pr(T_K=t_K)\,x^{t_1}\cdots x^{t_K},
+$$
+which, because the $T_i$ are independent, factors as
+$$
+T(x) = x \cdot \prod_{i=1}^{K} T(x) = x \cdot \bigl[T(x)\bigr]^K.
+$$
+Averaging over the random $K$ using $g(s) = \sum_k p_k s^k$ evaluated at $s = T(x)$,
+$$
+T(x) = x \cdot \sum_{k=0}^\infty p_k \bigl[T(x)\bigr]^k = x \cdot g\bigl(T(x)\bigr).
 $$
 
 **Ingredient 2: the residual offspring distribution.**
+
 Among $u$'s $K$ potential offspring, each is *residual* — not reachable through any alternative chain — independently with probability $\mathcal{R}_\infty$. Binomial thinning of a distribution with PGF $\mu(s)$ at retention probability $\mathcal{R}_\infty$ gives:
 $$
 \mu_{\text{res}}(s) = \mu\!\bigl(1 - \mathcal{R}_\infty + \mathcal{R}_\infty\, s\bigr).
@@ -206,17 +215,19 @@ so the entire probability mass function $\{c_k\}$ is the **discrete Fourier tran
 # PGF of the offspring distribution, vectorised over complex x
 pgf_mu <- function(x, R0, kappa = Inf) {
     if (is.infinite(kappa)) {
-        exp(R0 * (x - 1))                         # Poisson
+        exp(R0 * (x - 1)) # Poisson
     } else {
-        (kappa / (kappa + R0 * (1 - x)))^kappa    # Negative binomial
+        (kappa / (kappa + R0 * (1 - x)))^kappa # Negative binomial
     }
 }
 
 # Extract PMF of infections averted via the Cauchy integral / FFT
 infections_averted_pmf <- function(R0, kappa = Inf, N = 2^13,
                                    tol = 1e-10, max_iter = 1000) {
-    A     <- solve_attack_rate(R0)
-    if (A == 0) return(NULL)
+    A <- solve_attack_rate(R0)
+    if (A == 0) {
+        return(NULL)
+    }
     R_inf <- (1 - A) * R0
 
     # Uniformly-spaced points on the unit circle
@@ -237,14 +248,16 @@ infections_averted_pmf <- function(R0, kappa = Inf, N = 2^13,
     data.frame(k = seq_along(c_k) - 1L, prob = c_k)
 }
 
-R0_vals     <- c(1.1, 1.5, 2.0, 3.5)
+R0_vals <- c(1.1, 1.5, 2.0, 3.5)
 dist_params <- list(Poisson = Inf, `Negative Binomial (k=0.16)` = 0.16)
 
 df_pmf <- do.call(rbind, lapply(names(dist_params), function(dname) {
     kap <- dist_params[[dname]]
     do.call(rbind, lapply(R0_vals, function(r) {
         pmf <- infections_averted_pmf(r, kap)
-        if (is.null(pmf)) return(NULL)
+        if (is.null(pmf)) {
+            return(NULL)
+        }
         pmf$Distribution <- dname
         pmf$R0 <- r
         pmf

@@ -188,21 +188,18 @@ div.csl-indent {
 <p>When a newly infected person successfully isolates, how many downstream infections does that prevent? The answer depends on the structure of transmission — not just the average reproduction number <span class="math inline">\(\mathcal{R}_c\)</span> (denoting a reproduction number under control), but also on how heterogeneous transmission is, and critically, on how many other infected individuals are circulating at the same time.</p>
 <section id="setting-up-the-problem" class="level2">
 <h2 class="anchored" data-anchor-id="setting-up-the-problem">Setting up the problem</h2>
-<p>Consider a large, well-mixed susceptible population. Each infected individual generates a random number of secondary infections drawn from an <strong>offspring distribution</strong> with probability mass function <span class="math inline">\(p_k = \Pr(K = k)\)</span> and mean <span class="math inline">\(\mathcal{R}_c\)</span>. We work with two canonical choices:</p>
-<ul>
-<li><strong>Poisson</strong> with mean <span class="math inline">\(\mathcal{R}_c\)</span>: all individuals are equally infectious on average.</li>
-<li><strong>Negative binomial</strong> with mean <span class="math inline">\(\mathcal{R}_c\)</span> and dispersion <span class="math inline">\(\kappa = 0.16\)</span>: a small fraction of individuals cause a disproportionately large fraction of transmissions (<em>superspreading</em>).</li>
-</ul>
-<p>The probability generating function (PGF) of the offspring distribution is <span class="math display">\[
+<p>Consider a large, well-mixed susceptible population. Each infected individual generates a random number of secondary infections drawn from an <strong>offspring distribution</strong> with probability mass function <span class="math inline">\(p_k = \Pr(K = k)\)</span> and mean <span class="math inline">\(\mathcal{R}_c\)</span>. We work with two canonical choices: Poisson and negative binomial distributions. Both have the same mean <span class="math inline">\(\mathcal{R}_c\)</span> but the negative binomial distrubtion has a additional parameter dispersion <span class="math inline">\(\kappa = 0.16\)</span>, which means that a small fraction of individuals cause a disproportionately large fraction of transmissions (<em>superspreading</em>).</p>
+<p>We make use of the probability generating function (PGF) of the offspring distribution: <span class="math display">\[
 \mu(x) = \sum_{k=0}^{\infty} p_k x^k,
 \]</span> with <span class="math inline">\(\mathcal{R}_c = \mu'(1)\)</span>.</p>
 </section>
 <section id="the-attack-rate" class="level2">
 <h2 class="anchored" data-anchor-id="the-attack-rate">The attack rate</h2>
-<p>In a large well-mixed epidemic, the attack rate <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)\)</span> depends only on the mean offspring <span class="math inline">\(\mathcal{R}_c\)</span>, not on its distribution <span class="citation" data-cites="roberts2023quantifying">(<a href="#ref-roberts2023quantifying" role="doc-biblioref">Roberts et al. 2023</a>)</span>. The argument is that from any susceptible’s perspective, the total number of transmission attempts she receives is Poisson-distributed with mean <span class="math inline">\(\mathcal{R}_c \mathcal{A}\)</span>, regardless of how heterogeneous those transmissions are across infectors. She escapes infection only if she receives zero attempts, giving the implicit equation <span class="math display">\[
-\mathcal{A} = 1 - e^{-\mathcal{R}_c \, \mathcal{A}},
-\]</span> solved iteratively from <span class="math inline">\(\mathcal{A}_0 = 1\)</span>.</p>
-<p>An important consequence is that <span class="math inline">\(\mathcal{R}_\infty = (1-\mathcal{A})\mathcal{R}_c &lt; 1\)</span> for all <span class="math inline">\(\mathcal{R}_c &gt; 1\)</span>: the SIR overshoot guarantees that the effective reproduction number at epidemic’s end is always subcritical. This ensures the geometric series for <span class="math inline">\(\mathcal{F}\)</span> (below) always converges.</p>
+<p>In a large well-mixed epidemic, the final size of the epidemic, or the attack rate <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)\)</span>, depends only on the mean offspring <span class="math inline">\(\mathcal{R}_c\)</span>, not on its distribution <span class="citation" data-cites="roberts2023quantifying">(<a href="#ref-roberts2023quantifying" role="doc-biblioref">Roberts et al. 2023</a>)</span>. The argument is that from any susceptible’s perspective, the total number of transmission attempts she receives is Poisson-distributed with mean <span class="math inline">\(\mathcal{R}_c \mathcal{A}\)</span>, regardless of how heterogeneous those transmissions are across infectors. She escapes infection only if she receives zero attempts, giving the implicit equation <span class="math display">\[
+\mathcal{A} = 1 - e^{-\mathcal{R}_c \, \mathcal{A}}.
+\]</span></p>
+<p>This transcendental equation can be solved iteratively from <span class="math inline">\(\mathcal{A}_0 = 1\)</span>.</p>
+<p>An important consequence is that <span class="math inline">\(\mathcal{R}_\infty = (1-\mathcal{A})\mathcal{R}_c &lt; 1\)</span> for all <span class="math inline">\(\mathcal{R}_c &gt; 1\)</span>, which guarantees that the effective reproduction number at epidemic’s end is always subcritical. This ensures the geometric series for <span class="math inline">\(\mathcal{F}\)</span> (below) always converges.</p>
 <p>Note that using a branching-process-specific final size (e.g.&nbsp;<span class="math inline">\(\mathcal{A} = 1 - \bigl(1 + \mathcal{R}_c\mathcal{A}/\kappa\bigr)^{-\kappa}\)</span> for NB) can violate this guarantee: for heavy-tailed offspring near <span class="math inline">\(\mathcal{R}_c = 1\)</span>, <span class="math inline">\((1-\mathcal{A})\mathcal{R}_c\)</span> may exceed 1, causing <span class="math inline">\(\mathcal{F}\)</span> to diverge.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -217,12 +214,12 @@ div.csl-indent {
 </section>
 <section id="expected-infections-averted-the-residual-offspring-distribution" class="level2">
 <h2 class="anchored" data-anchor-id="expected-infections-averted-the-residual-offspring-distribution">Expected infections averted: the residual offspring distribution</h2>
-<p>When individual <span class="math inline">\(u\)</span> isolates immediately after becoming infected, she prevents all infections in her <strong>residual offspring distribution</strong> — offspring distribution who would not be reachable along any other transmission.</p>
-<p>If an individual would cause <span class="math inline">\(i\)</span> transmissions, a fraction <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)\)</span> of them go to individuals who would otherwise be infected through a different chain, as would all their descendants. Therefore, only a fraction <span class="math inline">\(1 - \mathcal{A}(\mathcal{R}_c)\)</span> of offspring is residual offspring.</p>
+<p>When an individual <span class="math inline">\(u\)</span> isolates immediately after becoming infected, this will prevent all infections in her <strong>residual offspring</strong> — offspring who would not be reachable along any other transmission.</p>
+<p>If an individual would cause <span class="math inline">\(i\)</span> transmissions, a fraction <span class="math inline">\(\mathcal{A}(\mathcal{R}_c)\)</span> of them go to individuals who would otherwise be infected through a different chain, as would all their descendants. Therefore, residual offspring is a fraction <span class="math inline">\(1 - \mathcal{A}(\mathcal{R}_c)\)</span> of the offspring.</p>
 <p><span class="citation" data-cites="roberts2023quantifying">Roberts et al. (<a href="#ref-roberts2023quantifying" role="doc-biblioref">2023</a>)</span> show that the average of the residual offspring distribution is the same as the <strong>effective reproduction number at the end of the epidemic</strong>, <span class="math display">\[
 \mathcal{R}_\infty = \bigl[1 - \mathcal{A}(\mathcal{R}_c)\bigr] \, \mathcal{R}_c.
 \]</span></p>
-<p>This is the initial reproduction number scaled down by the fraction of the population that remains susceptible when the epidemic burns out.</p>
+<p>In other words, the expected number of offspring averted by isolating <span class="math inline">\(u\)</span> (immediately after infection) is <span class="math inline">\(\mathcal{R}_\infty\)</span>. This is the initial reproduction number scaled down by the fraction of the population that remains susceptible when the epidemic burns out.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-R-inf" class="quarto-figure quarto-figure-center anchored">
@@ -233,10 +230,10 @@ div.csl-indent {
 </div>
 </div>
 </div>
-<p>The expected number of infections averted among those at generation <span class="math inline">\(g\)</span> from <span class="math inline">\(u\)</span> is <span class="math inline">\(\mathcal{R}_\infty^g\)</span>. Thus, the expected number of infections averted when <span class="math inline">\(u\)</span> isolates is then the sum of a geometric series: <span class="math display">\[
+<p>Now let’s consider all the descendants and not just the (direct) offspring. The expected number of descendantss averted among those at generation <span class="math inline">\(g\)</span> by isolating <span class="math inline">\(u\)</span> is <span class="math inline">\(\mathcal{R}_\infty^g\)</span>. Thus, the overall expected number of infections averted when <span class="math inline">\(u\)</span> isolates is the sum of a geometric series: <span class="math display">\[
 \mathcal{F}(\mathcal{R}_c) = \sum_{g=1}^{\infty} \mathcal{R}_\infty^g = \frac{\mathcal{R}_\infty}{1 - \mathcal{R}_\infty}.
 \]</span></p>
-<p>The intuition is clear: each generation of <span class="math inline">\(u\)</span>’s descendant chain is expected to have <span class="math inline">\(\mathcal{R}_\infty\)</span> times as many infections as the previous one, and <span class="math inline">\(\mathcal{F}(\mathcal{R}_c)\)</span> sums this over all generations.</p>
+<p>Each generation of <span class="math inline">\(u\)</span>’s descendant chain is expected to have <span class="math inline">\(\mathcal{R}_\infty\)</span> times as many infections as the previous one, and <span class="math inline">\(\mathcal{F}(\mathcal{R}_c)\)</span> sums this over all generations.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-F-R" class="quarto-figure quarto-figure-center anchored">
@@ -250,7 +247,7 @@ div.csl-indent {
 </section>
 <section id="overdetermination-limits-the-benefit-at-high-mathcalr_c" class="level2">
 <h2 class="anchored" data-anchor-id="overdetermination-limits-the-benefit-at-high-mathcalr_c">Overdetermination limits the benefit at high <span class="math inline">\(\mathcal{R}_c\)</span></h2>
-<p><strong>Overdetermination</strong> occurs when a susceptible individual has more than one sufficient cause of infection — meaning she would have been infected even if one of the transmission chains leading to her had been broken. In a high-transmission setting, most susceptibles are reached by multiple independent chains. Removing one chain — by isolating one infected individual — therefore has no effect on the eventual fate of many of those susceptibles.</p>
+<p><strong>Overdetermination</strong> occurs when a susceptible individual has more than one sufficient cause of infection — meaning she would have been infected even if one of the transmission chains leading to her had been broken. In a high-transmission setting, most susceptibles are reached by multiple independent chains. Removing one chain — by isolating one infected individual — therefore has no effect on the eventual fate of many of those susceptibles. In other words, one’s descendents are overdetermined except for one’s residual descendants.</p>
 <p>Formally, this is reflected in <span class="math inline">\(\mathcal{R}_\infty\)</span> becoming small when <span class="math inline">\(\mathcal{R}_c\)</span> is large: a large epidemic infects almost everyone (<span class="math inline">\(\mathcal{A} \approx 1\)</span>), leaving few susceptibles at the end, so <span class="math inline">\(\mathcal{R}_\infty = (1 - \mathcal{A})\mathcal{R}_c \approx 0\)</span> and <span class="math inline">\(\mathcal{F}(\mathcal{R}_c) \approx 0\)</span>.</p>
 </section>
 <section id="the-benefit-is-greatest-near-the-epidemic-threshold" class="level2">
@@ -269,13 +266,19 @@ div.csl-indent {
 </section>
 <section id="the-full-distribution-rare-but-large-cascades" class="level2">
 <h2 class="anchored" data-anchor-id="the-full-distribution-rare-but-large-cascades">The full distribution: rare but large cascades</h2>
-<p>The <em>expected</em> benefit is only part of the story. <span class="citation" data-cites="roberts2023quantifying">Roberts et al. (<a href="#ref-roberts2023quantifying" role="doc-biblioref">2023</a>)</span> also derive the full distribution of infections averted. The derivation rests on two ingredients.</p>
-<p><strong>Ingredient 1: the Galton-Watson total-progeny identity.</strong> For any branching process starting from a single root, where every node’s offspring follows a distribution with PGF <span class="math inline">\(g(s)\)</span>, the PGF of the <em>total tree size</em> <span class="math inline">\(T\)</span> (root plus all descendants) satisfies the fixed-point equation <span class="math display">\[
-T(x) = x\cdot g\bigl(T(x)\bigr).
-\]</span> This holds because <span class="math inline">\(T = 1 + T_1 + \cdots + T_K\)</span>, where <span class="math inline">\(K\)</span> offspring each independently seed a subtree of the same structure: <span class="math display">\[
-E[x^T] = x\cdot E\!\bigl[(T(x))^K\bigr] = x\cdot g\bigl(T(x)\bigr).
+<p><span class="citation" data-cites="roberts2023quantifying">Roberts et al. (<a href="#ref-roberts2023quantifying" role="doc-biblioref">2023</a>)</span> also derive the full distribution of infections averted. The derivation rests on two ingredients.</p>
+<p><strong>Ingredient 1: the Galton-Watson total-progeny identity.</strong> <span class="math display">\[E[x^T] = \sum_t \Pr(T=t),x^t\]</span></p>
+<p>Let <span class="math inline">\(T\)</span> be the total number of individuals in the cascade (root plus all descendants). The root has <span class="math inline">\(K\)</span> offspring — drawn from a distribution with PGF <span class="math inline">\(g(s) = E[s^K]\)</span> — and each offspring seeds an independent sub-cascade of the same kind, so <span class="math display">\[
+T = 1 + T_1 + T_2 + \cdots + T_K,
+\]</span> where <span class="math inline">\(T_1, T_2, \ldots\)</span> are i.i.d.&nbsp;copies of <span class="math inline">\(T\)</span>. Just as <span class="math inline">\(\mu(x) = \sum_{k=0}^\infty p_k x^k\)</span> is the PGF of the offspring count <span class="math inline">\(K\)</span>, let <span class="math inline">\(T(x) = \sum_{t=0}^\infty \Pr(T=t)\,x^t\)</span> be the PGF of <span class="math inline">\(T\)</span>. Substituting the decomposition <span class="math inline">\(T = 1 + T_1 + \cdots + T_K\)</span> into <span class="math inline">\(\sum_t \Pr(T=t)\,x^t\)</span> is equivalent to computing <span class="math display">\[
+T(x) = \sum_{t} \Pr(T=t)\,x^t = x \cdot \sum_{t_1,\ldots,t_K} \Pr(T_1=t_1)\cdots\Pr(T_K=t_K)\,x^{t_1}\cdots x^{t_K},
+\]</span> which, because the <span class="math inline">\(T_i\)</span> are independent, factors as <span class="math display">\[
+T(x) = x \cdot \prod_{i=1}^{K} T(x) = x \cdot \bigl[T(x)\bigr]^K.
+\]</span> Averaging over the random <span class="math inline">\(K\)</span> using <span class="math inline">\(g(s) = \sum_k p_k s^k\)</span> evaluated at <span class="math inline">\(s = T(x)\)</span>, <span class="math display">\[
+T(x) = x \cdot \sum_{k=0}^\infty p_k \bigl[T(x)\bigr]^k = x \cdot g\bigl(T(x)\bigr).
 \]</span></p>
-<p><strong>Ingredient 2: the residual offspring distribution.</strong> Among <span class="math inline">\(u\)</span>’s <span class="math inline">\(K\)</span> potential offspring, each is <em>residual</em> — not reachable through any alternative chain — independently with probability <span class="math inline">\(\mathcal{R}_\infty\)</span>. Binomial thinning of a distribution with PGF <span class="math inline">\(\mu(s)\)</span> at retention probability <span class="math inline">\(\mathcal{R}_\infty\)</span> gives: <span class="math display">\[
+<p><strong>Ingredient 2: the residual offspring distribution.</strong></p>
+<p>Among <span class="math inline">\(u\)</span>’s <span class="math inline">\(K\)</span> potential offspring, each is <em>residual</em> — not reachable through any alternative chain — independently with probability <span class="math inline">\(\mathcal{R}_\infty\)</span>. Binomial thinning of a distribution with PGF <span class="math inline">\(\mu(s)\)</span> at retention probability <span class="math inline">\(\mathcal{R}_\infty\)</span> gives: <span class="math display">\[
 \mu_{\text{res}}(s) = \mu\!\bigl(1 - \mathcal{R}_\infty + \mathcal{R}_\infty\, s\bigr).
 \]</span></p>
 <p><strong>Combining.</strong> The infections averted form a Galton-Watson tree with offspring PGF <span class="math inline">\(\mu_{\text{res}}\)</span>. Substituting into the total-progeny identity gives the PGF <span class="math inline">\(\Omega_\infty(x)\)</span> of the number of infections averted: <span class="math display">\[
