@@ -11,6 +11,49 @@ format: html
 
 ## Published
 
+### 2026{#published-2026}
+
+```{=html}
+<ul class='list-group list-group-flush'><li class='list-group-item'><strong>Jong-Hoon Kim</strong>. (2026) "A Nationwide Social Contact Survey Dataset for Public Health and Social Sciences Research in South Korea." <em>Sci Data</em><br><a class="btn btn-outline-dark btn-sm", href="https://www.nature.com/articles/s41597-026-06896-y" target="_blank" rel="noopener noreferrer">
+        <i class="ai ai-archive" role='img' aria-label='Published'></i>
+        Published
+    </a></li></ul>
+```
+
+### 2025{#published-2025}
+
+```{=html}
+<ul class='list-group list-group-flush'><li class='list-group-item'>DaeHyup Koh, Monica Duong, Nodar Kipshidze, Virginia E. Pitzer, and <strong>Jong-Hoon Kim</strong>. (2025) "Time series data on typhoid fever incidence during outbreaks from 2000 to 2022." <em>Sci Data</em><br><a class="btn btn-outline-dark btn-sm", href="https://osf.io/n9cke/" target="_blank" rel="noopener noreferrer">
+        <i class="bi bi-file-earmark-pdf" role='img' aria-label='Preprint'></i>
+        Preprint
+    </a> <a class="btn btn-outline-dark btn-sm", href="https://doi.org/10.1038/s41597-024-04289-7" target="_blank" rel="noopener noreferrer">
+        <i class="ai ai-archive" role='img' aria-label='Published'></i>
+        Published
+    </a></li>
+<li class='list-group-item'>Thuy Tien Nguyen, Chaelin Kim, Gerard Goucher, and <strong>Jong-Hoon Kim</strong>. (2025) "Associations of Water Quality with Cholera in Case-Control Studies: A Systematic Review and Meta-Analysis." <em>BMC Infect Dis</em><br><a class="btn btn-outline-dark btn-sm", href="https://www.medrxiv.org/content/10.1101/2023.09.06.23295113v1" target="_blank" rel="noopener noreferrer">
+        <i class="bi bi-file-earmark-pdf" role='img' aria-label='Preprint'></i>
+        Preprint
+    </a> <a class="btn btn-outline-dark btn-sm", href="https://github.com/kimfinale/Cholera_WASH_meta" target="_blank" rel="noopener noreferrer">
+        <i class="bi bi-github" role='img' aria-label='Github'></i>
+        Github
+    </a> <a class="btn btn-outline-dark btn-sm", href="https://doi.org/10.1186/s12879-025-11533-x" target="_blank" rel="noopener noreferrer">
+        <i class="ai ai-archive" role='img' aria-label='Published'></i>
+        Published
+    </a></li>
+<li class='list-group-item'>Woo-Sik Son, Min-Kyung Chae, ..., <strong>Jong-Hoon Kim</strong>, and Jonggul Lee. (2025) "Social contact patterns in South Korea: an analysis of a survey conducted in 2023-2024." <em>BMC Infect Dis</em><br><a class="btn btn-outline-dark btn-sm", href="https://doi.org/10.1186/s12879-025-10706-y" target="_blank" rel="noopener noreferrer">
+        <i class="ai ai-archive" role='img' aria-label='Published'></i>
+        Published
+    </a></li>
+<li class='list-group-item'>Hyolim Kang, Ahyoung Lim, A Clark, ..., <strong>Jong-Hoon Kim</strong>, ..., and Kaja Abbas. (2025) "Age-specific chikungunya outbreak response immunisation strategies in Brazil: a modelling study." <em>EClinicalMedicine</em><br><a class="btn btn-outline-dark btn-sm", href="https://doi.org/10.1016/j.eclinm.2025.103690" target="_blank" rel="noopener noreferrer">
+        <i class="ai ai-archive" role='img' aria-label='Published'></i>
+        Published
+    </a></li>
+<li class='list-group-item'>Hyolim Kang, Ahyoung Lim, Megan Auzenbergs, A Clark, ..., <strong>Jong-Hoon Kim</strong>, ..., and Kaja Abbas. (2025) "Global, regional and national burden of chikungunya: force of infection mapping and spatial modelling study." <em>BMJ Glob Health</em><br><a class="btn btn-outline-dark btn-sm", href="https://doi.org/10.1136/bmjgh-2024-018598" target="_blank" rel="noopener noreferrer">
+        <i class="ai ai-archive" role='img' aria-label='Published'></i>
+        Published
+    </a></li></ul>
+```
+
 ### 2024{#published-2024}
 
 ```{=html}
@@ -84,19 +127,12 @@ format: html
 
 ## Submitted
 
-### 2024{#not-published-2024}
+### 2026{#not-published-2026}
 
 ```{=html}
-<ul class='list-group list-group-flush'><li class='list-group-item'>DaeHyup Koh, Monica Duong, Nodar Kipshidze, Virginia E. Pitzer, and <strong>Jong-Hoon Kim</strong>. (2024) "Time series data on typhoid fever incidence during outbreaks from 2000 to 2022." <em>Sci Data</em><br><a class="btn btn-outline-dark btn-sm", href="https://osf.io/n9cke/" target="_blank" rel="noopener noreferrer">
-        <i class="bi bi-file-earmark-pdf" role='img' aria-label='Preprint'></i>
-        Preprint
-    </a></li>
-<li class='list-group-item'>Thuy Tien Nguyen, Chaelin Kim, Gerard Goucher, and <strong>Jong-Hoon Kim</strong>. (2024) "Associations of Water Quality with Cholera in Case-Control Studies: A Systematic Review and Meta-Analysis."<br><a class="btn btn-outline-dark btn-sm", href="https://www.medrxiv.org/content/10.1101/2023.09.06.23295113v1" target="_blank" rel="noopener noreferrer">
-        <i class="bi bi-file-earmark-pdf" role='img' aria-label='Preprint'></i>
-        Preprint
-    </a> <a class="btn btn-outline-dark btn-sm", href="https://github.com/kimfinale/Cholera_WASH_meta" target="_blank" rel="noopener noreferrer">
+<ul class='list-group list-group-flush'><li class='list-group-item'><strong>Jong-Hoon Kim</strong>. (2026) "Quantifying relative health impact across Gavi, the Vaccine Alliance's portfolio in 117 countries at the subregional level: a modelling study." <em>Lancet</em><br><a class="btn btn-outline-dark btn-sm", href="https://github.com/vimc/paper4" target="_blank" rel="noopener noreferrer">
         <i class="bi bi-github" role='img' aria-label='Github'></i>
         Github
     </a></li>
-<li class='list-group-item'>Woo-Sik Son, Min-Kyung Chae, ..., <strong>Jong-Hoon Kim</strong>, and Jonggul Lee. (2024) "Social contact patterns in South Korea: an analysis of a survey conducted in 2023-2024."<br></li></ul>
+<li class='list-group-item'><strong>Jong-Hoon Kim</strong>. (2026) "An Age-Structured Mathematical Modeling with Particle Smoother for Instantaneous Reproduction Number Estimation in Influenza Epidemics." <em>Sci Rep</em><br></li></ul>
 ```
