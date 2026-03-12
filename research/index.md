@@ -123,15 +123,6 @@ format: html
     </a></li></ul>
 ```
 
-### 2023{#published-2023}
-
-```{=html}
-<ul class='list-group list-group-flush'><li class='list-group-item'>Chaelin Kim, Gerard R. Goucher, Birkneh Tilahun Tadesse, ..., Kaja Abbas, and <strong>Jong-Hoon Kim</strong>. (2023) "Associations of water, sanitation, and hygiene with typhoid fever in case-control studies: a systematic review and meta-analysis." <em>BMC Infect Dis</em><br><a class="btn btn-outline-dark btn-sm", href="https://bmcinfectdis.biomedcentral.com/articles/10.1186/s12879-023-08452-0" target="_blank" rel="noopener noreferrer">
-        <i class="ai ai-archive" role='img' aria-label='Published'></i>
-        Published
-    </a></li></ul>
-```
-
 
 
 ## Submitted
