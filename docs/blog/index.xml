@@ -43,7 +43,7 @@
 <pre><code>Shape: (1721, 8)
 Period: 2018-01-02 to 2024-12-30</code></pre>
 </div>
-<div class="cell-output cell-output-display" data-execution_count="2">
+<div class="cell-output cell-output-display" data-execution_count="16">
 <div>
 
 
@@ -164,7 +164,7 @@ Period: 2018-01-02 to 2024-12-30</code></pre>
 <section id="descriptive-statistics-of-returns" class="level3">
 <h3 class="anchored" data-anchor-id="descriptive-statistics-of-returns">2.3 Descriptive Statistics of Returns</h3>
 <div class="cell" data-execution_count="5">
-<div class="cell-output cell-output-display" data-execution_count="5">
+<div class="cell-output cell-output-display" data-execution_count="19">
 <div>
 
 
@@ -369,7 +369,7 @@ Period: 2018-01-02 to 2024-12-30</code></pre>
 <p>Granger causality tests whether past values of stock X help predict stock Y, beyond what Y’s own past predicts. It is <em>not</em> causality in a strict sense — it’s <strong>predictive precedence</strong>.</p>
 <p>Null hypothesis: <em>X does not Granger-cause Y</em></p>
 <div class="cell" data-execution_count="13">
-<div class="cell-output cell-output-display" data-execution_count="13">
+<div class="cell-output cell-output-display" data-execution_count="27">
 <div>
 
 
@@ -583,8 +583,8 @@ Period: 2018-01-02 to 2024-12-30</code></pre>
 
 
 
-<section id="introduction" class="level2">
-<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<section id="introduction" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1</span> Introduction</h2>
 <p>In the <a href="../../../blog/posts/cross_correlation_stock/index.html">previous post</a> we saw that <strong>lag effects in daily stock returns are generally weak</strong> — a finding consistent with the efficient market hypothesis. But zoom in to 1–5 minute bars and a strikingly different picture emerges.</p>
 <p>At intraday timescales, markets are not fully efficient. Information does not instantaneously diffuse to all related assets. Instead it <em>propagates</em>: a price move in a large, liquid stock will typically appear in its smaller peer a few minutes later. This is the <strong>lead-lag effect</strong>, and it is one of the most robust empirical facts in market microstructure.</p>
 <p>This post covers:</p>
@@ -597,15 +597,15 @@ Period: 2018-01-02 to 2024-12-30</code></pre>
 </ul>
 <hr>
 </section>
-<section id="setup" class="level2">
-<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<section id="setup" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="setup"><span class="header-section-number">2</span> Setup</h2>
 <hr>
 </section>
-<section id="simulating-lead-lag-in-high-frequency-data" class="level2">
-<h2 class="anchored" data-anchor-id="simulating-lead-lag-in-high-frequency-data">1. Simulating Lead-Lag in High-Frequency Data</h2>
+<section id="simulating-lead-lag-in-high-frequency-data" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="simulating-lead-lag-in-high-frequency-data"><span class="header-section-number">3</span> 1. Simulating Lead-Lag in High-Frequency Data</h2>
 <p>Before touching real data, we build intuition with a controlled simulation. We construct two price series where <strong>Asset A leads Asset B by exactly 3 intervals</strong>.</p>
-<section id="the-model" class="level3">
-<h3 class="anchored" data-anchor-id="the-model">1.1 The Model</h3>
+<section id="the-model" class="level3" data-number="3.1">
+<h3 data-number="3.1" class="anchored" data-anchor-id="the-model"><span class="header-section-number">3.1</span> 1.1 The Model</h3>
 <p><img src="https://latex.codecogs.com/png.latex?%0AA_t%20=%20A_%7Bt-1%7D%20+%20%5Cvarepsilon_t,%20%5Cquad%20%5Cvarepsilon_t%20%5Csim%20%5Cmathcal%7BN%7D(0,%20%5Csigma%5E2)%0A"></p>
 <p><img src="https://latex.codecogs.com/png.latex?%0AB_t%20=%20B_%7Bt-1%7D%20+%20%5Calpha%20%5Ccdot%20%5Cvarepsilon_%7Bt-3%7D%20+%20%5Ceta_t,%20%5Cquad%20%5Ceta_t%20%5Csim%20%5Cmathcal%7BN%7D(0,%20%5Cnu%5E2)%0A"></p>
 <p>Here <img src="https://latex.codecogs.com/png.latex?%5Calpha"> controls how strongly B follows A, and <img src="https://latex.codecogs.com/png.latex?%5Ceta_t"> is idiosyncratic noise for B. The true CCF should peak at lag <img src="https://latex.codecogs.com/png.latex?k%20=%203">.</p>
@@ -615,8 +615,8 @@ Period: 2018-01-02 to 2024-12-30</code></pre>
 </div>
 </div>
 </section>
-<section id="ccf-recovers-the-true-lag" class="level3">
-<h3 class="anchored" data-anchor-id="ccf-recovers-the-true-lag">1.2 CCF Recovers the True Lag</h3>
+<section id="ccf-recovers-the-true-lag" class="level3" data-number="3.2">
+<h3 data-number="3.2" class="anchored" data-anchor-id="ccf-recovers-the-true-lag"><span class="header-section-number">3.2</span> 1.2 CCF Recovers the True Lag</h3>
 <div class="cell" data-execution_count="4">
 <div class="cell-output cell-output-display">
 <p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-5-output-1.png" class="img-fluid"></p>
@@ -626,8 +626,8 @@ Period: 2018-01-02 to 2024-12-30</code></pre>
 <hr>
 </section>
 </section>
-<section id="real-5-minute-data-nvidia-vs-amd" class="level2">
-<h2 class="anchored" data-anchor-id="real-5-minute-data-nvidia-vs-amd">2. Real 5-Minute Data: NVIDIA vs AMD</h2>
+<section id="real-5-minute-data-nvidia-vs-amd" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="real-5-minute-data-nvidia-vs-amd"><span class="header-section-number">4</span> 2. Real 5-Minute Data: NVIDIA vs AMD</h2>
 <p>We use <code>yfinance</code> to download 5-minute bars for <strong>NVIDIA (NVDA)</strong> and <strong>Advanced Micro Devices (AMD)</strong> — both GPU/AI chip makers with a close fundamental relationship, analogous to Samsung Electronics and SK Hynix in Korean semiconductors.</p>
 <div class="cell" data-execution_count="5">
 <div class="cell-output cell-output-stdout">
@@ -635,8 +635,8 @@ Period: 2018-01-02 to 2024-12-30</code></pre>
 Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </div>
 </div>
-<section id="price-paths-one-week-sample" class="level3">
-<h3 class="anchored" data-anchor-id="price-paths-one-week-sample">2.1 Price Paths (One Week Sample)</h3>
+<section id="price-paths-one-week-sample" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="price-paths-one-week-sample"><span class="header-section-number">4.1</span> 2.1 Price Paths (One Week Sample)</h3>
 <div class="cell" data-execution_count="7">
 <div class="cell-output cell-output-display">
 <p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-8-output-1.png" class="img-fluid"></p>
@@ -645,8 +645,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 <hr>
 </section>
 </section>
-<section id="the-epps-effect" class="level2">
-<h2 class="anchored" data-anchor-id="the-epps-effect">3. The Epps Effect</h2>
+<section id="the-epps-effect" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="the-epps-effect"><span class="header-section-number">5</span> 3. The Epps Effect</h2>
 <p>One of the most surprising facts about high-frequency correlations is the <strong>Epps effect</strong> (Epps, 1979): the <em>contemporaneous</em> correlation between two stocks decreases as the sampling interval shrinks.</p>
 <p>This seems paradoxical — shouldn’t more data give a better picture? The reason is <strong>asynchronous trading</strong>: at 1-minute resolution, the two stocks may not have traded within the same bar, so their price changes appear uncorrelated even when they share common information. As the interval widens, the trades overlap and correlation recovers.</p>
 <div class="cell" data-execution_count="8">
@@ -659,11 +659,11 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </blockquote>
 <hr>
 </section>
-<section id="cross-correlation-at-5-minute-resolution" class="level2">
-<h2 class="anchored" data-anchor-id="cross-correlation-at-5-minute-resolution">4. Cross-Correlation at 5-Minute Resolution</h2>
+<section id="cross-correlation-at-5-minute-resolution" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="cross-correlation-at-5-minute-resolution"><span class="header-section-number">6</span> 4. Cross-Correlation at 5-Minute Resolution</h2>
 <p>Even though contemporaneous correlation is lower at high frequency, <strong>lagged correlations are much more informative</strong>. Here we compute the CCF for all pairs at 5-minute resolution.</p>
-<section id="nvda-vs-amd" class="level3">
-<h3 class="anchored" data-anchor-id="nvda-vs-amd">4.1 NVDA vs AMD</h3>
+<section id="nvda-vs-amd" class="level3" data-number="6.1">
+<h3 data-number="6.1" class="anchored" data-anchor-id="nvda-vs-amd"><span class="header-section-number">6.1</span> 4.1 NVDA vs AMD</h3>
 <div class="cell" data-execution_count="9">
 <div class="cell-output cell-output-display">
 <p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-10-output-1.png" class="img-fluid"></p>
@@ -673,8 +673,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 <p><strong>Comparison</strong>: At the daily level, all CCF bars fall within the confidence bounds — consistent with market efficiency. At 5-minute resolution, significant lags emerge: a move in NVDA today predicts AMD in the next few bars.</p>
 </blockquote>
 </section>
-<section id="all-semiconductor-pairs" class="level3">
-<h3 class="anchored" data-anchor-id="all-semiconductor-pairs">4.2 All Semiconductor Pairs</h3>
+<section id="all-semiconductor-pairs" class="level3" data-number="6.2">
+<h3 data-number="6.2" class="anchored" data-anchor-id="all-semiconductor-pairs"><span class="header-section-number">6.2</span> 4.2 All Semiconductor Pairs</h3>
 <div class="cell" data-execution_count="10">
 <div class="cell-output cell-output-display">
 <p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-11-output-1.png" class="img-fluid"></p>
@@ -683,8 +683,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 <hr>
 </section>
 </section>
-<section id="lead-lag-summary-who-leads-whom" class="level2">
-<h2 class="anchored" data-anchor-id="lead-lag-summary-who-leads-whom">5. Lead-Lag Summary: Who Leads Whom?</h2>
+<section id="lead-lag-summary-who-leads-whom" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="lead-lag-summary-who-leads-whom"><span class="header-section-number">7</span> 5. Lead-Lag Summary: Who Leads Whom?</h2>
 <p>We summarize the lead-lag relationship by finding the lag at which the CCF is maximised (in absolute value) for each ordered pair.</p>
 <div class="cell" data-execution_count="11">
 <div class="cell-output cell-output-display">
@@ -693,8 +693,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </div>
 <hr>
 </section>
-<section id="intraday-pattern-of-lead-lag-strength" class="level2">
-<h2 class="anchored" data-anchor-id="intraday-pattern-of-lead-lag-strength">6. Intraday Pattern of Lead-Lag Strength</h2>
+<section id="intraday-pattern-of-lead-lag-strength" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="intraday-pattern-of-lead-lag-strength"><span class="header-section-number">8</span> 6. Intraday Pattern of Lead-Lag Strength</h2>
 <p>Lead-lag effects are not uniform throughout the trading day. They tend to be stronger at the <strong>open</strong> (when information from overnight is being absorbed) and at the <strong>close</strong> (end-of-day portfolio rebalancing). We test this by computing the 1-lag cross-correlation in rolling intraday windows.</p>
 <div class="cell" data-execution_count="12">
 <div class="cell-output cell-output-display">
@@ -703,8 +703,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </div>
 <hr>
 </section>
-<section id="rolling-lead-lag-over-time" class="level2">
-<h2 class="anchored" data-anchor-id="rolling-lead-lag-over-time">7. Rolling Lead-Lag Over Time</h2>
+<section id="rolling-lead-lag-over-time" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="rolling-lead-lag-over-time"><span class="header-section-number">9</span> 7. Rolling Lead-Lag Over Time</h2>
 <p>Just as daily rolling correlations change with market regimes, 5-minute lead-lag also evolves over time. High-volatility periods (earnings, macro events) tend to amplify price discovery dynamics.</p>
 <div class="cell" data-execution_count="13">
 <div class="cell-output cell-output-display">
@@ -713,11 +713,11 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </div>
 <hr>
 </section>
-<section id="granger-causality-at-5-minute-resolution" class="level2">
-<h2 class="anchored" data-anchor-id="granger-causality-at-5-minute-resolution">8. Granger Causality at 5-Minute Resolution</h2>
+<section id="granger-causality-at-5-minute-resolution" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="granger-causality-at-5-minute-resolution"><span class="header-section-number">10</span> 8. Granger Causality at 5-Minute Resolution</h2>
 <p>Granger causality at the daily level rarely reaches significance (Section 8 of the previous post). At 5-minute resolution — where market inefficiency is more exploitable — the result is often reversed.</p>
 <div class="cell" data-execution_count="14">
-<div class="cell-output cell-output-display" data-execution_count="30">
+<div class="cell-output cell-output-display" data-execution_count="14">
 <div>
 
 
@@ -771,8 +771,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </blockquote>
 <hr>
 </section>
-<section id="bid-ask-bounce-and-negative-autocorrelation" class="level2">
-<h2 class="anchored" data-anchor-id="bid-ask-bounce-and-negative-autocorrelation">9. Bid-Ask Bounce and Negative Autocorrelation</h2>
+<section id="bid-ask-bounce-and-negative-autocorrelation" class="level2" data-number="11">
+<h2 data-number="11" class="anchored" data-anchor-id="bid-ask-bounce-and-negative-autocorrelation"><span class="header-section-number">11</span> 9. Bid-Ask Bounce and Negative Autocorrelation</h2>
 <p>A distinctive feature of individual stock returns at very high frequency (tick or 1-minute level) is <strong>negative first-order autocorrelation</strong>. This is caused by the <strong>bid-ask bounce</strong>:</p>
 <ul>
 <li>Trades alternate between hitting the bid and the ask, even when the true mid-price is unchanged.</li>
@@ -789,10 +789,10 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </blockquote>
 <hr>
 </section>
-<section id="hf-vs-daily-side-by-side-comparison" class="level2">
-<h2 class="anchored" data-anchor-id="hf-vs-daily-side-by-side-comparison">10. HF vs Daily: Side-by-Side Comparison</h2>
+<section id="hf-vs-daily-side-by-side-comparison" class="level2" data-number="12">
+<h2 data-number="12" class="anchored" data-anchor-id="hf-vs-daily-side-by-side-comparison"><span class="header-section-number">12</span> 10. HF vs Daily: Side-by-Side Comparison</h2>
 <div class="cell" data-execution_count="16">
-<div class="cell-output cell-output-display" data-execution_count="32">
+<div class="cell-output cell-output-display" data-execution_count="16">
 <div>
 
 
@@ -848,8 +848,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </div>
 <hr>
 </section>
-<section id="key-takeaways" class="level2">
-<h2 class="anchored" data-anchor-id="key-takeaways">11. Key Takeaways</h2>
+<section id="key-takeaways" class="level2" data-number="13">
+<h2 data-number="13" class="anchored" data-anchor-id="key-takeaways"><span class="header-section-number">13</span> 11. Key Takeaways</h2>
 <table class="table">
 <thead>
 <tr class="header">
@@ -896,8 +896,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </ol>
 <hr>
 </section>
-<section id="next-steps" class="level2">
-<h2 class="anchored" data-anchor-id="next-steps">Next Steps</h2>
+<section id="next-steps" class="level2" data-number="14">
+<h2 data-number="14" class="anchored" data-anchor-id="next-steps"><span class="header-section-number">14</span> Next Steps</h2>
 <ul>
 <li><strong>Tick-level analysis</strong>: at the trade-by-trade level, the Hasbrouck (1991) information share model quantifies each venue’s contribution to price discovery</li>
 <li><strong>Index vs constituents</strong>: SPY/QQQ futures lead their underlying stocks by seconds — a pure price discovery channel</li>
@@ -906,8 +906,8 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
 </ul>
 <hr>
 </section>
-<section id="references" class="level2">
-<h2 class="anchored" data-anchor-id="references">References</h2>
+<section id="references" class="level2" data-number="15">
+<h2 data-number="15" class="anchored" data-anchor-id="references"><span class="header-section-number">15</span> References</h2>
 <ul>
 <li>Epps, T. W. (1979). Comovements in stock prices in the very short run. <em>Journal of the American Statistical Association</em>, 74(366), 291–298.</li>
 <li>Hasbrouck, J. (1991). Measuring the information content of stock trades. <em>Journal of Finance</em>, 46(1), 179–207.</li>
@@ -926,7 +926,7 @@ Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
   <category>time series</category>
   <category>high-frequency</category>
   <guid>https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index.html</guid>
-  <pubDate>Sun, 15 Mar 2026 15:00:00 GMT</pubDate>
+  <pubDate>Sat, 14 Mar 2026 15:00:00 GMT</pubDate>
 </item>
 <item>
   <title>How many infections does one isolation prevent?</title>
