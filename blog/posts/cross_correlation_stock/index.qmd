@@ -1,0 +1,519 @@
+---
+title: "Cross-Correlation in Stock Market Data"
+author: "Jong-Hoon Kim"
+date: 2026-03-16"
+categories: [statistics, stock market, Python, cross-correlation, time series]
+bibliography: ../../../references.bib 
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+
+## Introduction
+
+When we study multiple stock prices together, one of the first questions is: **do they move together, and if so, by how much and with what delay?** Cross-correlation answers exactly this.
+
+Cross-correlation measures the similarity between two time series as a function of a lag applied to one of them. Unlike a simple correlation coefficient (which is a single number), cross-correlation gives us a *function* that reveals:
+
+- **How strongly** two stocks co-move
+- **Whether one leads the other** (a lag > 0 suggests stock A today predicts stock B tomorrow)
+- **How persistent** that relationship is over time
+
+This post covers cross-correlation from first principles, applied to real Korean stock data.
+
+---
+
+## Setup
+
+```{python}
+# Install if needed:
+# pip install FinanceDataReader pandas numpy matplotlib seaborn scipy statsmodels
+
+import FinanceDataReader as fdr
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import seaborn as sns
+from scipy import stats
+from statsmodels.tsa.stattools import ccf as sm_ccf
+from statsmodels.tsa.stattools import grangercausalitytests
+
+plt.rcParams['figure.dpi'] = 120
+plt.rcParams['font.size'] = 11
+sns.set_theme(style='whitegrid')
+```
+
+---
+
+## 1. Downloading Korean Stock Data
+
+We use `FinanceDataReader`, which supports KOSPI and KOSDAQ natively.
+
+```{python}
+# Major Korean blue-chip stocks
+tickers = {
+    '005930': 'Samsung Electronics',
+    '000660': 'SK Hynix',
+    '035420': 'NAVER',
+    '035720': 'Kakao',
+    '005380': 'Hyundai Motor',
+    '005490': 'POSCO',
+    '105560': 'KB Financial',
+    '000270': 'Kia',
+}
+
+start = '2018-01-01'
+end   = '2024-12-31'
+
+prices = {}
+for ticker, name in tickers.items():
+    df = fdr.DataReader(ticker, start, end)
+    prices[name] = df['Close']
+
+prices = pd.DataFrame(prices)
+prices.index = pd.to_datetime(prices.index)
+prices = prices.dropna()
+
+print(f"Shape: {prices.shape}")
+print(f"Period: {prices.index[0].date()} to {prices.index[-1].date()}")
+prices.head()
+```
+
+---
+
+## 2. Exploratory Data Analysis
+
+### 2.1 Normalized Price Trajectories
+
+Raw prices have very different scales. We normalize to 100 at the start to compare trajectories.
+
+```{python}
+normalized = prices / prices.iloc[0] * 100
+
+fig, ax = plt.subplots(figsize=(12, 5))
+for col in normalized.columns:
+    ax.plot(normalized.index, normalized[col], label=col, linewidth=1.2)
+
+ax.axhline(100, color='black', linewidth=0.8, linestyle='--', alpha=0.4)
+ax.set_title('Normalized Closing Prices (Base = 100)', fontsize=13)
+ax.set_ylabel('Price Index (Base = 100)')
+ax.legend(loc='upper left', fontsize=8, ncol=2)
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+plt.tight_layout()
+plt.show()
+```
+
+### 2.2 Log Returns
+
+Financial analysis works with **log returns** rather than raw prices, for two key reasons:
+
+1. **Additivity**: log returns aggregate over time (daily → monthly = sum of daily)
+2. **Stationarity**: prices trend upward; returns fluctuate around zero
+
+$$r_t = \ln\left(\frac{P_t}{P_{t-1}}\right)$$
+
+```{python}
+returns = np.log(prices / prices.shift(1)).dropna()
+
+fig, axes = plt.subplots(2, 4, figsize=(14, 6), sharey=False)
+axes = axes.flatten()
+
+for i, col in enumerate(returns.columns):
+    axes[i].hist(returns[col], bins=60, edgecolor='none', alpha=0.7, color='steelblue')
+    axes[i].axvline(0, color='red', linewidth=0.8, linestyle='--')
+    mu = returns[col].mean()
+    sigma = returns[col].std()
+    axes[i].set_title(f'{col}\nμ={mu:.4f}, σ={sigma:.4f}', fontsize=8)
+    axes[i].set_xlabel('Log Return')
+
+plt.suptitle('Distribution of Daily Log Returns', fontsize=13, y=1.01)
+plt.tight_layout()
+plt.show()
+```
+
+### 2.3 Descriptive Statistics of Returns
+
+```{python}
+from scipy.stats import skew, kurtosis, jarque_bera
+
+stats_df = pd.DataFrame({
+    'Mean':     returns.mean(),
+    'Std':      returns.std(),
+    'Skewness': returns.apply(skew),
+    'Excess Kurtosis': returns.apply(lambda x: kurtosis(x, fisher=True)),
+    'JB p-value': returns.apply(lambda x: jarque_bera(x)[1]),
+    'Sharpe (ann.)': returns.mean() / returns.std() * np.sqrt(252),
+}).round(4)
+
+stats_df
+```
+
+> **Interpretation note**: Stock returns are almost never normal. Excess kurtosis > 0 ("fat tails") means extreme moves are more common than a normal distribution predicts. The Jarque-Bera test formalizes this: p-value < 0.05 rejects normality.
+
+---
+
+## 3. Cross-Correlation: Theory
+
+### 3.1 Pearson Correlation (Lag = 0)
+
+The familiar correlation coefficient between two return series $X$ and $Y$ is:
+
+$$
+\rho(X, Y) = \frac{\text{Cov}(X, Y)}{\sigma_X \sigma_Y}
+$$
+
+This is cross-correlation at lag 0 — it only captures **contemporaneous** co-movement.
+
+### 3.2 Cross-Correlation Function (CCF)
+
+The cross-correlation function generalizes this to arbitrary lags $k$:
+
+$$
+\rho_{XY}(k) = \frac{\text{Cov}(X_t,\, Y_{t+k})}{\sigma_X \sigma_Y}
+$$
+
+- $k > 0$: $X$ today is correlated with $Y$ in the future → $X$ **leads** $Y$
+- $k < 0$: $X$ is correlated with $Y$ in the past → $Y$ **leads** $X$
+- $k = 0$: contemporaneous correlation
+
+The 95% confidence bounds for a white-noise null hypothesis are $\pm 1.96 / \sqrt{n}$, where $n$ is the sample size.
+
+---
+
+## 4. Contemporaneous Correlation
+
+### 4.1 Correlation Matrix Heatmap
+
+```{python}
+corr = returns.corr()
+
+fig, ax = plt.subplots(figsize=(9, 7))
+mask = np.triu(np.ones_like(corr, dtype=bool), k=1)  # show lower triangle only
+
+sns.heatmap(
+    corr,
+    annot=True,
+    fmt='.2f',
+    cmap='RdYlGn',
+    vmin=-1, vmax=1,
+    center=0,
+    square=True,
+    linewidths=0.5,
+    ax=ax,
+    annot_kws={'size': 9},
+)
+ax.set_title('Pairwise Correlation of Daily Log Returns\n(2018–2024)', fontsize=13)
+plt.tight_layout()
+plt.show()
+```
+
+### 4.2 Cluster Map
+
+A clustermap reorders stocks by similarity, revealing natural groupings.
+
+```{python}
+sns.clustermap(
+    corr,
+    annot=True,
+    fmt='.2f',
+    cmap='RdYlGn',
+    vmin=-1, vmax=1,
+    center=0,
+    figsize=(9, 8),
+    annot_kws={'size': 8},
+)
+plt.suptitle('Clustered Correlation Matrix', y=1.02, fontsize=13)
+plt.show()
+```
+
+### 4.3 Scatter Plot Matrix for Selected Pairs
+
+```{python}
+selected = ['Samsung Electronics', 'SK Hynix', 'NAVER', 'Kakao']
+sub = returns[selected]
+
+fig, axes = plt.subplots(4, 4, figsize=(11, 11))
+
+for i, col_i in enumerate(selected):
+    for j, col_j in enumerate(selected):
+        ax = axes[i][j]
+        if i == j:
+            ax.hist(sub[col_i], bins=40, color='steelblue', alpha=0.7, edgecolor='none')
+            ax.set_xlabel(col_i if i == 3 else '')
+        else:
+            x, y = sub[col_j], sub[col_i]
+            ax.scatter(x, y, alpha=0.15, s=5, color='navy')
+            # regression line
+            m, b, r, p, _ = stats.linregress(x, y)
+            xr = np.linspace(x.min(), x.max(), 100)
+            ax.plot(xr, m * xr + b, color='red', linewidth=1)
+            ax.set_title(f'r={r:.2f}', fontsize=8, pad=2)
+        if j == 0:
+            ax.set_ylabel(col_i, fontsize=8)
+        if i == 3:
+            ax.set_xlabel(col_j, fontsize=8)
+
+plt.suptitle('Scatter Plot Matrix: Tech & Platform Stocks',
+             fontsize=13, y=1.01)
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+## 5. Cross-Correlation Function (CCF)
+
+The CCF tells us whether one stock *leads* or *lags* another. This is crucial for understanding information flow in markets.
+
+### 5.1 CCF for a Single Pair
+
+```{python}
+def plot_ccf(x, y, name_x, name_y, max_lag=30, ax=None):
+    """Plot cross-correlation function with confidence bounds."""
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 4))
+
+    n = len(x)
+    conf = 1.96 / np.sqrt(n)
+    lags = np.arange(-max_lag, max_lag + 1)
+
+    ccf_vals = []
+    for lag in lags:
+        if lag == 0:
+            ccf_vals.append(np.corrcoef(x, y)[0, 1])
+        elif lag > 0:
+            ccf_vals.append(np.corrcoef(x[:-lag], y[lag:])[0, 1])
+        else:
+            ccf_vals.append(np.corrcoef(x[-lag:], y[:lag])[0, 1])
+
+    colors = ['tomato' if abs(v) > conf else 'steelblue' for v in ccf_vals]
+    ax.bar(lags, ccf_vals, color=colors, width=0.6)
+    ax.axhline(conf,  color='black', linestyle='--', linewidth=0.8, label='95% CI')
+    ax.axhline(-conf, color='black', linestyle='--', linewidth=0.8)
+    ax.axhline(0, color='black', linewidth=0.5)
+    ax.axvline(0, color='gray', linewidth=0.8, linestyle=':')
+    ax.set_xlabel('Lag (days)  — positive: X leads Y')
+    ax.set_ylabel('Correlation')
+    ax.set_title(f'CCF: {name_x} (X) vs {name_y} (Y)', fontsize=11)
+    ax.legend(fontsize=8)
+    return ccf_vals, lags
+
+
+x = returns['Samsung Electronics'].values
+y = returns['SK Hynix'].values
+
+fig, ax = plt.subplots(figsize=(11, 4))
+plot_ccf(x, y, 'Samsung', 'SK Hynix', max_lag=20, ax=ax)
+plt.tight_layout()
+plt.show()
+```
+
+> **Reading the CCF plot**: Red bars exceed the 95% confidence band — these lags show statistically significant correlation. A positive lag means Samsung today predicts SK Hynix in `lag` days.
+
+### 5.2 CCF for Multiple Pairs
+
+```{python}
+pairs = [
+    ('Samsung Electronics', 'SK Hynix'),
+    ('NAVER', 'Kakao'),
+    ('Hyundai Motor', 'Kia'),
+    ('Samsung Electronics', 'NAVER'),
+]
+
+fig, axes = plt.subplots(2, 2, figsize=(14, 8))
+axes = axes.flatten()
+
+for ax, (stock_a, stock_b) in zip(axes, pairs):
+    x = returns[stock_a].values
+    y = returns[stock_b].values
+    plot_ccf(x, y, stock_a.split()[0], stock_b.split()[0], max_lag=15, ax=ax)
+
+plt.suptitle('Cross-Correlation Functions: Selected Pairs', fontsize=13, y=1.01)
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+## 6. Rolling Cross-Correlation
+
+The correlation between stocks is **not stable over time** — it changes with market regimes (bull, bear, crisis). Rolling correlation captures this dynamics.
+
+```{python}
+window = 60  # ~3 months of trading days
+
+fig, axes = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
+
+pairs_rolling = [
+    ('Samsung Electronics', 'SK Hynix', 'steelblue'),
+    ('NAVER', 'Kakao', 'darkorange'),
+    ('Hyundai Motor', 'Kia', 'forestgreen'),
+]
+
+for ax, (a, b, color) in zip(axes, pairs_rolling):
+    roll_corr = returns[a].rolling(window).corr(returns[b])
+    ax.plot(roll_corr.index, roll_corr, color=color, linewidth=1, label=f'{a.split()[0]} vs {b.split()[0]}')
+    ax.axhline(0, color='black', linewidth=0.5, linestyle='--')
+    ax.fill_between(roll_corr.index, roll_corr, 0, alpha=0.15, color=color)
+    ax.set_ylim(-1, 1)
+    ax.set_ylabel('Rolling Correlation')
+    ax.legend(loc='lower right', fontsize=9)
+
+    # Shade major market events
+    ax.axvspan('2020-01-01', '2020-06-30', alpha=0.08, color='red', label='COVID-19')
+    ax.axvspan('2022-01-01', '2022-12-31', alpha=0.08, color='gray', label='Rate hike cycle')
+
+axes[0].set_title(f'{window}-Day Rolling Cross-Correlation', fontsize=13)
+axes[-1].set_xlabel('Date')
+axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+plt.tight_layout()
+plt.show()
+```
+
+> **Key insight**: Correlations spike toward 1.0 during market crises (COVID-19 crash in early 2020). This is the "correlation breakdown" problem — diversification fails precisely when you need it most.
+
+---
+
+## 7. Sector-Level Analysis
+
+### 7.1 Average Within-Sector vs. Cross-Sector Correlation
+
+```{python}
+sectors = {
+    'Tech/Semi':   ['Samsung Electronics', 'SK Hynix'],
+    'Platform':    ['NAVER', 'Kakao'],
+    'Auto':        ['Hyundai Motor', 'Kia'],
+    'Finance/Industry': ['KB Financial', 'POSCO'],
+}
+
+# Build sector label for each stock
+stock_sector = {}
+for sector, stocks in sectors.items():
+    for s in stocks:
+        stock_sector[s] = sector
+
+# Annotated heatmap with sector groupings
+ordered_stocks = [s for sector in sectors.values() for s in sector]
+corr_ordered = returns[ordered_stocks].corr()
+
+fig, ax = plt.subplots(figsize=(9, 7))
+sns.heatmap(
+    corr_ordered,
+    annot=True,
+    fmt='.2f',
+    cmap='RdYlGn',
+    vmin=-1, vmax=1,
+    center=0,
+    square=True,
+    linewidths=0.5,
+    ax=ax,
+    annot_kws={'size': 9},
+)
+
+# Draw sector boundaries
+boundaries = [0, 2, 4, 6, 8]
+for b in boundaries:
+    ax.axhline(b, color='black', linewidth=2)
+    ax.axvline(b, color='black', linewidth=2)
+
+ax.set_title('Correlation Matrix (Stocks Grouped by Sector)', fontsize=13)
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+## 8. Granger Causality
+
+Granger causality tests whether past values of stock X help predict stock Y, beyond what Y's own past predicts. It is *not* causality in a strict sense — it's **predictive precedence**.
+
+Null hypothesis: *X does not Granger-cause Y*
+
+```{python}
+def granger_table(returns_df, stocks, max_lag=5):
+    """Return a DataFrame of Granger causality p-values."""
+    results = []
+    for cause in stocks:
+        for effect in stocks:
+            if cause == effect:
+                continue
+            data = returns_df[[effect, cause]].dropna()
+            test = grangercausalitytests(data, maxlag=max_lag, verbose=False)
+            # use minimum p-value across lags (F-test)
+            min_p = min(test[lag][0]['ssr_ftest'][1] for lag in range(1, max_lag + 1))
+            best_lag = min(range(1, max_lag + 1), key=lambda l: test[l][0]['ssr_ftest'][1])
+            results.append({
+                'Cause': cause.split()[0],
+                'Effect': effect.split()[0],
+                'Min p-value': round(min_p, 4),
+                'Best lag': best_lag,
+                'Significant': 'Yes' if min_p < 0.05 else 'No',
+            })
+    return pd.DataFrame(results)
+
+
+selected_stocks = ['Samsung Electronics', 'SK Hynix', 'NAVER', 'Kakao']
+granger_df = granger_table(returns, selected_stocks, max_lag=5)
+granger_df.sort_values('Min p-value')
+```
+
+```{python}
+# Visualize as a heatmap of p-values
+pivot = granger_df.pivot(index='Cause', columns='Effect', values='Min p-value')
+
+fig, ax = plt.subplots(figsize=(6, 5))
+sns.heatmap(
+    pivot,
+    annot=True,
+    fmt='.3f',
+    cmap='RdYlGn_r',  # red = low p-value = significant
+    vmin=0, vmax=0.1,
+    linewidths=0.5,
+    ax=ax,
+    annot_kws={'size': 10},
+)
+ax.set_title('Granger Causality: Min p-value\n(Row → Cause, Column → Effect)', fontsize=11)
+plt.tight_layout()
+plt.show()
+```
+
+> **Caution**: Granger causality in daily stock returns is hard to find due to market efficiency. Significant results are more common in intraday data or between related instruments (ETFs and their underlying stocks).
+
+---
+
+## 9. Key Takeaways
+
+| Concept | What it measures | Limitation |
+|---|---|---|
+| Pearson correlation | Co-movement at lag 0 | Static; hides time dynamics |
+| Cross-correlation function (CCF) | Co-movement at all lags | Assumes stationarity |
+| Rolling correlation | Time-varying co-movement | Window choice is arbitrary |
+| Granger causality | Predictive precedence | Not structural causation |
+
+**Empirical findings for Korean blue chips (2018–2024):**
+
+1. **Intra-sector correlations are high**: Samsung–SK Hynix (semiconductors) and Hyundai–Kia (auto) move closely together, reflecting shared business cycles and news.
+2. **Tech platform stocks (NAVER, Kakao) are moderately correlated** but diverge more than the hardware pairs.
+3. **Crisis periods compress all correlations toward 1** — the diversification benefit collapses exactly when markets fall.
+4. **Lag effects are generally weak in daily data** — consistent with the efficient market hypothesis.
+5. **Rolling correlations are highly non-stationary** — a static correlation matrix is a snapshot, not a permanent property.
+
+---
+
+## Next Steps
+
+- **Volatility cross-correlation**: Do volatility spikes (GARCH residuals) spread across stocks faster than return co-movements?
+- **High-frequency data**: Lead-lag effects are much stronger at 1–5 minute intervals
+- **Copulas**: Model non-linear tail dependence beyond linear correlation
+- **Network analysis**: Build a correlation network graph and detect communities
+
+---
+
+## References
+
+- Campbell, J. Y., Lo, A. W., & MacKinlay, A. C. (1997). *The Econometrics of Financial Markets*. Princeton University Press.
+- Cont, R. (2001). Empirical properties of asset returns: stylized facts and statistical issues. *Quantitative Finance*, 1(2), 223–236.
+- Granger, C. W. J. (1969). Investigating causal relations by econometric models and cross-spectral methods. *Econometrica*, 37(3), 424–438.

@@ -142,5 +142,9 @@ format: html
         <i class="bi bi-github" role='img' aria-label='Github'></i>
         Github
     </a></li>
-<li class='list-group-item'>Monica Duong and <strong>Jong-Hoon Kim</strong>. (2026) "Modeling the impact of outbreak response immunization on typhoid fever using data from 19 outbreaks between 2000-2022." <em>Vaccine</em><br></li></ul>
+<li class='list-group-item'>Monica Duong and <strong>Jong-Hoon Kim</strong>. (2026) "Modeling the impact of outbreak response immunization on typhoid fever using data from 19 outbreaks between 2000-2022." <em>Vaccine</em><br><a class="btn btn-outline-dark btn-sm", href="https://github.com/kimfinale/typhoid_outbreak_vaccine_impact_modeling" target="_blank" rel="noopener noreferrer">
+        <i class="bi bi-github" role='img' aria-label='Github'></i>
+        Github
+    </a></li>
+<li class='list-group-item'>Zeaan Mehernosh Pithawala, Jo Walker, Dae-Hyup Koh, <strong>Jong-Hoon Kim</strong>, and Virginia E Pitzer. (2026) "A Machine Learning Approach to Defining and Predicting the Scale of Typhoid Fever Outbreaks." <em>PLoS Negl Trop Dis</em><br></li></ul>
 ```

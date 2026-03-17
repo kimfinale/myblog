@@ -10,7 +10,924 @@
 <atom:link href="https://www.jonghoonk.com/blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Disease modeling for public health</description>
 <generator>quarto-1.3.450</generator>
-<lastBuildDate>Mon, 09 Mar 2026 15:00:00 GMT</lastBuildDate>
+<lastBuildDate>Sun, 15 Mar 2026 15:00:00 GMT</lastBuildDate>
+<item>
+  <title>Cross-Correlation in Stock Market Data</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index.html</link>
+  <description><![CDATA[ 
+
+
+
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>When we study multiple stock prices together, one of the first questions is: <strong>do they move together, and if so, by how much and with what delay?</strong> Cross-correlation answers exactly this.</p>
+<p>Cross-correlation measures the similarity between two time series as a function of a lag applied to one of them. Unlike a simple correlation coefficient (which is a single number), cross-correlation gives us a <em>function</em> that reveals:</p>
+<ul>
+<li><strong>How strongly</strong> two stocks co-move</li>
+<li><strong>Whether one leads the other</strong> (a lag &gt; 0 suggests stock A today predicts stock B tomorrow)</li>
+<li><strong>How persistent</strong> that relationship is over time</li>
+</ul>
+<p>This post covers cross-correlation from first principles, applied to real Korean stock data.</p>
+<hr>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<hr>
+</section>
+<section id="downloading-korean-stock-data" class="level2">
+<h2 class="anchored" data-anchor-id="downloading-korean-stock-data">1. Downloading Korean Stock Data</h2>
+<p>We use <code>FinanceDataReader</code>, which supports KOSPI and KOSDAQ natively.</p>
+<div class="cell" data-execution_count="2">
+<div class="cell-output cell-output-stdout">
+<pre><code>Shape: (1721, 8)
+Period: 2018-01-02 to 2024-12-30</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Samsung Electronics</th>
+<th data-quarto-table-cell-role="th">SK Hynix</th>
+<th data-quarto-table-cell-role="th">NAVER</th>
+<th data-quarto-table-cell-role="th">Kakao</th>
+<th data-quarto-table-cell-role="th">Hyundai Motor</th>
+<th data-quarto-table-cell-role="th">POSCO</th>
+<th data-quarto-table-cell-role="th">KB Financial</th>
+<th data-quarto-table-cell-role="th">Kia</th>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Date</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2018-01-02</td>
+<td>51020</td>
+<td>76600</td>
+<td>177251</td>
+<td>29405</td>
+<td>149500</td>
+<td>339000</td>
+<td>63100</td>
+<td>32800</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">2018-01-03</td>
+<td>51620</td>
+<td>77700</td>
+<td>174447</td>
+<td>29906</td>
+<td>150500</td>
+<td>357500</td>
+<td>63100</td>
+<td>32600</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2018-01-04</td>
+<td>51080</td>
+<td>77100</td>
+<td>178853</td>
+<td>31311</td>
+<td>146500</td>
+<td>367500</td>
+<td>63000</td>
+<td>31550</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">2018-01-05</td>
+<td>52120</td>
+<td>79300</td>
+<td>181857</td>
+<td>31311</td>
+<td>149000</td>
+<td>368000</td>
+<td>64100</td>
+<td>31950</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2018-01-08</td>
+<td>52020</td>
+<td>78200</td>
+<td>190269</td>
+<td>32014</td>
+<td>151000</td>
+<td>369500</td>
+<td>66600</td>
+<td>32400</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<hr>
+</section>
+<section id="exploratory-data-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="exploratory-data-analysis">2. Exploratory Data Analysis</h2>
+<section id="normalized-price-trajectories" class="level3">
+<h3 class="anchored" data-anchor-id="normalized-price-trajectories">2.1 Normalized Price Trajectories</h3>
+<p>Raw prices have very different scales. We normalize to 100 at the start to compare trajectories.</p>
+<div class="cell" data-execution_count="3">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-4-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+</section>
+<section id="log-returns" class="level3">
+<h3 class="anchored" data-anchor-id="log-returns">2.2 Log Returns</h3>
+<p>Financial analysis works with <strong>log returns</strong> rather than raw prices, for two key reasons:</p>
+<ol type="1">
+<li><strong>Additivity</strong>: log returns aggregate over time (daily → monthly = sum of daily)</li>
+<li><strong>Stationarity</strong>: prices trend upward; returns fluctuate around zero</li>
+</ol>
+<p><img src="https://latex.codecogs.com/png.latex?r_t%20=%20%5Cln%5Cleft(%5Cfrac%7BP_t%7D%7BP_%7Bt-1%7D%7D%5Cright)"></p>
+<div class="cell" data-execution_count="4">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-5-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+</section>
+<section id="descriptive-statistics-of-returns" class="level3">
+<h3 class="anchored" data-anchor-id="descriptive-statistics-of-returns">2.3 Descriptive Statistics of Returns</h3>
+<div class="cell" data-execution_count="5">
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Mean</th>
+<th data-quarto-table-cell-role="th">Std</th>
+<th data-quarto-table-cell-role="th">Skewness</th>
+<th data-quarto-table-cell-role="th">Excess Kurtosis</th>
+<th data-quarto-table-cell-role="th">JB p-value</th>
+<th data-quarto-table-cell-role="th">Sharpe (ann.)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">Samsung Electronics</td>
+<td>0.0000</td>
+<td>0.0165</td>
+<td>0.2042</td>
+<td>2.6386</td>
+<td>0.0</td>
+<td>0.0234</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">SK Hynix</td>
+<td>0.0005</td>
+<td>0.0241</td>
+<td>0.1520</td>
+<td>1.5818</td>
+<td>0.0</td>
+<td>0.3139</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">NAVER</td>
+<td>0.0001</td>
+<td>0.0216</td>
+<td>0.3951</td>
+<td>2.4855</td>
+<td>0.0</td>
+<td>0.0491</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">Kakao</td>
+<td>0.0002</td>
+<td>0.0233</td>
+<td>0.3858</td>
+<td>2.2615</td>
+<td>0.0</td>
+<td>0.1036</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">Hyundai Motor</td>
+<td>0.0002</td>
+<td>0.0209</td>
+<td>0.9135</td>
+<td>6.9340</td>
+<td>0.0</td>
+<td>0.1540</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">POSCO</td>
+<td>-0.0002</td>
+<td>0.0231</td>
+<td>0.4915</td>
+<td>4.6163</td>
+<td>0.0</td>
+<td>-0.1159</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">KB Financial</td>
+<td>0.0002</td>
+<td>0.0212</td>
+<td>0.3717</td>
+<td>4.9190</td>
+<td>0.0</td>
+<td>0.1190</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">Kia</td>
+<td>0.0007</td>
+<td>0.0220</td>
+<td>0.1344</td>
+<td>5.6250</td>
+<td>0.0</td>
+<td>0.4700</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Interpretation note</strong>: Stock returns are almost never normal. Excess kurtosis &gt; 0 (“fat tails”) means extreme moves are more common than a normal distribution predicts. The Jarque-Bera test formalizes this: p-value &lt; 0.05 rejects normality.</p>
+</blockquote>
+<hr>
+</section>
+</section>
+<section id="cross-correlation-theory" class="level2">
+<h2 class="anchored" data-anchor-id="cross-correlation-theory">3. Cross-Correlation: Theory</h2>
+<section id="pearson-correlation-lag-0" class="level3">
+<h3 class="anchored" data-anchor-id="pearson-correlation-lag-0">3.1 Pearson Correlation (Lag = 0)</h3>
+<p>The familiar correlation coefficient between two return series <img src="https://latex.codecogs.com/png.latex?X"> and <img src="https://latex.codecogs.com/png.latex?Y"> is:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Crho(X,%20Y)%20=%20%5Cfrac%7B%5Ctext%7BCov%7D(X,%20Y)%7D%7B%5Csigma_X%20%5Csigma_Y%7D%0A"></p>
+<p>This is cross-correlation at lag 0 — it only captures <strong>contemporaneous</strong> co-movement.</p>
+</section>
+<section id="cross-correlation-function-ccf" class="level3">
+<h3 class="anchored" data-anchor-id="cross-correlation-function-ccf">3.2 Cross-Correlation Function (CCF)</h3>
+<p>The cross-correlation function generalizes this to arbitrary lags <img src="https://latex.codecogs.com/png.latex?k">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Crho_%7BXY%7D(k)%20=%20%5Cfrac%7B%5Ctext%7BCov%7D(X_t,%5C,%20Y_%7Bt+k%7D)%7D%7B%5Csigma_X%20%5Csigma_Y%7D%0A"></p>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?k%20%3E%200">: <img src="https://latex.codecogs.com/png.latex?X"> today is correlated with <img src="https://latex.codecogs.com/png.latex?Y"> in the future → <img src="https://latex.codecogs.com/png.latex?X"> <strong>leads</strong> <img src="https://latex.codecogs.com/png.latex?Y"></li>
+<li><img src="https://latex.codecogs.com/png.latex?k%20%3C%200">: <img src="https://latex.codecogs.com/png.latex?X"> is correlated with <img src="https://latex.codecogs.com/png.latex?Y"> in the past → <img src="https://latex.codecogs.com/png.latex?Y"> <strong>leads</strong> <img src="https://latex.codecogs.com/png.latex?X"></li>
+<li><img src="https://latex.codecogs.com/png.latex?k%20=%200">: contemporaneous correlation</li>
+</ul>
+<p>The 95% confidence bounds for a white-noise null hypothesis are <img src="https://latex.codecogs.com/png.latex?%5Cpm%201.96%20/%20%5Csqrt%7Bn%7D">, where <img src="https://latex.codecogs.com/png.latex?n"> is the sample size.</p>
+<hr>
+</section>
+</section>
+<section id="contemporaneous-correlation" class="level2">
+<h2 class="anchored" data-anchor-id="contemporaneous-correlation">4. Contemporaneous Correlation</h2>
+<section id="correlation-matrix-heatmap" class="level3">
+<h3 class="anchored" data-anchor-id="correlation-matrix-heatmap">4.1 Correlation Matrix Heatmap</h3>
+<div class="cell" data-execution_count="6">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-7-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+</section>
+<section id="cluster-map" class="level3">
+<h3 class="anchored" data-anchor-id="cluster-map">4.2 Cluster Map</h3>
+<p>A clustermap reorders stocks by similarity, revealing natural groupings.</p>
+<div class="cell" data-execution_count="7">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-8-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+</section>
+<section id="scatter-plot-matrix-for-selected-pairs" class="level3">
+<h3 class="anchored" data-anchor-id="scatter-plot-matrix-for-selected-pairs">4.3 Scatter Plot Matrix for Selected Pairs</h3>
+<div class="cell" data-execution_count="8">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-9-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="cross-correlation-function-ccf-1" class="level2">
+<h2 class="anchored" data-anchor-id="cross-correlation-function-ccf-1">5. Cross-Correlation Function (CCF)</h2>
+<p>The CCF tells us whether one stock <em>leads</em> or <em>lags</em> another. This is crucial for understanding information flow in markets.</p>
+<section id="ccf-for-a-single-pair" class="level3">
+<h3 class="anchored" data-anchor-id="ccf-for-a-single-pair">5.1 CCF for a Single Pair</h3>
+<div class="cell" data-execution_count="9">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-10-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Reading the CCF plot</strong>: Red bars exceed the 95% confidence band — these lags show statistically significant correlation. A positive lag means Samsung today predicts SK Hynix in <code>lag</code> days.</p>
+</blockquote>
+</section>
+<section id="ccf-for-multiple-pairs" class="level3">
+<h3 class="anchored" data-anchor-id="ccf-for-multiple-pairs">5.2 CCF for Multiple Pairs</h3>
+<div class="cell" data-execution_count="10">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-11-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="rolling-cross-correlation" class="level2">
+<h2 class="anchored" data-anchor-id="rolling-cross-correlation">6. Rolling Cross-Correlation</h2>
+<p>The correlation between stocks is <strong>not stable over time</strong> — it changes with market regimes (bull, bear, crisis). Rolling correlation captures this dynamics.</p>
+<div class="cell" data-execution_count="11">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-12-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Key insight</strong>: Correlations spike toward 1.0 during market crises (COVID-19 crash in early 2020). This is the “correlation breakdown” problem — diversification fails precisely when you need it most.</p>
+</blockquote>
+<hr>
+</section>
+<section id="sector-level-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="sector-level-analysis">7. Sector-Level Analysis</h2>
+<section id="average-within-sector-vs.-cross-sector-correlation" class="level3">
+<h3 class="anchored" data-anchor-id="average-within-sector-vs.-cross-sector-correlation">7.1 Average Within-Sector vs.&nbsp;Cross-Sector Correlation</h3>
+<div class="cell" data-execution_count="12">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-13-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="granger-causality" class="level2">
+<h2 class="anchored" data-anchor-id="granger-causality">8. Granger Causality</h2>
+<p>Granger causality tests whether past values of stock X help predict stock Y, beyond what Y’s own past predicts. It is <em>not</em> causality in a strict sense — it’s <strong>predictive precedence</strong>.</p>
+<p>Null hypothesis: <em>X does not Granger-cause Y</em></p>
+<div class="cell" data-execution_count="13">
+<div class="cell-output cell-output-display" data-execution_count="13">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Cause</th>
+<th data-quarto-table-cell-role="th">Effect</th>
+<th data-quarto-table-cell-role="th">Min p-value</th>
+<th data-quarto-table-cell-role="th">Best lag</th>
+<th data-quarto-table-cell-role="th">Significant</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">7</td>
+<td>NAVER</td>
+<td>SK</td>
+<td>0.0007</td>
+<td>3</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">6</td>
+<td>NAVER</td>
+<td>Samsung</td>
+<td>0.0011</td>
+<td>1</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">10</td>
+<td>Kakao</td>
+<td>SK</td>
+<td>0.0034</td>
+<td>1</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>Kakao</td>
+<td>Samsung</td>
+<td>0.0114</td>
+<td>1</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Samsung</td>
+<td>SK</td>
+<td>0.1435</td>
+<td>1</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>SK</td>
+<td>Samsung</td>
+<td>0.1975</td>
+<td>2</td>
+<td>No</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Samsung</td>
+<td>NAVER</td>
+<td>0.2485</td>
+<td>2</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">4</td>
+<td>SK</td>
+<td>NAVER</td>
+<td>0.3046</td>
+<td>2</td>
+<td>No</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">11</td>
+<td>Kakao</td>
+<td>NAVER</td>
+<td>0.3373</td>
+<td>5</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">2</td>
+<td>Samsung</td>
+<td>Kakao</td>
+<td>0.6116</td>
+<td>3</td>
+<td>No</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>NAVER</td>
+<td>Kakao</td>
+<td>0.6770</td>
+<td>1</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>SK</td>
+<td>Kakao</td>
+<td>0.8934</td>
+<td>1</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div class="cell" data-execution_count="14">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index_files/figure-html/cell-15-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Caution</strong>: Granger causality in daily stock returns is hard to find due to market efficiency. Significant results are more common in intraday data or between related instruments (ETFs and their underlying stocks).</p>
+</blockquote>
+<hr>
+</section>
+<section id="key-takeaways" class="level2">
+<h2 class="anchored" data-anchor-id="key-takeaways">9. Key Takeaways</h2>
+<table class="table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Concept</th>
+<th>What it measures</th>
+<th>Limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Pearson correlation</td>
+<td>Co-movement at lag 0</td>
+<td>Static; hides time dynamics</td>
+</tr>
+<tr class="even">
+<td>Cross-correlation function (CCF)</td>
+<td>Co-movement at all lags</td>
+<td>Assumes stationarity</td>
+</tr>
+<tr class="odd">
+<td>Rolling correlation</td>
+<td>Time-varying co-movement</td>
+<td>Window choice is arbitrary</td>
+</tr>
+<tr class="even">
+<td>Granger causality</td>
+<td>Predictive precedence</td>
+<td>Not structural causation</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Empirical findings for Korean blue chips (2018–2024):</strong></p>
+<ol type="1">
+<li><strong>Intra-sector correlations are high</strong>: Samsung–SK Hynix (semiconductors) and Hyundai–Kia (auto) move closely together, reflecting shared business cycles and news.</li>
+<li><strong>Tech platform stocks (NAVER, Kakao) are moderately correlated</strong> but diverge more than the hardware pairs.</li>
+<li><strong>Crisis periods compress all correlations toward 1</strong> — the diversification benefit collapses exactly when markets fall.</li>
+<li><strong>Lag effects are generally weak in daily data</strong> — consistent with the efficient market hypothesis.</li>
+<li><strong>Rolling correlations are highly non-stationary</strong> — a static correlation matrix is a snapshot, not a permanent property.</li>
+</ol>
+<hr>
+</section>
+<section id="next-steps" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps">Next Steps</h2>
+<ul>
+<li><strong>Volatility cross-correlation</strong>: Do volatility spikes (GARCH residuals) spread across stocks faster than return co-movements?</li>
+<li><strong>High-frequency data</strong>: Lead-lag effects are much stronger at 1–5 minute intervals</li>
+<li><strong>Copulas</strong>: Model non-linear tail dependence beyond linear correlation</li>
+<li><strong>Network analysis</strong>: Build a correlation network graph and detect communities</li>
+</ul>
+<hr>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li>Campbell, J. Y., Lo, A. W., &amp; MacKinlay, A. C. (1997). <em>The Econometrics of Financial Markets</em>. Princeton University Press.</li>
+<li>Cont, R. (2001). Empirical properties of asset returns: stylized facts and statistical issues. <em>Quantitative Finance</em>, 1(2), 223–236.</li>
+<li>Granger, C. W. J. (1969). Investigating causal relations by econometric models and cross-spectral methods. <em>Econometrica</em>, 37(3), 424–438.</li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>statistics</category>
+  <category>stock market</category>
+  <category>Python</category>
+  <category>cross-correlation</category>
+  <category>time series</category>
+  <guid>https://www.jonghoonk.com/blog/posts/cross_correlation_stock/index.html</guid>
+  <pubDate>Sun, 15 Mar 2026 15:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>High-Frequency Lead-Lag Effects in Stock Markets</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index.html</link>
+  <description><![CDATA[ 
+
+
+
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>In the <a href="../../../blog/posts/cross_correlation_stock/index.html">previous post</a> we saw that <strong>lag effects in daily stock returns are generally weak</strong> — a finding consistent with the efficient market hypothesis. But zoom in to 1–5 minute bars and a strikingly different picture emerges.</p>
+<p>At intraday timescales, markets are not fully efficient. Information does not instantaneously diffuse to all related assets. Instead it <em>propagates</em>: a price move in a large, liquid stock will typically appear in its smaller peer a few minutes later. This is the <strong>lead-lag effect</strong>, and it is one of the most robust empirical facts in market microstructure.</p>
+<p>This post covers:</p>
+<ul>
+<li>Why lead-lag effects are much stronger at high frequency</li>
+<li>The <strong>Epps effect</strong>: why contemporaneous correlations <em>decrease</em> as frequency increases</li>
+<li>CCF analysis on 5-minute data versus daily data</li>
+<li>Granger causality at intraday resolution</li>
+<li>Price discovery and market microstructure interpretation</li>
+</ul>
+<hr>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<hr>
+</section>
+<section id="simulating-lead-lag-in-high-frequency-data" class="level2">
+<h2 class="anchored" data-anchor-id="simulating-lead-lag-in-high-frequency-data">1. Simulating Lead-Lag in High-Frequency Data</h2>
+<p>Before touching real data, we build intuition with a controlled simulation. We construct two price series where <strong>Asset A leads Asset B by exactly 3 intervals</strong>.</p>
+<section id="the-model" class="level3">
+<h3 class="anchored" data-anchor-id="the-model">1.1 The Model</h3>
+<p><img src="https://latex.codecogs.com/png.latex?%0AA_t%20=%20A_%7Bt-1%7D%20+%20%5Cvarepsilon_t,%20%5Cquad%20%5Cvarepsilon_t%20%5Csim%20%5Cmathcal%7BN%7D(0,%20%5Csigma%5E2)%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AB_t%20=%20B_%7Bt-1%7D%20+%20%5Calpha%20%5Ccdot%20%5Cvarepsilon_%7Bt-3%7D%20+%20%5Ceta_t,%20%5Cquad%20%5Ceta_t%20%5Csim%20%5Cmathcal%7BN%7D(0,%20%5Cnu%5E2)%0A"></p>
+<p>Here <img src="https://latex.codecogs.com/png.latex?%5Calpha"> controls how strongly B follows A, and <img src="https://latex.codecogs.com/png.latex?%5Ceta_t"> is idiosyncratic noise for B. The true CCF should peak at lag <img src="https://latex.codecogs.com/png.latex?k%20=%203">.</p>
+<div class="cell" data-execution_count="3">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-4-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+</section>
+<section id="ccf-recovers-the-true-lag" class="level3">
+<h3 class="anchored" data-anchor-id="ccf-recovers-the-true-lag">1.2 CCF Recovers the True Lag</h3>
+<div class="cell" data-execution_count="4">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-5-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<p>The CCF peaks sharply at lag <img src="https://latex.codecogs.com/png.latex?k%20=%203"> (red dashed line), confirming that the method correctly identifies the lead-lag structure even with substantial idiosyncratic noise.</p>
+<hr>
+</section>
+</section>
+<section id="real-5-minute-data-nvidia-vs-amd" class="level2">
+<h2 class="anchored" data-anchor-id="real-5-minute-data-nvidia-vs-amd">2. Real 5-Minute Data: NVIDIA vs AMD</h2>
+<p>We use <code>yfinance</code> to download 5-minute bars for <strong>NVIDIA (NVDA)</strong> and <strong>Advanced Micro Devices (AMD)</strong> — both GPU/AI chip makers with a close fundamental relationship, analogous to Samsung Electronics and SK Hynix in Korean semiconductors.</p>
+<div class="cell" data-execution_count="5">
+<div class="cell-output cell-output-stdout">
+<pre><code>5-min bars: 1126
+Period    : 2025-12-17 14:30:00+00:00 → 2026-03-16 15:55:00+00:00</code></pre>
+</div>
+</div>
+<section id="price-paths-one-week-sample" class="level3">
+<h3 class="anchored" data-anchor-id="price-paths-one-week-sample">2.1 Price Paths (One Week Sample)</h3>
+<div class="cell" data-execution_count="7">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-8-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="the-epps-effect" class="level2">
+<h2 class="anchored" data-anchor-id="the-epps-effect">3. The Epps Effect</h2>
+<p>One of the most surprising facts about high-frequency correlations is the <strong>Epps effect</strong> (Epps, 1979): the <em>contemporaneous</em> correlation between two stocks decreases as the sampling interval shrinks.</p>
+<p>This seems paradoxical — shouldn’t more data give a better picture? The reason is <strong>asynchronous trading</strong>: at 1-minute resolution, the two stocks may not have traded within the same bar, so their price changes appear uncorrelated even when they share common information. As the interval widens, the trades overlap and correlation recovers.</p>
+<div class="cell" data-execution_count="8">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-9-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Key insight</strong>: Correlation at 1-minute intervals is substantially lower than at daily intervals, even for two closely related stocks. This is the Epps effect — it means that measuring co-movement at very short intervals understates the true economic relationship.</p>
+</blockquote>
+<hr>
+</section>
+<section id="cross-correlation-at-5-minute-resolution" class="level2">
+<h2 class="anchored" data-anchor-id="cross-correlation-at-5-minute-resolution">4. Cross-Correlation at 5-Minute Resolution</h2>
+<p>Even though contemporaneous correlation is lower at high frequency, <strong>lagged correlations are much more informative</strong>. Here we compute the CCF for all pairs at 5-minute resolution.</p>
+<section id="nvda-vs-amd" class="level3">
+<h3 class="anchored" data-anchor-id="nvda-vs-amd">4.1 NVDA vs AMD</h3>
+<div class="cell" data-execution_count="9">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-10-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Comparison</strong>: At the daily level, all CCF bars fall within the confidence bounds — consistent with market efficiency. At 5-minute resolution, significant lags emerge: a move in NVDA today predicts AMD in the next few bars.</p>
+</blockquote>
+</section>
+<section id="all-semiconductor-pairs" class="level3">
+<h3 class="anchored" data-anchor-id="all-semiconductor-pairs">4.2 All Semiconductor Pairs</h3>
+<div class="cell" data-execution_count="10">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-11-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="lead-lag-summary-who-leads-whom" class="level2">
+<h2 class="anchored" data-anchor-id="lead-lag-summary-who-leads-whom">5. Lead-Lag Summary: Who Leads Whom?</h2>
+<p>We summarize the lead-lag relationship by finding the lag at which the CCF is maximised (in absolute value) for each ordered pair.</p>
+<div class="cell" data-execution_count="11">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-12-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<hr>
+</section>
+<section id="intraday-pattern-of-lead-lag-strength" class="level2">
+<h2 class="anchored" data-anchor-id="intraday-pattern-of-lead-lag-strength">6. Intraday Pattern of Lead-Lag Strength</h2>
+<p>Lead-lag effects are not uniform throughout the trading day. They tend to be stronger at the <strong>open</strong> (when information from overnight is being absorbed) and at the <strong>close</strong> (end-of-day portfolio rebalancing). We test this by computing the 1-lag cross-correlation in rolling intraday windows.</p>
+<div class="cell" data-execution_count="12">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-13-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<hr>
+</section>
+<section id="rolling-lead-lag-over-time" class="level2">
+<h2 class="anchored" data-anchor-id="rolling-lead-lag-over-time">7. Rolling Lead-Lag Over Time</h2>
+<p>Just as daily rolling correlations change with market regimes, 5-minute lead-lag also evolves over time. High-volatility periods (earnings, macro events) tend to amplify price discovery dynamics.</p>
+<div class="cell" data-execution_count="13">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-14-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<hr>
+</section>
+<section id="granger-causality-at-5-minute-resolution" class="level2">
+<h2 class="anchored" data-anchor-id="granger-causality-at-5-minute-resolution">8. Granger Causality at 5-Minute Resolution</h2>
+<p>Granger causality at the daily level rarely reaches significance (Section 8 of the previous post). At 5-minute resolution — where market inefficiency is more exploitable — the result is often reversed.</p>
+<div class="cell" data-execution_count="14">
+<div class="cell-output cell-output-display" data-execution_count="30">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Cause → Effect</th>
+<th data-quarto-table-cell-role="th">Min p-value</th>
+<th data-quarto-table-cell-role="th">Best lag (bars)</th>
+<th data-quarto-table-cell-role="th">Significant (5%)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>NVIDIA → AMD</td>
+<td>0.2909</td>
+<td>4</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>AMD → NVIDIA</td>
+<td>0.7751</td>
+<td>1</td>
+<td>No</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>NVIDIA → Micron</td>
+<td>0.0393</td>
+<td>2</td>
+<td>Yes ✓</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>Micron → NVIDIA</td>
+<td>0.2645</td>
+<td>4</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Interpretation</strong>: Unlike daily data, 5-minute Granger causality tests often reject the null for at least one direction in related semiconductor pairs, confirming that short-term predictive precedence exists at intraday resolution.</p>
+</blockquote>
+<hr>
+</section>
+<section id="bid-ask-bounce-and-negative-autocorrelation" class="level2">
+<h2 class="anchored" data-anchor-id="bid-ask-bounce-and-negative-autocorrelation">9. Bid-Ask Bounce and Negative Autocorrelation</h2>
+<p>A distinctive feature of individual stock returns at very high frequency (tick or 1-minute level) is <strong>negative first-order autocorrelation</strong>. This is caused by the <strong>bid-ask bounce</strong>:</p>
+<ul>
+<li>Trades alternate between hitting the bid and the ask, even when the true mid-price is unchanged.</li>
+<li>This creates a pattern: up-tick → down-tick → up-tick, generating negative lag-1 autocorrelation in transaction prices.</li>
+</ul>
+<p>At 5-minute intervals the bounce is averaged out, but the effect is still detectable in volatile stocks.</p>
+<div class="cell" data-execution_count="15">
+<div class="cell-output cell-output-display">
+<p><img src="https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index_files/figure-html/cell-16-output-1.png" class="img-fluid"></p>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Note</strong>: Negative autocorrelation at lag-1 is a hallmark of microstructure noise. It diminishes as the sampling interval grows and effectively disappears at daily resolution.</p>
+</blockquote>
+<hr>
+</section>
+<section id="hf-vs-daily-side-by-side-comparison" class="level2">
+<h2 class="anchored" data-anchor-id="hf-vs-daily-side-by-side-comparison">10. HF vs Daily: Side-by-Side Comparison</h2>
+<div class="cell" data-execution_count="16">
+<div class="cell-output cell-output-display" data-execution_count="32">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Daily data</th>
+<th data-quarto-table-cell-role="th">5-minute data</th>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Property</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">Contemporaneous correlation</td>
+<td>High (0.7–0.9)</td>
+<td>Moderate (Epps effect)</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">Lag-1 cross-correlation (significant?)</td>
+<td>Rarely</td>
+<td>Often</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">Negative ACF at lag-1 (bid-ask bounce)</td>
+<td>No</td>
+<td>Yes (microstructure noise)</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">Granger causality (significant?)</td>
+<td>Rarely</td>
+<td>Often</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">Efficient market hypothesis holds?</td>
+<td>Usually yes</td>
+<td>Partially</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">Lead-lag interpretable as price discovery?</td>
+<td>No — noise-dominated</td>
+<td>Yes — measurable</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<hr>
+</section>
+<section id="key-takeaways" class="level2">
+<h2 class="anchored" data-anchor-id="key-takeaways">11. Key Takeaways</h2>
+<table class="table">
+<thead>
+<tr class="header">
+<th>Concept</th>
+<th>Daily</th>
+<th>5-minute</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Contemporaneous correlation</td>
+<td>High</td>
+<td>Lower (Epps effect)</td>
+</tr>
+<tr class="even">
+<td>Lead-lag CCF</td>
+<td>Flat (noise)</td>
+<td>Peaks at 1–5 bar lags</td>
+</tr>
+<tr class="odd">
+<td>Granger causality</td>
+<td>Usually fails</td>
+<td>Often significant</td>
+</tr>
+<tr class="even">
+<td>Autocorrelation</td>
+<td>Near zero</td>
+<td>Negative at lag-1</td>
+</tr>
+<tr class="odd">
+<td>Market efficiency</td>
+<td>Holds</td>
+<td>Partial — price discovery visible</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Summary findings:</strong></p>
+<ol type="1">
+<li><strong>The Epps effect is real</strong>: contemporaneous correlation drops markedly at 1–5 minute sampling. Do not confuse lower contemporaneous correlation with weaker economic linkage.</li>
+<li><strong>Lead-lag effects are strongest at the open</strong>: the first 30–60 minutes of trading see the most pronounced lead-lag as overnight information is absorbed.</li>
+<li><strong>NVDA tends to lead AMD and MU</strong> in semiconductor price discovery, consistent with its role as the dominant market-cap and liquidity provider in the sector.</li>
+<li><strong>Granger causality succeeds at 5-min where it fails at daily</strong> — predictive precedence is measurable before the market can fully arbitrage it away.</li>
+<li><strong>Negative lag-1 autocorrelation</strong> at 5-minute resolution is a microstructure artifact, not a genuine mean-reversion signal for individual stocks.</li>
+</ol>
+<hr>
+</section>
+<section id="next-steps" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps">Next Steps</h2>
+<ul>
+<li><strong>Tick-level analysis</strong>: at the trade-by-trade level, the Hasbrouck (1991) information share model quantifies each venue’s contribution to price discovery</li>
+<li><strong>Index vs constituents</strong>: SPY/QQQ futures lead their underlying stocks by seconds — a pure price discovery channel</li>
+<li><strong>Copulas for HF tail dependence</strong>: tail co-movement is asymmetric at 5-min frequency (crashes propagate faster than rallies)</li>
+<li><strong>Machine learning on HF features</strong>: CCF-derived lead-lag features as inputs to short-horizon predictive models</li>
+</ul>
+<hr>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li>Epps, T. W. (1979). Comovements in stock prices in the very short run. <em>Journal of the American Statistical Association</em>, 74(366), 291–298.</li>
+<li>Hasbrouck, J. (1991). Measuring the information content of stock trades. <em>Journal of Finance</em>, 46(1), 179–207.</li>
+<li>Lo, A. W., &amp; MacKinlay, A. C. (1990). An econometric analysis of nonsynchronous trading. <em>Journal of Econometrics</em>, 45(1–2), 181–211.</li>
+<li>Cont, R. (2001). Empirical properties of asset returns: stylized facts and statistical issues. <em>Quantitative Finance</em>, 1(2), 223–236.</li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>statistics</category>
+  <category>stock market</category>
+  <category>Python</category>
+  <category>cross-correlation</category>
+  <category>time series</category>
+  <category>high-frequency</category>
+  <guid>https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/index.html</guid>
+  <pubDate>Sun, 15 Mar 2026 15:00:00 GMT</pubDate>
+</item>
 <item>
   <title>How many infections does one isolation prevent?</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
@@ -24259,907 +25176,6 @@ font-style: inherit;">/</span> FullSimplify</span></code></pre></div>
   <guid>https://www.jonghoonk.com/blog/posts/R0_mathematica/index.html</guid>
   <pubDate>Sat, 01 Jun 2024 15:00:00 GMT</pubDate>
   <media:content url="https://www.jonghoonk.com/blog/posts/R0_mathematica/intro-spikey.png" medium="image" type="image/png" height="147" width="144"/>
-</item>
-<item>
-  <title>Claude 3</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/claude_api/index.html</link>
-  <description><![CDATA[ 
-
-
-
-<p>Testing Claude 3 with R</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(httr)</span>
-<span id="cb1-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(jsonlite)</span>
-<span id="cb1-3"></span>
-<span id="cb1-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Function to make API request</span></span>
-<span id="cb1-5">prompt_claude <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">function</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">prompt =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span>, </span>
-<span id="cb1-6">                          <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">api_key =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span>, </span>
-<span id="cb1-7">                          <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">model =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"opus"</span>,</span>
-<span id="cb1-8">                          <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">max_tokens =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1000</span>) {</span>
-<span id="cb1-9">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">is.null</span>(api_key)) {</span>
-<span id="cb1-10">   <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stop</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"api_key must provided"</span>)</span>
-<span id="cb1-11">  }</span>
-<span id="cb1-12">  model <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">grep</span>(model, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"claude-3-haiku-20240307"</span>,</span>
-<span id="cb1-13">                         <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"claude-3-sonnet-20240229"</span>,</span>
-<span id="cb1-14">                         <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"claude-3-opus-20240229"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">value=</span><span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">TRUE</span>)</span>
-<span id="cb1-15">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">if</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(model) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>){</span>
-<span id="cb1-16">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stop</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"The model name is wrong. It must be one of the haiku, sonnet, and opus"</span>)</span>
-<span id="cb1-17">  }</span>
-<span id="cb1-18">  </span>
-<span id="cb1-19">  response <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> httr<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">POST</span>(</span>
-<span id="cb1-20">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">url =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"https://api.anthropic.com/v1/messages"</span>,</span>
-<span id="cb1-21">    httr<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">add_headers</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">`</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x-api-key</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">`</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> api_key, </span>
-<span id="cb1-22">                <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">`</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">anthropic-version</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">`</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"2023-06-01"</span>,</span>
-<span id="cb1-23">                <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">`</span><span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">content-type</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">`</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"application/json"</span>),</span>
-<span id="cb1-24">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">encode =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"json"</span>,</span>
-<span id="cb1-25">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">body =</span> jsonlite<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">toJSON</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">list</span>(</span>
-<span id="cb1-26">     <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">model =</span> model,</span>
-<span id="cb1-27">     <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">max_tokens =</span> max_tokens,</span>
-<span id="cb1-28">     <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">messages =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">list</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">list</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">role =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"user"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">content =</span> prompt))</span>
-<span id="cb1-29">    ), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">auto_unbox =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">TRUE</span>)</span>
-<span id="cb1-30"> )</span>
-<span id="cb1-31"> content <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> httr<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">content</span>(response, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">as=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"text"</span>)</span>
-<span id="cb1-32"> json_data <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> jsonlite<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">fromJSON</span>(content, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">flatten =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">TRUE</span>)</span>
-<span id="cb1-33"> response <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> json_data<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>content<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>text</span>
-<span id="cb1-34"> </span>
-<span id="cb1-35"> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(response)</span>
-<span id="cb1-36">}</span>
-<span id="cb1-37"></span>
-<span id="cb1-38">api_key <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Sys.getenv</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"CLAUDE_API_KEY"</span>) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># api key was stored in the .Renviron file</span></span>
-<span id="cb1-39">res <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">prompt_claude</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">prompt=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"The cat sat on the"</span>, api_key, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">model=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"haiku"</span>)</span>
-<span id="cb1-40"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span>(res)</span></code></pre></div>
-</div>
-
-
-
- ]]></description>
-  <category>LLM</category>
-  <category>Claude</category>
-  <guid>https://www.jonghoonk.com/blog/posts/claude_api/index.html</guid>
-  <pubDate>Wed, 29 May 2024 15:00:00 GMT</pubDate>
-  <media:content url="https://www.jonghoonk.com/blog/posts/claude_api/anthropic.png" medium="image" type="image/png" height="136" width="144"/>
-</item>
-<item>
-  <title>Learning ChatGPT 2: Approximating a tower function using a neural net</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/learning_ChatGPT_2/index.html</link>
-  <description><![CDATA[ 
-
-
-
-<p>The <a href="https://writings.stephenwolfram.com/2023/02/what-is-chatgpt-doing-and-why-does-it-work/">blog post by Stephen Wolfram</a> discusses a neural network for approximating some sort of a step function. This post is my attempt to reproduce it. A <a href="https://www.youtube.com/watch?v=Ijqkc7OLenI">YouTube video</a> and a <a href="http://neuralnetworksanddeeplearning.com/chap4.html">book chapter</a> by Michael Nielsen beautifully explain how a neural network can approximate a tower function while explaining the <a href="https://en.wikipedia.org/wiki/Universal_approximation_theorem">Universal Approximation Theorem</a>.</p>
-<section id="data" class="level3">
-<h3 class="anchored" data-anchor-id="data">Data</h3>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(torch)</span>
-<span id="cb1-2">x <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>,<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">by=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.01</span>)</span>
-<span id="cb1-3">y <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ifelse</span>(x <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.3</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ifelse</span>(x <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.8</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.4</span>))</span>
-<span id="cb1-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># input and output are turned into a 1-column tensor  </span></span>
-<span id="cb1-5">x <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">torch_tensor</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.matrix</span>(x, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ncol=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>))</span>
-<span id="cb1-6">y <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">torch_tensor</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.matrix</span>(y, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ncol=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>))</span>
-<span id="cb1-7"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot</span>(x, y, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xlab=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"X"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">type=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"l"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylab=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Y"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lty=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lwd=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)</span></code></pre></div>
-<div class="cell-output-display">
-<p><img src="https://www.jonghoonk.com/blog/posts/learning_ChatGPT_2/index_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid" width="672"></p>
-</div>
-</div>
-</section>
-<section id="neural-network" class="level3">
-<h3 class="anchored" data-anchor-id="neural-network">Neural network</h3>
-<p>One simple way to create a neural network is to use <code>nn_sequential</code> function of the <code>torch</code> package. <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">Rectified linear unit (ReLU)</a> is used for an activation function.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">dim_in <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span></span>
-<span id="cb2-2">dim_out <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span></span>
-<span id="cb2-3">dim_hidden <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">32</span></span>
-<span id="cb2-4"></span>
-<span id="cb2-5">net <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_sequential</span>(</span>
-<span id="cb2-6">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_linear</span>(dim_in, dim_hidden),</span>
-<span id="cb2-7">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_relu</span>(),</span>
-<span id="cb2-8">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_linear</span>(dim_hidden, dim_out)</span>
-<span id="cb2-9">)</span></code></pre></div>
-</div>
-</section>
-<section id="traing-a-neural-network" class="level3">
-<h3 class="anchored" data-anchor-id="traing-a-neural-network">Traing a neural network</h3>
-<p>The <a href="https://arxiv.org/abs/1412.6980">Adam optimizer</a>, which a popular choice, is used.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">opt <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">optim_adam</span>(net<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>parameters)</span>
-<span id="cb3-2"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># opt &lt;- optim_sgd(net$parameters, lr=0.001)</span></span></code></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">num_epochs <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1000</span></span>
-<span id="cb4-2"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">for</span> (epoch <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">in</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>num_epochs) {</span>
-<span id="cb4-3">  y_pred <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">net</span>(x)  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># forward pass</span></span>
-<span id="cb4-4">  loss <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nnf_mse_loss</span>(y_pred, y)  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># compute loss </span></span>
-<span id="cb4-5">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">if</span> (epoch <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%%</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>) { </span>
-<span id="cb4-6">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Epoch: "</span>, epoch, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">", Loss: "</span>, loss<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">item</span>(), <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">\n</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>)</span>
-<span id="cb4-7">  }</span>
-<span id="cb4-8">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># back propagation </span></span>
-<span id="cb4-9">  opt<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zero_grad</span>()</span>
-<span id="cb4-10">  loss<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">backward</span>()</span>
-<span id="cb4-11">  opt<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">step</span>()  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># update weights</span></span>
-<span id="cb4-12">}</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Epoch:  100 , Loss:  0.05918226 
-Epoch:  200 , Loss:  0.04266065 
-Epoch:  300 , Loss:  0.02848286 
-Epoch:  400 , Loss:  0.01916445 
-Epoch:  500 , Loss:  0.01608658 
-Epoch:  600 , Loss:  0.01477717 
-Epoch:  700 , Loss:  0.01393809 
-Epoch:  800 , Loss:  0.01333173 
-Epoch:  900 , Loss:  0.01286871 
-Epoch:  1000 , Loss:  0.01249429 </code></pre>
-</div>
-</div>
-<p>Compare the data and the model predictions</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">ypred <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">net</span>(x)</span>
-<span id="cb6-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"L2 loss: %.4f"</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sum</span>((ypred<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>y)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>))</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "L2 loss: 3.7598"</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot</span>(x, y, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">type=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"l"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xlab=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"X"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylab=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Y"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lty=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lwd=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)</span>
-<span id="cb8-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">lines</span>(x, ypred, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lwd=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">col=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"firebrick"</span>)</span>
-<span id="cb8-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">legend</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"topright"</span>, </span>
-<span id="cb8-4">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">legend=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"data"</span>,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"neural net"</span>), </span>
-<span id="cb8-5">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">col=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"black"</span>,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"firebrick"</span>), </span>
-<span id="cb8-6">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lty=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"solid"</span>),</span>
-<span id="cb8-7">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lwd=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, </span>
-<span id="cb8-8">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">bty =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"n"</span>, </span>
-<span id="cb8-9">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cex =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.0</span>, </span>
-<span id="cb8-10">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">text.col =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"black"</span>, </span>
-<span id="cb8-11">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">horiz =</span> F , </span>
-<span id="cb8-12">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">inset =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.02</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.02</span>))</span></code></pre></div>
-<div class="cell-output-display">
-<p><img src="https://www.jonghoonk.com/blog/posts/learning_ChatGPT_2/index_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid" width="672"></p>
-</div>
-</div>
-</section>
-<section id="enlarge-the-neural-network" class="level3">
-<h3 class="anchored" data-anchor-id="enlarge-the-neural-network">Enlarge the neural network</h3>
-<p>Let’s repeat an experiment using a larger network - more nodes and layers</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">dim_hidden <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">64</span></span>
-<span id="cb9-2"></span>
-<span id="cb9-3">net <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_sequential</span>(</span>
-<span id="cb9-4">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_linear</span>(dim_in, dim_hidden),</span>
-<span id="cb9-5">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_relu</span>(),</span>
-<span id="cb9-6">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_linear</span>(dim_hidden, dim_hidden),</span>
-<span id="cb9-7">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_relu</span>(),</span>
-<span id="cb9-8">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_linear</span>(dim_hidden, dim_hidden),</span>
-<span id="cb9-9">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_relu</span>(),</span>
-<span id="cb9-10">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nn_linear</span>(dim_hidden, dim_out)</span>
-<span id="cb9-11">)</span></code></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">opt <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">optim_adam</span>(net<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>parameters)</span></code></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">num_epochs <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1000</span></span>
-<span id="cb11-2"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">for</span> (epoch <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">in</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>num_epochs) {</span>
-<span id="cb11-3">  y_pred <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">net</span>(x)  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># forward pass</span></span>
-<span id="cb11-4">  loss <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nnf_mse_loss</span>(y_pred, y)  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># compute loss </span></span>
-<span id="cb11-5">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">if</span> (epoch <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%%</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>) { </span>
-<span id="cb11-6">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Epoch: "</span>, epoch, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">", Loss: "</span>, loss<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">item</span>(), <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">\n</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>)</span>
-<span id="cb11-7">  }</span>
-<span id="cb11-8">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># back propagation </span></span>
-<span id="cb11-9">  opt<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zero_grad</span>()</span>
-<span id="cb11-10">  loss<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">backward</span>()</span>
-<span id="cb11-11">  opt<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">step</span>()  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># update weights</span></span>
-<span id="cb11-12">}</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Epoch:  100 , Loss:  0.02049372 
-Epoch:  200 , Loss:  0.005859586 
-Epoch:  300 , Loss:  0.00293437 
-Epoch:  400 , Loss:  0.001943566 
-Epoch:  500 , Loss:  0.001552111 
-Epoch:  600 , Loss:  0.001466194 
-Epoch:  700 , Loss:  0.00113698 
-Epoch:  800 , Loss:  0.001119171 
-Epoch:  900 , Loss:  0.0009291215 
-Epoch:  1000 , Loss:  0.001042918 </code></pre>
-</div>
-</div>
-<p>Compare the data and the model predictions</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">ypred <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">net</span>(x)</span>
-<span id="cb13-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"L2 loss: %.4f"</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sum</span>((ypred<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>y)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>))</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "L2 loss: 0.3239"</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># png("stepfunc_nn.png")</span></span>
-<span id="cb15-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot</span>(x, y, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">type=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"l"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xlab=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"X"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylab=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Y"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lty=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lwd=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)</span>
-<span id="cb15-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">lines</span>(x, ypred, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lwd=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">col=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"firebrick"</span>)</span>
-<span id="cb15-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">legend</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"topright"</span>, </span>
-<span id="cb15-5">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">legend=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"data"</span>,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"neural net"</span>), </span>
-<span id="cb15-6">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">col=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"black"</span>,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"firebrick"</span>), </span>
-<span id="cb15-7">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lty=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"solid"</span>),</span>
-<span id="cb15-8">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lwd=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, </span>
-<span id="cb15-9">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">bty =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"n"</span>, </span>
-<span id="cb15-10">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cex =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.0</span>, </span>
-<span id="cb15-11">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">text.col =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"black"</span>, </span>
-<span id="cb15-12">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">horiz =</span> F , </span>
-<span id="cb15-13">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">inset =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.02</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.02</span>))</span></code></pre></div>
-<div class="cell-output-display">
-<p><img src="https://www.jonghoonk.com/blog/posts/learning_ChatGPT_2/index_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
-</div>
-<div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># dev.off()</span></span></code></pre></div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>Neural network</category>
-  <category>Adam</category>
-  <category>matrix</category>
-  <guid>https://www.jonghoonk.com/blog/posts/learning_ChatGPT_2/index.html</guid>
-  <pubDate>Mon, 27 May 2024 15:00:00 GMT</pubDate>
-  <media:content url="https://www.jonghoonk.com/blog/posts/learning_ChatGPT_2/stepfunc_nn.png" medium="image" type="image/png" height="144" width="144"/>
 </item>
 </channel>
 </rss>
