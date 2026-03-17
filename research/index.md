@@ -130,7 +130,7 @@ format: html
 ### 2026{#not-published-2026}
 
 ```{=html}
-<ul class='list-group list-group-flush'><li class='list-group-item'>Katy A M Gaythorpe, Xiang Li, <strong>Jong-Hoon Kim</strong>, ..., Neil M Ferguson, and Caroline L Trotter. (2026) "Quantifying relative health impact across Gavi, the Vaccine Alliance's portfolio in 117 countries at the subregional level: a modelling study." <em>Lancet</em><br><a class="btn btn-outline-dark btn-sm", href="https://github.com/vimc/paper4" target="_blank" rel="noopener noreferrer">
+<ul class='list-group list-group-flush'><li class='list-group-item'>Katy A M Gaythorpe, Xiang Li, ..., <strong>Jong-Hoon Kim</strong>, ..., Neil M Ferguson, and Caroline L Trotter. (2026) "Quantifying relative health impact across Gavi, the Vaccine Alliance's portfolio in 117 countries at the subregional level: a modelling study." <em>Lancet</em><br><a class="btn btn-outline-dark btn-sm", href="https://github.com/vimc/paper4" target="_blank" rel="noopener noreferrer">
         <i class="bi bi-github" role='img' aria-label='Github'></i>
         Github
     </a></li>
