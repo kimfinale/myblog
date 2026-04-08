@@ -10,12 +10,2000 @@
 <atom:link href="https://www.jonghoonk.com/blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Disease modeling for public health</description>
 <generator>quarto-1.9.36</generator>
-<lastBuildDate>Sat, 14 Mar 2026 15:00:00 GMT</lastBuildDate>
+<lastBuildDate>Wed, 08 Apr 2026 15:00:00 GMT</lastBuildDate>
+<item>
+  <title>Physics-Informed Neural Networks for Epidemic Modeling</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/pinn_sir/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="introduction" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1</span> Introduction</h2>
+<p>Epidemic modelers routinely confront a maddening data problem: the governing equations are known (or at least hypothesized), but the observations are sparse, delayed, and noisy, and the parameters driving the outbreak — the transmission rate <img src="https://latex.codecogs.com/png.latex?%5Cbeta">, the recovery rate <img src="https://latex.codecogs.com/png.latex?%5Cgamma">, and thus the reproduction number <img src="https://latex.codecogs.com/png.latex?R_0"> — must be estimated from partial, corrupted signal.</p>
+<p>Classical approaches attack this as a statistical inverse problem: plug the ODE solver into a likelihood and optimize or sample. The approach works but it treats the physics and the inference engine as two separate, loosely coupled steps. <strong>Physics-Informed Neural Networks (PINNs)</strong> fuse them into a single differentiable computation graph, turning parameter estimation into a form of constrained neural-network training.</p>
+<section id="from-neural-odes-to-pinns-a-brief-history" class="level3" data-number="1.1">
+<h3 data-number="1.1" class="anchored" data-anchor-id="from-neural-odes-to-pinns-a-brief-history"><span class="header-section-number">1.1</span> From neural ODEs to PINNs: a brief history</h3>
+<p>The idea of using neural networks to solve differential equations is older than deep learning itself. Lagaris, Likas, and Fotiadis <span class="citation" data-cites="lagaris1998">(1)</span> showed in 1998 that a simple feedforward network, trained to minimise the residual of an ODE or PDE, could approximate analytical solutions across a spatial or temporal domain. The key insight was that automatic differentiation makes the ODE residual a differentiable loss term, enabling gradient-based training without a numerical solver.</p>
+<p>This idea lay largely dormant through the pre-deep-learning era. It was revived at scale by Raissi, Perdikaris, and Karniadakis <span class="citation" data-cites="raissi2019">(2)</span>, whose 2019 paper named and systematised the approach as <strong>Physics-Informed Neural Networks</strong>. Their framework covered:</p>
+<ul>
+<li><strong>Forward problems</strong> — given the parameters and initial conditions, solve for the solution trajectory; the PINN provides a mesh-free, differentiable approximation to the ODE/PDE solution.</li>
+<li><strong>Inverse problems</strong> — given noisy observations of the solution, infer the unknown parameters; <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> and <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> are simply treated as additional learnable parameters of the model alongside the network weights.</li>
+</ul>
+<p>The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stokes, Burgers equation) and attracted enormous follow-on interest in physics, engineering, and biology.</p>
+</section>
+<section id="pinns-in-epidemiology-and-infectious-diseases" class="level3" data-number="1.2">
+<h3 data-number="1.2" class="anchored" data-anchor-id="pinns-in-epidemiology-and-infectious-diseases"><span class="header-section-number">1.2</span> PINNs in epidemiology and infectious diseases</h3>
+<p>The epidemic-modeling community was quick to recognise the relevance. In a COVID-19 application, Linka et al. <span class="citation" data-cites="linka2020">(3)</span> embedded a SEIR model inside a PINN to estimate time-varying transmission rates from reported case counts across European countries. The physics constraint stabilised parameter recovery even when surveillance data were noisy and incomplete.</p>
+<p>Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(4)</span> demonstrated the approach more rigorously on integer- and fractional-order compartmental models, showing that PINNs can reliably identify structural and parametric features of epidemic models from sparse time-series. Their framework, developed within the Karniadakis group that produced the original PINN paper, introduced careful treatment of identifiability — a critical concern when inferring multiple epidemic parameters simultaneously.</p>
+<p>A recurring theme across these studies is that the <strong>physics residual acts as a regulariser</strong>: by penalising solutions that violate the ODE, the network is prevented from overfitting the noisy observations, and the inferred parameters reflect the underlying epidemic dynamics rather than noise artefacts.</p>
+<p>More recent work has extended PINNs to:</p>
+<ul>
+<li><strong>Multi-wave dynamics</strong> — multi-phase PINNs that switch physics regimes across intervention periods, capturing policy-driven changes in <img src="https://latex.codecogs.com/png.latex?%5Cbeta">.</li>
+<li><strong>Fractional-order models</strong> — incorporating memory effects through fractional derivatives to better match empirical epidemic decay curves.</li>
+<li><strong>Uncertainty quantification</strong> — Bayesian PINN extensions that propagate uncertainty in parameters through to forecast intervals.</li>
+<li><strong>Wastewater surveillance</strong> — fitting PINNs to environmental sentinel data where the observation model requires additional unknowns beyond <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> and <img src="https://latex.codecogs.com/png.latex?%5Cgamma">.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>What you need</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pip</span> install torch scipy matplotlib numpy</span></code></pre></div></div>
+<p>Code tested with: <code>torch 2.11</code>, <code>scipy 1.17</code>, <code>Python 3.11</code>.</p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="background-the-sir-model" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="background-the-sir-model"><span class="header-section-number">2</span> Background: the SIR model</h2>
+<p>The SIR model partitions a closed population of size <img src="https://latex.codecogs.com/png.latex?N"> into:</p>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?S(t)">: <strong>S</strong>usceptible — not yet infected</li>
+<li><img src="https://latex.codecogs.com/png.latex?I(t)">: <strong>I</strong>nfectious — currently infected and able to transmit</li>
+<li><img src="https://latex.codecogs.com/png.latex?R(t)">: <strong>R</strong>ecovered — immune (or deceased)</li>
+</ul>
+<p>The dynamics are:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdS%7D%7Bdt%7D%20=%20-%5Cfrac%7B%5Cbeta%20S%20I%7D%7BN%7D,%20%5Cqquad%0A%5Cfrac%7BdI%7D%7Bdt%7D%20=%20%5Cfrac%7B%5Cbeta%20S%20I%7D%7BN%7D%20-%20%5Cgamma%20I,%20%5Cqquad%0A%5Cfrac%7BdR%7D%7Bdt%7D%20=%20%5Cgamma%20I%0A"></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Meaning</th>
+<th>Units</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbeta"></td>
+<td>transmission rate</td>
+<td>contacts × probability / day</td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cgamma"></td>
+<td>recovery rate</td>
+<td>1 / day</td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?R_0%20=%20%5Cbeta/%5Cgamma"></td>
+<td>basic reproduction number</td>
+<td>dimensionless</td>
+</tr>
+</tbody>
+</table>
+<p>An epidemic takes off when <img src="https://latex.codecogs.com/png.latex?R_0%20%3E%201">. Throughout this post we use <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.3">, <img src="https://latex.codecogs.com/png.latex?%5Cgamma%20=%200.1"> (<img src="https://latex.codecogs.com/png.latex?R_0%20=%203">) as the data-generating truth.</p>
+<hr>
+</section>
+<section id="simulate-ground-truth-and-noisy-observations" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="simulate-ground-truth-and-noisy-observations"><span class="header-section-number">3</span> Simulate ground truth and noisy observations</h2>
+<div id="8d6fe872" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> np</span>
+<span id="cb2-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> torch</span>
+<span id="cb2-3"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> torch.nn <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> nn</span>
+<span id="cb2-4"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> scipy.integrate <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> odeint <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> scipy_odeint</span>
+<span id="cb2-5"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> matplotlib.pyplot <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> plt</span>
+<span id="cb2-6"></span>
+<span id="cb2-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Reproducibility</span></span>
+<span id="cb2-8">torch.manual_seed(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">42</span>)</span>
+<span id="cb2-9">np.random.seed(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">42</span>)</span>
+<span id="cb2-10"></span>
+<span id="cb2-11">plt.rcParams.update({</span>
+<span id="cb2-12">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"figure.dpi"</span>: <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">130</span>,</span>
+<span id="cb2-13">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"axes.spines.top"</span>: <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">False</span>,</span>
+<span id="cb2-14">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"axes.spines.right"</span>: <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">False</span>,</span>
+<span id="cb2-15">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"axes.grid"</span>: <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>,</span>
+<span id="cb2-16">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grid.alpha"</span>: <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>,</span>
+<span id="cb2-17">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"font.size"</span>: <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">11</span>,</span>
+<span id="cb2-18">})</span>
+<span id="cb2-19"></span>
+<span id="cb2-20">C_S, C_I, C_R   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#2196F3"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#F44336"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#4CAF50"</span></span>
+<span id="cb2-21">C_OBS, C_PINN   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"black"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#9C27B0"</span></span>
+<span id="cb2-22"></span>
+<span id="cb2-23"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># --- Ground truth parameters ---</span></span>
+<span id="cb2-24">N          <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1_000</span></span>
+<span id="cb2-25">beta_true  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span></span>
+<span id="cb2-26">gamma_true <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span></span>
+<span id="cb2-27">T_max      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">60.0</span></span>
+<span id="cb2-28"></span>
+<span id="cb2-29">y0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array([<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">990.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>])</span>
+<span id="cb2-30"></span>
+<span id="cb2-31"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> sir_rhs(y, t, beta, gamma, N):</span>
+<span id="cb2-32">    S, I, R <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> y</span>
+<span id="cb2-33">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> [<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>beta<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>S<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>I<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span>N, beta<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>S<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>I<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span>N <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> gamma<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>I, gamma<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>I]</span>
+<span id="cb2-34"></span>
+<span id="cb2-35">n_grid <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span></span>
+<span id="cb2-36">t_grid <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.linspace(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, T_max, n_grid)</span>
+<span id="cb2-37">sol    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> scipy_odeint(sir_rhs, y0, t_grid, args<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(beta_true, gamma_true, N))</span>
+<span id="cb2-38">S_true, I_true, R_true <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> sol.T</span>
+<span id="cb2-39"></span>
+<span id="cb2-40"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"R₀ = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>beta_true<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span>gamma_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb2-41"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Peak infections: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>I_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.0f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> on day </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>t_grid[I_true.argmax()]<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb2-42"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Final susceptibles: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>S_true[<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.0f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb2-43"></span>
+<span id="cb2-44"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># --- Sparse, noisy observations of I(t) only ---</span></span>
+<span id="cb2-45">n_obs   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">30</span></span>
+<span id="cb2-46">obs_idx <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.sort(np.random.choice(np.arange(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, n_grid), n_obs, replace<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">False</span>))</span>
+<span id="cb2-47">t_obs   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> t_grid[obs_idx]</span>
+<span id="cb2-48">I_obs   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.clip(I_true[obs_idx] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> np.random.normal(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20.0</span>, n_obs), <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, N)</span>
+<span id="cb2-49"></span>
+<span id="cb2-50">fig, ax <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>))</span>
+<span id="cb2-51">ax.plot(t_grid, S_true, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_S, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"S (true)"</span>)</span>
+<span id="cb2-52">ax.plot(t_grid, I_true, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_I, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"I (true)"</span>)</span>
+<span id="cb2-53">ax.plot(t_grid, R_true, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_R, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"R (true)"</span>)</span>
+<span id="cb2-54">ax.scatter(t_obs, I_obs, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_OBS, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">30</span>, zorder<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>,</span>
+<span id="cb2-55">           label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"I observed (n=</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>n_obs<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, σ=20)"</span>)</span>
+<span id="cb2-56">ax.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span>(xlabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Day"</span>, ylabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"People"</span>,</span>
+<span id="cb2-57">       title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Ground truth SIR + noisy observations of I(t)"</span>)</span>
+<span id="cb2-58">ax.legend(loc<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"upper right"</span>)</span>
+<span id="cb2-59">plt.tight_layout()</span>
+<span id="cb2-60">plt.show()</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>R₀ = 3.0
+Peak infections: 304 on day 26.7
+Final susceptibles: 68</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-2-output-2.png" width="1024" height="504" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Only the black dots are available for training. The full <img src="https://latex.codecogs.com/png.latex?S">, <img src="https://latex.codecogs.com/png.latex?I">, <img src="https://latex.codecogs.com/png.latex?R"> trajectories are hidden from the model.</p>
+<hr>
+</section>
+<section id="physics-informed-neural-network" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="physics-informed-neural-network"><span class="header-section-number">4</span> Physics-Informed Neural Network</h2>
+<section id="architecture" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">4.1</span> Architecture</h3>
+<p>A PINN maps scaled time <img src="https://latex.codecogs.com/png.latex?t_s%20%5Cin%20%5B0,1%5D"> directly to the three compartment proportions <img src="https://latex.codecogs.com/png.latex?(S/N,%20I/N,%20R/N)">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A(S(t),%5C,%20I(t),%5C,%20R(t))%20/%20N%20%5C;=%5C;%20%5Ctext%7BNN%7D_%5Ctheta(t/T_%7B%5Cmax%7D)%0A"></p>
+<p>Two scalar scalars — <img src="https://latex.codecogs.com/png.latex?%5Clog%5Cbeta_s"> and <img src="https://latex.codecogs.com/png.latex?%5Clog%5Cgamma_s"> (log of the scaled-time parameters) — are additional <strong>learnable parameters</strong> of the model. Physical rates are recovered as <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%20%5Cbeta_s%20/%20T_%7B%5Cmax%7D">, <img src="https://latex.codecogs.com/png.latex?%5Cgamma%20=%20%5Cgamma_s%20/%20T_%7B%5Cmax%7D">.</p>
+<div id="ccddb83a" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> PINN(nn.Module):</span>
+<span id="cb4-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb4-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Physics-Informed Neural Network for the SIR model.</span></span>
+<span id="cb4-4"></span>
+<span id="cb4-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Input  : scaled time t_s ∈ [0, 1]   — shape (batch,)</span></span>
+<span id="cb4-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Output : (S, I, R) / N proportions  — shape (batch, 3)</span></span>
+<span id="cb4-7"></span>
+<span id="cb4-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Learnable epidemic parameters</span></span>
+<span id="cb4-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    -----------------------------</span></span>
+<span id="cb4-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    log_beta_s, log_gamma_s : log of β and γ in scaled-time units.</span></span>
+<span id="cb4-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">        Physical rates: β = exp(log_beta_s) / T_max</span></span>
+<span id="cb4-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb4-13">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, hidden: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">64</span>, depth: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>):</span>
+<span id="cb4-14">        <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">super</span>().<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>()</span>
+<span id="cb4-15">        layers <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [nn.Linear(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, hidden), nn.Tanh()]</span>
+<span id="cb4-16">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> _ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(depth <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>):</span>
+<span id="cb4-17">            layers <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> [nn.Linear(hidden, hidden), nn.Tanh()]</span>
+<span id="cb4-18">        layers <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> [nn.Linear(hidden, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>), nn.Sigmoid()]</span>
+<span id="cb4-19">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.net <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> nn.Sequential(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>layers)</span>
+<span id="cb4-20"></span>
+<span id="cb4-21">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Initialise near plausible values</span></span>
+<span id="cb4-22">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># True scaled params: β_s = 0.3 × 60 = 18, γ_s = 0.1 × 60 = 6</span></span>
+<span id="cb4-23">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.log_beta_s  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> nn.Parameter(torch.tensor(np.log(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10.0</span>)))</span>
+<span id="cb4-24">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.log_gamma_s <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> nn.Parameter(torch.tensor(np.log( <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.0</span>)))</span>
+<span id="cb4-25"></span>
+<span id="cb4-26">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@property</span></span>
+<span id="cb4-27">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> beta_s(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> torch.exp(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.log_beta_s)</span>
+<span id="cb4-28">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@property</span></span>
+<span id="cb4-29">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> gamma_s(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):   <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> torch.exp(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.log_gamma_s)</span>
+<span id="cb4-30">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@property</span></span>
+<span id="cb4-31">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> beta_phys(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>): <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.beta_s  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> T_max</span>
+<span id="cb4-32">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@property</span></span>
+<span id="cb4-33">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> gamma_phys(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):<span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.gamma_s <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> T_max</span>
+<span id="cb4-34">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@property</span></span>
+<span id="cb4-35">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> R0_est(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.beta_s  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.gamma_s   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># scale-invariant</span></span>
+<span id="cb4-36"></span>
+<span id="cb4-37">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> forward(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, t_s):</span>
+<span id="cb4-38">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.net(t_s.view(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (batch, 3)</span></span></code></pre></div></div>
+</div>
+</section>
+<section id="loss-functions" class="level3" data-number="4.2">
+<h3 data-number="4.2" class="anchored" data-anchor-id="loss-functions"><span class="header-section-number">4.2</span> Loss functions</h3>
+<p>Training minimises a composite loss:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathcal%7BL%7D%20=%20%5Cunderbrace%7B%5Cmathcal%7BL%7D_%5Ctext%7Bdata%7D%7D_%7B%5Ctext%7Bfit%20I%20observations%7D%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20+%20%5Clambda_%5Cphi%20%5Cunderbrace%7B%5Cmathcal%7BL%7D_%5Ctext%7Bphysics%7D%7D_%7B%5Ctext%7BSIR%20residuals%20via%20autograd%7D%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20+%20%5Clambda_0%20%5Cunderbrace%7B%5Cmathcal%7BL%7D_%5Ctext%7BIC%7D%7D_%7B%5Ctext%7Binitial%20conditions%7D%7D%0A"></p>
+<p>The <strong>data loss</strong> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7Bdata%7D"> is the MSE between predicted <img src="https://latex.codecogs.com/png.latex?I(t)"> at the 30 observation times and the noisy counts — the only observed signal.</p>
+<p>The <strong>physics loss</strong> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7Bphysics%7D"> uses automatic differentiation to evaluate the SIR residuals at 200 collocation points spread across <img src="https://latex.codecogs.com/png.latex?%5B0,%20T_%7B%5Cmax%7D%5D">. Working in scaled time <img src="https://latex.codecogs.com/png.latex?t_s%20=%20t/T_%7B%5Cmax%7D">, the SIR ODEs become:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdS%7D%7Bdt_s%7D%20=%20-%5Cbeta_s%20S%20I,%20%5Cqquad%0A%5Cfrac%7BdI%7D%7Bdt_s%7D%20=%20%5Cbeta_s%20S%20I%20-%20%5Cgamma_s%20I,%20%5Cqquad%0A%5Cfrac%7BdR%7D%7Bdt_s%7D%20=%20%5Cgamma_s%20I%0A"></p>
+<p>The <strong>initial-condition loss</strong> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7BIC%7D"> pins the network to the known state at <img src="https://latex.codecogs.com/png.latex?t%20=%200">, preventing the network from drifting to arbitrary solutions.</p>
+<div id="04ffb1ff" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> data_loss(model, t_obs_s, I_obs_s):</span>
+<span id="cb5-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""MSE on the I compartment at observed time points."""</span></span>
+<span id="cb5-3">    sir <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> model(t_obs_s)</span>
+<span id="cb5-4">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> ((sir[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> I_obs_s) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>).mean()</span>
+<span id="cb5-5"></span>
+<span id="cb5-6"></span>
+<span id="cb5-7"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> physics_loss(model, t_col_base):</span>
+<span id="cb5-8">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb5-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    SIR residuals at collocation points via automatic differentiation.</span></span>
+<span id="cb5-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    Operates entirely in scaled time — no solver required.</span></span>
+<span id="cb5-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">    """</span></span>
+<span id="cb5-12">    t <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> t_col_base.clone().requires_grad_(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb5-13">    sir <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> model(t)</span>
+<span id="cb5-14">    S, I, R <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> sir[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>], sir[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], sir[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]</span>
+<span id="cb5-15"></span>
+<span id="cb5-16">    ones <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.ones(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(t))</span>
+<span id="cb5-17">    dS <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>ones, create_graph<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb5-18">    dI <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(I, t, grad_outputs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>ones, create_graph<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb5-19">    dR <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(R, t, grad_outputs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>ones, create_graph<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb5-20"></span>
+<span id="cb5-21">    b, g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> model.beta_s, model.gamma_s</span>
+<span id="cb5-22">    res_S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> dS <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb5-23">    res_I <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> dI <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb5-24">    res_R <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> dR <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb5-25"></span>
+<span id="cb5-26">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> (res_S<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> res_I<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> res_R<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>).mean()</span>
+<span id="cb5-27"></span>
+<span id="cb5-28"></span>
+<span id="cb5-29"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> ic_loss(model, y0_s):</span>
+<span id="cb5-30">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""Match (S0, I0, R0)/N at t = 0."""</span></span>
+<span id="cb5-31">    sir0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> model(torch.tensor([<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>]))[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb5-32">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> ((sir0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> y0_s) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>).mean()</span></code></pre></div></div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Why collocation points?</strong></p>
+<p>The physics loss is evaluated on a <em>dense</em> grid (200 points) that is separate from the sparse observation times (30 points). These <strong>collocation points</strong> are chosen to cover the full integration window, so the SIR residual is penalised everywhere — not just where data exist. This is the mechanism by which physics knowledge extrapolates the data signal.</p>
+</div>
+</div>
+</section>
+<section id="training" class="level3" data-number="4.3">
+<h3 data-number="4.3" class="anchored" data-anchor-id="training"><span class="header-section-number">4.3</span> Training</h3>
+<div id="7d742008" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Tensors — everything scaled to [0, 1]</span></span>
+<span id="cb6-2">t_obs_s <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.tensor(t_obs <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> T_max, dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>torch.float32)</span>
+<span id="cb6-3">I_obs_s <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.tensor(I_obs <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> N,     dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>torch.float32)</span>
+<span id="cb6-4">y0_s    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.tensor(y0   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> N,      dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>torch.float32)</span>
+<span id="cb6-5">t_col   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.linspace(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>)</span>
+<span id="cb6-6"></span>
+<span id="cb6-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Loss weights</span></span>
+<span id="cb6-8">lam_phys <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span></span>
+<span id="cb6-9">lam_ic   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.0</span></span>
+<span id="cb6-10"></span>
+<span id="cb6-11">pinn        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> PINN(hidden<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">64</span>, depth<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb6-12">opt         <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.optim.Adam(pinn.parameters(), lr<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-3</span>)</span>
+<span id="cb6-13">sched       <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.optim.lr_scheduler.StepLR(opt, step_size<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2000</span>, gamma<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>)</span>
+<span id="cb6-14"></span>
+<span id="cb6-15">losses     <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb6-16">beta_hist  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb6-17">gamma_hist <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> []</span>
+<span id="cb6-18"></span>
+<span id="cb6-19"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> epoch <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6_000</span>):</span>
+<span id="cb6-20">    opt.zero_grad()</span>
+<span id="cb6-21"></span>
+<span id="cb6-22">    L_data  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> data_loss(pinn, t_obs_s, I_obs_s)</span>
+<span id="cb6-23">    L_phys  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> physics_loss(pinn, t_col)</span>
+<span id="cb6-24">    L_ic    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ic_loss(pinn, y0_s)</span>
+<span id="cb6-25">    loss    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> L_data <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> lam_phys <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> L_phys <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> lam_ic <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> L_ic</span>
+<span id="cb6-26"></span>
+<span id="cb6-27">    loss.backward()</span>
+<span id="cb6-28">    nn.utils.clip_grad_norm_(pinn.parameters(), max_norm<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb6-29">    opt.step()</span>
+<span id="cb6-30">    sched.step()</span>
+<span id="cb6-31"></span>
+<span id="cb6-32">    losses.append(loss.item())</span>
+<span id="cb6-33">    beta_hist.append(pinn.beta_phys.item())</span>
+<span id="cb6-34">    gamma_hist.append(pinn.gamma_phys.item())</span>
+<span id="cb6-35"></span>
+<span id="cb6-36"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"True:      β = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>beta_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, γ = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>gamma_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, R₀ = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>beta_true<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span>gamma_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.2f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb6-37"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"PINN est.: β = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>pinn<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>beta_phys<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, "</span></span>
+<span id="cb6-38">      <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"γ = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>pinn<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>gamma_phys<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, "</span></span>
+<span id="cb6-39">      <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"R₀ = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>pinn<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>R0_est<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.2f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True:      β = 0.300, γ = 0.100, R₀ = 3.00
+PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="results" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="results"><span class="header-section-number">5</span> Results</h2>
+<section id="trajectory-reconstruction" class="level3" data-number="5.1">
+<h3 data-number="5.1" class="anchored" data-anchor-id="trajectory-reconstruction"><span class="header-section-number">5.1</span> Trajectory reconstruction</h3>
+<div id="6beefbfa" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1">t_viz_np <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.linspace(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, T_max, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">300</span>)</span>
+<span id="cb8-2">t_viz_s  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.tensor(t_viz_np <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> T_max, dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>torch.float32)</span>
+<span id="cb8-3"></span>
+<span id="cb8-4"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">with</span> torch.no_grad():</span>
+<span id="cb8-5">    pred <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pinn(t_viz_s).numpy() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> N</span>
+<span id="cb8-6"></span>
+<span id="cb8-7">sol_viz <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> scipy_odeint(sir_rhs, y0, t_viz_np, args<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(beta_true, gamma_true, N))</span>
+<span id="cb8-8"></span>
+<span id="cb8-9">fig, axes <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>))</span>
+<span id="cb8-10"></span>
+<span id="cb8-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Left: compartment trajectories</span></span>
+<span id="cb8-12">ax <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb8-13"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> i, (label, color, true) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">enumerate</span>(</span>
+<span id="cb8-14">    [(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"S"</span>, C_S, sol_viz[:,<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]), (<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"I"</span>, C_I, sol_viz[:,<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]), (<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"R"</span>, C_R, sol_viz[:,<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>])]</span>
+<span id="cb8-15">):</span>
+<span id="cb8-16">    ax.plot(t_viz_np, true,       color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>color, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, ls<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"--"</span>, alpha<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>,</span>
+<span id="cb8-17">            label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>label<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> true"</span>)</span>
+<span id="cb8-18">    ax.plot(t_viz_np, pred[:, i], color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>color, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>,</span>
+<span id="cb8-19">            label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>label<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> PINN"</span>)</span>
+<span id="cb8-20">ax.scatter(t_obs, I_obs, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_OBS, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">25</span>, zorder<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"I observed"</span>)</span>
+<span id="cb8-21">ax.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span>(xlabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Day"</span>, ylabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"People"</span>,</span>
+<span id="cb8-22">       title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"PINN — compartment reconstruction"</span>)</span>
+<span id="cb8-23">ax.legend(fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, ncol<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb8-24"></span>
+<span id="cb8-25"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Right: training loss</span></span>
+<span id="cb8-26">ax <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]</span>
+<span id="cb8-27">ax.semilogy(losses, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_PINN, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>)</span>
+<span id="cb8-28">ax.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span>(xlabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Epoch"</span>, ylabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Total loss (log scale)"</span>,</span>
+<span id="cb8-29">       title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"PINN — training curve"</span>)</span>
+<span id="cb8-30"></span>
+<span id="cb8-31">plt.tight_layout()</span>
+<span id="cb8-32">plt.show()</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-6-output-1.png" width="1543" height="504" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The PINN fits the observed <img src="https://latex.codecogs.com/png.latex?I(t)"> points and simultaneously reconstructs the latent <img src="https://latex.codecogs.com/png.latex?S(t)"> and <img src="https://latex.codecogs.com/png.latex?R(t)"> trajectories — without ever observing them directly. The physics loss ensures the predicted compartments satisfy the SIR equations everywhere, not only at the observation times.</p>
+</section>
+<section id="effect-of-the-physics-loss-weight" class="level3" data-number="5.2">
+<h3 data-number="5.2" class="anchored" data-anchor-id="effect-of-the-physics-loss-weight"><span class="header-section-number">5.2</span> Effect of the physics loss weight</h3>
+<p>The loss weight <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> trades off data fidelity against physics constraint strength. Below we visualise how varying <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> over several orders of magnitude affects the fit and the parameter estimates.</p>
+<div id="f5d7a04b" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1">lam_values  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>]</span>
+<span id="cb9-2">lam_labels  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"λ=</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>v<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> v <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> lam_values]</span>
+<span id="cb9-3">colors_lam  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E91E63"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#FF9800"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#9C27B0"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#009688"</span>]</span>
+<span id="cb9-4"></span>
+<span id="cb9-5">fig, axes <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>))</span>
+<span id="cb9-6"></span>
+<span id="cb9-7"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> lam, label, col <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(lam_values, lam_labels, colors_lam):</span>
+<span id="cb9-8">    torch.manual_seed(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">42</span>)</span>
+<span id="cb9-9">    m   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> PINN(hidden<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">64</span>, depth<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb9-10">    opt_<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.optim.Adam(m.parameters(), lr<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-3</span>)</span>
+<span id="cb9-11">    sch_<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.optim.lr_scheduler.StepLR(opt_, step_size<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2000</span>, gamma<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>)</span>
+<span id="cb9-12"></span>
+<span id="cb9-13">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> _ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6_000</span>):</span>
+<span id="cb9-14">        opt_.zero_grad()</span>
+<span id="cb9-15">        L <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (data_loss(m, t_obs_s, I_obs_s)</span>
+<span id="cb9-16">             <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> lam <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> physics_loss(m, t_col)</span>
+<span id="cb9-17">             <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> lam_ic <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> ic_loss(m, y0_s))</span>
+<span id="cb9-18">        L.backward()</span>
+<span id="cb9-19">        nn.utils.clip_grad_norm_(m.parameters(), <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb9-20">        opt_.step()<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">;</span> sch_.step()</span>
+<span id="cb9-21"></span>
+<span id="cb9-22">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">with</span> torch.no_grad():</span>
+<span id="cb9-23">        p <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> m(t_viz_s).numpy() <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> N</span>
+<span id="cb9-24">    axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>].plot(t_viz_np, p[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>col, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.8</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>label)</span>
+<span id="cb9-25">    axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>].scatter([lam <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> lam <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-3</span>],</span>
+<span id="cb9-26">                    [m.beta_phys.item()], color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>col, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">80</span>, zorder<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>)</span>
+<span id="cb9-27">    axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>].scatter([lam <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> lam <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-3</span>],</span>
+<span id="cb9-28">                    [m.gamma_phys.item()], color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>col, marker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"D"</span>, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">80</span>, zorder<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>)</span>
+<span id="cb9-29"></span>
+<span id="cb9-30">axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>].plot(t_viz_np, sol_viz[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_I, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, ls<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"--"</span>,</span>
+<span id="cb9-31">             alpha<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"I true"</span>)</span>
+<span id="cb9-32">axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>].scatter(t_obs, I_obs, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_OBS, s<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, zorder<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Observed"</span>)</span>
+<span id="cb9-33">axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>].<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span>(xlabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Day"</span>, ylabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Infectious I"</span>, title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"I(t) fit vs. λ_phys"</span>)</span>
+<span id="cb9-34">axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>].legend(fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>)</span>
+<span id="cb9-35"></span>
+<span id="cb9-36">axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>].axhline(beta_true,  color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_I, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>, ls<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"--"</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"β true=</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>beta_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb9-37">axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>].axhline(gamma_true, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>C_R, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>, ls<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"--"</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"γ true=</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>gamma_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb9-38">axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>].<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span>(xscale<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"log"</span>, xlabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"λ_phys"</span>, ylabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Estimated parameter"</span>,</span>
+<span id="cb9-39">            title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Parameter recovery vs. λ_phys"</span>)</span>
+<span id="cb9-40">axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>].legend(fontsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>)</span>
+<span id="cb9-41"></span>
+<span id="cb9-42">plt.tight_layout()</span>
+<span id="cb9-43">plt.show()</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-7-output-1.png" width="1544" height="501" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>With <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi%20=%200"> the network is a pure data-fitting exercise and parameter recovery collapses. Increasing <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> pulls the estimates toward the true values; too large a weight can sacrifice data fit. In practice, <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi%20%5Capprox%200.1"> strikes a reasonable balance for this example.</p>
+</section>
+<section id="parameter-recovery-during-training" class="level3" data-number="5.3">
+<h3 data-number="5.3" class="anchored" data-anchor-id="parameter-recovery-during-training"><span class="header-section-number">5.3</span> Parameter recovery during training</h3>
+<div id="ce646367" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">fig, axes <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>))</span>
+<span id="cb10-2"></span>
+<span id="cb10-3"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> ax, hist, true_val, label, color <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> [</span>
+<span id="cb10-4">    (axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>], beta_hist,  beta_true,  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"β (transmission rate)"</span>, C_I),</span>
+<span id="cb10-5">    (axes[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], gamma_hist, gamma_true, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"γ (recovery rate)"</span>,     C_R),</span>
+<span id="cb10-6">]:</span>
+<span id="cb10-7">    ax.plot(hist, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>color, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>, label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"PINN estimate"</span>)</span>
+<span id="cb10-8">    ax.axhline(true_val, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"black"</span>, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>, ls<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"--"</span>,</span>
+<span id="cb10-9">               label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"True = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>true_val<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb10-10">    ax.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span>(xlabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Epoch"</span>, ylabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>label,</span>
+<span id="cb10-11">           title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Parameter recovery: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>label<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb10-12">    ax.legend()</span>
+<span id="cb10-13"></span>
+<span id="cb10-14">plt.tight_layout()</span>
+<span id="cb10-15">plt.show()</span>
+<span id="cb10-16"></span>
+<span id="cb10-17"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\n</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">Parameter recovery summary"</span>)</span>
+<span id="cb10-18"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  β  — true: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>beta_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  |  estimated: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>pinn<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>beta_phys<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb10-19"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  γ  — true: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>gamma_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  |  estimated: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>pinn<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>gamma_phys<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.3f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb10-20"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"  R₀ — true: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>beta_true<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span>gamma_true<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.2f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  |  estimated: </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>pinn<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>R0_est<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.2f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-8-output-1.png" width="1543" height="504" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Parameter recovery summary
+  β  — true: 0.300  |  estimated: 0.295
+  γ  — true: 0.100  |  estimated: 0.098
+  R₀ — true: 3.00  |  estimated: 3.01</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="what-the-pinn-gives-you" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="what-the-pinn-gives-you"><span class="header-section-number">6</span> What the PINN gives you</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Fits</strong> <img src="https://latex.codecogs.com/png.latex?I(t)"> observations</td>
+<td>✓</td>
+</tr>
+<tr class="even">
+<td><strong>Reconstructs</strong> <img src="https://latex.codecogs.com/png.latex?S(t)">, <img src="https://latex.codecogs.com/png.latex?R(t)"> without observing them</td>
+<td>✓</td>
+</tr>
+<tr class="odd">
+<td><strong>Recovers</strong> <img src="https://latex.codecogs.com/png.latex?%5Cbeta">, <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> jointly</td>
+<td>✓</td>
+</tr>
+<tr class="even">
+<td><strong>Enforces</strong> <img src="https://latex.codecogs.com/png.latex?S+I+R%20%5Capprox%20N"></td>
+<td>✓ (via IC + physics loss)</td>
+</tr>
+<tr class="odd">
+<td><strong>Extrapolates</strong> beyond training window</td>
+<td>Better than unconstrained networks</td>
+</tr>
+<tr class="even">
+<td>Requires an ODE solver during training</td>
+<td>✗ (only autograd needed)</td>
+</tr>
+<tr class="odd">
+<td>Black-box right-hand side</td>
+<td>✗ (mechanistic residuals are explicit)</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Important
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>The epidemiological payoff</strong></p>
+<p>In real outbreak settings, surveillance provides only partial, delayed, and noisy signal — exactly the scenario simulated here. The PINN framework lets you:</p>
+<ol type="1">
+<li><strong>Estimate</strong> <img src="https://latex.codecogs.com/png.latex?R_0"> from early epidemic data without knowing the final attack size.</li>
+<li><strong>Reconstruct</strong> the full population trajectory (<img src="https://latex.codecogs.com/png.latex?S">, <img src="https://latex.codecogs.com/png.latex?I">, <img src="https://latex.codecogs.com/png.latex?R">) from reported cases alone.</li>
+<li><strong>Propagate uncertainty</strong> by treating <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> and <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> as random variables in a Bayesian PINN extension.</li>
+</ol>
+<p>This is why hybrid mechanistic-AI approaches are a frontier in infectious disease forecasting.</p>
+</div>
+</div>
+<hr>
+</section>
+<section id="extensions-worth-exploring" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="extensions-worth-exploring"><span class="header-section-number">7</span> Extensions worth exploring</h2>
+<p><strong>More realistic compartmental structures</strong></p>
+<ul>
+<li>Replace SIR with SEIR (add an Exposed compartment) or SEIRS (waning immunity).</li>
+<li>Add time-varying <img src="https://latex.codecogs.com/png.latex?%5Cbeta(t)"> — parameterised as a second small network — to capture policy interventions or behavioural changes.</li>
+<li>Couple a within-host viral kinetics model to the population PINN.</li>
+</ul>
+<p><strong>Better uncertainty quantification</strong></p>
+<ul>
+<li><strong>Bayesian PINN</strong>: treat <img src="https://latex.codecogs.com/png.latex?%5Cbeta">, <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> as prior distributions and use MCMC (e.g.&nbsp;NUTS in NumPyro) or variational inference to obtain posterior credible intervals.</li>
+<li><strong>Ensemble PINNs</strong>: train multiple networks with different random initialisations and use spread as a proxy for epistemic uncertainty.</li>
+</ul>
+<p><strong>Identifiability and multi-wave dynamics</strong></p>
+<ul>
+<li>Not all parameters in an epidemic model are jointly identifiable from <img src="https://latex.codecogs.com/png.latex?I(t)"> alone. Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(4)</span> provide a PINN-based identifiability analysis framework that is directly applicable to SIR extensions.</li>
+<li>Multi-phase PINNs split the time axis at known intervention dates and train separate physics terms for each phase — useful for fitting multi-wave outbreaks.</li>
+</ul>
+<p><strong>Real data</strong></p>
+<ul>
+<li>Fit to weekly influenza ILI counts (CDC FluView API).</li>
+<li>Fit to wastewater SARS-CoV-2 concentration data (CDC NWSS), where an additional observation model links <img src="https://latex.codecogs.com/png.latex?I(t)"> to RNA copies per litre.</li>
+</ul>
+<p><strong>Production-grade</strong></p>
+<ul>
+<li>Replace PyTorch with <code>JAX</code> + <code>Optax</code> for cleaner functional style and XLA acceleration.</li>
+<li>Use the <code>deepxde</code> library, which wraps PINN training in a high-level API and supports arbitrary ODE/PDE geometries.</li>
+</ul>
+<hr>
+</section>
+<section id="references" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="references"><span class="header-section-number">8</span> References</h2>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-lagaris1998" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Lagaris IE, Likas A, Fotiadis DI. Artificial neural networks for solving ordinary and partial differential equations. IEEE Transactions on Neural Networks. 1998;9(5):987–1000. doi:<a href="https://doi.org/10.1109/72.712178">10.1109/72.712178</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: <span>A</span> deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+<div id="ref-linka2020" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Linka K, Peirlinck M, Sahli Costabal F, Kuhl E. Outbreak dynamics of <span>COVID</span>-19 in <span>Europe</span> and the effect of travel restrictions. Computer Methods in Biomechanics and Biomedical Engineering. 2020;23(11):710–7. doi:<a href="https://doi.org/10.1080/10255842.2020.1759560">10.1080/10255842.2020.1759560</a></div>
+</div>
+<div id="ref-kharazmi2021" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Kharazmi E, Cai M, Zheng X, Zhang Z, Lin G, Karniadakis GE. Identifiability and predictability of integer- and fractional-order epidemiological models using physics-informed neural networks. Nature Computational Science. 2021;1(11):744–53. doi:<a href="https://doi.org/10.1038/s43588-021-00158-0">10.1038/s43588-021-00158-0</a></div>
+</div>
+</div>
+<div id="acc8ef0b" class="cell" data-execution_count="8">
+<div class="cell-output cell-output-stdout">
+<pre><code>Python     3.12.10
+torch      2.11.0+cpu
+scipy      1.17.1
+matplotlib 3.10.8</code></pre>
+</div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>PINN</category>
+  <category>SIR</category>
+  <category>epidemiology</category>
+  <category>Python</category>
+  <category>deep learning</category>
+  <guid>https://www.jonghoonk.com/blog/posts/pinn_sir/</guid>
+  <pubDate>Wed, 08 Apr 2026 15:00:00 GMT</pubDate>
+</item>
 <item>
   <title>High-Frequency Lead-Lag Effects in Stock Markets</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/hf_lead_lag_stock/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -2874,6 +4862,7 @@ font-style: inherit;">True</span>)</span>
 
 
 
+
 <section id="introduction" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1</span> Introduction</h2>
 <p>When we study multiple stock prices together, one of the first questions is: <strong>do they move together, and if so, by how much and with what delay?</strong> Cross-correlation answers exactly this.</p>
@@ -5331,6 +7320,7 @@ font-style: inherit;">11</span>)</span>
 
 
 
+
 <p>When a newly infected person successfully isolates, how many downstream infections does that prevent? The answer depends on the structure of transmission — not just the average reproduction number <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BR%7D_c"> (denoting a reproduction number under control), but also on how heterogeneous transmission is, and critically, on how many other infected individuals are circulating at the same time.</p>
 <section id="setting-up-the-problem" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="setting-up-the-problem"><span class="header-section-number">1</span> Setting up the problem</h2>
@@ -6088,6 +8078,7 @@ Roberts, Daniel, Euzebiusz Jamrozik, George S. Heriot, Anja C. Slim, Michael J. 
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/heterogeneous_risk_targeting/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -12125,6 +14116,7 @@ Figure&nbsp;11: Stochastic cost vs.&nbsp;analytic cost across pre-emptive fracti
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/preemptive_reactive_analytics/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -20742,6 +22734,7 @@ font-style: inherit;">theme_light</span>()</span></code></pre></div></div>
 
 
 
+
 <p>I wanted to simulate synthetic outbreaks based on realistic distributions for the following three parameters:</p>
 <ul>
 <li><img src="https://latex.codecogs.com/png.latex?t_%7B%5Ctext%7Bpeak%7D%7D">: Time to peak (weeks after outbreak start)</li>
@@ -21870,6 +23863,7 @@ font-style: inherit;">"Posterior Predictive Distributions"</span>)</span></code>
 
 
 
+
 <p>When managing infectious disease risks such as cholera, limited vaccine supply often forces decision-makers to choose between <strong>pre-emptive</strong> and <strong>reactive</strong> vaccination campaigns. This post explores a cost-benefit model comparing the two strategies using analytical expressions and numerical simulations.</p>
 <p>We aim to answer: <strong>Under what conditions is it better to vaccinate before an outbreak occurs, and when is it more beneficial to wait and respond reactively?</strong></p>
 <section id="defining-the-core-quantities" class="level2" data-number="1">
@@ -22499,6 +24493,7 @@ font-style: inherit;">print</span>(boxplot_plot)</span></code></pre></div></div>
 
 
 
+
 <section id="서론-계몽시대의-수학자와-전염병" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="서론-계몽시대의-수학자와-전염병"><span class="header-section-number">1</span> 서론: 계몽시대의 수학자와 전염병</h2>
 <p>18세기 유럽은 천연두(smallpox)의 그림자 아래 살고 있었다. 이 무서운 질병은 매년 수십만 명의 목숨을 앗아갔으며, 생존자들에게는 평생 지울 수 없는 흉터를 남겼다 <span class="citation" data-cites="razzell1977conquest">(Razzell, 1977)</span>. 이런 상황에서 한 수학자가 수학적 사고를 통해 이 질병에 맞서고자 했다. 그의 이름은 다니엘 베르누이(Daniel Bernoulli, 1700-1782)였다.</p>
@@ -22735,6 +24730,7 @@ Ross, R. (1911). The prevention of malaria. <em>London: John Murray</em>.
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/Ross-Macdonald/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -23606,6 +25602,7 @@ Smith, David L, F Ellis McKenzie, Robert W Snow, and Simon I Hay. 2007. <span>�
 
 
 
+
 <section id="introduction" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1</span> Introduction</h2>
 <p>Mathematical modeling of infectious diseases is now a cornerstone of public health decision-making. During COVID-19, we all became familiar with concepts like “flattening the curve” and reproduction numbers. But did you know that the first mathematical model for infectious disease control was developed nearly 300 years ago? In 1760, a Swiss mathematician named Daniel Bernoulli created a revolutionary approach to evaluate a controversial medical procedure: smallpox inoculation <span class="citation" data-cites="bernoulli1766">(Bernoulli 1766)</span>. His work represents the birth of what we now call mathematical epidemiology <span class="citation" data-cites="dietz2002bernoulli">(Dietz and Heesterbeek 2002)</span>.</p>
@@ -23785,6 +25782,7 @@ Wallinga, Jacco, and Marc Lipsitch. 2007. <span>“How Generation Intervals Shap
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/regularization/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -24385,6 +26383,7 @@ font-style: inherit;">print</span>(mse)</span></code></pre></div></div>
 
 
 
+
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
 <p>Understanding relationships between variables is a fundamental aspect of statistical analysis. Three key concepts in this domain are <strong>correlation</strong>, <strong>covariation</strong>, and <strong>least squares regression</strong>. In this post, we will explore how these concepts interrelate and use <strong>R</strong> for demonstration.</p>
@@ -24596,6 +26595,7 @@ font-style: inherit;">2</span>)</span></code></pre></div></div>
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/distribution_matching/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -25610,6 +27610,7 @@ font-style: inherit;">"Time taken by each method (lower is better)"</span>)</spa
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/bayesian_workflow/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -27954,6 +29955,7 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 
 
 
+
 <section id="epidemiology" class="level2">
 <h2 class="anchored" data-anchor-id="epidemiology">Epidemiology</h2>
 <p>감염병의 전파 양상을 연구하는 감염병 역학 (Epidemiology of Infectious Diseases ; EID)에서는 감염병의 발생 양샹을 세 가지 요소로 해석하고자 한다. 하나는 병을 일으키는 감염원 (infectious agent)이고, 다른 하나는 사람이 살아가고 있는 주변 환경 (environment)이며 마지막은 감염되는 대상, 즉 숙주 (host) 이다[<a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2465549/">Barreto <em>et al</em>.</a>].</p>
@@ -27978,6 +29980,7 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/kalman_filter/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -29005,6 +31008,7 @@ font-style: inherit;">"dotted"</span>))</span></code></pre></div></div>
 
 
 
+
 <p>Neural networks can approximate any function according to the <a href="https://en.wikipedia.org/wiki/Universal_approximation_theorem">Universal Approximation Theorem</a>. A more precise statement of the theorem is that neural networks with a single hidden layer can be used to approximate any continuous function to any desired precision by the <a href="http://neuralnetworksanddeeplearning.com/chap4.html">e-book</a> by Michael Nielsen. This e-book provides intuitive explanations about the proof. In what follows, I wrote what I was able to understand based on those materials and added a few R code chunks to supplement.</p>
 <p>For a simple network with one hidden layer of two neurons, n1 and n2, what is being computed in a hidden neuron is <img src="https://latex.codecogs.com/png.latex?%5Csigma(w%20x%20+%20b)">, where <img src="https://latex.codecogs.com/png.latex?%5Csigma%20(z)%20%5Cequiv%201/(1+e%5E%7B-z%7D)"> is the sigmoid function. And what happens in the output neuron is <img src="https://latex.codecogs.com/png.latex?w_%7B31%7D%20n1%20+%20w_%7B32%7D%20n2%20+%20b">. Here, <img src="https://latex.codecogs.com/png.latex?w_%7B31%7D%20%5Ctext%7Band%7D%20w_%7B32%7D"> refer to weights that correspond to two neurons, n1 and n2, respectively.</p>
 <p>The basic idea of the theorem is that weighted sum of outputs of neurons can approximate any functions. This can be visualized by studying a special case in which output from each neuron is close to a step function and weighted sum of a pair of step functions can create a bump of any height and width. With numerous those bumps, one can approximate any continuous function at any desired precision.</p>
@@ -29470,6 +31474,7 @@ font-style: inherit;">0</span>))</span></code></pre></div></div>
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/parallel/</link>
   <description><![CDATA[ 
+
 
 
 
@@ -29999,598 +32004,6 @@ font-style: inherit;">stopCluster</span>(cl)</span></code></pre></div></div>
   <guid>https://www.jonghoonk.com/blog/posts/parallel/</guid>
   <pubDate>Thu, 13 Jun 2024 15:00:00 GMT</pubDate>
   <media:content url="https://www.jonghoonk.com/blog/posts/parallel/right_trunc2.png" medium="image" type="image/png" height="114" width="144"/>
-</item>
-<item>
-  <title>Basic reproduction number: An algorithmic approach</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/R0_mathematica/</link>
-  <description><![CDATA[ 
-
-
-
-
-<p>A <a href="https://www.mdpi.com/2227-7390/12/1/27">recent article</a> published in Mathematics discusses an approach to calculating <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BR%7D_0">. Since I have previously written a <a href="https://www.jonghoonk.com/posts/R0-sympy/">post</a> about calculating <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BR%7D_0"> using Sympy, I wanted to explore a new approach proposed by the article.</p>
-<p>The article claims that <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BR%7D_0"> is a not function of the original set of ordinary differential equations (ODEs) because <img src="https://latex.codecogs.com/png.latex?(F,%20V)"> gradient decomposition may not be unique for a given set of ODEs. As a reminder, <a href="https://link.springer.com/article/10.1007/BF00178324">Diekmann <em>et al.</em></a> showed that <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BR%7D_0"> is the spectral radius, or Perron–Frobenius eigenvalue, of the next generation operator.</p>
-<img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Balign%7D%0A%5Cmathrm%7Bd%7DS/%5Cmathrm%7Bd%7Dt%20&amp;=%20-%5Cbeta%20I%20S/N%20%5C%5C%0A%5Cmathrm%7Bd%7DI/%5Cmathrm%7Bd%7Dt%20&amp;=%20%5Cbeta%20I%20S/N%20-%20%5Cgamma%20I%5C%5C%0A%5Cmathrm%7Bd%7DR/%5Cmathrm%7Bd%7Dt%20&amp;=%20%5Cgamma%20I%0A%5Cend%7Balign%7D">
-<p>Following Python and Mathematica codes generate that <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BR%7D_0%20=%20%5Cfrac%7B%5Cbeta%7D%7B%5Cgamma%7D."> if <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> and <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> are replaced with <img src="https://latex.codecogs.com/png.latex?b"> and <img src="https://latex.codecogs.com/png.latex?g">, respectively.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">from</span> sympy <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span></span>
-<span id="cb1-2">b, k, g, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> symbols(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'b k g'</span>)</span>
-<span id="cb1-3">F <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Matrix([[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, b],[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]])</span>
-<span id="cb1-4">V <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Matrix([[k, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>], [<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>k, g]])</span>
-<span id="cb1-5">M <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> F<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>(V<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">**-</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb1-6">eigval <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> M.eigenvals(simplify<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>true)</span>
-<span id="cb1-7">init_printing(use_unicode<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">True</span>)</span>
-<span id="cb1-8">lst <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">list</span>(eigval.keys())</span>
-<span id="cb1-9">lst[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>b
-─
-g</code></pre>
-</div>
-</div>
-<p>Mathematica uses the following next generation method (NGM) function provided in the article.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">NGM[mod_, inf_] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">=</span> </span>
-<span id="cb3-2"> Module[{dyn, X, infc, M, V, F, F1, V1, K}, dyn <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> mod[[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]]; </span>
-<span id="cb3-3">  X <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> mod[[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]]; infc <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> Complement[Range[Length[X]], inf]; </span>
-<span id="cb3-4">  M <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> Grad[dyn[[inf]], X[[inf]]]</span>
-<span id="cb3-5">  (<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>The jacobian of the infectious equations<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>); </span>
-<span id="cb3-6">  V1 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>M <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>. Thread[X[[infc]] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">-&gt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]</span>
-<span id="cb3-7">  (<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>V1 is a first guess <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> V,</span>
-<span id="cb3-8">  retains all gradient terms which disappear when the non infectious <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb3-9">components are null<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>); F1 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> M <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> V1</span>
-<span id="cb3-10">  (<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>F1 is a first guess <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> F,containing all other gradient terms<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>); </span>
-<span id="cb3-11">  F <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> Replace[F1, _. _?Negative <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">-&gt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, {<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>}];</span>
-<span id="cb3-12">  (<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>all terms <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> F1 containing minuses are set to <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>); V <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> F <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> M;</span>
-<span id="cb3-13">  K <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> (F . Inverse[V]) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>. Thread[X[[inf]] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">-&gt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">/</span> FullSimplify;</span>
-<span id="cb3-14">  {M, V1, F1, F, V, K}]</span>
-<span id="cb3-15"></span>
-<span id="cb3-16">eqnsSEIR <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> {</span>
-<span id="cb3-17">  <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>b s i ,</span>
-<span id="cb3-18">  b s i <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> k e,</span>
-<span id="cb3-19">  k e <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> g i, </span>
-<span id="cb3-20">  g i }</span>
-<span id="cb3-21"></span>
-<span id="cb3-22">varsSEIR <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> {s, e, i, r}</span>
-<span id="cb3-23">modSEIR <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> {eqnsSEIR, varsSEIR}</span>
-<span id="cb3-24">NGM[modSEIR, {<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>}] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>. s <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">-&gt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span></span></code></pre></div></div>
-</div>
-<p>As in the <a href="https://www.jonghoonk.com/posts/R0-sympy/">previous post</a>, I applied the method to the model used in <a href="https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0002642">Pitzer <em>et al</em>.</a>, of which the model may be expressed in the following set of equations.</p>
-<img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Balign%7D%0A%5Cmathrm%7Bd%7DS_1/%5Cmathrm%7Bd%7Dt%20&amp;=%20B%20+%20%5Cepsilon%20S_2%20-%20(%5Clambda_p+%5Clambda_w+%5Cmu)S_1%5C%5C%0A%5Cmathrm%7Bd%7DI_1/%5Cmathrm%7Bd%7Dt%20&amp;=%20(%5Clambda_p+%5Clambda_w)S_1%20-%20(%5Cdelta+%5Cmu)%20I_1%20%5C%5C%0A%5Cmathrm%7Bd%7DR/%5Cmathrm%7Bd%7Dt%20&amp;=%20%5Cdelta(1-%5Ctheta-%5Calpha)(I_1+I_2)%20-%20(%5Comega%20+%5Cmu)R%20%5C%5C%0A%5Cmathrm%7Bd%7DC/%5Cmathrm%7Bd%7Dt%20&amp;=%20%5Cdelta%5Ctheta(I_1+I_2)%20-%20%5Cmu%20C%20%5C%5C%0A%5Cmathrm%7Bd%7DS_2/%5Cmathrm%7Bd%7Dt%20&amp;=%20%5Comega%20R%20-%5Cepsilon%20S_2%20-%20(%5Clambda_p+%5Clambda_w+%5Cmu)%20S_2%5C%5C%0A%5Cmathrm%7Bd%7DI_2/%5Cmathrm%7Bd%7Dt%20&amp;=%20(%5Clambda_p+%5Clambda_w)%20S_2%20-%20(%5Cdelta+%5Cmu)%20I_2%20%5C%5C%0A%5Cmathrm%7Bd%7DW/%5Cmathrm%7Bd%7Dt%20&amp;=%20%5Cgamma(I_1+rI_2+rC)%20-%20%5Cxi%20W%0A%5Cend%7Balign%7D">
-<p>Following Python and Mathematica codes generates that</p>
-<img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Balign%7D%0A%5Cmathcal%7BR%7D_0%20=%20%5Cfrac%7B1%7D%7B%5Cmu+%5Cdelta%7D%20%5Cleft(%5Cbeta_p%20+%5Cfrac%7B%5Cgamma%20%5Cbeta_w%7D%7B%5Cxi%7D%5Cright)%20%5Cleft(1%20+%5Cfrac%7B%5Cdelta%5Ctheta%20r%7D%7B%5Cmu%7D%5Cright)%0A%5Cend%7Balign%7D">
-<p>In the following Python codes <img src="https://latex.codecogs.com/png.latex?p,%20r,%20w,%20d,%20m,%20t,%20g,%20x"> represent <img src="https://latex.codecogs.com/png.latex?%5Cbeta_p,%20r,%20%5Cbeta_w,%20%5Cdelta,%20%5Cmu,%20%5Ctheta,%20%5Cgamma,%20%5Cxi"> in the equation.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1">p, r, w, d, m, t, g, x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> symbols(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'p r w d m t g x'</span>)</span>
-<span id="cb4-2">F <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Matrix([[p, r<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>p, r<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>p, w], [<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>], [<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>], [<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]])</span>
-<span id="cb4-3">V <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Matrix([[d<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span>m, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>], [<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, d<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span>m, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>], [<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>d<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>t, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>d<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>t, m, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>], [<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>g, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>r<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>g, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>r<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>g, x]])</span>
-<span id="cb4-4">M <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> F<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>(V<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">**-</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb4-5">eigval <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> M.eigenvals(simplify<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>true)</span>
-<span id="cb4-6">init_printing(use_unicode<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">True</span>)</span>
-<span id="cb4-7">eigval </span>
-<span id="cb4-8">lst <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">list</span>(eigval.keys())</span>
-<span id="cb4-9">R0_eig <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> lst[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]</span>
-<span id="cb4-10">R0 <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>(d<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span>m))<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>(p<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span>g<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>w<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>x)<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span>(d<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>t<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>r)<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>m) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># R0 from the Pitzer (2014)</span></span>
-<span id="cb4-11">simplify(R0<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>R0_eig) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># 0 for the same expression (symbolic assessment)</span></span>
-<span id="cb4-12">R0.equals(R0_eig) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># True for the same expression (numerical assessment)</span></span></code></pre></div></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">eqnsSIRW <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> {</span>
-<span id="cb5-2">  B <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> \[Epsilon] Subscript[s, </span>
-<span id="cb5-3">    <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> (Subscript[\[Beta], </span>
-<span id="cb5-4">       P] (Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r c) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> </span>
-<span id="cb5-5">      Subscript[\[Beta], W] w <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> \[Mu]) Subscript[s, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>],</span>
-<span id="cb5-6">  \[Omega] R <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> \[Epsilon] Subscript[s, </span>
-<span id="cb5-7">    <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> (Subscript[\[Beta], </span>
-<span id="cb5-8">       P] (Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r c) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> </span>
-<span id="cb5-9">      Subscript[\[Beta], W]  w <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> \[Mu]) Subscript[s, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>],</span>
-<span id="cb5-10">  (Subscript[\[Beta], P] (Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r c) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-11">       Subscript[\[Beta], W]  w) Subscript[s, </span>
-<span id="cb5-12">    <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] \[Minus] (\[Delta] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> \[Mu]) Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>],</span>
-<span id="cb5-13">  (Subscript[\[Beta], P] (Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r c) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-14">       Subscript[\[Beta], W]  w) Subscript[s, </span>
-<span id="cb5-15">    <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> (\[Delta] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> \[Mu]) Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>],</span>
-<span id="cb5-16">  \[Delta] \[Theta] (Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> \[Mu] c,</span>
-<span id="cb5-17">  \[Gamma] (Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> r c) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> \[Xi] w,</span>
-<span id="cb5-18">  \[Delta] (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> \[Theta]) (Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> Subscript[i, </span>
-<span id="cb5-19">      <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> (\[Omega] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> \[Mu]) R}</span>
-<span id="cb5-20"></span>
-<span id="cb5-21">varsSIRW <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> {Subscript[s, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>], Subscript[s, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>], Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>], </span>
-<span id="cb5-22">  Subscript[i, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>], c, w, R }</span>
-<span id="cb5-23">  </span>
-<span id="cb5-24">modSIRW <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> {eqnsSIRW, varsSIRW}</span>
-<span id="cb5-25">NGM[modSIRW, Range[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">6</span>]]</span></code></pre></div></div>
-</div>
-<p>Again, manually defining <img src="https://latex.codecogs.com/png.latex?F,V"> as follows leads to the same answer</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">F <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> {{Subscript[\[Beta], P], r Subscript[\[Beta], P], </span>
-<span id="cb6-2">   r Subscript[\[Beta], P], Subscript[\[Beta], W] }, {<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>}, {<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>,</span>
-<span id="cb6-3">    <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>}, {<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>}}</span>
-<span id="cb6-4">V <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> {{\[Delta] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> \[Mu], <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>}, {<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, \[Delta] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> \[Mu], <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, </span>
-<span id="cb6-5">   <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>}, {<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>\[Delta] \[Theta], <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>\[Delta] \[Theta], \[Mu], </span>
-<span id="cb6-6">   <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>}, {<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>\[Gamma], <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>r \[Gamma], <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>r \[Gamma], \[Xi]}}</span>
-<span id="cb6-7">Eigenvalues[Dot[F, Inverse[V]]] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="er" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">/</span> FullSimplify</span></code></pre></div></div>
-</div>
-<p><img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BR%7D_0%20=%20%5Cfrac%7B(%5Cmu%20+%5Cdelta%20%20%5Ctheta%20%20r)%20%5Cleft(%5Cxi%20%20%5Cbeta_P+%5Cgamma%20%20%5Cbeta_W%20%5Cright)%7D%7B%5Cmu%20%20%5Cxi%20%20(%5Cdelta%20+%5Cmu%20)%7D."></p>
-
-
-
- ]]></description>
-  <category>Basic reproduction number</category>
-  <category>Mathematica</category>
-  <category>algorithmic approach</category>
-  <category>next generation matrix</category>
-  <guid>https://www.jonghoonk.com/blog/posts/R0_mathematica/</guid>
-  <pubDate>Sat, 01 Jun 2024 15:00:00 GMT</pubDate>
-  <media:content url="https://www.jonghoonk.com/blog/posts/R0_mathematica/intro-spikey.png" medium="image" type="image/png" height="147" width="144"/>
 </item>
 </channel>
 </rss>

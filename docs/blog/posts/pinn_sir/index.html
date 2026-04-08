@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-04-09">
+
+<title>Physics-Informed Neural Networks for Epidemic Modeling – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-953e13259b406e3222ebc3917f29fddf.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">1</span> Introduction</a>
+  <ul class="collapse">
+  <li><a href="#from-neural-odes-to-pinns-a-brief-history" id="toc-from-neural-odes-to-pinns-a-brief-history" class="nav-link" data-scroll-target="#from-neural-odes-to-pinns-a-brief-history"><span class="header-section-number">1.1</span> From neural ODEs to PINNs: a brief history</a></li>
+  <li><a href="#pinns-in-epidemiology-and-infectious-diseases" id="toc-pinns-in-epidemiology-and-infectious-diseases" class="nav-link" data-scroll-target="#pinns-in-epidemiology-and-infectious-diseases"><span class="header-section-number">1.2</span> PINNs in epidemiology and infectious diseases</a></li>
+  </ul></li>
+  <li><a href="#background-the-sir-model" id="toc-background-the-sir-model" class="nav-link" data-scroll-target="#background-the-sir-model"><span class="header-section-number">2</span> Background: the SIR model</a></li>
+  <li><a href="#simulate-ground-truth-and-noisy-observations" id="toc-simulate-ground-truth-and-noisy-observations" class="nav-link" data-scroll-target="#simulate-ground-truth-and-noisy-observations"><span class="header-section-number">3</span> Simulate ground truth and noisy observations</a></li>
+  <li><a href="#physics-informed-neural-network" id="toc-physics-informed-neural-network" class="nav-link" data-scroll-target="#physics-informed-neural-network"><span class="header-section-number">4</span> Physics-Informed Neural Network</a>
+  <ul class="collapse">
+  <li><a href="#architecture" id="toc-architecture" class="nav-link" data-scroll-target="#architecture"><span class="header-section-number">4.1</span> Architecture</a></li>
+  <li><a href="#loss-functions" id="toc-loss-functions" class="nav-link" data-scroll-target="#loss-functions"><span class="header-section-number">4.2</span> Loss functions</a></li>
+  <li><a href="#training" id="toc-training" class="nav-link" data-scroll-target="#training"><span class="header-section-number">4.3</span> Training</a></li>
+  </ul></li>
+  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results"><span class="header-section-number">5</span> Results</a>
+  <ul class="collapse">
+  <li><a href="#trajectory-reconstruction" id="toc-trajectory-reconstruction" class="nav-link" data-scroll-target="#trajectory-reconstruction"><span class="header-section-number">5.1</span> Trajectory reconstruction</a></li>
+  <li><a href="#effect-of-the-physics-loss-weight" id="toc-effect-of-the-physics-loss-weight" class="nav-link" data-scroll-target="#effect-of-the-physics-loss-weight"><span class="header-section-number">5.2</span> Effect of the physics loss weight</a></li>
+  <li><a href="#parameter-recovery-during-training" id="toc-parameter-recovery-during-training" class="nav-link" data-scroll-target="#parameter-recovery-during-training"><span class="header-section-number">5.3</span> Parameter recovery during training</a></li>
+  </ul></li>
+  <li><a href="#what-the-pinn-gives-you" id="toc-what-the-pinn-gives-you" class="nav-link" data-scroll-target="#what-the-pinn-gives-you"><span class="header-section-number">6</span> What the PINN gives you</a></li>
+  <li><a href="#extensions-worth-exploring" id="toc-extensions-worth-exploring" class="nav-link" data-scroll-target="#extensions-worth-exploring"><span class="header-section-number">7</span> Extensions worth exploring</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">8</span> References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Physics-Informed Neural Networks for Epidemic Modeling</h1>
+<p class="subtitle lead">Fitting SIR dynamics and recovering transmission parameters with a physics-constrained network</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">PINN</div>
+    <div class="quarto-category">SIR</div>
+    <div class="quarto-category">epidemiology</div>
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">deep learning</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 9, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1</span> Introduction</h2>
+<p>Epidemic modelers routinely confront a maddening data problem: the governing equations are known (or at least hypothesized), but the observations are sparse, delayed, and noisy, and the parameters driving the outbreak — the transmission rate <span class="math inline">\(\beta\)</span>, the recovery rate <span class="math inline">\(\gamma\)</span>, and thus the reproduction number <span class="math inline">\(R_0\)</span> — must be estimated from partial, corrupted signal.</p>
+<p>Classical approaches attack this as a statistical inverse problem: plug the ODE solver into a likelihood and optimize or sample. The approach works but it treats the physics and the inference engine as two separate, loosely coupled steps. <strong>Physics-Informed Neural Networks (PINNs)</strong> fuse them into a single differentiable computation graph, turning parameter estimation into a form of constrained neural-network training.</p>
+<section id="from-neural-odes-to-pinns-a-brief-history" class="level3" data-number="1.1">
+<h3 data-number="1.1" class="anchored" data-anchor-id="from-neural-odes-to-pinns-a-brief-history"><span class="header-section-number">1.1</span> From neural ODEs to PINNs: a brief history</h3>
+<p>The idea of using neural networks to solve differential equations is older than deep learning itself. Lagaris, Likas, and Fotiadis <span class="citation" data-cites="lagaris1998">(<a href="#ref-lagaris1998" role="doc-biblioref">1</a>)</span> showed in 1998 that a simple feedforward network, trained to minimise the residual of an ODE or PDE, could approximate analytical solutions across a spatial or temporal domain. The key insight was that automatic differentiation makes the ODE residual a differentiable loss term, enabling gradient-based training without a numerical solver.</p>
+<p>This idea lay largely dormant through the pre-deep-learning era. It was revived at scale by Raissi, Perdikaris, and Karniadakis <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">2</a>)</span>, whose 2019 paper named and systematised the approach as <strong>Physics-Informed Neural Networks</strong>. Their framework covered:</p>
+<ul>
+<li><strong>Forward problems</strong> — given the parameters and initial conditions, solve for the solution trajectory; the PINN provides a mesh-free, differentiable approximation to the ODE/PDE solution.</li>
+<li><strong>Inverse problems</strong> — given noisy observations of the solution, infer the unknown parameters; <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span> are simply treated as additional learnable parameters of the model alongside the network weights.</li>
+</ul>
+<p>The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stokes, Burgers equation) and attracted enormous follow-on interest in physics, engineering, and biology.</p>
+</section>
+<section id="pinns-in-epidemiology-and-infectious-diseases" class="level3" data-number="1.2">
+<h3 data-number="1.2" class="anchored" data-anchor-id="pinns-in-epidemiology-and-infectious-diseases"><span class="header-section-number">1.2</span> PINNs in epidemiology and infectious diseases</h3>
+<p>The epidemic-modeling community was quick to recognise the relevance. In a COVID-19 application, Linka et al. <span class="citation" data-cites="linka2020">(<a href="#ref-linka2020" role="doc-biblioref">3</a>)</span> embedded a SEIR model inside a PINN to estimate time-varying transmission rates from reported case counts across European countries. The physics constraint stabilised parameter recovery even when surveillance data were noisy and incomplete.</p>
+<p>Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span> demonstrated the approach more rigorously on integer- and fractional-order compartmental models, showing that PINNs can reliably identify structural and parametric features of epidemic models from sparse time-series. Their framework, developed within the Karniadakis group that produced the original PINN paper, introduced careful treatment of identifiability — a critical concern when inferring multiple epidemic parameters simultaneously.</p>
+<p>A recurring theme across these studies is that the <strong>physics residual acts as a regulariser</strong>: by penalising solutions that violate the ODE, the network is prevented from overfitting the noisy observations, and the inferred parameters reflect the underlying epidemic dynamics rather than noise artefacts.</p>
+<p>More recent work has extended PINNs to:</p>
+<ul>
+<li><strong>Multi-wave dynamics</strong> — multi-phase PINNs that switch physics regimes across intervention periods, capturing policy-driven changes in <span class="math inline">\(\beta\)</span>.</li>
+<li><strong>Fractional-order models</strong> — incorporating memory effects through fractional derivatives to better match empirical epidemic decay curves.</li>
+<li><strong>Uncertainty quantification</strong> — Bayesian PINN extensions that propagate uncertainty in parameters through to forecast intervals.</li>
+<li><strong>Wastewater surveillance</strong> — fitting PINNs to environmental sentinel data where the observation model requires additional unknowns beyond <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span>.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>What you need</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install torch scipy matplotlib numpy</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Code tested with: <code>torch 2.11</code>, <code>scipy 1.17</code>, <code>Python 3.11</code>.</p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="background-the-sir-model" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="background-the-sir-model"><span class="header-section-number">2</span> Background: the SIR model</h2>
+<p>The SIR model partitions a closed population of size <span class="math inline">\(N\)</span> into:</p>
+<ul>
+<li><span class="math inline">\(S(t)\)</span>: <strong>S</strong>usceptible — not yet infected</li>
+<li><span class="math inline">\(I(t)\)</span>: <strong>I</strong>nfectious — currently infected and able to transmit</li>
+<li><span class="math inline">\(R(t)\)</span>: <strong>R</strong>ecovered — immune (or deceased)</li>
+</ul>
+<p>The dynamics are:</p>
+<p><span class="math display">\[
+\frac{dS}{dt} = -\frac{\beta S I}{N}, \qquad
+\frac{dI}{dt} = \frac{\beta S I}{N} - \gamma I, \qquad
+\frac{dR}{dt} = \gamma I
+\]</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Meaning</th>
+<th>Units</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(\beta\)</span></td>
+<td>transmission rate</td>
+<td>contacts × probability / day</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(\gamma\)</span></td>
+<td>recovery rate</td>
+<td>1 / day</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(R_0 = \beta/\gamma\)</span></td>
+<td>basic reproduction number</td>
+<td>dimensionless</td>
+</tr>
+</tbody>
+</table>
+<p>An epidemic takes off when <span class="math inline">\(R_0 &gt; 1\)</span>. Throughout this post we use <span class="math inline">\(\beta = 0.3\)</span>, <span class="math inline">\(\gamma = 0.1\)</span> (<span class="math inline">\(R_0 = 3\)</span>) as the data-generating truth.</p>
+<hr>
+</section>
+<section id="simulate-ground-truth-and-noisy-observations" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="simulate-ground-truth-and-noisy-observations"><span class="header-section-number">3</span> Simulate ground truth and noisy observations</h2>
+<div id="8d6fe872" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch.nn <span class="im">as</span> nn</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.integrate <span class="im">import</span> odeint <span class="im">as</span> scipy_odeint</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">42</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>plt.rcParams.update({</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"figure.dpi"</span>: <span class="dv">130</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.spines.top"</span>: <span class="va">False</span>,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.spines.right"</span>: <span class="va">False</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.grid"</span>: <span class="va">True</span>,</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"grid.alpha"</span>: <span class="fl">0.3</span>,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"font.size"</span>: <span class="dv">11</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>C_S, C_I, C_R   <span class="op">=</span> <span class="st">"#2196F3"</span>, <span class="st">"#F44336"</span>, <span class="st">"#4CAF50"</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>C_OBS, C_PINN   <span class="op">=</span> <span class="st">"black"</span>, <span class="st">"#9C27B0"</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Ground truth parameters ---</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>N          <span class="op">=</span> <span class="dv">1_000</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>beta_true  <span class="op">=</span> <span class="fl">0.3</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>gamma_true <span class="op">=</span> <span class="fl">0.1</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>T_max      <span class="op">=</span> <span class="fl">60.0</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>y0 <span class="op">=</span> np.array([<span class="fl">990.0</span>, <span class="fl">10.0</span>, <span class="fl">0.0</span>])</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sir_rhs(y, t, beta, gamma, N):</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> y</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [<span class="op">-</span>beta<span class="op">*</span>S<span class="op">*</span>I<span class="op">/</span>N, beta<span class="op">*</span>S<span class="op">*</span>I<span class="op">/</span>N <span class="op">-</span> gamma<span class="op">*</span>I, gamma<span class="op">*</span>I]</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>n_grid <span class="op">=</span> <span class="dv">100</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>t_grid <span class="op">=</span> np.linspace(<span class="dv">0</span>, T_max, n_grid)</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>sol    <span class="op">=</span> scipy_odeint(sir_rhs, y0, t_grid, args<span class="op">=</span>(beta_true, gamma_true, N))</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>S_true, I_true, R_true <span class="op">=</span> sol.T</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"R₀ = </span><span class="sc">{</span>beta_true<span class="op">/</span>gamma_true<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Peak infections: </span><span class="sc">{</span>I_true<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.0f}</span><span class="ss"> on day </span><span class="sc">{</span>t_grid[I_true.argmax()]<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Final susceptibles: </span><span class="sc">{</span>S_true[<span class="op">-</span><span class="dv">1</span>]<span class="sc">:.0f}</span><span class="ss">"</span>)</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Sparse, noisy observations of I(t) only ---</span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>n_obs   <span class="op">=</span> <span class="dv">30</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>obs_idx <span class="op">=</span> np.sort(np.random.choice(np.arange(<span class="dv">1</span>, n_grid), n_obs, replace<span class="op">=</span><span class="va">False</span>))</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>t_obs   <span class="op">=</span> t_grid[obs_idx]</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>I_obs   <span class="op">=</span> np.clip(I_true[obs_idx] <span class="op">+</span> np.random.normal(<span class="dv">0</span>, <span class="fl">20.0</span>, n_obs), <span class="dv">0</span>, N)</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, S_true, color<span class="op">=</span>C_S, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"S (true)"</span>)</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, I_true, color<span class="op">=</span>C_I, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"I (true)"</span>)</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, R_true, color<span class="op">=</span>C_R, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"R (true)"</span>)</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>ax.scatter(t_obs, I_obs, color<span class="op">=</span>C_OBS, s<span class="op">=</span><span class="dv">30</span>, zorder<span class="op">=</span><span class="dv">5</span>,</span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>           label<span class="op">=</span><span class="ss">f"I observed (n=</span><span class="sc">{</span>n_obs<span class="sc">}</span><span class="ss">, σ=20)"</span>)</span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"People"</span>,</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Ground truth SIR + noisy observations of I(t)"</span>)</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>ax.legend(loc<span class="op">=</span><span class="st">"upper right"</span>)</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>R₀ = 3.0
+Peak infections: 304 on day 26.7
+Final susceptibles: 68</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-2-output-2.png" width="1024" height="504" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Only the black dots are available for training. The full <span class="math inline">\(S\)</span>, <span class="math inline">\(I\)</span>, <span class="math inline">\(R\)</span> trajectories are hidden from the model.</p>
+<hr>
+</section>
+<section id="physics-informed-neural-network" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="physics-informed-neural-network"><span class="header-section-number">4</span> Physics-Informed Neural Network</h2>
+<section id="architecture" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">4.1</span> Architecture</h3>
+<p>A PINN maps scaled time <span class="math inline">\(t_s \in [0,1]\)</span> directly to the three compartment proportions <span class="math inline">\((S/N, I/N, R/N)\)</span>:</p>
+<p><span class="math display">\[
+(S(t),\, I(t),\, R(t)) / N \;=\; \text{NN}_\theta(t/T_{\max})
+\]</span></p>
+<p>Two scalar scalars — <span class="math inline">\(\log\beta_s\)</span> and <span class="math inline">\(\log\gamma_s\)</span> (log of the scaled-time parameters) — are additional <strong>learnable parameters</strong> of the model. Physical rates are recovered as <span class="math inline">\(\beta = \beta_s / T_{\max}\)</span>, <span class="math inline">\(\gamma = \gamma_s / T_{\max}\)</span>.</p>
+<div id="ccddb83a" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> PINN(nn.Module):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Physics-Informed Neural Network for the SIR model.</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Input  : scaled time t_s ∈ [0, 1]   — shape (batch,)</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Output : (S, I, R) / N proportions  — shape (batch, 3)</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co">    Learnable epidemic parameters</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co">    -----------------------------</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co">    log_beta_s, log_gamma_s : log of β and γ in scaled-time units.</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co">        Physical rates: β = exp(log_beta_s) / T_max</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, hidden: <span class="bu">int</span> <span class="op">=</span> <span class="dv">64</span>, depth: <span class="bu">int</span> <span class="op">=</span> <span class="dv">4</span>):</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>()</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        layers <span class="op">=</span> [nn.Linear(<span class="dv">1</span>, hidden), nn.Tanh()]</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(depth <span class="op">-</span> <span class="dv">1</span>):</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>            layers <span class="op">+=</span> [nn.Linear(hidden, hidden), nn.Tanh()]</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        layers <span class="op">+=</span> [nn.Linear(hidden, <span class="dv">3</span>), nn.Sigmoid()]</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.net <span class="op">=</span> nn.Sequential(<span class="op">*</span>layers)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Initialise near plausible values</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>        <span class="co"># True scaled params: β_s = 0.3 × 60 = 18, γ_s = 0.1 × 60 = 6</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.log_beta_s  <span class="op">=</span> nn.Parameter(torch.tensor(np.log(<span class="fl">10.0</span>)))</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.log_gamma_s <span class="op">=</span> nn.Parameter(torch.tensor(np.log( <span class="fl">3.0</span>)))</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> beta_s(<span class="va">self</span>):    <span class="cf">return</span> torch.exp(<span class="va">self</span>.log_beta_s)</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> gamma_s(<span class="va">self</span>):   <span class="cf">return</span> torch.exp(<span class="va">self</span>.log_gamma_s)</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> beta_phys(<span class="va">self</span>): <span class="cf">return</span> <span class="va">self</span>.beta_s  <span class="op">/</span> T_max</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> gamma_phys(<span class="va">self</span>):<span class="cf">return</span> <span class="va">self</span>.gamma_s <span class="op">/</span> T_max</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> R0_est(<span class="va">self</span>):    <span class="cf">return</span> <span class="va">self</span>.beta_s  <span class="op">/</span> <span class="va">self</span>.gamma_s   <span class="co"># scale-invariant</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, t_s):</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.net(t_s.view(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>))   <span class="co"># (batch, 3)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="loss-functions" class="level3" data-number="4.2">
+<h3 data-number="4.2" class="anchored" data-anchor-id="loss-functions"><span class="header-section-number">4.2</span> Loss functions</h3>
+<p>Training minimises a composite loss:</p>
+<p><span class="math display">\[
+\mathcal{L} = \underbrace{\mathcal{L}_\text{data}}_{\text{fit I observations}}
+            + \lambda_\phi \underbrace{\mathcal{L}_\text{physics}}_{\text{SIR residuals via autograd}}
+            + \lambda_0 \underbrace{\mathcal{L}_\text{IC}}_{\text{initial conditions}}
+\]</span></p>
+<p>The <strong>data loss</strong> <span class="math inline">\(\mathcal{L}_\text{data}\)</span> is the MSE between predicted <span class="math inline">\(I(t)\)</span> at the 30 observation times and the noisy counts — the only observed signal.</p>
+<p>The <strong>physics loss</strong> <span class="math inline">\(\mathcal{L}_\text{physics}\)</span> uses automatic differentiation to evaluate the SIR residuals at 200 collocation points spread across <span class="math inline">\([0, T_{\max}]\)</span>. Working in scaled time <span class="math inline">\(t_s = t/T_{\max}\)</span>, the SIR ODEs become:</p>
+<p><span class="math display">\[
+\frac{dS}{dt_s} = -\beta_s S I, \qquad
+\frac{dI}{dt_s} = \beta_s S I - \gamma_s I, \qquad
+\frac{dR}{dt_s} = \gamma_s I
+\]</span></p>
+<p>The <strong>initial-condition loss</strong> <span class="math inline">\(\mathcal{L}_\text{IC}\)</span> pins the network to the known state at <span class="math inline">\(t = 0\)</span>, preventing the network from drifting to arbitrary solutions.</p>
+<div id="04ffb1ff" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> data_loss(model, t_obs_s, I_obs_s):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""MSE on the I compartment at observed time points."""</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    sir <span class="op">=</span> model(t_obs_s)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ((sir[:, <span class="dv">1</span>] <span class="op">-</span> I_obs_s) <span class="op">**</span> <span class="dv">2</span>).mean()</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> physics_loss(model, t_col_base):</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">    SIR residuals at collocation points via automatic differentiation.</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co">    Operates entirely in scaled time — no solver required.</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> t_col_base.clone().requires_grad_(<span class="va">True</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    sir <span class="op">=</span> model(t)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> sir[:, <span class="dv">0</span>], sir[:, <span class="dv">1</span>], sir[:, <span class="dv">2</span>]</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    ones <span class="op">=</span> torch.ones(<span class="bu">len</span>(t))</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    dS <span class="op">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    dI <span class="op">=</span> torch.autograd.grad(I, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    dR <span class="op">=</span> torch.autograd.grad(R, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    b, g <span class="op">=</span> model.beta_s, model.gamma_s</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    res_S <span class="op">=</span> dS <span class="op">+</span> b <span class="op">*</span> S <span class="op">*</span> I</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    res_I <span class="op">=</span> dI <span class="op">-</span> b <span class="op">*</span> S <span class="op">*</span> I <span class="op">+</span> g <span class="op">*</span> I</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    res_R <span class="op">=</span> dR <span class="op">-</span> g <span class="op">*</span> I</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (res_S<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_I<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_R<span class="op">**</span><span class="dv">2</span>).mean()</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ic_loss(model, y0_s):</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Match (S0, I0, R0)/N at t = 0."""</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    sir0 <span class="op">=</span> model(torch.tensor([<span class="fl">0.0</span>]))[<span class="dv">0</span>]</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ((sir0 <span class="op">-</span> y0_s) <span class="op">**</span> <span class="dv">2</span>).mean()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Why collocation points?</strong></p>
+<p>The physics loss is evaluated on a <em>dense</em> grid (200 points) that is separate from the sparse observation times (30 points). These <strong>collocation points</strong> are chosen to cover the full integration window, so the SIR residual is penalised everywhere — not just where data exist. This is the mechanism by which physics knowledge extrapolates the data signal.</p>
+</div>
+</div>
+</section>
+<section id="training" class="level3" data-number="4.3">
+<h3 data-number="4.3" class="anchored" data-anchor-id="training"><span class="header-section-number">4.3</span> Training</h3>
+<div id="7d742008" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Tensors — everything scaled to [0, 1]</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>t_obs_s <span class="op">=</span> torch.tensor(t_obs <span class="op">/</span> T_max, dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>I_obs_s <span class="op">=</span> torch.tensor(I_obs <span class="op">/</span> N,     dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>y0_s    <span class="op">=</span> torch.tensor(y0   <span class="op">/</span> N,      dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>t_col   <span class="op">=</span> torch.linspace(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">200</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Loss weights</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>lam_phys <span class="op">=</span> <span class="fl">0.1</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>lam_ic   <span class="op">=</span> <span class="fl">5.0</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>pinn        <span class="op">=</span> PINN(hidden<span class="op">=</span><span class="dv">64</span>, depth<span class="op">=</span><span class="dv">4</span>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>opt         <span class="op">=</span> torch.optim.Adam(pinn.parameters(), lr<span class="op">=</span><span class="fl">1e-3</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>sched       <span class="op">=</span> torch.optim.lr_scheduler.StepLR(opt, step_size<span class="op">=</span><span class="dv">2000</span>, gamma<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>losses     <span class="op">=</span> []</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>beta_hist  <span class="op">=</span> []</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>gamma_hist <span class="op">=</span> []</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> epoch <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">6_000</span>):</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    opt.zero_grad()</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    L_data  <span class="op">=</span> data_loss(pinn, t_obs_s, I_obs_s)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    L_phys  <span class="op">=</span> physics_loss(pinn, t_col)</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    L_ic    <span class="op">=</span> ic_loss(pinn, y0_s)</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    loss    <span class="op">=</span> L_data <span class="op">+</span> lam_phys <span class="op">*</span> L_phys <span class="op">+</span> lam_ic <span class="op">*</span> L_ic</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    loss.backward()</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>    nn.utils.clip_grad_norm_(pinn.parameters(), max_norm<span class="op">=</span><span class="fl">1.0</span>)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>    opt.step()</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>    sched.step()</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>    losses.append(loss.item())</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>    beta_hist.append(pinn.beta_phys.item())</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>    gamma_hist.append(pinn.gamma_phys.item())</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"True:      β = </span><span class="sc">{</span>beta_true<span class="sc">:.3f}</span><span class="ss">, γ = </span><span class="sc">{</span>gamma_true<span class="sc">:.3f}</span><span class="ss">, R₀ = </span><span class="sc">{</span>beta_true<span class="op">/</span>gamma_true<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PINN est.: β = </span><span class="sc">{</span>pinn<span class="sc">.</span>beta_phys<span class="sc">.</span>item()<span class="sc">:.3f}</span><span class="ss">, "</span></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"γ = </span><span class="sc">{</span>pinn<span class="sc">.</span>gamma_phys<span class="sc">.</span>item()<span class="sc">:.3f}</span><span class="ss">, "</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"R₀ = </span><span class="sc">{</span>pinn<span class="sc">.</span>R0_est<span class="sc">.</span>item()<span class="sc">:.2f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True:      β = 0.300, γ = 0.100, R₀ = 3.00
+PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="results" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="results"><span class="header-section-number">5</span> Results</h2>
+<section id="trajectory-reconstruction" class="level3" data-number="5.1">
+<h3 data-number="5.1" class="anchored" data-anchor-id="trajectory-reconstruction"><span class="header-section-number">5.1</span> Trajectory reconstruction</h3>
+<div id="6beefbfa" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>t_viz_np <span class="op">=</span> np.linspace(<span class="dv">0</span>, T_max, <span class="dv">300</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>t_viz_s  <span class="op">=</span> torch.tensor(t_viz_np <span class="op">/</span> T_max, dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> torch.no_grad():</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    pred <span class="op">=</span> pinn(t_viz_s).numpy() <span class="op">*</span> N</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>sol_viz <span class="op">=</span> scipy_odeint(sir_rhs, y0, t_viz_np, args<span class="op">=</span>(beta_true, gamma_true, N))</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Left: compartment trajectories</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">0</span>]</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, (label, color, true) <span class="kw">in</span> <span class="bu">enumerate</span>(</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    [(<span class="st">"S"</span>, C_S, sol_viz[:,<span class="dv">0</span>]), (<span class="st">"I"</span>, C_I, sol_viz[:,<span class="dv">1</span>]), (<span class="st">"R"</span>, C_R, sol_viz[:,<span class="dv">2</span>])]</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>):</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    ax.plot(t_viz_np, true,       color<span class="op">=</span>color, lw<span class="op">=</span><span class="dv">2</span>, ls<span class="op">=</span><span class="st">"--"</span>, alpha<span class="op">=</span><span class="fl">0.5</span>,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>            label<span class="op">=</span><span class="ss">f"</span><span class="sc">{</span>label<span class="sc">}</span><span class="ss"> true"</span>)</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    ax.plot(t_viz_np, pred[:, i], color<span class="op">=</span>color, lw<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>            label<span class="op">=</span><span class="ss">f"</span><span class="sc">{</span>label<span class="sc">}</span><span class="ss"> PINN"</span>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>ax.scatter(t_obs, I_obs, color<span class="op">=</span>C_OBS, s<span class="op">=</span><span class="dv">25</span>, zorder<span class="op">=</span><span class="dv">5</span>, label<span class="op">=</span><span class="st">"I observed"</span>)</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"People"</span>,</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"PINN — compartment reconstruction"</span>)</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>ax.legend(fontsize<span class="op">=</span><span class="dv">8</span>, ncol<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Right: training loss</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">1</span>]</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>ax.semilogy(losses, color<span class="op">=</span>C_PINN, lw<span class="op">=</span><span class="fl">1.5</span>)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Epoch"</span>, ylabel<span class="op">=</span><span class="st">"Total loss (log scale)"</span>,</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"PINN — training curve"</span>)</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-6-output-1.png" width="1543" height="504" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The PINN fits the observed <span class="math inline">\(I(t)\)</span> points and simultaneously reconstructs the latent <span class="math inline">\(S(t)\)</span> and <span class="math inline">\(R(t)\)</span> trajectories — without ever observing them directly. The physics loss ensures the predicted compartments satisfy the SIR equations everywhere, not only at the observation times.</p>
+</section>
+<section id="effect-of-the-physics-loss-weight" class="level3" data-number="5.2">
+<h3 data-number="5.2" class="anchored" data-anchor-id="effect-of-the-physics-loss-weight"><span class="header-section-number">5.2</span> Effect of the physics loss weight</h3>
+<p>The loss weight <span class="math inline">\(\lambda_\phi\)</span> trades off data fidelity against physics constraint strength. Below we visualise how varying <span class="math inline">\(\lambda_\phi\)</span> over several orders of magnitude affects the fit and the parameter estimates.</p>
+<div id="f5d7a04b" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>lam_values  <span class="op">=</span> [<span class="fl">0.0</span>, <span class="fl">0.01</span>, <span class="fl">0.1</span>, <span class="fl">1.0</span>]</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>lam_labels  <span class="op">=</span> [<span class="ss">f"λ=</span><span class="sc">{</span>v<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> v <span class="kw">in</span> lam_values]</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>colors_lam  <span class="op">=</span> [<span class="st">"#E91E63"</span>, <span class="st">"#FF9800"</span>, <span class="st">"#9C27B0"</span>, <span class="st">"#009688"</span>]</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> lam, label, col <span class="kw">in</span> <span class="bu">zip</span>(lam_values, lam_labels, colors_lam):</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    torch.manual_seed(<span class="dv">42</span>)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    m   <span class="op">=</span> PINN(hidden<span class="op">=</span><span class="dv">64</span>, depth<span class="op">=</span><span class="dv">4</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    opt_<span class="op">=</span> torch.optim.Adam(m.parameters(), lr<span class="op">=</span><span class="fl">1e-3</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    sch_<span class="op">=</span> torch.optim.lr_scheduler.StepLR(opt_, step_size<span class="op">=</span><span class="dv">2000</span>, gamma<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">6_000</span>):</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>        opt_.zero_grad()</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>        L <span class="op">=</span> (data_loss(m, t_obs_s, I_obs_s)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>             <span class="op">+</span> lam <span class="op">*</span> physics_loss(m, t_col)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>             <span class="op">+</span> lam_ic <span class="op">*</span> ic_loss(m, y0_s))</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>        L.backward()</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>        nn.utils.clip_grad_norm_(m.parameters(), <span class="fl">1.0</span>)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>        opt_.step()<span class="op">;</span> sch_.step()</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>        p <span class="op">=</span> m(t_viz_s).numpy() <span class="op">*</span> N</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">0</span>].plot(t_viz_np, p[:, <span class="dv">1</span>], color<span class="op">=</span>col, lw<span class="op">=</span><span class="fl">1.8</span>, label<span class="op">=</span>label)</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">1</span>].scatter([lam <span class="cf">if</span> lam <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="fl">1e-3</span>],</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>                    [m.beta_phys.item()], color<span class="op">=</span>col, s<span class="op">=</span><span class="dv">80</span>, zorder<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">1</span>].scatter([lam <span class="cf">if</span> lam <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="fl">1e-3</span>],</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>                    [m.gamma_phys.item()], color<span class="op">=</span>col, marker<span class="op">=</span><span class="st">"D"</span>, s<span class="op">=</span><span class="dv">80</span>, zorder<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].plot(t_viz_np, sol_viz[:, <span class="dv">1</span>], color<span class="op">=</span>C_I, lw<span class="op">=</span><span class="dv">2</span>, ls<span class="op">=</span><span class="st">"--"</span>,</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>             alpha<span class="op">=</span><span class="fl">0.6</span>, label<span class="op">=</span><span class="st">"I true"</span>)</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].scatter(t_obs, I_obs, color<span class="op">=</span>C_OBS, s<span class="op">=</span><span class="dv">20</span>, zorder<span class="op">=</span><span class="dv">5</span>, label<span class="op">=</span><span class="st">"Observed"</span>)</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"Infectious I"</span>, title<span class="op">=</span><span class="st">"I(t) fit vs. λ_phys"</span>)</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].legend(fontsize<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].axhline(beta_true,  color<span class="op">=</span>C_I, lw<span class="op">=</span><span class="fl">1.5</span>, ls<span class="op">=</span><span class="st">"--"</span>, label<span class="op">=</span><span class="ss">f"β true=</span><span class="sc">{</span>beta_true<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].axhline(gamma_true, color<span class="op">=</span>C_R, lw<span class="op">=</span><span class="fl">1.5</span>, ls<span class="op">=</span><span class="st">"--"</span>, label<span class="op">=</span><span class="ss">f"γ true=</span><span class="sc">{</span>gamma_true<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].<span class="bu">set</span>(xscale<span class="op">=</span><span class="st">"log"</span>, xlabel<span class="op">=</span><span class="st">"λ_phys"</span>, ylabel<span class="op">=</span><span class="st">"Estimated parameter"</span>,</span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>            title<span class="op">=</span><span class="st">"Parameter recovery vs. λ_phys"</span>)</span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].legend(fontsize<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-7-output-1.png" width="1544" height="501" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>With <span class="math inline">\(\lambda_\phi = 0\)</span> the network is a pure data-fitting exercise and parameter recovery collapses. Increasing <span class="math inline">\(\lambda_\phi\)</span> pulls the estimates toward the true values; too large a weight can sacrifice data fit. In practice, <span class="math inline">\(\lambda_\phi \approx 0.1\)</span> strikes a reasonable balance for this example.</p>
+</section>
+<section id="parameter-recovery-during-training" class="level3" data-number="5.3">
+<h3 data-number="5.3" class="anchored" data-anchor-id="parameter-recovery-during-training"><span class="header-section-number">5.3</span> Parameter recovery during training</h3>
+<div id="ce646367" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, hist, true_val, label, color <span class="kw">in</span> [</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    (axes[<span class="dv">0</span>], beta_hist,  beta_true,  <span class="st">"β (transmission rate)"</span>, C_I),</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    (axes[<span class="dv">1</span>], gamma_hist, gamma_true, <span class="st">"γ (recovery rate)"</span>,     C_R),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>]:</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    ax.plot(hist, color<span class="op">=</span>color, lw<span class="op">=</span><span class="fl">1.5</span>, label<span class="op">=</span><span class="st">"PINN estimate"</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    ax.axhline(true_val, color<span class="op">=</span><span class="st">"black"</span>, lw<span class="op">=</span><span class="fl">1.5</span>, ls<span class="op">=</span><span class="st">"--"</span>,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>               label<span class="op">=</span><span class="ss">f"True = </span><span class="sc">{</span>true_val<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Epoch"</span>, ylabel<span class="op">=</span>label,</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>           title<span class="op">=</span><span class="ss">f"Parameter recovery: </span><span class="sc">{</span>label<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    ax.legend()</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Parameter recovery summary"</span>)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  β  — true: </span><span class="sc">{</span>beta_true<span class="sc">:.3f}</span><span class="ss">  |  estimated: </span><span class="sc">{</span>pinn<span class="sc">.</span>beta_phys<span class="sc">.</span>item()<span class="sc">:.3f}</span><span class="ss">"</span>)</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  γ  — true: </span><span class="sc">{</span>gamma_true<span class="sc">:.3f}</span><span class="ss">  |  estimated: </span><span class="sc">{</span>pinn<span class="sc">.</span>gamma_phys<span class="sc">.</span>item()<span class="sc">:.3f}</span><span class="ss">"</span>)</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  R₀ — true: </span><span class="sc">{</span>beta_true<span class="op">/</span>gamma_true<span class="sc">:.2f}</span><span class="ss">  |  estimated: </span><span class="sc">{</span>pinn<span class="sc">.</span>R0_est<span class="sc">.</span>item()<span class="sc">:.2f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-8-output-1.png" width="1543" height="504" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Parameter recovery summary
+  β  — true: 0.300  |  estimated: 0.295
+  γ  — true: 0.100  |  estimated: 0.098
+  R₀ — true: 3.00  |  estimated: 3.01</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="what-the-pinn-gives-you" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="what-the-pinn-gives-you"><span class="header-section-number">6</span> What the PINN gives you</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Fits</strong> <span class="math inline">\(I(t)\)</span> observations</td>
+<td>✓</td>
+</tr>
+<tr class="even">
+<td><strong>Reconstructs</strong> <span class="math inline">\(S(t)\)</span>, <span class="math inline">\(R(t)\)</span> without observing them</td>
+<td>✓</td>
+</tr>
+<tr class="odd">
+<td><strong>Recovers</strong> <span class="math inline">\(\beta\)</span>, <span class="math inline">\(\gamma\)</span> jointly</td>
+<td>✓</td>
+</tr>
+<tr class="even">
+<td><strong>Enforces</strong> <span class="math inline">\(S+I+R \approx N\)</span></td>
+<td>✓ (via IC + physics loss)</td>
+</tr>
+<tr class="odd">
+<td><strong>Extrapolates</strong> beyond training window</td>
+<td>Better than unconstrained networks</td>
+</tr>
+<tr class="even">
+<td>Requires an ODE solver during training</td>
+<td>✗ (only autograd needed)</td>
+</tr>
+<tr class="odd">
+<td>Black-box right-hand side</td>
+<td>✗ (mechanistic residuals are explicit)</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Important
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>The epidemiological payoff</strong></p>
+<p>In real outbreak settings, surveillance provides only partial, delayed, and noisy signal — exactly the scenario simulated here. The PINN framework lets you:</p>
+<ol type="1">
+<li><strong>Estimate</strong> <span class="math inline">\(R_0\)</span> from early epidemic data without knowing the final attack size.</li>
+<li><strong>Reconstruct</strong> the full population trajectory (<span class="math inline">\(S\)</span>, <span class="math inline">\(I\)</span>, <span class="math inline">\(R\)</span>) from reported cases alone.</li>
+<li><strong>Propagate uncertainty</strong> by treating <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span> as random variables in a Bayesian PINN extension.</li>
+</ol>
+<p>This is why hybrid mechanistic-AI approaches are a frontier in infectious disease forecasting.</p>
+</div>
+</div>
+<hr>
+</section>
+<section id="extensions-worth-exploring" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="extensions-worth-exploring"><span class="header-section-number">7</span> Extensions worth exploring</h2>
+<p><strong>More realistic compartmental structures</strong></p>
+<ul>
+<li>Replace SIR with SEIR (add an Exposed compartment) or SEIRS (waning immunity).</li>
+<li>Add time-varying <span class="math inline">\(\beta(t)\)</span> — parameterised as a second small network — to capture policy interventions or behavioural changes.</li>
+<li>Couple a within-host viral kinetics model to the population PINN.</li>
+</ul>
+<p><strong>Better uncertainty quantification</strong></p>
+<ul>
+<li><strong>Bayesian PINN</strong>: treat <span class="math inline">\(\beta\)</span>, <span class="math inline">\(\gamma\)</span> as prior distributions and use MCMC (e.g.&nbsp;NUTS in NumPyro) or variational inference to obtain posterior credible intervals.</li>
+<li><strong>Ensemble PINNs</strong>: train multiple networks with different random initialisations and use spread as a proxy for epistemic uncertainty.</li>
+</ul>
+<p><strong>Identifiability and multi-wave dynamics</strong></p>
+<ul>
+<li>Not all parameters in an epidemic model are jointly identifiable from <span class="math inline">\(I(t)\)</span> alone. Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span> provide a PINN-based identifiability analysis framework that is directly applicable to SIR extensions.</li>
+<li>Multi-phase PINNs split the time axis at known intervention dates and train separate physics terms for each phase — useful for fitting multi-wave outbreaks.</li>
+</ul>
+<p><strong>Real data</strong></p>
+<ul>
+<li>Fit to weekly influenza ILI counts (CDC FluView API).</li>
+<li>Fit to wastewater SARS-CoV-2 concentration data (CDC NWSS), where an additional observation model links <span class="math inline">\(I(t)\)</span> to RNA copies per litre.</li>
+</ul>
+<p><strong>Production-grade</strong></p>
+<ul>
+<li>Replace PyTorch with <code>JAX</code> + <code>Optax</code> for cleaner functional style and XLA acceleration.</li>
+<li>Use the <code>deepxde</code> library, which wraps PINN training in a high-level API and supports arbitrary ODE/PDE geometries.</li>
+</ul>
+<hr>
+</section>
+<section id="references" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="references"><span class="header-section-number">8</span> References</h2>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-lagaris1998" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Lagaris IE, Likas A, Fotiadis DI. Artificial neural networks for solving ordinary and partial differential equations. IEEE Transactions on Neural Networks. 1998;9(5):987–1000. doi:<a href="https://doi.org/10.1109/72.712178">10.1109/72.712178</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: <span>A</span> deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+<div id="ref-linka2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Linka K, Peirlinck M, Sahli Costabal F, Kuhl E. Outbreak dynamics of <span>COVID</span>-19 in <span>Europe</span> and the effect of travel restrictions. Computer Methods in Biomechanics and Biomedical Engineering. 2020;23(11):710–7. doi:<a href="https://doi.org/10.1080/10255842.2020.1759560">10.1080/10255842.2020.1759560</a></div>
+</div>
+<div id="ref-kharazmi2021" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Kharazmi E, Cai M, Zheng X, Zhang Z, Lin G, Karniadakis GE. Identifiability and predictability of integer- and fractional-order epidemiological models using physics-informed neural networks. Nature Computational Science. 2021;1(11):744–53. doi:<a href="https://doi.org/10.1038/s43588-021-00158-0">10.1038/s43588-021-00158-0</a></div>
+</div>
+</div>
+<div id="acc8ef0b" class="cell" data-execution_count="8">
+<div class="cell-output cell-output-stdout">
+<pre><code>Python     3.12.10
+torch      2.11.0+cpu
+scipy      1.17.1
+matplotlib 3.10.8</code></pre>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
