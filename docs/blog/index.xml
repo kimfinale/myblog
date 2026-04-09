@@ -21,8 +21,8 @@
 
 
 
-<section id="from-neural-odes-to-pinns-a-brief-history" class="level3" data-number="0.1">
-<h3 data-number="0.1" class="anchored" data-anchor-id="from-neural-odes-to-pinns-a-brief-history"><span class="header-section-number">0.1</span> From neural ODEs to PINNs: a brief history</h3>
+<section id="from-neural-odes-to-pinns-a-brief-history" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="from-neural-odes-to-pinns-a-brief-history"><span class="header-section-number">1</span> From neural ODEs to PINNs: a brief history</h2>
 <p>The idea of using neural networks to solve differential equations is older than deep learning itself. Lagaris et al. <span class="citation" data-cites="lagaris1998">(1)</span> showed in 1998 that a simple feedforward network, trained to minimise the residual of an ODE or PDE, could approximate analytical solutions across a spatial or temporal domain. The key insight was that automatic differentiation makes the ODE residual a differentiable loss term, enabling gradient-based training without a numerical solver.</p>
 <p>Raissi et al. <span class="citation" data-cites="raissi2019">(2)</span> named and systematised this idea as <strong>Physics-Informed Neural Networks</strong>: embedding known governing equations — ODEs, PDEs, integral equations, or any other physical constraints — directly into the loss function. Their framework covered:</p>
 <ul>
@@ -31,8 +31,8 @@
 </ul>
 <p>The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stokes, Burgers equation) and attracted follow-on interest in physics, engineering, and biology.</p>
 </section>
-<section id="pinns-in-epidemiology-and-infectious-diseases" class="level3" data-number="0.2">
-<h3 data-number="0.2" class="anchored" data-anchor-id="pinns-in-epidemiology-and-infectious-diseases"><span class="header-section-number">0.2</span> PINNs in epidemiology and infectious diseases</h3>
+<section id="pinns-in-epidemiology-and-infectious-diseases" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="pinns-in-epidemiology-and-infectious-diseases"><span class="header-section-number">2</span> PINNs in epidemiology and infectious diseases</h2>
 <p>In a COVID-19 application, Linka et al. <span class="citation" data-cites="linka2020">(3)</span> embedded a SEIR model inside a PINN to estimate time-varying transmission rates from reported case counts across European countries. The physics constraint stabilised parameter recovery even when surveillance data were noisy and incomplete.</p>
 <p>Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(4)</span> demonstrated the approach more rigorously on integer- and fractional-order compartmental models, showing that PINNs can reliably identify structural and parametric features of epidemic models from sparse time-series. Their framework, developed within the Karniadakis group that produced the original PINN paper, introduced careful treatment of identifiability — a critical concern when inferring multiple epidemic parameters simultaneously.</p>
 <p>A recurring theme across these studies is that the <strong>physics residual acts as a regulariser</strong>: by penalising solutions that violate the physics equations, the network is prevented from overfitting the noisy observations, and the inferred parameters reflect the underlying epidemic dynamics rather than noise artefacts.</p>
@@ -63,8 +63,8 @@ font-style: inherit;">pip</span> install torch scipy matplotlib numpy</span></co
 </div>
 <hr>
 </section>
-<section id="background-the-sir-model" class="level2" data-number="1">
-<h2 data-number="1" class="anchored" data-anchor-id="background-the-sir-model"><span class="header-section-number">1</span> Background: the SIR model</h2>
+<section id="the-sir-model" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="the-sir-model"><span class="header-section-number">3</span> The SIR model</h2>
 <p>The SIR model partitions a closed population of size <img src="https://latex.codecogs.com/png.latex?N"> into:</p>
 <ul>
 <li><img src="https://latex.codecogs.com/png.latex?S(t)">: <strong>S</strong>usceptible — not yet infected</li>
@@ -102,9 +102,11 @@ font-style: inherit;">pip</span> install torch scipy matplotlib numpy</span></co
 <p>Throughout this post we use <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.3">, <img src="https://latex.codecogs.com/png.latex?%5Cgamma%20=%200.1"> (<img src="https://latex.codecogs.com/png.latex?R_0%20=%203">) as the data-generating truth.</p>
 <hr>
 </section>
-<section id="simulate-ground-truth-and-noisy-observations" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="simulate-ground-truth-and-noisy-observations"><span class="header-section-number">2</span> Simulate ground truth and noisy observations</h2>
-<div id="6c842499" class="cell" data-execution_count="1">
+<section id="simulate-ground-truth-and-noisy-observations" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="simulate-ground-truth-and-noisy-observations"><span class="header-section-number">4</span> Simulate ground truth and noisy observations</h2>
+<div id="c9c71775" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
 background-color: null;
 font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
@@ -364,7 +366,7 @@ font-style: inherit;">=</span> plt.subplots(figsize<span class="op" style="color
 background-color: null;
 font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
+font-style: inherit;">7</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">4</span>))</span>
 <span id="cb2-51">ax.plot(t_grid, S_true, color<span class="op" style="color: #5E5E5E;
@@ -445,6 +447,7 @@ background-color: null;
 font-style: inherit;">"upper right"</span>)</span>
 <span id="cb2-59">plt.tight_layout()</span>
 <span id="cb2-60">plt.show()</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>R₀ = 3.0
 Peak infections: 304 on day 26.7
@@ -453,7 +456,7 @@ Final susceptibles: 68</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-2-output-2.png" width="1024" height="504" class="figure-img"></p>
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-2-output-2.png" width="894" height="504" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -461,14 +464,16 @@ Final susceptibles: 68</code></pre>
 <p>Only the black dots are available for training. The full <img src="https://latex.codecogs.com/png.latex?S">, <img src="https://latex.codecogs.com/png.latex?I">, <img src="https://latex.codecogs.com/png.latex?R"> trajectories are hidden from the model.</p>
 <hr>
 </section>
-<section id="physics-informed-neural-network" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="physics-informed-neural-network"><span class="header-section-number">3</span> Physics-Informed Neural Network</h2>
-<section id="architecture" class="level3" data-number="3.1">
-<h3 data-number="3.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">3.1</span> Architecture</h3>
+<section id="physics-informed-neural-network" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="physics-informed-neural-network"><span class="header-section-number">5</span> Physics-Informed Neural Network</h2>
+<section id="architecture" class="level3" data-number="5.1">
+<h3 data-number="5.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">5.1</span> Architecture</h3>
 <p>A PINN maps scaled time <img src="https://latex.codecogs.com/png.latex?t_s%20%5Cin%20%5B0,1%5D"> directly to the three compartment proportions <img src="https://latex.codecogs.com/png.latex?(S/N,%20I/N,%20R/N)">:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A(S(t),%5C,%20I(t),%5C,%20R(t))%20/%20N%20%5C;=%5C;%20%5Ctext%7BNN%7D_%5Ctheta(t/T_%7B%5Cmax%7D)%0A"></p>
 <p>Two scalar scalars — <img src="https://latex.codecogs.com/png.latex?%5Clog%5Cbeta_s"> and <img src="https://latex.codecogs.com/png.latex?%5Clog%5Cgamma_s"> (log of the scaled-time parameters) — are additional <strong>learnable parameters</strong> of the model (i.e., in addition to the network weights and biases). Physical rates are recovered as <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%20%5Cbeta_s%20/%20T_%7B%5Cmax%7D">, <img src="https://latex.codecogs.com/png.latex?%5Cgamma%20=%20%5Cgamma_s%20/%20T_%7B%5Cmax%7D">.</p>
-<div id="0c2003dd" class="cell" data-execution_count="2">
+<div id="65e186a4" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
@@ -683,17 +688,20 @@ background-color: null;
 font-style: inherit;">1</span>))   <span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># (batch, 3)</span></span></code></pre></div></div>
+</details>
 </div>
 </section>
-<section id="loss-functions" class="level3" data-number="3.2">
-<h3 data-number="3.2" class="anchored" data-anchor-id="loss-functions"><span class="header-section-number">3.2</span> Loss functions</h3>
+<section id="loss-functions" class="level3" data-number="5.2">
+<h3 data-number="5.2" class="anchored" data-anchor-id="loss-functions"><span class="header-section-number">5.2</span> Loss functions</h3>
 <p>Training minimises a composite loss:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathcal%7BL%7D%20=%20%5Cunderbrace%7B%5Cmathcal%7BL%7D_%5Ctext%7Bdata%7D%7D_%7B%5Ctext%7Bfit%20I%20observations%7D%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20+%20%5Clambda_%5Cphi%20%5Cunderbrace%7B%5Cmathcal%7BL%7D_%5Ctext%7Bphysics%7D%7D_%7B%5Ctext%7BSIR%20residuals%20via%20autograd%7D%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20+%20%5Clambda_0%20%5Cunderbrace%7B%5Cmathcal%7BL%7D_%5Ctext%7BIC%7D%7D_%7B%5Ctext%7Binitial%20conditions%7D%7D%0A"></p>
 <p>The <strong>data loss</strong> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7Bdata%7D"> is the MSE between predicted <img src="https://latex.codecogs.com/png.latex?I(t)"> at the 30 observation times and the noisy counts — the only observed signal.</p>
 <p>The <strong>physics loss</strong> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7Bphysics%7D"> uses automatic differentiation to evaluate the SIR residuals at 200 collocation points spread across <img src="https://latex.codecogs.com/png.latex?%5B0,%20T_%7B%5Cmax%7D%5D">. Working in scaled time <img src="https://latex.codecogs.com/png.latex?t_s%20=%20t/T_%7B%5Cmax%7D">, the SIR ODEs become:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdS%7D%7Bdt_s%7D%20=%20-%5Cbeta_s%20S%20I,%20%5Cqquad%0A%5Cfrac%7BdI%7D%7Bdt_s%7D%20=%20%5Cbeta_s%20S%20I%20-%20%5Cgamma_s%20I,%20%5Cqquad%0A%5Cfrac%7BdR%7D%7Bdt_s%7D%20=%20%5Cgamma_s%20I%0A"></p>
 <p>The <strong>initial-condition loss</strong> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7BIC%7D"> pins the network to the known state at <img src="https://latex.codecogs.com/png.latex?t%20=%200">, preventing the network from drifting to arbitrary solutions.</p>
-<div id="97483de4" class="cell" data-execution_count="3">
+<div id="ab15d179" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
@@ -870,6 +878,7 @@ background-color: null;
 font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>).mean()</span></code></pre></div></div>
+</details>
 </div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -886,9 +895,11 @@ Note
 </div>
 </div>
 </section>
-<section id="training" class="level3" data-number="3.3">
-<h3 data-number="3.3" class="anchored" data-anchor-id="training"><span class="header-section-number">3.3</span> Training</h3>
-<div id="68e37e21" class="cell" data-execution_count="4">
+<section id="training" class="level3" data-number="5.3">
+<h3 data-number="5.3" class="anchored" data-anchor-id="training"><span class="header-section-number">5.3</span> Training</h3>
+<div id="4ceb9824" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># Tensors — everything scaled to [0, 1]</span></span>
@@ -933,9 +944,9 @@ background-color: null;
 font-style: inherit;">0.1</span></span>
 <span id="cb6-9">lam_ic   <span class="op" style="color: #5E5E5E;
 background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">5.0</span></span>
+font-style: inherit;">5</span></span>
 <span id="cb6-10"></span>
 <span id="cb6-11">pinn        <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1090,6 +1101,7 @@ background-color: null;
 font-style: inherit;">:.2f}</span><span class="ss" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>True:      β = 0.300, γ = 0.100, R₀ = 3.00
 PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
@@ -1098,11 +1110,13 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <hr>
 </section>
 </section>
-<section id="results" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="results"><span class="header-section-number">4</span> Results</h2>
-<section id="trajectory-reconstruction" class="level3" data-number="4.1">
-<h3 data-number="4.1" class="anchored" data-anchor-id="trajectory-reconstruction"><span class="header-section-number">4.1</span> Trajectory reconstruction</h3>
-<div id="9da62878" class="cell" data-execution_count="5">
+<section id="results" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="results"><span class="header-section-number">6</span> Results</h2>
+<section id="trajectory-reconstruction" class="level3" data-number="6.1">
+<h3 data-number="6.1" class="anchored" data-anchor-id="trajectory-reconstruction"><span class="header-section-number">6.1</span> Trajectory reconstruction</h3>
+<div id="82e152f3" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1">t_viz_np <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> np.linspace(<span class="dv" style="color: #AD0000;
@@ -1144,9 +1158,9 @@ font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">12</span>, <span class="dv" style="color: #AD0000;
+font-style: inherit;">7</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">4</span>))</span>
+font-style: inherit;">3.5</span>))</span>
 <span id="cb8-10"></span>
 <span id="cb8-11"><span class="co" style="color: #5E5E5E;
 background-color: null;
@@ -1298,20 +1312,23 @@ font-style: inherit;">"PINN — training curve"</span>)</span>
 <span id="cb8-30"></span>
 <span id="cb8-31">plt.tight_layout()</span>
 <span id="cb8-32">plt.show()</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-6-output-1.png" width="1543" height="504" class="figure-img"></p>
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-6-output-1.png" width="893" height="439" class="figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>The PINN fits the observed <img src="https://latex.codecogs.com/png.latex?I(t)"> points and simultaneously reconstructs the latent <img src="https://latex.codecogs.com/png.latex?S(t)"> and <img src="https://latex.codecogs.com/png.latex?R(t)"> trajectories — without ever observing them directly. The physics loss ensures the predicted compartments satisfy the SIR equations everywhere, not only at the observation times.</p>
+<p>The PINN fits the observed <img src="https://latex.codecogs.com/png.latex?I(t)"> points and simultaneouly reconstructs the latent <img src="https://latex.codecogs.com/png.latex?S(t)"> and <img src="https://latex.codecogs.com/png.latex?R(t)"> trajectories. The physics loss ensures the predicted compartments satisfy the SIR equations everywhere, not only at the observation times.</p>
 </section>
-<section id="effect-of-the-physics-loss-weight" class="level3" data-number="4.2">
-<h3 data-number="4.2" class="anchored" data-anchor-id="effect-of-the-physics-loss-weight"><span class="header-section-number">4.2</span> Effect of the physics loss weight</h3>
-<p>The loss weight <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> trades off data fidelity against physics constraint strength. Below we visualise how varying <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> over several orders of magnitude affects the fit and the parameter estimates.</p>
-<div id="079d891d" class="cell" data-execution_count="6">
+<section id="effect-of-the-physics-loss-weight" class="level3" data-number="6.2">
+<h3 data-number="6.2" class="anchored" data-anchor-id="effect-of-the-physics-loss-weight"><span class="header-section-number">6.2</span> Effect of the physics loss weight</h3>
+<p>The loss weight <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> trades off data fidelity and physics constraint strength. Below we visualise how varying <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> over several orders of magnitude affects the fit and the parameter estimates.</p>
+<div id="e9dbe20a" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1">lam_values  <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> [<span class="fl" style="color: #AD0000;
@@ -1362,9 +1379,9 @@ font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">12</span>, <span class="dv" style="color: #AD0000;
+font-style: inherit;">7</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">4</span>))</span>
+font-style: inherit;">3.5</span>))</span>
 <span id="cb9-6"></span>
 <span id="cb9-7"><span class="cf" style="color: #003B4F;
 background-color: null;
@@ -1664,19 +1681,22 @@ font-style: inherit;">8</span>)</span>
 <span id="cb9-41"></span>
 <span id="cb9-42">plt.tight_layout()</span>
 <span id="cb9-43">plt.show()</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-7-output-1.png" width="1544" height="501" class="figure-img"></p>
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-7-output-1.png" width="904" height="436" class="figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>With <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi%20=%200"> the network is a pure data-fitting exercise and parameter recovery collapses. Increasing <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> pulls the estimates toward the true values; too large a weight can sacrifice data fit. In practice, <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi%20%5Capprox%200.1"> strikes a reasonable balance for this example.</p>
 </section>
-<section id="parameter-recovery-during-training" class="level3" data-number="4.3">
-<h3 data-number="4.3" class="anchored" data-anchor-id="parameter-recovery-during-training"><span class="header-section-number">4.3</span> Parameter recovery during training</h3>
-<div id="34d2dfd2" class="cell" data-execution_count="7">
+<section id="parameter-recovery-during-training" class="level3" data-number="6.3">
+<h3 data-number="6.3" class="anchored" data-anchor-id="parameter-recovery-during-training"><span class="header-section-number">6.3</span> Parameter recovery during training</h3>
+<div id="cd216597" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">fig, axes <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> plt.subplots(<span class="dv" style="color: #AD0000;
@@ -1687,9 +1707,9 @@ font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">12</span>, <span class="dv" style="color: #AD0000;
+font-style: inherit;">7</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">4</span>))</span>
+font-style: inherit;">3.5</span>))</span>
 <span id="cb10-2"></span>
 <span id="cb10-3"><span class="cf" style="color: #003B4F;
 background-color: null;
@@ -1843,10 +1863,11 @@ background-color: null;
 font-style: inherit;">:.2f}</span><span class="ss" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-8-output-1.png" width="1543" height="504" class="figure-img"></p>
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-8-output-1.png" width="947" height="439" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1861,8 +1882,8 @@ Parameter recovery summary
 <hr>
 </section>
 </section>
-<section id="what-the-pinn-gives-you" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="what-the-pinn-gives-you"><span class="header-section-number">5</span> What the PINN gives you</h2>
+<section id="what-the-pinn-gives-you" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="what-the-pinn-gives-you"><span class="header-section-number">7</span> What the PINN gives you</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -1927,8 +1948,8 @@ Important
 </div>
 <hr>
 </section>
-<section id="extensions-worth-exploring" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="extensions-worth-exploring"><span class="header-section-number">6</span> Extensions worth exploring</h2>
+<section id="extensions-worth-exploring" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="extensions-worth-exploring"><span class="header-section-number">8</span> Extensions worth exploring</h2>
 <p><strong>More realistic compartmental structures</strong></p>
 <ul>
 <li>Replace SIR with SEIR (add an Exposed compartment) or SEIRS (waning immunity).</li>
@@ -1957,8 +1978,8 @@ Important
 </ul>
 <hr>
 </section>
-<section id="references" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="references"><span class="header-section-number">7</span> References</h2>
+<section id="references" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="references"><span class="header-section-number">9</span> References</h2>
 <div id="refs" class="references csl-bib-body">
 <div id="ref-lagaris1998" class="csl-entry">
 <div class="csl-left-margin">1. </div><div class="csl-right-inline">Lagaris IE, Likas A, Fotiadis DI. Artificial neural networks for solving ordinary and partial differential equations. IEEE Transactions on Neural Networks. 1998;9(5):987–1000. doi:<a href="https://doi.org/10.1109/72.712178">10.1109/72.712178</a></div>
@@ -1979,7 +2000,7 @@ Important
 <div class="csl-left-margin">6. </div><div class="csl-right-inline">Linka K, Schäfer A, Meng X, Zou Z, Karniadakis GE, Kuhl E. Bayesian physics informed neural networks for real-world nonlinear dynamical systems. Computer Methods in Applied Mechanics and Engineering. 2022;402:115346. doi:<a href="https://doi.org/10.1016/j.cma.2022.115346">10.1016/j.cma.2022.115346</a></div>
 </div>
 </div>
-<div id="3318e368" class="cell" data-execution_count="8">
+<div id="352f0c70" class="cell" data-execution_count="8">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu
