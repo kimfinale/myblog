@@ -17,33 +17,17 @@ execute:
   message: false
 ---
 
-## Introduction
-
-Epidemic modelers routinely confront a maddening data problem: the governing
-equations are known (or at least hypothesized), but the observations are sparse,
-delayed, and noisy, and the parameters driving the outbreak — the transmission
-rate $\beta$, the recovery rate $\gamma$, and thus the reproduction number $R_0$ — must
-be estimated from partial, corrupted signal.
-
-Classical approaches attack this as a statistical inverse problem: plug the ODE
-solver into a likelihood and optimize or sample. The approach works but it treats the
-physics and the inference engine as two separate, loosely coupled steps.
-**Physics-Informed Neural Networks (PINNs)** fuse them into a single differentiable
-computation graph, turning parameter estimation into a form of constrained
-neural-network training.
-
 ### From neural ODEs to PINNs: a brief history
 
 The idea of using neural networks to solve differential equations is older than
-deep learning itself. Lagaris, Likas, and Fotiadis [@lagaris1998] showed in 1998
+deep learning itself. Lagaris et al. [@lagaris1998] showed in 1998
 that a simple feedforward network, trained to minimise the residual of an ODE or PDE,
 could approximate analytical solutions across a spatial or temporal domain. The key
 insight was that automatic differentiation makes the ODE residual a differentiable
-loss term, enabling gradient-based training without a numerical solver.
+loss term, enabling gradient-based training without a numerical solver. 
 
-This idea lay largely dormant through the pre-deep-learning era. It was revived at
-scale by Raissi, Perdikaris, and Karniadakis [@raissi2019], whose 2019 paper named
-and systematised the approach as **Physics-Informed Neural Networks**. Their
+Raissi et al. [@raissi2019] named
+and systematised this idea as **Physics-Informed Neural Networks**: embedding known governing equations — ODEs, PDEs, integral equations, or any other physical constraints — directly into the loss function. Their
 framework covered:
 
 - **Forward problems** — given the parameters and initial conditions, solve for
@@ -54,13 +38,12 @@ framework covered:
   parameters of the model alongside the network weights.
 
 The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stokes,
-Burgers equation) and attracted enormous follow-on interest in physics, engineering,
+Burgers equation) and attracted follow-on interest in physics, engineering,
 and biology.
 
 ### PINNs in epidemiology and infectious diseases
 
-The epidemic-modeling community was quick to recognise the relevance. In a
-COVID-19 application, Linka et al. [@linka2020] embedded a SEIR model inside a
+In a COVID-19 application, Linka et al. [@linka2020] embedded a SEIR model inside a
 PINN to estimate time-varying transmission rates from reported case counts across
 European countries. The physics constraint stabilised parameter recovery even when
 surveillance data were noisy and incomplete.
@@ -73,20 +56,23 @@ PINN paper, introduced careful treatment of identifiability — a critical conce
 when inferring multiple epidemic parameters simultaneously.
 
 A recurring theme across these studies is that the **physics residual acts as a
-regulariser**: by penalising solutions that violate the ODE, the network is prevented
+regulariser**: by penalising solutions that violate the physics equations, the network is prevented
 from overfitting the noisy observations, and the inferred parameters reflect the
 underlying epidemic dynamics rather than noise artefacts.
 
 More recent work has extended PINNs to:
 
 - **Multi-wave dynamics** — multi-phase PINNs that switch physics regimes across
-  intervention periods, capturing policy-driven changes in $\beta$.
+  intervention periods, capturing policy-driven changes in $\beta$ [@he2023].
 - **Fractional-order models** — incorporating memory effects through fractional
-  derivatives to better match empirical epidemic decay curves.
+  derivatives to better match empirical epidemic decay curves [@kharazmi2021].
 - **Uncertainty quantification** — Bayesian PINN extensions that propagate
-  uncertainty in parameters through to forecast intervals.
-- **Wastewater surveillance** — fitting PINNs to environmental sentinel data where
-  the observation model requires additional unknowns beyond $\beta$ and $\gamma$.
+  uncertainty in parameters through to forecast intervals [@linka2022].
+- **Wastewater surveillance** — fitting PINNs to environmental sentinel data
+  is a natural next step, though published applications remain limited.
+
+
+In the following, I use a simple SIR model to demonstrate how PINNs work.
 
 ::: {.callout-tip}
 **What you need**
@@ -118,11 +104,11 @@ $$
 
 | Parameter | Meaning | Units |
 |---|---|---|
-| $\beta$ | transmission rate | contacts × probability / day |
+| $\beta$ | transmission rate | contacts / day × probability / contact |
 | $\gamma$ | recovery rate | 1 / day |
 | $R_0 = \beta/\gamma$ | basic reproduction number | dimensionless |
 
-An epidemic takes off when $R_0 > 1$. Throughout this post we use
+Throughout this post we use
 $\beta = 0.3$, $\gamma = 0.1$ ($R_0 = 3$) as the data-generating truth.
 
 ---
@@ -209,7 +195,7 @@ $$
 $$
 
 Two scalar scalars — $\log\beta_s$ and $\log\gamma_s$ (log of the scaled-time
-parameters) — are additional **learnable parameters** of the model. Physical rates
+parameters) — are additional **learnable parameters** of the model (i.e., in addition to the network weights and biases). Physical rates
 are recovered as $\beta = \beta_s / T_{\max}$, $\gamma = \gamma_s / T_{\max}$.
 
 ```{python}
