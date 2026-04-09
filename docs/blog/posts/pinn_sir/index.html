@@ -463,15 +463,13 @@ window.Quarto = {
 </section>
 <section id="pinns-in-epidemiology-and-infectious-diseases" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="pinns-in-epidemiology-and-infectious-diseases"><span class="header-section-number">2</span> PINNs in epidemiology and infectious diseases</h2>
-<p>Linka et al. <span class="citation" data-cites="linka2020">(<a href="#ref-linka2020" role="doc-biblioref">3</a>)</span> embedded a SEIR model inside a PINN to estimate time-varying transmission rates from COVID-19 case counts across European countries. The physics constraint stabilised parameter recovery even when surveillance data were noisy and incomplete.</p>
-<p>Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span> showed that PINNs can reliably identify structural and parametric features of epidemic models from sparse time-series, including cases where multiple parameters are inferred simultaneously.</p>
-<p>A recurring theme is that the <strong>physics residual acts as a regulariser</strong>: penalising ODE violations prevents the network from overfitting noisy observations, so inferred parameters reflect the underlying epidemic dynamics rather than noise.</p>
-<p>More recent work has extended PINNs to:</p>
+<p>Recent work has extended PINNs to:</p>
 <ul>
-<li><strong>Multi-wave dynamics</strong> — multi-phase PINNs that switch physics regimes across intervention periods, capturing policy-driven changes in <span class="math inline">\(\beta\)</span> <span class="citation" data-cites="he2023">(<a href="#ref-he2023" role="doc-biblioref">5</a>)</span>.</li>
+<li><strong>Multi-wave dynamics</strong> — multi-phase PINNs that switch physics regimes across intervention periods, capturing policy-driven changes in <span class="math inline">\(\beta\)</span> <span class="citation" data-cites="he2023">(<a href="#ref-he2023" role="doc-biblioref">3</a>)</span>.</li>
 <li><strong>Fractional-order models</strong> — incorporating memory effects through fractional derivatives to better match empirical epidemic decay curves <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span>.</li>
-<li><strong>Uncertainty quantification</strong> — Bayesian PINN extensions that propagate uncertainty in parameters through to forecast intervals <span class="citation" data-cites="linka2022">(<a href="#ref-linka2022" role="doc-biblioref">6</a>)</span>.</li>
+<li><strong>Uncertainty quantification</strong> — Bayesian PINN extensions that propagate uncertainty in parameters through to forecast intervals <span class="citation" data-cites="linka2022">(<a href="#ref-linka2022" role="doc-biblioref">5</a>)</span>.</li>
 </ul>
+<p>A recurring theme is that the <strong>physics residual acts as a regulariser</strong>: penalising ODE violations prevents the network from overfitting noisy observations, so inferred parameters reflect the underlying epidemic dynamics rather than noise.</p>
 <p>Below, I use the SIR model to demonstrate how PINNs work in practice.</p>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -535,7 +533,7 @@ Tip
 </section>
 <section id="simulate-ground-truth-and-noisy-observations" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="simulate-ground-truth-and-noisy-observations"><span class="header-section-number">4</span> Simulate ground truth and noisy observations</h2>
-<div id="3dc768dd" class="cell" data-execution_count="1">
+<div id="7515126d" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -554,50 +552,55 @@ Tip
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.spines.right"</span>: <span class="va">False</span>,</span>
 <span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.grid"</span>: <span class="va">True</span>,</span>
 <span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"grid.alpha"</span>: <span class="fl">0.3</span>,</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"font.size"</span>: <span class="dv">11</span>,</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>C_S, C_I, C_R   <span class="op">=</span> <span class="st">"#2196F3"</span>, <span class="st">"#F44336"</span>, <span class="st">"#4CAF50"</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>C_OBS, C_PINN   <span class="op">=</span> <span class="st">"black"</span>, <span class="st">"#9C27B0"</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Ground truth parameters ---</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>N          <span class="op">=</span> <span class="dv">1_000</span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>beta_true  <span class="op">=</span> <span class="fl">0.3</span></span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>gamma_true <span class="op">=</span> <span class="fl">0.1</span></span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>T_max      <span class="op">=</span> <span class="fl">60.0</span></span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>y0 <span class="op">=</span> np.array([<span class="fl">990.0</span>, <span class="fl">10.0</span>, <span class="fl">0.0</span>])</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sir_rhs(y, t, beta, gamma, N):</span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> y</span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [<span class="op">-</span>beta<span class="op">*</span>S<span class="op">*</span>I<span class="op">/</span>N, beta<span class="op">*</span>S<span class="op">*</span>I<span class="op">/</span>N <span class="op">-</span> gamma<span class="op">*</span>I, gamma<span class="op">*</span>I]</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>n_grid <span class="op">=</span> <span class="dv">100</span></span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>t_grid <span class="op">=</span> np.linspace(<span class="dv">0</span>, T_max, n_grid)</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>sol    <span class="op">=</span> scipy_odeint(sir_rhs, y0, t_grid, args<span class="op">=</span>(beta_true, gamma_true, N))</span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>S_true, I_true, R_true <span class="op">=</span> sol.T</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"font.size"</span>: <span class="dv">8</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.titlesize"</span>: <span class="dv">8</span>,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.labelsize"</span>: <span class="dv">8</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"xtick.labelsize"</span>: <span class="dv">7</span>,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ytick.labelsize"</span>: <span class="dv">7</span>,</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"legend.fontsize"</span>: <span class="dv">7</span>,</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>C_S, C_I, C_R   <span class="op">=</span> <span class="st">"#2196F3"</span>, <span class="st">"#F44336"</span>, <span class="st">"#4CAF50"</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>C_OBS, C_PINN   <span class="op">=</span> <span class="st">"black"</span>, <span class="st">"#9C27B0"</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Ground truth parameters ---</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>N          <span class="op">=</span> <span class="dv">1_000</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>beta_true  <span class="op">=</span> <span class="fl">0.3</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>gamma_true <span class="op">=</span> <span class="fl">0.1</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>T_max      <span class="op">=</span> <span class="fl">60.0</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>y0 <span class="op">=</span> np.array([<span class="fl">990.0</span>, <span class="fl">10.0</span>, <span class="fl">0.0</span>])</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sir_rhs(y, t, beta, gamma, N):</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> y</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [<span class="op">-</span>beta<span class="op">*</span>S<span class="op">*</span>I<span class="op">/</span>N, beta<span class="op">*</span>S<span class="op">*</span>I<span class="op">/</span>N <span class="op">-</span> gamma<span class="op">*</span>I, gamma<span class="op">*</span>I]</span>
 <span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"R₀ = </span><span class="sc">{</span>beta_true<span class="op">/</span>gamma_true<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Peak infections: </span><span class="sc">{</span>I_true<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.0f}</span><span class="ss"> on day </span><span class="sc">{</span>t_grid[I_true.argmax()]<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Final susceptibles: </span><span class="sc">{</span>S_true[<span class="op">-</span><span class="dv">1</span>]<span class="sc">:.0f}</span><span class="ss">"</span>)</span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Sparse, noisy observations of I(t) only ---</span></span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>n_obs   <span class="op">=</span> <span class="dv">30</span></span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>obs_idx <span class="op">=</span> np.sort(np.random.choice(np.arange(<span class="dv">1</span>, n_grid), n_obs, replace<span class="op">=</span><span class="va">False</span>))</span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>t_obs   <span class="op">=</span> t_grid[obs_idx]</span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>I_obs   <span class="op">=</span> np.clip(I_true[obs_idx] <span class="op">+</span> np.random.normal(<span class="dv">0</span>, <span class="fl">20.0</span>, n_obs), <span class="dv">0</span>, N)</span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="fl">2.5</span>))</span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, S_true, color<span class="op">=</span>C_S, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"S (true)"</span>)</span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, I_true, color<span class="op">=</span>C_I, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"I (true)"</span>)</span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, R_true, color<span class="op">=</span>C_R, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"R (true)"</span>)</span>
-<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>ax.scatter(t_obs, I_obs, color<span class="op">=</span>C_OBS, s<span class="op">=</span><span class="dv">30</span>, zorder<span class="op">=</span><span class="dv">5</span>,</span>
-<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>           label<span class="op">=</span><span class="ss">f"I observed (n=</span><span class="sc">{</span>n_obs<span class="sc">}</span><span class="ss">, σ=20)"</span>)</span>
-<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"People"</span>,</span>
-<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Ground truth SIR + noisy observations of I(t)"</span>)</span>
-<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>ax.legend(loc<span class="op">=</span><span class="st">"upper right"</span>)</span>
-<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>n_grid <span class="op">=</span> <span class="dv">100</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>t_grid <span class="op">=</span> np.linspace(<span class="dv">0</span>, T_max, n_grid)</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>sol    <span class="op">=</span> scipy_odeint(sir_rhs, y0, t_grid, args<span class="op">=</span>(beta_true, gamma_true, N))</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>S_true, I_true, R_true <span class="op">=</span> sol.T</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"R₀ = </span><span class="sc">{</span>beta_true<span class="op">/</span>gamma_true<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Peak infections: </span><span class="sc">{</span>I_true<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.0f}</span><span class="ss"> on day </span><span class="sc">{</span>t_grid[I_true.argmax()]<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Final susceptibles: </span><span class="sc">{</span>S_true[<span class="op">-</span><span class="dv">1</span>]<span class="sc">:.0f}</span><span class="ss">"</span>)</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Sparse, noisy observations of I(t) only ---</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>n_obs   <span class="op">=</span> <span class="dv">30</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>obs_idx <span class="op">=</span> np.sort(np.random.choice(np.arange(<span class="dv">1</span>, n_grid), n_obs, replace<span class="op">=</span><span class="va">False</span>))</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>t_obs   <span class="op">=</span> t_grid[obs_idx]</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>I_obs   <span class="op">=</span> np.clip(I_true[obs_idx] <span class="op">+</span> np.random.normal(<span class="dv">0</span>, <span class="fl">20.0</span>, n_obs), <span class="dv">0</span>, N)</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">5</span>, <span class="dv">3</span>))</span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, S_true, color<span class="op">=</span>C_S, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"S (true)"</span>)</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, I_true, color<span class="op">=</span>C_I, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"I (true)"</span>)</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, R_true, color<span class="op">=</span>C_R, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"R (true)"</span>)</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>ax.scatter(t_obs, I_obs, color<span class="op">=</span>C_OBS, s<span class="op">=</span><span class="dv">30</span>, zorder<span class="op">=</span><span class="dv">5</span>,</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>           label<span class="op">=</span><span class="ss">f"I observed (n=</span><span class="sc">{</span>n_obs<span class="sc">}</span><span class="ss">, σ=20)"</span>)</span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"People"</span>,</span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Ground truth SIR + noisy observations of I(t)"</span>)</span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>ax.legend(loc<span class="op">=</span><span class="st">"upper right"</span>)</span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>R₀ = 3.0
@@ -607,7 +610,7 @@ Final susceptibles: 68</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/cell-2-output-2.png" width="576" height="309" class="figure-img"></p>
+<p><img src="index_files/figure-html/cell-2-output-2.png" width="644" height="383" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -624,7 +627,7 @@ Final susceptibles: 68</code></pre>
 (S(t),\, I(t),\, R(t)) / N \;=\; \text{NN}_\theta(t/T_{\max})
 \]</span></p>
 <p>Two scalars — <span class="math inline">\(\log\beta_s\)</span> and <span class="math inline">\(\log\gamma_s\)</span> — are <strong>learnable parameters</strong> alongside the network weights. Physical rates are recovered as <span class="math inline">\(\beta = \beta_s / T_{\max}\)</span>, <span class="math inline">\(\gamma = \gamma_s / T_{\max}\)</span>.</p>
-<div id="58308261" class="cell" data-execution_count="2">
+<div id="3c984e26" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> PINN(nn.Module):</span>
@@ -684,7 +687,7 @@ Final susceptibles: 68</code></pre>
 \frac{dR}{dt_s} = \gamma_s I
 \]</span></p>
 <p>The <strong>initial-condition loss</strong> <span class="math inline">\(\mathcal{L}_\text{IC}\)</span> anchors the network to the known state at <span class="math inline">\(t = 0\)</span>, preventing drift to arbitrary solutions.</p>
-<div id="006c5c7c" class="cell" data-execution_count="3">
+<div id="87a396b9" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> data_loss(model, t_obs_s, I_obs_s):</span>
@@ -738,7 +741,7 @@ Note
 </section>
 <section id="training" class="level3" data-number="5.3">
 <h3 data-number="5.3" class="anchored" data-anchor-id="training"><span class="header-section-number">5.3</span> Training</h3>
-<div id="360e043d" class="cell" data-execution_count="4">
+<div id="3eb11949" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Tensors — everything scaled to [0, 1]</span></span>
@@ -793,7 +796,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <h2 data-number="6" class="anchored" data-anchor-id="results"><span class="header-section-number">6</span> Results</h2>
 <section id="trajectory-reconstruction" class="level3" data-number="6.1">
 <h3 data-number="6.1" class="anchored" data-anchor-id="trajectory-reconstruction"><span class="header-section-number">6.1</span> Trajectory reconstruction</h3>
-<div id="e3032f3a" class="cell" data-execution_count="5">
+<div id="b610754a" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>t_viz_np <span class="op">=</span> np.linspace(<span class="dv">0</span>, T_max, <span class="dv">300</span>)</span>
@@ -804,7 +807,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>sol_viz <span class="op">=</span> scipy_odeint(sir_rhs, y0, t_viz_np, args<span class="op">=</span>(beta_true, gamma_true, N))</span>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="fl">2.5</span>))</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">5</span>, <span class="dv">3</span>))</span>
 <span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Left: compartment trajectories</span></span>
 <span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">0</span>]</span>
@@ -818,7 +821,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>ax.scatter(t_obs, I_obs, color<span class="op">=</span>C_OBS, s<span class="op">=</span><span class="dv">25</span>, zorder<span class="op">=</span><span class="dv">5</span>, label<span class="op">=</span><span class="st">"I observed"</span>)</span>
 <span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"People"</span>,</span>
 <span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"PINN — compartment reconstruction"</span>)</span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>ax.legend(fontsize<span class="op">=</span><span class="dv">8</span>, ncol<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>ax.legend(ncol<span class="op">=</span><span class="dv">2</span>)</span>
 <span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Right: training loss</span></span>
 <span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">1</span>]</span>
@@ -832,7 +835,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/cell-6-output-1.png" width="623" height="309" class="figure-img"></p>
+<p><img src="index_files/figure-html/cell-6-output-1.png" width="644" height="383" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -842,14 +845,14 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <section id="effect-of-the-physics-loss-weight" class="level3" data-number="6.2">
 <h3 data-number="6.2" class="anchored" data-anchor-id="effect-of-the-physics-loss-weight"><span class="header-section-number">6.2</span> Effect of the physics loss weight</h3>
 <p>The weight <span class="math inline">\(\lambda_\phi\)</span> balances data fidelity against physics enforcement. Below we vary it over several orders of magnitude and examine the effect on the fit and parameter estimates.</p>
-<div id="884a392e" class="cell" data-execution_count="6">
+<div id="2412aab7" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>lam_values  <span class="op">=</span> [<span class="fl">0.0</span>, <span class="fl">0.01</span>, <span class="fl">0.1</span>, <span class="fl">1.0</span>]</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>lam_labels  <span class="op">=</span> [<span class="ss">f"λ=</span><span class="sc">{</span>v<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> v <span class="kw">in</span> lam_values]</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>colors_lam  <span class="op">=</span> [<span class="st">"#E91E63"</span>, <span class="st">"#FF9800"</span>, <span class="st">"#9C27B0"</span>, <span class="st">"#009688"</span>]</span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="fl">2.5</span>))</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">5</span>, <span class="dv">3</span>))</span>
 <span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> lam, label, col <span class="kw">in</span> <span class="bu">zip</span>(lam_values, lam_labels, colors_lam):</span>
 <span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    torch.manual_seed(<span class="dv">42</span>)</span>
@@ -870,21 +873,21 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>        p <span class="op">=</span> m(t_viz_s).numpy() <span class="op">*</span> N</span>
 <span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">0</span>].plot(t_viz_np, p[:, <span class="dv">1</span>], color<span class="op">=</span>col, lw<span class="op">=</span><span class="fl">1.8</span>, label<span class="op">=</span>label)</span>
 <span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">1</span>].scatter([lam <span class="cf">if</span> lam <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="fl">1e-3</span>],</span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>                    [m.beta_phys.item()], color<span class="op">=</span>col, s<span class="op">=</span><span class="dv">80</span>, zorder<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>                    [m.beta_phys.item()], color<span class="op">=</span>col, s<span class="op">=</span><span class="dv">40</span>, zorder<span class="op">=</span><span class="dv">5</span>)</span>
 <span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">1</span>].scatter([lam <span class="cf">if</span> lam <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="fl">1e-3</span>],</span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>                    [m.gamma_phys.item()], color<span class="op">=</span>col, marker<span class="op">=</span><span class="st">"D"</span>, s<span class="op">=</span><span class="dv">80</span>, zorder<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>                    [m.gamma_phys.item()], color<span class="op">=</span>col, marker<span class="op">=</span><span class="st">"D"</span>, s<span class="op">=</span><span class="dv">40</span>, zorder<span class="op">=</span><span class="dv">5</span>)</span>
 <span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].plot(t_viz_np, sol_viz[:, <span class="dv">1</span>], color<span class="op">=</span>C_I, lw<span class="op">=</span><span class="dv">2</span>, ls<span class="op">=</span><span class="st">"--"</span>,</span>
 <span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>             alpha<span class="op">=</span><span class="fl">0.6</span>, label<span class="op">=</span><span class="st">"I true"</span>)</span>
 <span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].scatter(t_obs, I_obs, color<span class="op">=</span>C_OBS, s<span class="op">=</span><span class="dv">20</span>, zorder<span class="op">=</span><span class="dv">5</span>, label<span class="op">=</span><span class="st">"Observed"</span>)</span>
 <span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Day"</span>, ylabel<span class="op">=</span><span class="st">"Infectious I"</span>, title<span class="op">=</span><span class="st">"I(t) fit vs. λ_phys"</span>)</span>
-<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].legend(fontsize<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].legend()</span>
 <span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].axhline(beta_true,  color<span class="op">=</span>C_I, lw<span class="op">=</span><span class="fl">1.5</span>, ls<span class="op">=</span><span class="st">"--"</span>, label<span class="op">=</span><span class="ss">f"β true=</span><span class="sc">{</span>beta_true<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].axhline(gamma_true, color<span class="op">=</span>C_R, lw<span class="op">=</span><span class="fl">1.5</span>, ls<span class="op">=</span><span class="st">"--"</span>, label<span class="op">=</span><span class="ss">f"γ true=</span><span class="sc">{</span>gamma_true<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].<span class="bu">set</span>(xscale<span class="op">=</span><span class="st">"log"</span>, xlabel<span class="op">=</span><span class="st">"λ_phys"</span>, ylabel<span class="op">=</span><span class="st">"Estimated parameter"</span>,</span>
 <span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>            title<span class="op">=</span><span class="st">"Parameter recovery vs. λ_phys"</span>)</span>
-<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].legend(fontsize<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].legend()</span>
 <span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
 <span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -892,7 +895,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/cell-7-output-1.png" width="606" height="306" class="figure-img"></p>
+<p><img src="index_files/figure-html/cell-7-output-1.png" width="643" height="382" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -901,10 +904,10 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 </section>
 <section id="parameter-recovery-during-training" class="level3" data-number="6.3">
 <h3 data-number="6.3" class="anchored" data-anchor-id="parameter-recovery-during-training"><span class="header-section-number">6.3</span> Parameter recovery during training</h3>
-<div id="04825b79" class="cell" data-execution_count="7">
+<div id="0287b125" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="fl">2.5</span>))</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">5</span>, <span class="dv">3</span>))</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, hist, true_val, label, color <span class="kw">in</span> [</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    (axes[<span class="dv">0</span>], beta_hist,  beta_true,  <span class="st">"β (transmission rate)"</span>, C_I),</span>
@@ -928,7 +931,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/cell-8-output-1.png" width="750" height="309" class="figure-img"></p>
+<p><img src="index_files/figure-html/cell-8-output-1.png" width="659" height="383" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1012,20 +1015,17 @@ Parameter recovery summary
 <div id="ref-raissi2019" class="csl-entry" role="listitem">
 <div class="csl-left-margin">2. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: <span>A</span> deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
 </div>
-<div id="ref-linka2020" class="csl-entry" role="listitem">
-<div class="csl-left-margin">3. </div><div class="csl-right-inline">Linka K, Peirlinck M, Sahli Costabal F, Kuhl E. Outbreak dynamics of <span>COVID</span>-19 in <span>Europe</span> and the effect of travel restrictions. Computer Methods in Biomechanics and Biomedical Engineering. 2020;23(11):710–7. doi:<a href="https://doi.org/10.1080/10255842.2020.1759560">10.1080/10255842.2020.1759560</a></div>
+<div id="ref-he2023" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">He M, Tang B, Xiao Y, Tang S. Transmission dynamics informed neural network with application to <span>COVID-19</span> infections. Computers in Biology and Medicine. 2023;165:107431. doi:<a href="https://doi.org/10.1016/j.compbiomed.2023.107431">10.1016/j.compbiomed.2023.107431</a></div>
 </div>
 <div id="ref-kharazmi2021" class="csl-entry" role="listitem">
 <div class="csl-left-margin">4. </div><div class="csl-right-inline">Kharazmi E, Cai M, Zheng X, Zhang Z, Lin G, Karniadakis GE. Identifiability and predictability of integer- and fractional-order epidemiological models using physics-informed neural networks. Nature Computational Science. 2021;1(11):744–53. doi:<a href="https://doi.org/10.1038/s43588-021-00158-0">10.1038/s43588-021-00158-0</a></div>
 </div>
-<div id="ref-he2023" class="csl-entry" role="listitem">
-<div class="csl-left-margin">5. </div><div class="csl-right-inline">He M, Tang B, Xiao Y, Tang S. Transmission dynamics informed neural network with application to <span>COVID-19</span> infections. Computers in Biology and Medicine. 2023;165:107431. doi:<a href="https://doi.org/10.1016/j.compbiomed.2023.107431">10.1016/j.compbiomed.2023.107431</a></div>
-</div>
 <div id="ref-linka2022" class="csl-entry" role="listitem">
-<div class="csl-left-margin">6. </div><div class="csl-right-inline">Linka K, Schäfer A, Meng X, Zou Z, Karniadakis GE, Kuhl E. Bayesian physics informed neural networks for real-world nonlinear dynamical systems. Computer Methods in Applied Mechanics and Engineering. 2022;402:115346. doi:<a href="https://doi.org/10.1016/j.cma.2022.115346">10.1016/j.cma.2022.115346</a></div>
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Linka K, Schäfer A, Meng X, Zou Z, Karniadakis GE, Kuhl E. Bayesian physics informed neural networks for real-world nonlinear dynamical systems. Computer Methods in Applied Mechanics and Engineering. 2022;402:115346. doi:<a href="https://doi.org/10.1016/j.cma.2022.115346">10.1016/j.cma.2022.115346</a></div>
 </div>
 </div>
-<div id="658274a3" class="cell" data-execution_count="8">
+<div id="c8b6e9a8" class="cell" data-execution_count="8">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu
