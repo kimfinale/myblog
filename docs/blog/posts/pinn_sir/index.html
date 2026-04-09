@@ -453,27 +453,26 @@ window.Quarto = {
 
 <section id="from-neural-odes-to-pinns-a-brief-history" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="from-neural-odes-to-pinns-a-brief-history"><span class="header-section-number">1</span> From neural ODEs to PINNs: a brief history</h2>
-<p>The idea of using neural networks to solve differential equations is older than deep learning itself. Lagaris et al. <span class="citation" data-cites="lagaris1998">(<a href="#ref-lagaris1998" role="doc-biblioref">1</a>)</span> showed in 1998 that a simple feedforward network, trained to minimise the residual of an ODE or PDE, could approximate analytical solutions across a spatial or temporal domain. The key insight was that automatic differentiation makes the ODE residual a differentiable loss term, enabling gradient-based training without a numerical solver.</p>
-<p>Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">2</a>)</span> named and systematised this idea as <strong>Physics-Informed Neural Networks</strong>: embedding known governing equations — ODEs, PDEs, integral equations, or any other physical constraints — directly into the loss function. Their framework covered:</p>
+<p>The idea of using neural networks to solve differential equations predates deep learning. Lagaris et al. <span class="citation" data-cites="lagaris1998">(<a href="#ref-lagaris1998" role="doc-biblioref">1</a>)</span> showed in 1998 that a simple feedforward network, trained to minimise the residual of an ODE or PDE, can approximate solutions across a spatial or temporal domain. The key insight: automatic differentiation makes the ODE residual a differentiable loss term, enabling gradient-based training with no numerical solver.</p>
+<p>Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">2</a>)</span> formalised this as <strong>Physics-Informed Neural Networks</strong>: embedding known governing equations — ODEs, PDEs, integral equations, or any physical constraint — directly into the loss function. Their framework covered:</p>
 <ul>
-<li><strong>Forward problems</strong> — given the parameters and initial conditions, solve for the solution trajectory; the PINN provides a mesh-free, differentiable approximation to the ODE/PDE solution.</li>
-<li><strong>Inverse problems</strong> — given noisy observations of the solution, infer the unknown parameters; <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span> are simply treated as additional learnable parameters of the model alongside the network weights.</li>
+<li><strong>Forward problems</strong> — given parameters and initial conditions, solve for the solution trajectory; the PINN provides a mesh-free, differentiable approximation.</li>
+<li><strong>Inverse problems</strong> — given noisy observations, infer unknown parameters; <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span> are treated as additional learnable parameters alongside the network weights.</li>
 </ul>
-<p>The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stokes, Burgers equation) and attracted follow-on interest in physics, engineering, and biology.</p>
+<p>The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stokes, Burgers equation).</p>
 </section>
 <section id="pinns-in-epidemiology-and-infectious-diseases" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="pinns-in-epidemiology-and-infectious-diseases"><span class="header-section-number">2</span> PINNs in epidemiology and infectious diseases</h2>
-<p>In a COVID-19 application, Linka et al. <span class="citation" data-cites="linka2020">(<a href="#ref-linka2020" role="doc-biblioref">3</a>)</span> embedded a SEIR model inside a PINN to estimate time-varying transmission rates from reported case counts across European countries. The physics constraint stabilised parameter recovery even when surveillance data were noisy and incomplete.</p>
-<p>Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span> demonstrated the approach more rigorously on integer- and fractional-order compartmental models, showing that PINNs can reliably identify structural and parametric features of epidemic models from sparse time-series. Their framework, developed within the Karniadakis group that produced the original PINN paper, introduced careful treatment of identifiability — a critical concern when inferring multiple epidemic parameters simultaneously.</p>
-<p>A recurring theme across these studies is that the <strong>physics residual acts as a regulariser</strong>: by penalising solutions that violate the physics equations, the network is prevented from overfitting the noisy observations, and the inferred parameters reflect the underlying epidemic dynamics rather than noise artefacts.</p>
+<p>Linka et al. <span class="citation" data-cites="linka2020">(<a href="#ref-linka2020" role="doc-biblioref">3</a>)</span> embedded a SEIR model inside a PINN to estimate time-varying transmission rates from COVID-19 case counts across European countries. The physics constraint stabilised parameter recovery even when surveillance data were noisy and incomplete.</p>
+<p>Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span> showed that PINNs can reliably identify structural and parametric features of epidemic models from sparse time-series, including cases where multiple parameters are inferred simultaneously.</p>
+<p>A recurring theme is that the <strong>physics residual acts as a regulariser</strong>: penalising ODE violations prevents the network from overfitting noisy observations, so inferred parameters reflect the underlying epidemic dynamics rather than noise.</p>
 <p>More recent work has extended PINNs to:</p>
 <ul>
 <li><strong>Multi-wave dynamics</strong> — multi-phase PINNs that switch physics regimes across intervention periods, capturing policy-driven changes in <span class="math inline">\(\beta\)</span> <span class="citation" data-cites="he2023">(<a href="#ref-he2023" role="doc-biblioref">5</a>)</span>.</li>
 <li><strong>Fractional-order models</strong> — incorporating memory effects through fractional derivatives to better match empirical epidemic decay curves <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span>.</li>
 <li><strong>Uncertainty quantification</strong> — Bayesian PINN extensions that propagate uncertainty in parameters through to forecast intervals <span class="citation" data-cites="linka2022">(<a href="#ref-linka2022" role="doc-biblioref">6</a>)</span>.</li>
-<li><strong>Wastewater surveillance</strong> — fitting PINNs to environmental sentinel data is a natural next step, though published applications remain limited.</li>
 </ul>
-<p>In the following, I use a simple SIR model to demonstrate how PINNs work.</p>
+<p>Below, I use the SIR model to demonstrate how PINNs work in practice.</p>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -536,7 +535,7 @@ Tip
 </section>
 <section id="simulate-ground-truth-and-noisy-observations" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="simulate-ground-truth-and-noisy-observations"><span class="header-section-number">4</span> Simulate ground truth and noisy observations</h2>
-<div id="c9c71775" class="cell" data-execution_count="1">
+<div id="3dc768dd" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -588,7 +587,7 @@ Tip
 <span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>t_obs   <span class="op">=</span> t_grid[obs_idx]</span>
 <span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>I_obs   <span class="op">=</span> np.clip(I_true[obs_idx] <span class="op">+</span> np.random.normal(<span class="dv">0</span>, <span class="fl">20.0</span>, n_obs), <span class="dv">0</span>, N)</span>
 <span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="dv">4</span>))</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="fl">2.5</span>))</span>
 <span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, S_true, color<span class="op">=</span>C_S, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"S (true)"</span>)</span>
 <span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, I_true, color<span class="op">=</span>C_I, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"I (true)"</span>)</span>
 <span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>ax.plot(t_grid, R_true, color<span class="op">=</span>C_R, lw<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"R (true)"</span>)</span>
@@ -608,7 +607,7 @@ Final susceptibles: 68</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/cell-2-output-2.png" width="894" height="504" class="figure-img"></p>
+<p><img src="index_files/figure-html/cell-2-output-2.png" width="576" height="309" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -624,8 +623,8 @@ Final susceptibles: 68</code></pre>
 <p><span class="math display">\[
 (S(t),\, I(t),\, R(t)) / N \;=\; \text{NN}_\theta(t/T_{\max})
 \]</span></p>
-<p>Two scalar scalars — <span class="math inline">\(\log\beta_s\)</span> and <span class="math inline">\(\log\gamma_s\)</span> (log of the scaled-time parameters) — are additional <strong>learnable parameters</strong> of the model (i.e., in addition to the network weights and biases). Physical rates are recovered as <span class="math inline">\(\beta = \beta_s / T_{\max}\)</span>, <span class="math inline">\(\gamma = \gamma_s / T_{\max}\)</span>.</p>
-<div id="65e186a4" class="cell" data-execution_count="2">
+<p>Two scalars — <span class="math inline">\(\log\beta_s\)</span> and <span class="math inline">\(\log\gamma_s\)</span> — are <strong>learnable parameters</strong> alongside the network weights. Physical rates are recovered as <span class="math inline">\(\beta = \beta_s / T_{\max}\)</span>, <span class="math inline">\(\gamma = \gamma_s / T_{\max}\)</span>.</p>
+<div id="58308261" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> PINN(nn.Module):</span>
@@ -677,15 +676,15 @@ Final susceptibles: 68</code></pre>
             + \lambda_\phi \underbrace{\mathcal{L}_\text{physics}}_{\text{SIR residuals via autograd}}
             + \lambda_0 \underbrace{\mathcal{L}_\text{IC}}_{\text{initial conditions}}
 \]</span></p>
-<p>The <strong>data loss</strong> <span class="math inline">\(\mathcal{L}_\text{data}\)</span> is the MSE between predicted <span class="math inline">\(I(t)\)</span> at the 30 observation times and the noisy counts — the only observed signal.</p>
-<p>The <strong>physics loss</strong> <span class="math inline">\(\mathcal{L}_\text{physics}\)</span> uses automatic differentiation to evaluate the SIR residuals at 200 collocation points spread across <span class="math inline">\([0, T_{\max}]\)</span>. Working in scaled time <span class="math inline">\(t_s = t/T_{\max}\)</span>, the SIR ODEs become:</p>
+<p>The <strong>data loss</strong> <span class="math inline">\(\mathcal{L}_\text{data}\)</span> is the MSE between predicted <span class="math inline">\(I(t)\)</span> and the 30 noisy observations — the only signal available.</p>
+<p>The <strong>physics loss</strong> <span class="math inline">\(\mathcal{L}_\text{physics}\)</span> evaluates the SIR residuals at 200 collocation points via automatic differentiation. In scaled time <span class="math inline">\(t_s = t/T_{\max}\)</span>, the ODEs become:</p>
 <p><span class="math display">\[
 \frac{dS}{dt_s} = -\beta_s S I, \qquad
 \frac{dI}{dt_s} = \beta_s S I - \gamma_s I, \qquad
 \frac{dR}{dt_s} = \gamma_s I
 \]</span></p>
-<p>The <strong>initial-condition loss</strong> <span class="math inline">\(\mathcal{L}_\text{IC}\)</span> pins the network to the known state at <span class="math inline">\(t = 0\)</span>, preventing the network from drifting to arbitrary solutions.</p>
-<div id="ab15d179" class="cell" data-execution_count="3">
+<p>The <strong>initial-condition loss</strong> <span class="math inline">\(\mathcal{L}_\text{IC}\)</span> anchors the network to the known state at <span class="math inline">\(t = 0\)</span>, preventing drift to arbitrary solutions.</p>
+<div id="006c5c7c" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> data_loss(model, t_obs_s, I_obs_s):</span>
@@ -733,13 +732,13 @@ Note
 </div>
 <div class="callout-body-container callout-body">
 <p><strong>Why collocation points?</strong></p>
-<p>The physics loss is evaluated on a <em>dense</em> grid (200 points) that is separate from the sparse observation times (30 points). These <strong>collocation points</strong> are chosen to cover the full integration window, so the SIR residual is penalised everywhere — not just where data exist. This is the mechanism by which physics knowledge extrapolates the data signal.</p>
+<p>The physics loss is evaluated on a dense grid of 200 <strong>collocation points</strong> spanning <span class="math inline">\([0, T_{\max}]\)</span>, separate from the 30 observation times. This ensures the SIR residual is penalised everywhere — not just where data exist — allowing physics knowledge to constrain the solution between and beyond observations.</p>
 </div>
 </div>
 </section>
 <section id="training" class="level3" data-number="5.3">
 <h3 data-number="5.3" class="anchored" data-anchor-id="training"><span class="header-section-number">5.3</span> Training</h3>
-<div id="4ceb9824" class="cell" data-execution_count="4">
+<div id="360e043d" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Tensors — everything scaled to [0, 1]</span></span>
@@ -794,7 +793,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <h2 data-number="6" class="anchored" data-anchor-id="results"><span class="header-section-number">6</span> Results</h2>
 <section id="trajectory-reconstruction" class="level3" data-number="6.1">
 <h3 data-number="6.1" class="anchored" data-anchor-id="trajectory-reconstruction"><span class="header-section-number">6.1</span> Trajectory reconstruction</h3>
-<div id="82e152f3" class="cell" data-execution_count="5">
+<div id="e3032f3a" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>t_viz_np <span class="op">=</span> np.linspace(<span class="dv">0</span>, T_max, <span class="dv">300</span>)</span>
@@ -805,7 +804,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>sol_viz <span class="op">=</span> scipy_odeint(sir_rhs, y0, t_viz_np, args<span class="op">=</span>(beta_true, gamma_true, N))</span>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">3.5</span>))</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="fl">2.5</span>))</span>
 <span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Left: compartment trajectories</span></span>
 <span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">0</span>]</span>
@@ -833,24 +832,24 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/cell-6-output-1.png" width="893" height="439" class="figure-img"></p>
+<p><img src="index_files/figure-html/cell-6-output-1.png" width="623" height="309" class="figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>The PINN fits the observed <span class="math inline">\(I(t)\)</span> points and simultaneouly reconstructs the latent <span class="math inline">\(S(t)\)</span> and <span class="math inline">\(R(t)\)</span> trajectories. The physics loss ensures the predicted compartments satisfy the SIR equations everywhere, not only at the observation times.</p>
+<p>The PINN fits the observed <span class="math inline">\(I(t)\)</span> points and simultaneously reconstructs the latent <span class="math inline">\(S(t)\)</span> and <span class="math inline">\(R(t)\)</span> trajectories. The physics loss ensures the SIR equations are satisfied everywhere, not just at the observation times.</p>
 </section>
 <section id="effect-of-the-physics-loss-weight" class="level3" data-number="6.2">
 <h3 data-number="6.2" class="anchored" data-anchor-id="effect-of-the-physics-loss-weight"><span class="header-section-number">6.2</span> Effect of the physics loss weight</h3>
-<p>The loss weight <span class="math inline">\(\lambda_\phi\)</span> trades off data fidelity and physics constraint strength. Below we visualise how varying <span class="math inline">\(\lambda_\phi\)</span> over several orders of magnitude affects the fit and the parameter estimates.</p>
-<div id="e9dbe20a" class="cell" data-execution_count="6">
+<p>The weight <span class="math inline">\(\lambda_\phi\)</span> balances data fidelity against physics enforcement. Below we vary it over several orders of magnitude and examine the effect on the fit and parameter estimates.</p>
+<div id="884a392e" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>lam_values  <span class="op">=</span> [<span class="fl">0.0</span>, <span class="fl">0.01</span>, <span class="fl">0.1</span>, <span class="fl">1.0</span>]</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>lam_labels  <span class="op">=</span> [<span class="ss">f"λ=</span><span class="sc">{</span>v<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> v <span class="kw">in</span> lam_values]</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>colors_lam  <span class="op">=</span> [<span class="st">"#E91E63"</span>, <span class="st">"#FF9800"</span>, <span class="st">"#9C27B0"</span>, <span class="st">"#009688"</span>]</span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">3.5</span>))</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="fl">2.5</span>))</span>
 <span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> lam, label, col <span class="kw">in</span> <span class="bu">zip</span>(lam_values, lam_labels, colors_lam):</span>
 <span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    torch.manual_seed(<span class="dv">42</span>)</span>
@@ -893,19 +892,19 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/cell-7-output-1.png" width="904" height="436" class="figure-img"></p>
+<p><img src="index_files/figure-html/cell-7-output-1.png" width="606" height="306" class="figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>With <span class="math inline">\(\lambda_\phi = 0\)</span> the network is a pure data-fitting exercise and parameter recovery collapses. Increasing <span class="math inline">\(\lambda_\phi\)</span> pulls the estimates toward the true values; too large a weight can sacrifice data fit. In practice, <span class="math inline">\(\lambda_\phi \approx 0.1\)</span> strikes a reasonable balance for this example.</p>
+<p>At <span class="math inline">\(\lambda_\phi = 0\)</span> the network is a pure data-fitter and parameter recovery collapses. Increasing <span class="math inline">\(\lambda_\phi\)</span> pulls estimates toward the true values; too large a weight sacrifices data fit. Here, <span class="math inline">\(\lambda_\phi \approx 0.1\)</span> gives a reasonable balance.</p>
 </section>
 <section id="parameter-recovery-during-training" class="level3" data-number="6.3">
 <h3 data-number="6.3" class="anchored" data-anchor-id="parameter-recovery-during-training"><span class="header-section-number">6.3</span> Parameter recovery during training</h3>
-<div id="cd216597" class="cell" data-execution_count="7">
+<div id="04825b79" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">3.5</span>))</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="fl">2.5</span>))</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, hist, true_val, label, color <span class="kw">in</span> [</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    (axes[<span class="dv">0</span>], beta_hist,  beta_true,  <span class="st">"β (transmission rate)"</span>, C_I),</span>
@@ -929,7 +928,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/cell-8-output-1.png" width="947" height="439" class="figure-img"></p>
+<p><img src="index_files/figure-html/cell-8-output-1.png" width="750" height="309" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -988,55 +987,19 @@ Parameter recovery summary
 </tr>
 </tbody>
 </table>
-<div class="callout callout-style-default callout-important callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Important
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p><strong>The epidemiological payoff</strong></p>
-<p>In real outbreak settings, surveillance provides only partial, delayed, and noisy signal — exactly the scenario simulated here. The PINN framework lets you:</p>
-<ol type="1">
-<li><strong>Estimate</strong> <span class="math inline">\(R_0\)</span> from early epidemic data without knowing the final attack size.</li>
-<li><strong>Reconstruct</strong> the full population trajectory (<span class="math inline">\(S\)</span>, <span class="math inline">\(I\)</span>, <span class="math inline">\(R\)</span>) from reported cases alone.</li>
-<li><strong>Propagate uncertainty</strong> by treating <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span> as random variables in a Bayesian PINN extension.</li>
-</ol>
-<p>This is why hybrid mechanistic-AI approaches are a frontier in infectious disease forecasting.</p>
-</div>
-</div>
 <hr>
 </section>
 <section id="extensions-worth-exploring" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="extensions-worth-exploring"><span class="header-section-number">8</span> Extensions worth exploring</h2>
-<p><strong>More realistic compartmental structures</strong></p>
+<p><strong>Uncertainty quantification</strong></p>
 <ul>
-<li>Replace SIR with SEIR (add an Exposed compartment) or SEIRS (waning immunity).</li>
-<li>Add time-varying <span class="math inline">\(\beta(t)\)</span> — parameterised as a second small network — to capture policy interventions or behavioural changes.</li>
-<li>Couple a within-host viral kinetics model to the population PINN.</li>
-</ul>
-<p><strong>Better uncertainty quantification</strong></p>
-<ul>
-<li><strong>Bayesian PINN</strong>: treat <span class="math inline">\(\beta\)</span>, <span class="math inline">\(\gamma\)</span> as prior distributions and use MCMC (e.g.&nbsp;NUTS in NumPyro) or variational inference to obtain posterior credible intervals.</li>
-<li><strong>Ensemble PINNs</strong>: train multiple networks with different random initialisations and use spread as a proxy for epistemic uncertainty.</li>
+<li><strong>Bayesian PINN</strong>: place priors on <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span> and use MCMC (e.g.&nbsp;NUTS in NumPyro) or variational inference to obtain posterior credible intervals.</li>
+<li><strong>Ensemble PINNs</strong>: train multiple networks from different random initialisations and use the spread as a proxy for epistemic uncertainty.</li>
 </ul>
 <p><strong>Identifiability and multi-wave dynamics</strong></p>
 <ul>
-<li>Not all parameters in an epidemic model are jointly identifiable from <span class="math inline">\(I(t)\)</span> alone. Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span> provide a PINN-based identifiability analysis framework that is directly applicable to SIR extensions.</li>
-<li>Multi-phase PINNs split the time axis at known intervention dates and train separate physics terms for each phase — useful for fitting multi-wave outbreaks.</li>
-</ul>
-<p><strong>Real data</strong></p>
-<ul>
-<li>Fit to weekly influenza ILI counts (CDC FluView API).</li>
-<li>Fit to wastewater SARS-CoV-2 concentration data (CDC NWSS), where an additional observation model links <span class="math inline">\(I(t)\)</span> to RNA copies per litre.</li>
-</ul>
-<p><strong>Production-grade</strong></p>
-<ul>
-<li>Replace PyTorch with <code>JAX</code> + <code>Optax</code> for cleaner functional style and XLA acceleration.</li>
-<li>Use the <code>deepxde</code> library, which wraps PINN training in a high-level API and supports arbitrary ODE/PDE geometries.</li>
+<li>Not all parameters are jointly identifiable from <span class="math inline">\(I(t)\)</span> alone. Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(<a href="#ref-kharazmi2021" role="doc-biblioref">4</a>)</span> provide a PINN-based identifiability analysis framework applicable to SIR extensions.</li>
+<li>Multi-phase PINNs split the time axis at known intervention dates and fit separate physics terms per phase, making them well-suited to multi-wave outbreaks.</li>
 </ul>
 <hr>
 </section>
@@ -1062,7 +1025,7 @@ Important
 <div class="csl-left-margin">6. </div><div class="csl-right-inline">Linka K, Schäfer A, Meng X, Zou Z, Karniadakis GE, Kuhl E. Bayesian physics informed neural networks for real-world nonlinear dynamical systems. Computer Methods in Applied Mechanics and Engineering. 2022;402:115346. doi:<a href="https://doi.org/10.1016/j.cma.2022.115346">10.1016/j.cma.2022.115346</a></div>
 </div>
 </div>
-<div id="352f0c70" class="cell" data-execution_count="8">
+<div id="658274a3" class="cell" data-execution_count="8">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu

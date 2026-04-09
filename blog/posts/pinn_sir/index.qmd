@@ -24,46 +24,22 @@ editor_options:
 
 ## From neural ODEs to PINNs: a brief history
 
-The idea of using neural networks to solve differential equations is older than
-deep learning itself. Lagaris et al. [@lagaris1998] showed in 1998
-that a simple feedforward network, trained to minimise the residual of an ODE or PDE,
-could approximate analytical solutions across a spatial or temporal domain. The key
-insight was that automatic differentiation makes the ODE residual a differentiable
-loss term, enabling gradient-based training without a numerical solver. 
+The idea of using neural networks to solve differential equations predates deep learning. Lagaris et al. [@lagaris1998] showed in 1998 that a simple feedforward network, trained to minimise the residual of an ODE or PDE, can approximate solutions across a spatial or temporal domain. The key insight: automatic differentiation makes the ODE residual a differentiable loss term, enabling gradient-based training with no numerical solver.
 
-Raissi et al. [@raissi2019] named
-and systematised this idea as **Physics-Informed Neural Networks**: embedding known governing equations — ODEs, PDEs, integral equations, or any other physical constraints — directly into the loss function. Their
-framework covered:
+Raissi et al. [@raissi2019] formalised this as **Physics-Informed Neural Networks**: embedding known governing equations — ODEs, PDEs, integral equations, or any physical constraint — directly into the loss function. Their framework covered:
 
-- **Forward problems** — given the parameters and initial conditions, solve for
-  the solution trajectory; the PINN provides a mesh-free, differentiable
-  approximation to the ODE/PDE solution.
-- **Inverse problems** — given noisy observations of the solution, infer the
-  unknown parameters; $\beta$ and $\gamma$ are simply treated as additional learnable
-  parameters of the model alongside the network weights.
+- **Forward problems** — given parameters and initial conditions, solve for the solution trajectory; the PINN provides a mesh-free, differentiable approximation.
+- **Inverse problems** — given noisy observations, infer unknown parameters; $\beta$ and $\gamma$ are treated as additional learnable parameters alongside the network weights.
 
-The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stokes,
-Burgers equation) and attracted follow-on interest in physics, engineering,
-and biology.
+The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stokes, Burgers equation).
 
 ## PINNs in epidemiology and infectious diseases
 
-In a COVID-19 application, Linka et al. [@linka2020] embedded a SEIR model inside a
-PINN to estimate time-varying transmission rates from reported case counts across
-European countries. The physics constraint stabilised parameter recovery even when
-surveillance data were noisy and incomplete.
+Linka et al. [@linka2020] embedded a SEIR model inside a PINN to estimate time-varying transmission rates from COVID-19 case counts across European countries. The physics constraint stabilised parameter recovery even when surveillance data were noisy and incomplete.
 
-Kharazmi et al. [@kharazmi2021] demonstrated the approach more rigorously on integer-
-and fractional-order compartmental models, showing that PINNs can reliably identify
-structural and parametric features of epidemic models from sparse time-series.
-Their framework, developed within the Karniadakis group that produced the original
-PINN paper, introduced careful treatment of identifiability — a critical concern
-when inferring multiple epidemic parameters simultaneously.
+Kharazmi et al. [@kharazmi2021] showed that PINNs can reliably identify structural and parametric features of epidemic models from sparse time-series, including cases where multiple parameters are inferred simultaneously.
 
-A recurring theme across these studies is that the **physics residual acts as a
-regulariser**: by penalising solutions that violate the physics equations, the network is prevented
-from overfitting the noisy observations, and the inferred parameters reflect the
-underlying epidemic dynamics rather than noise artefacts.
+A recurring theme is that the **physics residual acts as a regulariser**: penalising ODE violations prevents the network from overfitting noisy observations, so inferred parameters reflect the underlying epidemic dynamics rather than noise.
 
 More recent work has extended PINNs to:
 
@@ -73,11 +49,9 @@ More recent work has extended PINNs to:
   derivatives to better match empirical epidemic decay curves [@kharazmi2021].
 - **Uncertainty quantification** — Bayesian PINN extensions that propagate
   uncertainty in parameters through to forecast intervals [@linka2022].
-- **Wastewater surveillance** — fitting PINNs to environmental sentinel data
-  is a natural next step, though published applications remain limited.
 
 
-In the following, I use a simple SIR model to demonstrate how PINNs work.
+Below, I use the SIR model to demonstrate how PINNs work in practice.
 
 ::: {.callout-tip}
 **What you need**
@@ -170,7 +144,7 @@ obs_idx = np.sort(np.random.choice(np.arange(1, n_grid), n_obs, replace=False))
 t_obs   = t_grid[obs_idx]
 I_obs   = np.clip(I_true[obs_idx] + np.random.normal(0, 20.0, n_obs), 0, N)
 
-fig, ax = plt.subplots(figsize=(7, 4))
+fig, ax = plt.subplots(figsize=(4, 2.5))
 ax.plot(t_grid, S_true, color=C_S, lw=2, label="S (true)")
 ax.plot(t_grid, I_true, color=C_I, lw=2, label="I (true)")
 ax.plot(t_grid, R_true, color=C_R, lw=2, label="R (true)")
@@ -199,9 +173,7 @@ $$
 (S(t),\, I(t),\, R(t)) / N \;=\; \text{NN}_\theta(t/T_{\max})
 $$
 
-Two scalar scalars — $\log\beta_s$ and $\log\gamma_s$ (log of the scaled-time
-parameters) — are additional **learnable parameters** of the model (i.e., in addition to the network weights and biases). Physical rates
-are recovered as $\beta = \beta_s / T_{\max}$, $\gamma = \gamma_s / T_{\max}$.
+Two scalars — $\log\beta_s$ and $\log\gamma_s$ — are **learnable parameters** alongside the network weights. Physical rates are recovered as $\beta = \beta_s / T_{\max}$, $\gamma = \gamma_s / T_{\max}$.
 
 ```{python}
 class PINN(nn.Module):
@@ -254,12 +226,9 @@ $$
             + \lambda_0 \underbrace{\mathcal{L}_\text{IC}}_{\text{initial conditions}}
 $$
 
-The **data loss** $\mathcal{L}_\text{data}$ is the MSE between predicted $I(t)$ at the
-30 observation times and the noisy counts — the only observed signal.
+The **data loss** $\mathcal{L}_\text{data}$ is the MSE between predicted $I(t)$ and the 30 noisy observations — the only signal available.
 
-The **physics loss** $\mathcal{L}_\text{physics}$ uses automatic differentiation to
-evaluate the SIR residuals at 200 collocation points spread across $[0, T_{\max}]$.
-Working in scaled time $t_s = t/T_{\max}$, the SIR ODEs become:
+The **physics loss** $\mathcal{L}_\text{physics}$ evaluates the SIR residuals at 200 collocation points via automatic differentiation. In scaled time $t_s = t/T_{\max}$, the ODEs become:
 
 $$
 \frac{dS}{dt_s} = -\beta_s S I, \qquad
@@ -267,8 +236,7 @@ $$
 \frac{dR}{dt_s} = \gamma_s I
 $$
 
-The **initial-condition loss** $\mathcal{L}_\text{IC}$ pins the network to the
-known state at $t = 0$, preventing the network from drifting to arbitrary solutions.
+The **initial-condition loss** $\mathcal{L}_\text{IC}$ anchors the network to the known state at $t = 0$, preventing drift to arbitrary solutions.
 
 ```{python}
 def data_loss(model, t_obs_s, I_obs_s):
@@ -308,11 +276,7 @@ def ic_loss(model, y0_s):
 ::: {.callout-note}
 **Why collocation points?**
 
-The physics loss is evaluated on a *dense* grid (200 points) that is separate from
-the sparse observation times (30 points). These **collocation points** are chosen to
-cover the full integration window, so the SIR residual is penalised everywhere —
-not just where data exist. This is the mechanism by which physics knowledge
-extrapolates the data signal.
+The physics loss is evaluated on a dense grid of 200 **collocation points** spanning $[0, T_{\max}]$, separate from the 30 observation times. This ensures the SIR residual is penalised everywhere — not just where data exist — allowing physics knowledge to constrain the solution between and beyond observations.
 :::
 
 ### Training
@@ -374,7 +338,7 @@ with torch.no_grad():
 
 sol_viz = scipy_odeint(sir_rhs, y0, t_viz_np, args=(beta_true, gamma_true, N))
 
-fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
+fig, axes = plt.subplots(1, 2, figsize=(4, 2.5))
 
 # Left: compartment trajectories
 ax = axes[0]
@@ -400,23 +364,18 @@ plt.tight_layout()
 plt.show()
 ```
 
-The PINN fits the observed $I(t)$ points and simultaneouly reconstructs the latent
-$S(t)$ and $R(t)$ trajectories. The physics
-loss ensures the predicted compartments satisfy the SIR equations everywhere, not
-only at the observation times.
+The PINN fits the observed $I(t)$ points and simultaneously reconstructs the latent $S(t)$ and $R(t)$ trajectories. The physics loss ensures the SIR equations are satisfied everywhere, not just at the observation times.
 
 ### Effect of the physics loss weight
 
-The loss weight $\lambda_\phi$ trades off data fidelity and physics constraint
-strength. Below we visualise how varying $\lambda_\phi$ over several orders of
-magnitude affects the fit and the parameter estimates.
+The weight $\lambda_\phi$ balances data fidelity against physics enforcement. Below we vary it over several orders of magnitude and examine the effect on the fit and parameter estimates.
 
 ```{python}
 lam_values  = [0.0, 0.01, 0.1, 1.0]
 lam_labels  = [f"λ={v}" for v in lam_values]
 colors_lam  = ["#E91E63", "#FF9800", "#9C27B0", "#009688"]
 
-fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
+fig, axes = plt.subplots(1, 2, figsize=(4, 2.5))
 
 for lam, label, col in zip(lam_values, lam_labels, colors_lam):
     torch.manual_seed(42)
@@ -457,15 +416,12 @@ plt.tight_layout()
 plt.show()
 ```
 
-With $\lambda_\phi = 0$ the network is a pure data-fitting exercise and parameter
-recovery collapses. Increasing $\lambda_\phi$ pulls the estimates toward the true
-values; too large a weight can sacrifice data fit. In practice, $\lambda_\phi \approx 0.1$
-strikes a reasonable balance for this example.
+At $\lambda_\phi = 0$ the network is a pure data-fitter and parameter recovery collapses. Increasing $\lambda_\phi$ pulls estimates toward the true values; too large a weight sacrifices data fit. Here, $\lambda_\phi \approx 0.1$ gives a reasonable balance.
 
 ### Parameter recovery during training
 
 ```{python}
-fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
+fig, axes = plt.subplots(1, 2, figsize=(4, 2.5))
 
 for ax, hist, true_val, label, color in [
     (axes[0], beta_hist,  beta_true,  "β (transmission rate)", C_I),
@@ -501,60 +457,19 @@ print(f"  R₀ — true: {beta_true/gamma_true:.2f}  |  estimated: {pinn.R0_est.
 | Requires an ODE solver during training | ✗ (only autograd needed) |
 | Black-box right-hand side | ✗ (mechanistic residuals are explicit) |
 
-::: {.callout-important}
-**The epidemiological payoff**
-
-In real outbreak settings, surveillance provides only partial, delayed, and noisy
-signal — exactly the scenario simulated here. The PINN framework lets you:
-
-1. **Estimate** $R_0$ from early epidemic data without knowing the final attack size.
-2. **Reconstruct** the full population trajectory ($S$, $I$, $R$) from reported cases alone.
-3. **Propagate uncertainty** by treating $\beta$ and $\gamma$ as random variables in a
-   Bayesian PINN extension.
-
-This is why hybrid mechanistic-AI approaches are a frontier in infectious disease
-forecasting.
-:::
-
 ---
 
 ## Extensions worth exploring
 
-**More realistic compartmental structures**
+**Uncertainty quantification**
 
-- Replace SIR with SEIR (add an Exposed compartment) or SEIRS (waning immunity).
-- Add time-varying $\beta(t)$ — parameterised as a second small network — to capture
-  policy interventions or behavioural changes.
-- Couple a within-host viral kinetics model to the population PINN.
-
-**Better uncertainty quantification**
-
-- **Bayesian PINN**: treat $\beta$, $\gamma$ as prior distributions and use MCMC
-  (e.g. NUTS in NumPyro) or variational inference to obtain posterior credible
-  intervals.
-- **Ensemble PINNs**: train multiple networks with different random initialisations
-  and use spread as a proxy for epistemic uncertainty.
+- **Bayesian PINN**: place priors on $\beta$ and $\gamma$ and use MCMC (e.g. NUTS in NumPyro) or variational inference to obtain posterior credible intervals.
+- **Ensemble PINNs**: train multiple networks from different random initialisations and use the spread as a proxy for epistemic uncertainty.
 
 **Identifiability and multi-wave dynamics**
 
-- Not all parameters in an epidemic model are jointly identifiable from $I(t)$
-  alone. Kharazmi et al. [@kharazmi2021] provide a PINN-based identifiability
-  analysis framework that is directly applicable to SIR extensions.
-- Multi-phase PINNs split the time axis at known intervention dates and train
-  separate physics terms for each phase — useful for fitting multi-wave outbreaks.
-
-**Real data**
-
-- Fit to weekly influenza ILI counts (CDC FluView API).
-- Fit to wastewater SARS-CoV-2 concentration data (CDC NWSS), where an additional
-  observation model links $I(t)$ to RNA copies per litre.
-
-**Production-grade**
-
-- Replace PyTorch with `JAX` + `Optax` for cleaner functional style and XLA
-  acceleration.
-- Use the `deepxde` library, which wraps PINN training in a high-level API and
-  supports arbitrary ODE/PDE geometries.
+- Not all parameters are jointly identifiable from $I(t)$ alone. Kharazmi et al. [@kharazmi2021] provide a PINN-based identifiability analysis framework applicable to SIR extensions.
+- Multi-phase PINNs split the time axis at known intervention dates and fit separate physics terms per phase, making them well-suited to multi-wave outbreaks.
 
 ---
 
