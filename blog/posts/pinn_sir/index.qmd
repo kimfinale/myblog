@@ -11,13 +11,18 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
+    code-fold: true
 execute:
   echo: true
   warning: false
   message: false
+  fig-width: 7
+  fig-height: 4
+editor_options: 
+  chunk_output_type: console
 ---
 
-### From neural ODEs to PINNs: a brief history
+## From neural ODEs to PINNs: a brief history
 
 The idea of using neural networks to solve differential equations is older than
 deep learning itself. Lagaris et al. [@lagaris1998] showed in 1998
@@ -41,7 +46,7 @@ The paper demonstrated PINNs on canonical fluid-dynamics problems (Navier–Stok
 Burgers equation) and attracted follow-on interest in physics, engineering,
 and biology.
 
-### PINNs in epidemiology and infectious diseases
+## PINNs in epidemiology and infectious diseases
 
 In a COVID-19 application, Linka et al. [@linka2020] embedded a SEIR model inside a
 PINN to estimate time-varying transmission rates from reported case counts across
@@ -86,7 +91,7 @@ Code tested with: `torch 2.11`, `scipy 1.17`, `Python 3.11`.
 
 ---
 
-## Background: the SIR model
+## The SIR model
 
 The SIR model partitions a closed population of size $N$ into:
 
@@ -165,7 +170,7 @@ obs_idx = np.sort(np.random.choice(np.arange(1, n_grid), n_obs, replace=False))
 t_obs   = t_grid[obs_idx]
 I_obs   = np.clip(I_true[obs_idx] + np.random.normal(0, 20.0, n_obs), 0, N)
 
-fig, ax = plt.subplots(figsize=(8, 4))
+fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(t_grid, S_true, color=C_S, lw=2, label="S (true)")
 ax.plot(t_grid, I_true, color=C_I, lw=2, label="I (true)")
 ax.plot(t_grid, R_true, color=C_R, lw=2, label="R (true)")
@@ -321,7 +326,7 @@ t_col   = torch.linspace(0, 1, 200)
 
 # Loss weights
 lam_phys = 0.1
-lam_ic   = 5.0
+lam_ic   = 5
 
 pinn        = PINN(hidden=64, depth=4)
 opt         = torch.optim.Adam(pinn.parameters(), lr=1e-3)
@@ -369,7 +374,7 @@ with torch.no_grad():
 
 sol_viz = scipy_odeint(sir_rhs, y0, t_viz_np, args=(beta_true, gamma_true, N))
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
 
 # Left: compartment trajectories
 ax = axes[0]
@@ -395,14 +400,14 @@ plt.tight_layout()
 plt.show()
 ```
 
-The PINN fits the observed $I(t)$ points and simultaneously reconstructs the latent
-$S(t)$ and $R(t)$ trajectories — without ever observing them directly. The physics
+The PINN fits the observed $I(t)$ points and simultaneouly reconstructs the latent
+$S(t)$ and $R(t)$ trajectories. The physics
 loss ensures the predicted compartments satisfy the SIR equations everywhere, not
 only at the observation times.
 
 ### Effect of the physics loss weight
 
-The loss weight $\lambda_\phi$ trades off data fidelity against physics constraint
+The loss weight $\lambda_\phi$ trades off data fidelity and physics constraint
 strength. Below we visualise how varying $\lambda_\phi$ over several orders of
 magnitude affects the fit and the parameter estimates.
 
@@ -411,7 +416,7 @@ lam_values  = [0.0, 0.01, 0.1, 1.0]
 lam_labels  = [f"λ={v}" for v in lam_values]
 colors_lam  = ["#E91E63", "#FF9800", "#9C27B0", "#009688"]
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
 
 for lam, label, col in zip(lam_values, lam_labels, colors_lam):
     torch.manual_seed(42)
@@ -460,7 +465,7 @@ strikes a reasonable balance for this example.
 ### Parameter recovery during training
 
 ```{python}
-fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
 
 for ax, hist, true_val, label, color in [
     (axes[0], beta_hist,  beta_true,  "β (transmission rate)", C_I),
