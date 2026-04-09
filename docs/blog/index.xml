@@ -33,15 +33,13 @@
 </section>
 <section id="pinns-in-epidemiology-and-infectious-diseases" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="pinns-in-epidemiology-and-infectious-diseases"><span class="header-section-number">2</span> PINNs in epidemiology and infectious diseases</h2>
-<p>Linka et al. <span class="citation" data-cites="linka2020">(3)</span> embedded a SEIR model inside a PINN to estimate time-varying transmission rates from COVID-19 case counts across European countries. The physics constraint stabilised parameter recovery even when surveillance data were noisy and incomplete.</p>
-<p>Kharazmi et al. <span class="citation" data-cites="kharazmi2021">(4)</span> showed that PINNs can reliably identify structural and parametric features of epidemic models from sparse time-series, including cases where multiple parameters are inferred simultaneously.</p>
-<p>A recurring theme is that the <strong>physics residual acts as a regulariser</strong>: penalising ODE violations prevents the network from overfitting noisy observations, so inferred parameters reflect the underlying epidemic dynamics rather than noise.</p>
-<p>More recent work has extended PINNs to:</p>
+<p>Recent work has extended PINNs to:</p>
 <ul>
-<li><strong>Multi-wave dynamics</strong> — multi-phase PINNs that switch physics regimes across intervention periods, capturing policy-driven changes in <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> <span class="citation" data-cites="he2023">(5)</span>.</li>
+<li><strong>Multi-wave dynamics</strong> — multi-phase PINNs that switch physics regimes across intervention periods, capturing policy-driven changes in <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> <span class="citation" data-cites="he2023">(3)</span>.</li>
 <li><strong>Fractional-order models</strong> — incorporating memory effects through fractional derivatives to better match empirical epidemic decay curves <span class="citation" data-cites="kharazmi2021">(4)</span>.</li>
-<li><strong>Uncertainty quantification</strong> — Bayesian PINN extensions that propagate uncertainty in parameters through to forecast intervals <span class="citation" data-cites="linka2022">(6)</span>.</li>
+<li><strong>Uncertainty quantification</strong> — Bayesian PINN extensions that propagate uncertainty in parameters through to forecast intervals <span class="citation" data-cites="linka2022">(5)</span>.</li>
 </ul>
+<p>A recurring theme is that the <strong>physics residual acts as a regulariser</strong>: penalising ODE violations prevents the network from overfitting noisy observations, so inferred parameters reflect the underlying epidemic dynamics rather than noise.</p>
 <p>Below, I use the SIR model to demonstrate how PINNs work in practice.</p>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -103,7 +101,7 @@ font-style: inherit;">pip</span> install torch scipy matplotlib numpy</span></co
 </section>
 <section id="simulate-ground-truth-and-noisy-observations" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="simulate-ground-truth-and-noisy-observations"><span class="header-section-number">4</span> Simulate ground truth and noisy observations</h2>
-<div id="3dc768dd" class="cell" data-execution_count="1">
+<div id="7515126d" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
@@ -172,10 +170,35 @@ font-style: inherit;">0.3</span>,</span>
 background-color: null;
 font-style: inherit;">"font.size"</span>: <span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">11</span>,</span>
-<span id="cb2-18">})</span>
-<span id="cb2-19"></span>
-<span id="cb2-20">C_S, C_I, C_R   <span class="op" style="color: #5E5E5E;
+font-style: inherit;">8</span>,</span>
+<span id="cb2-18">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"axes.titlesize"</span>: <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>,</span>
+<span id="cb2-19">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"axes.labelsize"</span>: <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>,</span>
+<span id="cb2-20">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"xtick.labelsize"</span>: <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>,</span>
+<span id="cb2-21">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ytick.labelsize"</span>: <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>,</span>
+<span id="cb2-22">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"legend.fontsize"</span>: <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>,</span>
+<span id="cb2-23">})</span>
+<span id="cb2-24"></span>
+<span id="cb2-25">C_S, C_I, C_R   <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="st" style="color: #20794D;
 background-color: null;
@@ -184,39 +207,39 @@ background-color: null;
 font-style: inherit;">"#F44336"</span>, <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"#4CAF50"</span></span>
-<span id="cb2-21">C_OBS, C_PINN   <span class="op" style="color: #5E5E5E;
+<span id="cb2-26">C_OBS, C_PINN   <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"black"</span>, <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"#9C27B0"</span></span>
-<span id="cb2-22"></span>
-<span id="cb2-23"><span class="co" style="color: #5E5E5E;
+<span id="cb2-27"></span>
+<span id="cb2-28"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># --- Ground truth parameters ---</span></span>
-<span id="cb2-24">N          <span class="op" style="color: #5E5E5E;
+<span id="cb2-29">N          <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1_000</span></span>
-<span id="cb2-25">beta_true  <span class="op" style="color: #5E5E5E;
+<span id="cb2-30">beta_true  <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0.3</span></span>
-<span id="cb2-26">gamma_true <span class="op" style="color: #5E5E5E;
+<span id="cb2-31">gamma_true <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0.1</span></span>
-<span id="cb2-27">T_max      <span class="op" style="color: #5E5E5E;
+<span id="cb2-32">T_max      <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">60.0</span></span>
-<span id="cb2-28"></span>
-<span id="cb2-29">y0 <span class="op" style="color: #5E5E5E;
+<span id="cb2-33"></span>
+<span id="cb2-34">y0 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> np.array([<span class="fl" style="color: #AD0000;
 background-color: null;
@@ -225,15 +248,15 @@ background-color: null;
 font-style: inherit;">10.0</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0.0</span>])</span>
-<span id="cb2-30"></span>
-<span id="cb2-31"><span class="kw" style="color: #003B4F;
+<span id="cb2-35"></span>
+<span id="cb2-36"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> sir_rhs(y, t, beta, gamma, N):</span>
-<span id="cb2-32">    S, I, R <span class="op" style="color: #5E5E5E;
+<span id="cb2-37">    S, I, R <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> y</span>
-<span id="cb2-33">    <span class="cf" style="color: #003B4F;
+<span id="cb2-38">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> [<span class="op" style="color: #5E5E5E;
@@ -257,27 +280,27 @@ background-color: null;
 font-style: inherit;">*</span>I, gamma<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span>I]</span>
-<span id="cb2-34"></span>
-<span id="cb2-35">n_grid <span class="op" style="color: #5E5E5E;
+<span id="cb2-39"></span>
+<span id="cb2-40">n_grid <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">100</span></span>
-<span id="cb2-36">t_grid <span class="op" style="color: #5E5E5E;
+<span id="cb2-41">t_grid <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> np.linspace(<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>, T_max, n_grid)</span>
-<span id="cb2-37">sol    <span class="op" style="color: #5E5E5E;
+<span id="cb2-42">sol    <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> scipy_odeint(sir_rhs, y0, t_grid, args<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(beta_true, gamma_true, N))</span>
-<span id="cb2-38">S_true, I_true, R_true <span class="op" style="color: #5E5E5E;
+<span id="cb2-43">S_true, I_true, R_true <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> sol.T</span>
-<span id="cb2-39"></span>
-<span id="cb2-40"><span class="bu" style="color: null;
+<span id="cb2-44"></span>
+<span id="cb2-45"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
 background-color: null;
@@ -290,7 +313,7 @@ background-color: null;
 font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span>)</span>
-<span id="cb2-41"><span class="bu" style="color: null;
+<span id="cb2-46"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
 background-color: null;
@@ -311,7 +334,7 @@ background-color: null;
 font-style: inherit;">:.1f}</span><span class="ss" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span>)</span>
-<span id="cb2-42"><span class="bu" style="color: null;
+<span id="cb2-47"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
 background-color: null;
@@ -326,16 +349,16 @@ background-color: null;
 font-style: inherit;">:.0f}</span><span class="ss" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span>)</span>
-<span id="cb2-43"></span>
-<span id="cb2-44"><span class="co" style="color: #5E5E5E;
+<span id="cb2-48"></span>
+<span id="cb2-49"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># --- Sparse, noisy observations of I(t) only ---</span></span>
-<span id="cb2-45">n_obs   <span class="op" style="color: #5E5E5E;
+<span id="cb2-50">n_obs   <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">30</span></span>
-<span id="cb2-46">obs_idx <span class="op" style="color: #5E5E5E;
+<span id="cb2-51">obs_idx <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> np.sort(np.random.choice(np.arange(<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -344,10 +367,10 @@ background-color: null;
 font-style: inherit;">=</span><span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">False</span>))</span>
-<span id="cb2-47">t_obs   <span class="op" style="color: #5E5E5E;
+<span id="cb2-52">t_obs   <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> t_grid[obs_idx]</span>
-<span id="cb2-48">I_obs   <span class="op" style="color: #5E5E5E;
+<span id="cb2-53">I_obs   <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> np.clip(I_true[obs_idx] <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -358,17 +381,17 @@ background-color: null;
 font-style: inherit;">20.0</span>, n_obs), <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>, N)</span>
-<span id="cb2-49"></span>
-<span id="cb2-50">fig, ax <span class="op" style="color: #5E5E5E;
+<span id="cb2-54"></span>
+<span id="cb2-55">fig, ax <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> plt.subplots(figsize<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">4</span>, <span class="fl" style="color: #AD0000;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">2.5</span>))</span>
-<span id="cb2-51">ax.plot(t_grid, S_true, color<span class="op" style="color: #5E5E5E;
+font-style: inherit;">3</span>))</span>
+<span id="cb2-56">ax.plot(t_grid, S_true, color<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>C_S, lw<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -379,7 +402,7 @@ background-color: null;
 font-style: inherit;">=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"S (true)"</span>)</span>
-<span id="cb2-52">ax.plot(t_grid, I_true, color<span class="op" style="color: #5E5E5E;
+<span id="cb2-57">ax.plot(t_grid, I_true, color<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>C_I, lw<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -390,7 +413,7 @@ background-color: null;
 font-style: inherit;">=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"I (true)"</span>)</span>
-<span id="cb2-53">ax.plot(t_grid, R_true, color<span class="op" style="color: #5E5E5E;
+<span id="cb2-58">ax.plot(t_grid, R_true, color<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>C_R, lw<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -401,7 +424,7 @@ background-color: null;
 font-style: inherit;">=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"R (true)"</span>)</span>
-<span id="cb2-54">ax.scatter(t_obs, I_obs, color<span class="op" style="color: #5E5E5E;
+<span id="cb2-59">ax.scatter(t_obs, I_obs, color<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>C_OBS, s<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -412,7 +435,7 @@ background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">5</span>,</span>
-<span id="cb2-55">           label<span class="op" style="color: #5E5E5E;
+<span id="cb2-60">           label<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="ss" style="color: #20794D;
 background-color: null;
@@ -423,7 +446,7 @@ background-color: null;
 font-style: inherit;">}</span><span class="ss" style="color: #20794D;
 background-color: null;
 font-style: inherit;">, σ=20)"</span>)</span>
-<span id="cb2-56">ax.<span class="bu" style="color: null;
+<span id="cb2-61">ax.<span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">set</span>(xlabel<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -434,18 +457,18 @@ background-color: null;
 font-style: inherit;">=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"People"</span>,</span>
-<span id="cb2-57">       title<span class="op" style="color: #5E5E5E;
+<span id="cb2-62">       title<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"Ground truth SIR + noisy observations of I(t)"</span>)</span>
-<span id="cb2-58">ax.legend(loc<span class="op" style="color: #5E5E5E;
+<span id="cb2-63">ax.legend(loc<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"upper right"</span>)</span>
-<span id="cb2-59">plt.tight_layout()</span>
-<span id="cb2-60">plt.show()</span></code></pre></div></div>
+<span id="cb2-64">plt.tight_layout()</span>
+<span id="cb2-65">plt.show()</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>R₀ = 3.0
@@ -455,7 +478,7 @@ Final susceptibles: 68</code></pre>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-2-output-2.png" width="576" height="309" class="figure-img"></p>
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-2-output-2.png" width="644" height="383" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -470,7 +493,7 @@ Final susceptibles: 68</code></pre>
 <p>A PINN maps scaled time <img src="https://latex.codecogs.com/png.latex?t_s%20%5Cin%20%5B0,1%5D"> directly to the three compartment proportions <img src="https://latex.codecogs.com/png.latex?(S/N,%20I/N,%20R/N)">:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A(S(t),%5C,%20I(t),%5C,%20R(t))%20/%20N%20%5C;=%5C;%20%5Ctext%7BNN%7D_%5Ctheta(t/T_%7B%5Cmax%7D)%0A"></p>
 <p>Two scalars — <img src="https://latex.codecogs.com/png.latex?%5Clog%5Cbeta_s"> and <img src="https://latex.codecogs.com/png.latex?%5Clog%5Cgamma_s"> — are <strong>learnable parameters</strong> alongside the network weights. Physical rates are recovered as <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%20%5Cbeta_s%20/%20T_%7B%5Cmax%7D">, <img src="https://latex.codecogs.com/png.latex?%5Cgamma%20=%20%5Cgamma_s%20/%20T_%7B%5Cmax%7D">.</p>
-<div id="58308261" class="cell" data-execution_count="2">
+<div id="3c984e26" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
@@ -698,7 +721,7 @@ font-style: inherit;"># (batch, 3)</span></span></code></pre></div></div>
 <p>The <strong>physics loss</strong> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7Bphysics%7D"> evaluates the SIR residuals at 200 collocation points via automatic differentiation. In scaled time <img src="https://latex.codecogs.com/png.latex?t_s%20=%20t/T_%7B%5Cmax%7D">, the ODEs become:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdS%7D%7Bdt_s%7D%20=%20-%5Cbeta_s%20S%20I,%20%5Cqquad%0A%5Cfrac%7BdI%7D%7Bdt_s%7D%20=%20%5Cbeta_s%20S%20I%20-%20%5Cgamma_s%20I,%20%5Cqquad%0A%5Cfrac%7BdR%7D%7Bdt_s%7D%20=%20%5Cgamma_s%20I%0A"></p>
 <p>The <strong>initial-condition loss</strong> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7BIC%7D"> anchors the network to the known state at <img src="https://latex.codecogs.com/png.latex?t%20=%200">, preventing drift to arbitrary solutions.</p>
-<div id="006c5c7c" class="cell" data-execution_count="3">
+<div id="87a396b9" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
@@ -896,7 +919,7 @@ Note
 </section>
 <section id="training" class="level3" data-number="5.3">
 <h3 data-number="5.3" class="anchored" data-anchor-id="training"><span class="header-section-number">5.3</span> Training</h3>
-<div id="360e043d" class="cell" data-execution_count="4">
+<div id="3eb11949" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
@@ -1113,7 +1136,7 @@ PINN est.: β = 0.295, γ = 0.098, R₀ = 3.01</code></pre>
 <h2 data-number="6" class="anchored" data-anchor-id="results"><span class="header-section-number">6</span> Results</h2>
 <section id="trajectory-reconstruction" class="level3" data-number="6.1">
 <h3 data-number="6.1" class="anchored" data-anchor-id="trajectory-reconstruction"><span class="header-section-number">6.1</span> Trajectory reconstruction</h3>
-<div id="e3032f3a" class="cell" data-execution_count="5">
+<div id="b610754a" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1">t_viz_np <span class="op" style="color: #5E5E5E;
@@ -1157,9 +1180,9 @@ font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">4</span>, <span class="fl" style="color: #AD0000;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">2.5</span>))</span>
+font-style: inherit;">3</span>))</span>
 <span id="cb8-10"></span>
 <span id="cb8-11"><span class="co" style="color: #5E5E5E;
 background-color: null;
@@ -1267,11 +1290,7 @@ background-color: null;
 font-style: inherit;">=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"PINN — compartment reconstruction"</span>)</span>
-<span id="cb8-23">ax.legend(fontsize<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>, ncol<span class="op" style="color: #5E5E5E;
+<span id="cb8-23">ax.legend(ncol<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
@@ -1315,7 +1334,7 @@ font-style: inherit;">"PINN — training curve"</span>)</span>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-6-output-1.png" width="623" height="309" class="figure-img"></p>
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-6-output-1.png" width="644" height="383" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1325,7 +1344,7 @@ font-style: inherit;">"PINN — training curve"</span>)</span>
 <section id="effect-of-the-physics-loss-weight" class="level3" data-number="6.2">
 <h3 data-number="6.2" class="anchored" data-anchor-id="effect-of-the-physics-loss-weight"><span class="header-section-number">6.2</span> Effect of the physics loss weight</h3>
 <p>The weight <img src="https://latex.codecogs.com/png.latex?%5Clambda_%5Cphi"> balances data fidelity against physics enforcement. Below we vary it over several orders of magnitude and examine the effect on the fit and parameter estimates.</p>
-<div id="884a392e" class="cell" data-execution_count="6">
+<div id="2412aab7" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1">lam_values  <span class="op" style="color: #5E5E5E;
@@ -1378,9 +1397,9 @@ font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">4</span>, <span class="fl" style="color: #AD0000;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">2.5</span>))</span>
+font-style: inherit;">3</span>))</span>
 <span id="cb9-6"></span>
 <span id="cb9-7"><span class="cf" style="color: #003B4F;
 background-color: null;
@@ -1500,7 +1519,7 @@ font-style: inherit;">=</span>col, s<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">80</span>, zorder<span class="op" style="color: #5E5E5E;
+font-style: inherit;">40</span>, zorder<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
@@ -1530,7 +1549,7 @@ font-style: inherit;">"D"</span>, s<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">80</span>, zorder<span class="op" style="color: #5E5E5E;
+font-style: inherit;">40</span>, zorder<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
@@ -1596,11 +1615,7 @@ background-color: null;
 font-style: inherit;">"I(t) fit vs. λ_phys"</span>)</span>
 <span id="cb9-34">axes[<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">0</span>].legend(fontsize<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>)</span>
+font-style: inherit;">0</span>].legend()</span>
 <span id="cb9-35"></span>
 <span id="cb9-36">axes[<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -1672,11 +1687,7 @@ background-color: null;
 font-style: inherit;">"Parameter recovery vs. λ_phys"</span>)</span>
 <span id="cb9-40">axes[<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">1</span>].legend(fontsize<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>)</span>
+font-style: inherit;">1</span>].legend()</span>
 <span id="cb9-41"></span>
 <span id="cb9-42">plt.tight_layout()</span>
 <span id="cb9-43">plt.show()</span></code></pre></div></div>
@@ -1684,7 +1695,7 @@ font-style: inherit;">8</span>)</span>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-7-output-1.png" width="606" height="306" class="figure-img"></p>
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-7-output-1.png" width="643" height="382" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1693,7 +1704,7 @@ font-style: inherit;">8</span>)</span>
 </section>
 <section id="parameter-recovery-during-training" class="level3" data-number="6.3">
 <h3 data-number="6.3" class="anchored" data-anchor-id="parameter-recovery-during-training"><span class="header-section-number">6.3</span> Parameter recovery during training</h3>
-<div id="04825b79" class="cell" data-execution_count="7">
+<div id="0287b125" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">fig, axes <span class="op" style="color: #5E5E5E;
@@ -1706,9 +1717,9 @@ font-style: inherit;">2</span>, figsize<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">4</span>, <span class="fl" style="color: #AD0000;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">2.5</span>))</span>
+font-style: inherit;">3</span>))</span>
 <span id="cb10-2"></span>
 <span id="cb10-3"><span class="cf" style="color: #003B4F;
 background-color: null;
@@ -1866,7 +1877,7 @@ font-style: inherit;">"</span>)</span></code></pre></div></div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-8-output-1.png" width="750" height="309" class="figure-img"></p>
+<p><img src="https://www.jonghoonk.com/blog/posts/pinn_sir/index_files/figure-html/cell-8-output-1.png" width="659" height="383" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1950,20 +1961,17 @@ Parameter recovery summary
 <div id="ref-raissi2019" class="csl-entry">
 <div class="csl-left-margin">2. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: <span>A</span> deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
 </div>
-<div id="ref-linka2020" class="csl-entry">
-<div class="csl-left-margin">3. </div><div class="csl-right-inline">Linka K, Peirlinck M, Sahli Costabal F, Kuhl E. Outbreak dynamics of <span>COVID</span>-19 in <span>Europe</span> and the effect of travel restrictions. Computer Methods in Biomechanics and Biomedical Engineering. 2020;23(11):710–7. doi:<a href="https://doi.org/10.1080/10255842.2020.1759560">10.1080/10255842.2020.1759560</a></div>
+<div id="ref-he2023" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">He M, Tang B, Xiao Y, Tang S. Transmission dynamics informed neural network with application to <span>COVID-19</span> infections. Computers in Biology and Medicine. 2023;165:107431. doi:<a href="https://doi.org/10.1016/j.compbiomed.2023.107431">10.1016/j.compbiomed.2023.107431</a></div>
 </div>
 <div id="ref-kharazmi2021" class="csl-entry">
 <div class="csl-left-margin">4. </div><div class="csl-right-inline">Kharazmi E, Cai M, Zheng X, Zhang Z, Lin G, Karniadakis GE. Identifiability and predictability of integer- and fractional-order epidemiological models using physics-informed neural networks. Nature Computational Science. 2021;1(11):744–53. doi:<a href="https://doi.org/10.1038/s43588-021-00158-0">10.1038/s43588-021-00158-0</a></div>
 </div>
-<div id="ref-he2023" class="csl-entry">
-<div class="csl-left-margin">5. </div><div class="csl-right-inline">He M, Tang B, Xiao Y, Tang S. Transmission dynamics informed neural network with application to <span>COVID-19</span> infections. Computers in Biology and Medicine. 2023;165:107431. doi:<a href="https://doi.org/10.1016/j.compbiomed.2023.107431">10.1016/j.compbiomed.2023.107431</a></div>
-</div>
 <div id="ref-linka2022" class="csl-entry">
-<div class="csl-left-margin">6. </div><div class="csl-right-inline">Linka K, Schäfer A, Meng X, Zou Z, Karniadakis GE, Kuhl E. Bayesian physics informed neural networks for real-world nonlinear dynamical systems. Computer Methods in Applied Mechanics and Engineering. 2022;402:115346. doi:<a href="https://doi.org/10.1016/j.cma.2022.115346">10.1016/j.cma.2022.115346</a></div>
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Linka K, Schäfer A, Meng X, Zou Z, Karniadakis GE, Kuhl E. Bayesian physics informed neural networks for real-world nonlinear dynamical systems. Computer Methods in Applied Mechanics and Engineering. 2022;402:115346. doi:<a href="https://doi.org/10.1016/j.cma.2022.115346">10.1016/j.cma.2022.115346</a></div>
 </div>
 </div>
-<div id="658274a3" class="cell" data-execution_count="8">
+<div id="c8b6e9a8" class="cell" data-execution_count="8">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu
