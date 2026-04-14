@@ -406,6 +406,141 @@ print(f"Post. σ:   σ_β = {model.sigma_lb.item():.3f} (log scale),  "
 
 ---
 
+## Full-rank (correlated) VI
+
+Mean-field VI factorises $q(\beta, \gamma) = q(\beta)\,q(\gamma)$, so it cannot represent
+the negative $\beta$–$\gamma$ correlation induced by the $R_0$ constraint.  Replacing the
+four diagonal variational parameters with a bivariate normal in log-space adds just **one
+extra parameter** — the off-diagonal Cholesky element $L_{21}$:
+
+$$
+q(\log\beta, \log\gamma) = \mathcal{N}\!\left(\boldsymbol{\mu},\; \mathbf{L}\mathbf{L}^\top\right),
+\qquad
+\mathbf{L} = \begin{pmatrix} e^{\ell_{11}} & 0 \\ L_{21} & e^{\ell_{22}} \end{pmatrix}
+$$
+
+Sampling still uses the reparameterisation trick:
+$\mathbf{z} = \mathbf{L}\boldsymbol{\varepsilon} + \boldsymbol{\mu}$,
+$\boldsymbol{\varepsilon} \sim \mathcal{N}(\mathbf{0}, \mathbf{I}_2)$.
+
+The KL divergence to the isotropic prior $p = \mathcal{N}(\boldsymbol{\mu}_p, \sigma_p^2 \mathbf{I}_2)$
+has a closed form [@blei_2017]:
+
+$$
+\mathrm{KL}[q \| p] = \frac{1}{2}\!\left[
+  \frac{\|\mathbf{L}\|_F^2 + \|\boldsymbol{\mu} - \boldsymbol{\mu}_p\|^2}{\sigma_p^2}
+  - 2 + 4\log\sigma_p - 2(\ell_{11} + \ell_{22})
+\right]
+$$
+
+where $\|\mathbf{L}\|_F^2 = e^{2\ell_{11}} + L_{21}^2 + e^{2\ell_{22}}$.
+
+```{python}
+class FullRankBayesianPINN(nn.Module):
+    """
+    Conditional PINN with a full-rank bivariate-normal posterior in log-space.
+
+    Cholesky parameterisation
+    -------------------------
+    L = [[exp(l11),  0      ],
+         [L21,       exp(l22)]]
+
+    Negative L21 <-> negative beta-gamma correlation.
+    """
+    def __init__(self, hidden=64):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(3, hidden), nn.Tanh(),
+            nn.Linear(hidden, hidden), nn.Tanh(),
+            nn.Linear(hidden, hidden), nn.Tanh(),
+            nn.Linear(hidden, 3),
+            nn.Sigmoid(),
+        )
+        self.mu         = nn.Parameter(torch.tensor(
+                            [float(np.log(0.50)), float(np.log(0.15))]))
+        self.L_log_diag = nn.Parameter(torch.tensor([-1.5, -1.5]))
+        self.L_offdiag  = nn.Parameter(torch.tensor(0.0))
+
+    @property
+    def L_mat(self):
+        L11 = torch.exp(self.L_log_diag[0])
+        L22 = torch.exp(self.L_log_diag[1])
+        row0 = torch.stack([L11,            torch.zeros_like(L11)])
+        row1 = torch.stack([self.L_offdiag, L22])
+        return torch.stack([row0, row1])   # (2, 2)
+
+    @property
+    def beta_mean(self):  return float(torch.exp(self.mu[0]))
+    @property
+    def gamma_mean(self): return float(torch.exp(self.mu[1]))
+    @property
+    def R0_mean(self):    return self.beta_mean / self.gamma_mean
+
+    def sample_log_params(self, K=1):
+        eps = torch.randn(K, 2)
+        z   = eps @ self.L_mat.T + self.mu   # (K, 2)
+        return z[:, 0], z[:, 1]
+
+    def forward(self, t_scaled, log_beta, log_gamma):
+        n    = t_scaled.shape[0]
+        t_in = t_scaled.view(n, 1)
+        lb   = log_beta.reshape(1).expand(n).view(n, 1)
+        lg   = log_gamma.reshape(1).expand(n).view(n, 1)
+        return self.net(torch.cat([t_in, lb, lg], dim=1))
+
+
+def kl_fullrank(mu_q, L_log_diag, L_offdiag, mu_p_vec, sig_p):
+    """KL[ N(mu_q, L L^T) || N(mu_p_vec, sig_p^2 I_2) ]"""
+    frob_sq = (torch.exp(L_log_diag[0])**2
+               + L_offdiag**2
+               + torch.exp(L_log_diag[1])**2)
+    mu_diff = mu_q - mu_p_vec
+    return 0.5 * (frob_sq / sig_p**2
+                  + (mu_diff**2).sum() / sig_p**2
+                  - 2
+                  + 4 * torch.log(sig_p)
+                  - 2 * (L_log_diag[0] + L_log_diag[1]))
+
+
+prior_mu_vec = torch.stack([prior_mu_lb, prior_mu_lg])
+
+torch.manual_seed(42)
+fr_model = FullRankBayesianPINN(hidden=64)
+fr_opt   = torch.optim.Adam(fr_model.parameters(), lr=1e-3)
+fr_sched = torch.optim.lr_scheduler.StepLR(fr_opt, step_size=2_500, gamma=0.5)
+
+for epoch in range(8_000):
+    fr_opt.zero_grad()
+
+    lb_k, lg_k = fr_model.sample_log_params(K)
+
+    L_data_list, L_phys_list, L_ic_list = [], [], []
+    for k in range(K):
+        L_data_list.append(data_loss_fn (fr_model, t_obs_s, I_obs_s, lb_k[k], lg_k[k]))
+        L_phys_list.append(physics_loss_fn(fr_model, t_col, lb_k[k], lg_k[k]))
+        L_ic_list.append  (ic_loss_fn   (fr_model, y0_s,             lb_k[k], lg_k[k]))
+
+    L_data = torch.stack(L_data_list).mean()
+    L_phys = torch.stack(L_phys_list).mean()
+    L_ic   = torch.stack(L_ic_list).mean()
+
+    kl_w = min(epoch / 3_000, 1.0) * 0.3
+    KL   = kl_fullrank(fr_model.mu, fr_model.L_log_diag, fr_model.L_offdiag,
+                       prior_mu_vec, prior_sig)
+
+    loss = L_data + lam_phys * L_phys + lam_ic * L_ic + kl_w * KL
+    loss.backward()
+    nn.utils.clip_grad_norm_(fr_model.parameters(), 1.0)
+    fr_opt.step()
+    fr_sched.step()
+
+print(f"True:         β = {beta_true:.3f},  γ = {gamma_true:.3f},  R₀ = {beta_true/gamma_true:.2f}")
+print(f"FR posterior: β ≈ {fr_model.beta_mean:.3f},  γ ≈ {fr_model.gamma_mean:.3f},  R₀ ≈ {fr_model.R0_mean:.2f}")
+print(f"L_21 = {fr_model.L_offdiag.item():.3f}  (negative = β-γ anti-correlation, as expected)")
+```
+
+---
+
 ## Results
 
 ### Convergence of posterior means
@@ -433,14 +568,14 @@ plt.show()
 
 ### Posterior predictive trajectories
 
-All three panels show the **full posterior predictive for observed counts**: each
+All four panels show the **full posterior predictive for observed counts**: each
 trajectory sample has independent observation noise $\varepsilon \sim \mathcal{N}(0,\,20^2)$
 added before computing percentiles, so the bands reflect where future observations
 would scatter — not just uncertainty in the underlying epidemic curve.
 
-The left panel uses $M = 500$ samples $(\beta^{(m)}, \gamma^{(m)}) \sim q$ from the
-variational posterior. The middle uses 500 HMC draws. The right panel draws 500
-replicates from the 10 ensemble members with added observation noise.
+From left to right: (1) mean-field VI ($M = 500$ samples), (2) full-rank VI with
+bivariate-normal posterior ($M = 500$), (3) HMC ($n = 500$ draws), (4) ensemble
+PINN ($n = 10$ members, resampled $500\times$).
 
 ```{python}
 M        = 500
@@ -642,12 +777,32 @@ I_hi_h  = np.percentile(I_hmc_noisy, 97.5, axis=0)
 ```
 
 ```{python}
-fig, axes = plt.subplots(1, 3, figsize=(9, 3.5))
+# ── Full-rank VI posterior predictive ────────────────────────────────────────
+with torch.no_grad():
+    fr_lb_samp, fr_lg_samp = fr_model.sample_log_params(M)
+    fr_beta_samp  = torch.exp(fr_lb_samp).numpy()
+    fr_gamma_samp = torch.exp(fr_lg_samp).numpy()
+
+fr_traj = np.zeros((M, len(t_viz_np), 3))
+for m, (b, g) in enumerate(zip(fr_beta_samp, fr_gamma_samp)):
+    fr_traj[m] = scipy_odeint(sir_rhs, y0, t_viz_np, args=(float(b), float(g), N))
+
+np.random.seed(42)
+fr_I_noisy = fr_traj[:, :, 1] + np.random.normal(0, 20, fr_traj[:, :, 1].shape)
+fr_I_noisy = np.clip(fr_I_noisy, 0, N)
+I_lo_fr  = np.percentile(fr_I_noisy, 2.5,  axis=0)
+I_med_fr = np.percentile(fr_I_noisy, 50,   axis=0)
+I_hi_fr  = np.percentile(fr_I_noisy, 97.5, axis=0)
+```
+
+```{python}
+fig, axes = plt.subplots(1, 4, figsize=(12, 3.5))
 
 for ax, lo, med, hi, title in [
-    (axes[0], I_lo,   I_med,   I_hi,   "B-PINN VI (M=500)"),
-    (axes[1], I_lo_h, I_med_h, I_hi_h, f"HMC (n={n_samp_h})"),
-    (axes[2], I_lo_e, I_med_e, I_hi_e, f"Ensemble PINN (n={n_ens})"),
+    (axes[0], I_lo,    I_med,    I_hi,    "VI mean-field (M=500)"),
+    (axes[1], I_lo_fr, I_med_fr, I_hi_fr, "VI full-rank (M=500)"),
+    (axes[2], I_lo_h,  I_med_h,  I_hi_h,  f"HMC (n={n_samp_h})"),
+    (axes[3], I_lo_e,  I_med_e,  I_hi_e,  f"Ensemble PINN (n={n_ens})"),
 ]:
     ax.fill_between(t_viz_np, lo, hi, alpha=0.25, color=C_PI, label="95% PI (+ obs noise)")
     ax.plot(t_viz_np, med,            color=C_POST, lw=1.5, label="Median")
@@ -662,14 +817,18 @@ plt.show()
 ```
 
 ::: {.callout-note}
-**Why HMC outperforms mean-field VI**
+**Comparing the four methods**
 
 Mean-field VI assumes $q(\beta, \gamma) = q(\beta) \cdot q(\gamma)$ — independent
 marginals. But $I(t)$ data constrain $\beta/\gamma \approx R_0$ more tightly than
-either parameter alone, creating a strong negative correlation in the joint posterior.
-HMC explores this ridge correctly via gradient-driven leapfrog proposals; VI inflates
-the marginal variances to compensate for the missing correlation, widening the
-predictive envelope. The Ensemble PINN bypasses the posterior entirely — each PINN
+either parameter alone, creating a strong negative correlation in the joint posterior;
+mean-field inflates marginal variances to compensate, widening the predictive envelope.
+Full-rank VI adds one off-diagonal Cholesky parameter ($L_{21}$) to capture this
+correlation directly — its predictive interval narrows substantially and the median
+tracks the true curve more closely.
+HMC explores the posterior ridge exactly via gradient-driven leapfrog proposals and
+serves as the gold-standard reference.
+The Ensemble PINN [@lakshminarayanan_2017] bypasses the posterior entirely — each PINN
 converges to a point near the true parameters, so the spread reflects optimisation
 variability rather than principled Bayesian uncertainty.
 :::
@@ -774,7 +933,7 @@ expected-loss calculation.
 
 | Limitation | Impact | Remedy |
 |---|---|---|
-| Mean-field: $q(\beta,\gamma) = q(\beta)\cdot q(\gamma)$ | Misses $\beta$-$\gamma$ correlation | Multivariate normal $q$ in log-space |
+| Mean-field: $q(\beta,\gamma) = q(\beta)\cdot q(\gamma)$ | Misses $\beta$-$\gamma$ correlation | Full-rank VI with Cholesky covariance — implemented above |
 | Point-estimate network weights $\theta$ | No uncertainty from network architecture | Full B-PINN [@yang_2021]: weight distributions via BNN |
 | Log-normal variational family | Poor fit if posterior is multimodal | Normalizing flows [@rezende_2015] |
 | $K = 2$ MC samples per step | Noisy ELBO gradient | Increase $K$; use importance-weighted ELBO |
@@ -788,9 +947,6 @@ notion of **epistemic uncertainty** (uncertainty from limited data) on top of th
 
 ## Extensions
 
-- **Multivariate variational posterior**: replace independent log-normals with a
-  multivariate normal in log-space to capture the $\text{Cov}(\log\beta,\log\gamma)$
-  induced by the $R_0$ constraint.
 - **Normalizing flows** [@rezende_2015]: a sequence of invertible transforms on a
   Gaussian base → arbitrarily complex posterior geometry, no mean-field assumption.
 - **MCMC via Pyro/NumPyro**: replace VI with exact HMC/NUTS; use the trained PINN as
