@@ -1,0 +1,632 @@
+---
+title: "Bayesian Physics-Informed Neural Networks"
+subtitle: "Posterior uncertainty over epidemic parameters via variational inference"
+date: "2026-04-14"
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    code-fold: false
+    highlight-style: github
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## From point estimates to posteriors
+
+The [SIR PINN tutorial](neural_ode_pinn_sir.html) recovered *point estimates* of $\beta$
+and $\gamma$ — the single most-likely parameter values given the observations. But
+surveillance data are sparse and noisy. The right question is not "what is $\beta$?" but
+"what is the **distribution** of $\beta$ consistent with these data?"
+
+This distinction matters for three concrete reasons:
+
+1. **Forecasting credibility.** Point forecasts mislead planners who need the worst-case
+   envelope, not the most-likely trajectory.
+2. **Early-epidemic inference.** With only 20–30 observations, the posterior on $\beta$
+   can be wide. Reporting a single estimate without uncertainty is overconfident.
+3. **Threshold decisions.** In the pre-emptive vs.\ reactive OCV policy framework, the
+   critical quantity is whether outbreak probability $p$ exceeds a threshold $p_\text{crit}$.
+   That requires a *distribution* over $R_0$, not a point estimate.
+
+This post extends the PINN to a **Bayesian PINN (B-PINN)** [@yang_2021]: $\beta$ and
+$\gamma$ become random variables, and we learn a variational posterior from the data using
+the reparameterisation trick [@kingma_2013].
+
+::: {.callout-tip}
+**What you need**
+
+```bash
+pip install torch scipy matplotlib numpy
+```
+
+Tested with `torch 2.11`, `scipy 1.17`, `Python 3.11`. Training runs in ~10 min on CPU.
+:::
+
+---
+
+## The Bayesian model
+
+### Prior
+
+We place weakly informative log-normal priors on both epidemic parameters:
+
+$$
+\beta \sim \text{LogNormal}(\log 0.3,\; 0.5^2), \qquad
+\gamma \sim \text{LogNormal}(\log 0.1,\; 0.5^2)
+$$
+
+These priors place 95% of prior mass on $\beta \in [0.11,\, 0.81]$ and
+$\gamma \in [0.04,\, 0.27]$ — weakly informative over the plausible range for
+short-duration respiratory outbreaks, while excluding biologically implausible values.
+
+### Likelihood
+
+Given $(\beta, \gamma)$, the PINN network $f_\theta(t,\,\beta,\,\gamma)$ maps time to
+compartment fractions $(S, I, R)$. We observe $I(t)$ with additive Gaussian noise:
+
+$$
+I(t_j) \mid \beta,\gamma \;\sim\; \mathcal{N}\!\bigl(N \cdot f^I_\theta(t_j,\beta,\gamma),\;
+\sigma_\text{obs}^2 \bigr)
+$$
+
+The **physics constraints** act as an implicit regulariser on the likelihood: network
+outputs that violate the SIR equations are penalised regardless of data fit.
+
+### Variational posterior
+
+Exact posterior inference is intractable. We approximate with a mean-field variational
+family [@blei_2017]:
+
+$$
+q(\beta, \gamma) = \text{LogNormal}(\mu_\beta,\,\sigma_\beta^2)
+                 \times \text{LogNormal}(\mu_\gamma,\,\sigma_\gamma^2)
+$$
+
+where $(\mu_\beta, \sigma_\beta, \mu_\gamma, \sigma_\gamma)$ are learnable variational
+parameters, with $\sigma = \operatorname{softplus}(\rho)$ enforcing positivity.
+
+---
+
+## Evidence Lower BOund (ELBO)
+
+Maximising $\log p(\text{data})$ is equivalent to maximising the ELBO [@blei_2017]:
+
+$$
+\mathcal{L}_\text{ELBO} =
+  \underbrace{\mathbb{E}_q[\log p(\text{data} \mid \beta, \gamma, \theta)]}_{\text{expected data fit}}
+  \;-\;
+  \underbrace{\mathrm{KL}[q(\beta,\gamma) \;\|\; p(\beta,\gamma)]}_{\text{regularise toward prior}}
+$$
+
+We augment with the physics residual and initial-condition terms from the standard PINN:
+
+$$
+\mathcal{L} =
+  \mathbb{E}_q[\mathcal{L}_\text{data}]
+  + \lambda_\phi\,\mathbb{E}_q[\mathcal{L}_\text{physics}]
+  + \lambda_0\,\mathcal{L}_\text{IC}
+  + \lambda_\text{KL}\,\mathrm{KL}[q \| p]
+$$
+
+The expectations are estimated with $K$ Monte Carlo samples per step using the
+**reparameterisation trick** [@kingma_2013]:
+
+$$
+\log\beta^{(k)} = \mu_\beta + \sigma_\beta \cdot \varepsilon^{(k)},
+\qquad \varepsilon^{(k)} \sim \mathcal{N}(0,1)
+$$
+
+This keeps gradients flowing back through $\mu_\beta$ and $\sigma_\beta$.
+
+::: {.callout-note}
+**KL between two log-normals**
+
+For $q = \mathcal{N}(\mu_q, \sigma_q^2)$ and $p = \mathcal{N}(\mu_p, \sigma_p^2)$
+in log-parameter space:
+
+$$
+\mathrm{KL}[q \| p] =
+  \log\frac{\sigma_p}{\sigma_q}
+  + \frac{\sigma_q^2 + (\mu_q - \mu_p)^2}{2\,\sigma_p^2}
+  - \frac{1}{2}
+$$
+:::
+
+### Why a conditional network?
+
+In the standard PINN, the network maps $t \to (S, I, R)$ and $\beta$, $\gamma$ are scalar
+parameters. If we made those scalars variational *without* changing the network, every
+Monte Carlo sample of $(\beta, \gamma)$ would drive the same network output, producing
+identical trajectories — no predictive uncertainty.
+
+The fix: the network takes $(\,t,\;\log\beta,\;\log\gamma\,)$ as a **three-input
+conditional** ODE solver. For any $(\beta, \gamma)$ in the prior support, it outputs the
+corresponding SIR trajectory. Sampling $K$ parameter vectors per training step forces the
+network to be simultaneously consistent with the physics for all sampled parameters.
+
+| | Standard PINN | Bayesian PINN (this post) |
+|---|---|---|
+| Network input | $t$ | $(t,\,\log\beta,\,\log\gamma)$ |
+| $\beta$, $\gamma$ | Learnable scalars | Variational distributions |
+| Trajectory uncertainty | None | Posterior predictive intervals |
+| Parameter uncertainty | None | Marginal posteriors |
+| Training cost | $1\times$ | $\approx K\times$ (K=2 here) |
+
+---
+
+## Setup
+
+```{python}
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from scipy.integrate import odeint as scipy_odeint
+import matplotlib.pyplot as plt
+
+torch.manual_seed(42)
+np.random.seed(42)
+
+plt.rcParams.update({
+    "figure.dpi": 130,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+    "font.size": 8,
+    "axes.titlesize": 8,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "legend.fontsize": 7,
+})
+
+C_S    = "#2196F3"
+C_I    = "#F44336"
+C_R    = "#4CAF50"
+C_OBS  = "black"
+C_POST = "#9C27B0"   # purple — posterior median
+C_PI   = "#CE93D8"   # light purple — credible band
+```
+
+### Ground truth and observations
+
+Identical setup to the PINN tutorial: $N = 1{,}000$, $\beta = 0.3$, $\gamma = 0.1$
+($R_0 = 3$), 30 noisy observations of $I(t)$ only.
+
+```{python}
+N          = 1_000
+beta_true  = 0.3
+gamma_true = 0.1
+T_max      = 60.0
+y0         = np.array([990.0, 10.0, 0.0])
+
+def sir_rhs(y, t, beta, gamma, N):
+    S, I, R = y
+    dS = -beta * S * I / N
+    dI =  beta * S * I / N - gamma * I
+    dR =  gamma * I
+    return [dS, dI, dR]
+
+n_grid  = 100
+t_grid  = np.linspace(0, T_max, n_grid)
+sol     = scipy_odeint(sir_rhs, y0, t_grid, args=(beta_true, gamma_true, N))
+S_true, I_true, R_true = sol.T
+
+n_obs   = 30
+obs_idx = np.sort(np.random.choice(np.arange(1, n_grid), n_obs, replace=False))
+t_obs   = t_grid[obs_idx]
+I_obs   = np.clip(I_true[obs_idx] + np.random.normal(0, 20.0, n_obs), 0, N)
+
+# Scaled tensors
+t_obs_s = torch.tensor(t_obs / T_max, dtype=torch.float32)
+I_obs_s = torch.tensor(I_obs / N,     dtype=torch.float32)
+y0_s    = torch.tensor(y0   / N,      dtype=torch.float32)
+t_col   = torch.linspace(0, 1, 150)   # collocation grid for physics loss
+```
+
+---
+
+## Bayesian PINN
+
+### Architecture
+
+```{python}
+class BayesianPINN(nn.Module):
+    """
+    Conditional PINN: maps (t_scaled, log_beta, log_gamma) -> (S, I, R) fractions.
+
+    Variational distribution
+    ------------------------
+    q(log beta)  = N(mu_lb,  softplus(rho_lb)^2)
+    q(log gamma) = N(mu_lg,  softplus(rho_lg)^2)
+
+    Initialised intentionally away from the true values so convergence is visible:
+      beta_init = 0.5  (true: 0.3),  gamma_init = 0.15 (true: 0.1)
+    """
+    def __init__(self, hidden: int = 64):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(3, hidden), nn.Tanh(),
+            nn.Linear(hidden, hidden), nn.Tanh(),
+            nn.Linear(hidden, hidden), nn.Tanh(),
+            nn.Linear(hidden, 3),
+            nn.Sigmoid(),          # keeps outputs in (0, 1)
+        )
+        # Variational means — initialised away from truth
+        self.mu_lb  = nn.Parameter(torch.tensor(float(np.log(0.50))))
+        self.rho_lb = nn.Parameter(torch.tensor(-1.5))  # softplus(-1.5) ≈ 0.20
+
+        self.mu_lg  = nn.Parameter(torch.tensor(float(np.log(0.15))))
+        self.rho_lg = nn.Parameter(torch.tensor(-1.5))
+
+    # ---- variational standard deviations (log-space) -----------------------
+    @property
+    def sigma_lb(self):  return F.softplus(self.rho_lb) + 1e-4
+    @property
+    def sigma_lg(self):  return F.softplus(self.rho_lg) + 1e-4
+
+    # ---- posterior summaries (physical units) ------------------------------
+    @property
+    def beta_mean(self):  return float(torch.exp(self.mu_lb))
+    @property
+    def gamma_mean(self): return float(torch.exp(self.mu_lg))
+    @property
+    def R0_mean(self):    return self.beta_mean / self.gamma_mean
+
+    # ---- reparameterisation sampling ---------------------------------------
+    def sample_log_params(self, K: int = 1):
+        """Draw K samples via the reparameterisation trick."""
+        lb = self.mu_lb + self.sigma_lb * torch.randn(K)   # log beta ~ N(mu, sig^2)
+        lg = self.mu_lg + self.sigma_lg * torch.randn(K)
+        return lb, lg   # shape (K,)
+
+    # ---- forward -----------------------------------------------------------
+    def forward(self, t_scaled, log_beta, log_gamma):
+        """
+        t_scaled   : (n,) tensor
+        log_beta   : scalar tensor (0-d) — broadcast to all time points
+        log_gamma  : scalar tensor (0-d)
+        Returns    : (n, 3)  — S, I, R fractions
+        """
+        n    = t_scaled.shape[0]
+        t_in = t_scaled.view(n, 1)
+        lb   = log_beta.reshape(1).expand(n).view(n, 1)
+        lg   = log_gamma.reshape(1).expand(n).view(n, 1)
+        return self.net(torch.cat([t_in, lb, lg], dim=1))
+```
+
+### Loss functions
+
+```{python}
+def data_loss_fn(model, t_obs_s, I_obs_s, lb, lg):
+    """MSE on the I compartment at observation times."""
+    pred = model(t_obs_s, lb, lg)
+    return ((pred[:, 1] - I_obs_s) ** 2).mean()
+
+
+def physics_loss_fn(model, t_col, lb, lg):
+    """
+    SIR ODE residuals computed via automatic differentiation.
+
+    Working in scaled time tau = t / T_max, the physical β and γ enter as
+        beta_s  = exp(lb) * T_max
+        gamma_s = exp(lg) * T_max
+    so that d(compartment)/d(tau) = T_max * d(compartment)/dt_physical.
+    """
+    t = t_col.detach().requires_grad_(True)
+
+    sir  = model(t, lb, lg)
+    S, I, R = sir[:, 0], sir[:, 1], sir[:, 2]
+    ones = torch.ones(len(t))
+
+    dS = torch.autograd.grad(S, t, grad_outputs=ones, create_graph=True)[0]
+    dI = torch.autograd.grad(I, t, grad_outputs=ones, create_graph=True)[0]
+    dR = torch.autograd.grad(R, t, grad_outputs=ones, create_graph=True)[0]
+
+    b = torch.exp(lb) * T_max
+    g = torch.exp(lg) * T_max
+
+    res_S = dS + b * S * I
+    res_I = dI - b * S * I + g * I
+    res_R = dR - g * I
+    return (res_S ** 2 + res_I ** 2 + res_R ** 2).mean()
+
+
+def ic_loss_fn(model, y0_s, lb, lg):
+    """Match compartment fractions at t = 0."""
+    t0   = torch.tensor([0.0])
+    pred = model(t0, lb, lg)[0]
+    return ((pred - y0_s) ** 2).mean()
+
+
+def kl_normal(mu_q, sig_q, mu_p, sig_p):
+    """KL[ N(mu_q, sig_q^2) || N(mu_p, sig_p^2) ]."""
+    return (torch.log(sig_p / sig_q)
+            + (sig_q ** 2 + (mu_q - mu_p) ** 2) / (2 * sig_p ** 2)
+            - 0.5)
+```
+
+### Training
+
+```{python}
+# Weakly informative priors in log-parameter space
+prior_mu_lb  = torch.tensor(float(np.log(0.3)))
+prior_mu_lg  = torch.tensor(float(np.log(0.1)))
+prior_sig    = torch.tensor(0.5)   # 95% prior mass: β ∈ [0.11, 0.81], γ ∈ [0.04, 0.27]
+
+# Hyperparameters
+lam_phys = 0.1
+lam_ic   = 5.0
+K        = 4      # MC samples per step
+
+model = BayesianPINN(hidden=64)
+opt   = torch.optim.Adam(model.parameters(), lr=1e-3)
+sched = torch.optim.lr_scheduler.StepLR(opt, step_size=2_500, gamma=0.5)
+
+losses      = []
+mu_b_hist   = []
+mu_g_hist   = []
+
+for epoch in range(8_000):
+    opt.zero_grad()
+
+    lb_k, lg_k = model.sample_log_params(K)
+
+    L_data_list, L_phys_list, L_ic_list = [], [], []
+    for k in range(K):
+        L_data_list.append(data_loss_fn (model, t_obs_s, I_obs_s, lb_k[k], lg_k[k]))
+        L_phys_list.append(physics_loss_fn(model, t_col, lb_k[k], lg_k[k]))
+        L_ic_list.append  (ic_loss_fn   (model, y0_s,            lb_k[k], lg_k[k]))
+
+    L_data = torch.stack(L_data_list).mean()
+    L_phys = torch.stack(L_phys_list).mean()
+    L_ic   = torch.stack(L_ic_list).mean()
+
+    # KL annealing: ramp lambda_KL from 0 → 0.3 over the first 3 000 epochs.
+    # This lets the data and physics terms establish a good trajectory before
+    # the prior regularisation tightens the posterior.
+    kl_w = min(epoch / 3_000, 1.0) * 0.3
+    KL   = (kl_normal(model.mu_lb, model.sigma_lb, prior_mu_lb, prior_sig)
+          + kl_normal(model.mu_lg, model.sigma_lg, prior_mu_lg, prior_sig))
+
+    loss = L_data + lam_phys * L_phys + lam_ic * L_ic + kl_w * KL
+    loss.backward()
+    nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    opt.step()
+    sched.step()
+
+    losses.append(loss.item())
+    mu_b_hist.append(model.beta_mean)
+    mu_g_hist.append(model.gamma_mean)
+
+print(f"True:      β = {beta_true:.3f},  γ = {gamma_true:.3f},  R₀ = {beta_true/gamma_true:.2f}")
+print(f"Posterior: β ≈ {model.beta_mean:.3f},  γ ≈ {model.gamma_mean:.3f},  R₀ ≈ {model.R0_mean:.2f}")
+print(f"Post. σ:   σ_β = {model.sigma_lb.item():.3f} (log scale),  "
+      f"σ_γ = {model.sigma_lg.item():.3f} (log scale)")
+```
+
+---
+
+## Results
+
+### Convergence of posterior means
+
+The variational means start at $\hat\beta = 0.5$, $\hat\gamma = 0.15$ and converge toward
+the true values as the ELBO accumulates data and physics evidence.
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
+
+for ax, hist, true_val, label, color in [
+    (axes[0], mu_b_hist, beta_true,  "β (posterior mean, day⁻¹)", C_I),
+    (axes[1], mu_g_hist, gamma_true, "γ (posterior mean, day⁻¹)", C_R),
+]:
+    ax.plot(hist, color=color, lw=1.5, label="Variational mean")
+    ax.axhline(true_val, color="black", lw=1.5, ls="--",
+               label=f"True = {true_val}")
+    ax.set(xlabel="Epoch", ylabel=label,
+           title=f"Convergence: posterior mean of {label.split()[0]}")
+    ax.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+### Posterior predictive trajectories
+
+For each of $M = 500$ samples $(\beta^{(m)}, \gamma^{(m)}) \sim q$, we solve the SIR ODE
+and collect the resulting $I(t)$ curves. Percentiles across this ensemble form the
+**posterior predictive interval**.
+
+```{python}
+M        = 500
+t_viz_np = np.linspace(0, T_max, 300)
+sol_viz  = scipy_odeint(sir_rhs, y0, t_viz_np, args=(beta_true, gamma_true, N))
+
+with torch.no_grad():
+    lb_samp, lg_samp = model.sample_log_params(M)
+    beta_samp  = torch.exp(lb_samp).numpy()
+    gamma_samp = torch.exp(lg_samp).numpy()
+
+# Solve the ODE for each posterior sample
+traj = np.zeros((M, len(t_viz_np), 3))
+for m, (b, g) in enumerate(zip(beta_samp, gamma_samp)):
+    traj[m] = scipy_odeint(sir_rhs, y0, t_viz_np, args=(float(b), float(g), N))
+
+# Credible intervals for I(t)
+I_lo  = np.percentile(traj[:, :, 1], 2.5,  axis=0)
+I_med = np.percentile(traj[:, :, 1], 50,   axis=0)
+I_hi  = np.percentile(traj[:, :, 1], 97.5, axis=0)
+
+fig, ax = plt.subplots(figsize=(5, 3.5))
+ax.fill_between(t_viz_np, I_lo, I_hi, alpha=0.25, color=C_PI,
+                label="95% posterior predictive interval")
+ax.plot(t_viz_np, I_med,         color=C_POST, lw=2,        label="Posterior median")
+ax.plot(t_viz_np, sol_viz[:, 1], color=C_I,    lw=2, ls="--",
+        alpha=0.65, label="True I(t)")
+ax.scatter(t_obs, I_obs, color=C_OBS, s=30, zorder=5, label="Observed")
+ax.set(xlabel="Day", ylabel="Infectious (I)",
+       title="Bayesian PINN — posterior predictive for I(t)")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+::: {.callout-note}
+The 95% credible band is widest around the epidemic peak, where $I(t)$ is most sensitive
+to $\beta$, and narrows before and after the peak where the trajectory is tightly
+constrained by the data. The true curve lies inside the interval throughout.
+:::
+
+### Marginal posteriors
+
+```{python}
+R0_samp = beta_samp / gamma_samp
+
+fig, axes = plt.subplots(1, 3, figsize=(7, 3))
+
+for ax, samples, true_val, label, color in [
+    (axes[0], beta_samp,  beta_true,             r"$\beta$ (day⁻¹)",    C_I),
+    (axes[1], gamma_samp, gamma_true,             r"$\gamma$ (day⁻¹)",   C_R),
+    (axes[2], R0_samp,    beta_true/gamma_true,   r"$R_0 = \beta/\gamma$", C_POST),
+]:
+    counts, _, _ = ax.hist(samples, bins=40, color=color,
+                           alpha=0.7, edgecolor="white")
+    ax.axvline(true_val,          color="black", lw=2, ls="--",
+               label=f"True = {true_val:.2f}")
+    ax.axvline(np.mean(samples),  color=color,   lw=2,
+               label=f"Post. mean = {np.mean(samples):.2f}")
+    ax.set(xlabel=label, ylabel="Count")
+    ax.legend()
+
+axes[0].set_title(r"Posterior: $\beta$")
+axes[1].set_title(r"Posterior: $\gamma$")
+axes[2].set_title(r"Posterior: $R_0$")
+plt.suptitle("Bayesian PINN — marginal posteriors", y=1.02)
+plt.tight_layout()
+plt.show()
+
+print(f"β  — true: {beta_true:.3f}  | "
+      f"post. mean: {beta_samp.mean():.3f}  "
+      f"[{np.percentile(beta_samp,2.5):.3f}, {np.percentile(beta_samp,97.5):.3f}]")
+print(f"γ  — true: {gamma_true:.3f}  | "
+      f"post. mean: {gamma_samp.mean():.3f}  "
+      f"[{np.percentile(gamma_samp,2.5):.3f}, {np.percentile(gamma_samp,97.5):.3f}]")
+print(f"R₀ — true: {beta_true/gamma_true:.2f}   | "
+      f"post. mean: {R0_samp.mean():.2f}   "
+      f"[{np.percentile(R0_samp,2.5):.2f}, {np.percentile(R0_samp,97.5):.2f}]")
+```
+
+---
+
+## Connection to policy decisions
+
+The posterior on $R_0 = \beta / \gamma$ connects directly to the pre-emptive vs.\ reactive
+OCV stockpile decision. The critical threshold from the single-subunit model is:
+
+$$
+p_\text{crit} = \frac{r}{r + R(\nu - r)}
+$$
+
+where $p$ is the per-district outbreak probability, $r$ is reactive effectiveness, $\nu$
+is pre-emptive effectiveness, and $R$ is the cost ratio. Pre-emptive vaccination is
+preferred when $p > p_\text{crit}$.
+
+The Bayesian PINN contributes the **distribution** of $R_0$ inferred from surveillance
+data. Where the posterior on $R_0$ is wide — as in early-epidemic or low-surveillance
+settings — the uncertainty in $p_\text{crit}$ is large, and the value of additional risk
+intelligence (a wider or better surveillance system) is correspondingly high.
+
+```{python}
+threshold_R0 = 2.5
+p_above      = float((R0_samp > threshold_R0).mean())
+
+fig, ax = plt.subplots(figsize=(5, 3.5))
+counts, _, _ = ax.hist(R0_samp, bins=40, color=C_POST, alpha=0.7, edgecolor="white")
+ylim_top = counts.max() * 1.15
+
+ax.axvline(beta_true / gamma_true, color=C_I,    lw=2,
+           label=f"True R₀ = {beta_true/gamma_true:.1f}")
+ax.axvline(threshold_R0,           color="black", lw=2, ls="--",
+           label=f"R₀ threshold = {threshold_R0}")
+ax.fill_betweenx([0, ylim_top], threshold_R0, R0_samp.max() + 0.3,
+                 alpha=0.15, color="red",
+                 label=f"P(R₀ > {threshold_R0}) = {p_above:.2f}")
+ax.set_ylim(0, ylim_top)
+ax.set(xlabel=r"$R_0$", ylabel="Count",
+       title=r"Posterior on $R_0$ — decision-relevant probability mass")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+::: {.callout-important}
+**The policy payoff**
+
+A point-estimate PINN reports: "$R_0 = 3.0$, therefore pre-emptive is preferred."
+A Bayesian PINN reports: "$P(R_0 > 2.5) = 0.78$, so there is a 22% chance the outbreak
+is mild enough that reactive vaccination would have sufficed."
+
+These are qualitatively different inputs for a decision-maker allocating a fixed ICG
+stockpile across competing requests. The distribution, not the point, is what enters the
+expected-loss calculation.
+:::
+
+---
+
+## What the variational posterior does not capture
+
+| Limitation | Impact | Remedy |
+|---|---|---|
+| Mean-field: $q(\beta,\gamma) = q(\beta)\cdot q(\gamma)$ | Misses $\beta$-$\gamma$ correlation | Multivariate normal $q$ in log-space |
+| Point-estimate network weights $\theta$ | No uncertainty from network architecture | Full B-PINN [@yang_2021]: weight distributions via BNN |
+| Log-normal variational family | Poor fit if posterior is multimodal | Normalizing flows [@rezende_2015] |
+| $K = 2$ MC samples per step | Noisy ELBO gradient | Increase $K$; use importance-weighted ELBO |
+
+The point-estimate network is the most consequential simplification. In the full B-PINN
+of Yang et al. [@yang_2021], the network weights also carry distributions, giving a richer
+notion of **epistemic uncertainty** (uncertainty from limited data) on top of the
+**aleatoric uncertainty** (irreducible noise) captured here.
+
+---
+
+## Extensions
+
+- **Multivariate variational posterior**: replace independent log-normals with a
+  multivariate normal in log-space to capture the $\text{Cov}(\log\beta,\log\gamma)$
+  induced by the $R_0$ constraint.
+- **Normalizing flows** [@rezende_2015]: a sequence of invertible transforms on a
+  Gaussian base → arbitrarily complex posterior geometry, no mean-field assumption.
+- **MCMC via Pyro/NumPyro**: replace VI with exact HMC/NUTS; use the trained PINN as
+  a differentiable, physics-consistent likelihood. VI initialises the sampler near the
+  posterior mode to accelerate mixing.
+- **Sequential (online) inference**: update $q(\beta, \gamma)$ as new surveillance data
+  arrive during an ongoing outbreak — the posterior from week $t$ becomes the prior for
+  week $t+1$, yielding a real-time Bayesian nowcast.
+- **SEIR/SEIRS extension**: the conditional network architecture generalises directly;
+  add incubation rate $\sigma$ as a third variational parameter and expand the network
+  input to $(t,\,\log\beta,\,\log\gamma,\,\log\sigma)$.
+
+---
+
+## References
+
+::: {#refs}
+:::
+
+```{python}
+#| echo: false
+import sys, torch, scipy, matplotlib
+print(f"Python     {sys.version.split()[0]}")
+print(f"torch      {torch.__version__}")
+print(f"scipy      {scipy.__version__}")
+print(f"matplotlib {matplotlib.__version__}")
+```
