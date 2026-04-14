@@ -442,9 +442,12 @@ plt.show()
 
 ### Posterior predictive trajectories
 
-For each of $M = 500$ samples $(\beta^{(m)}, \gamma^{(m)}) \sim q$, we solve the SIR ODE
-and collect the resulting $I(t)$ curves. Percentiles across this ensemble form the
-**posterior predictive interval**.
+The left panel shows the B-PINN variational posterior predictive: $M = 500$ samples
+$(\beta^{(m)}, \gamma^{(m)}) \sim q$ are drawn, the SIR ODE is integrated for each,
+and percentiles form the credible band. The right panel shows an **Ensemble PINN**
+alternative: $n = 10$ independent point-estimate PINNs are trained from different
+random seeds, and their converged $(\hat\beta, \hat\gamma)$ values are treated as
+implicit posterior samples.
 
 ```{python}
 M        = 500
@@ -456,34 +459,115 @@ with torch.no_grad():
     beta_samp  = torch.exp(lb_samp).numpy()
     gamma_samp = torch.exp(lg_samp).numpy()
 
-# Solve the ODE for each posterior sample
+# Solve the ODE for each B-PINN posterior sample
 traj = np.zeros((M, len(t_viz_np), 3))
 for m, (b, g) in enumerate(zip(beta_samp, gamma_samp)):
     traj[m] = scipy_odeint(sir_rhs, y0, t_viz_np, args=(float(b), float(g), N))
 
-# Credible intervals for I(t)
 I_lo  = np.percentile(traj[:, :, 1], 2.5,  axis=0)
 I_med = np.percentile(traj[:, :, 1], 50,   axis=0)
 I_hi  = np.percentile(traj[:, :, 1], 97.5, axis=0)
+```
 
-fig, ax = plt.subplots(figsize=(5, 3.5))
-ax.fill_between(t_viz_np, I_lo, I_hi, alpha=0.25, color=C_PI,
-                label="95% posterior predictive interval")
-ax.plot(t_viz_np, I_med,         color=C_POST, lw=2,        label="Posterior median")
-ax.plot(t_viz_np, sol_viz[:, 1], color=C_I,    lw=2, ls="--",
-        alpha=0.65, label="True I(t)")
-ax.scatter(t_obs, I_obs, color=C_OBS, s=30, zorder=5, label="Observed")
-ax.set(xlabel="Day", ylabel="Infectious (I)",
-       title="Bayesian PINN — posterior predictive for I(t)")
-ax.legend()
+```{python}
+# ── Ensemble PINN: 10 independent point-estimate PINNs ──────────────────────
+class PointPINN(nn.Module):
+    def __init__(self, hidden=64, depth=4):
+        super().__init__()
+        layers = [nn.Linear(1, hidden), nn.Tanh()]
+        for _ in range(depth - 1):
+            layers += [nn.Linear(hidden, hidden), nn.Tanh()]
+        layers += [nn.Linear(hidden, 3), nn.Sigmoid()]
+        self.net = nn.Sequential(*layers)
+        self.log_beta_s  = nn.Parameter(torch.tensor(float(np.log(10.0))))
+        self.log_gamma_s = nn.Parameter(torch.tensor(float(np.log(3.0))))
+
+    @property
+    def beta_phys(self):  return torch.exp(self.log_beta_s)  / T_max
+    @property
+    def gamma_phys(self): return torch.exp(self.log_gamma_s) / T_max
+
+    def forward(self, t_s):
+        return self.net(t_s.view(-1, 1))
+
+
+def _ens_loss(m, t_obs_s, I_obs_s, t_col, y0_s):
+    sir       = m(t_obs_s)
+    L_data    = ((sir[:, 1] - I_obs_s) ** 2).mean()
+
+    t = t_col.detach().requires_grad_(True)
+    out  = m(t);  S, I, R = out[:, 0], out[:, 1], out[:, 2]
+    ones = torch.ones(len(t))
+    dS = torch.autograd.grad(S, t, grad_outputs=ones, create_graph=True)[0]
+    dI = torch.autograd.grad(I, t, grad_outputs=ones, create_graph=True)[0]
+    dR = torch.autograd.grad(R, t, grad_outputs=ones, create_graph=True)[0]
+    bs = torch.exp(m.log_beta_s); gs = torch.exp(m.log_gamma_s)
+    L_phys = ((dS + bs*S*I)**2 + (dI - bs*S*I + gs*I)**2 + (dR - gs*I)**2).mean()
+
+    sir0  = m(torch.tensor([0.0]))[0]
+    L_ic  = ((sir0 - y0_s) ** 2).mean()
+    return L_data + 0.1 * L_phys + 5.0 * L_ic
+
+
+n_ens = 10
+beta_ens, gamma_ens = [], []
+
+for seed in range(n_ens):
+    torch.manual_seed(seed + 200)
+    mp  = PointPINN()
+    op  = torch.optim.Adam(mp.parameters(), lr=1e-3)
+    sch = torch.optim.lr_scheduler.StepLR(op, step_size=2000, gamma=0.5)
+    for _ in range(6_000):
+        op.zero_grad()
+        _ens_loss(mp, t_obs_s, I_obs_s, t_col, y0_s).backward()
+        nn.utils.clip_grad_norm_(mp.parameters(), 1.0)
+        op.step(); sch.step()
+    beta_ens.append(mp.beta_phys.item())
+    gamma_ens.append(mp.gamma_phys.item())
+
+beta_ens  = np.array(beta_ens)
+gamma_ens = np.array(gamma_ens)
+
+traj_ens = np.zeros((n_ens, len(t_viz_np), 3))
+for i, (b, g) in enumerate(zip(beta_ens, gamma_ens)):
+    traj_ens[i] = scipy_odeint(sir_rhs, y0, t_viz_np, args=(float(b), float(g), N))
+
+I_lo_e  = np.percentile(traj_ens[:, :, 1], 2.5,  axis=0)
+I_med_e = np.percentile(traj_ens[:, :, 1], 50,   axis=0)
+I_hi_e  = np.percentile(traj_ens[:, :, 1], 97.5, axis=0)
+
+print(f"Ensemble β:  mean={beta_ens.mean():.3f}  std={beta_ens.std():.3f}  "
+      f"(true {beta_true})")
+print(f"Ensemble γ:  mean={gamma_ens.mean():.3f}  std={gamma_ens.std():.3f}  "
+      f"(true {gamma_true})")
+```
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
+
+for ax, lo, med, hi, title in [
+    (axes[0], I_lo,   I_med,   I_hi,   "B-PINN (variational, M=500)"),
+    (axes[1], I_lo_e, I_med_e, I_hi_e, f"Ensemble PINN (n={n_ens})"),
+]:
+    ax.fill_between(t_viz_np, lo, hi, alpha=0.25, color=C_PI,
+                    label="95% PI")
+    ax.plot(t_viz_np, med,            color=C_POST, lw=1.5, label="Median")
+    ax.plot(t_viz_np, sol_viz[:, 1],  color=C_I,    lw=1.5, ls="--",
+            alpha=0.7, label="True I(t)")
+    ax.scatter(t_obs, I_obs, color=C_OBS, s=15, zorder=5, label="Observed")
+    ax.set(xlabel="Day", ylabel="Infectious (I)", title=title)
+    ax.legend()
+
 plt.tight_layout()
 plt.show()
 ```
 
 ::: {.callout-note}
-The 95% credible band is widest around the epidemic peak, where $I(t)$ is most sensitive
-to $\beta$, and narrows before and after the peak where the trajectory is tightly
-constrained by the data. The true curve lies inside the interval throughout.
+The B-PINN credible band is wider because the mean-field variational family misses the
+negative $\beta$–$\gamma$ correlation: high-$\beta$/high-$\gamma$ and
+low-$\beta$/low-$\gamma$ pairs both fit the data but produce very different trajectories,
+inflating the envelope. The Ensemble PINN implicitly selects only parameter combinations
+that individually fit the data, giving a tighter and better-calibrated band.
 :::
 
 ### Marginal posteriors
