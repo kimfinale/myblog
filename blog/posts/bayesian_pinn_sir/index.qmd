@@ -1,7 +1,8 @@
 ---
 title: "Bayesian Physics-Informed Neural Networks"
 subtitle: "Posterior uncertainty over epidemic parameters via variational inference"
-date: "2026-04-14"
+date: "2026-04-11"
+categories: [PINN, SIR, Bayesian, PyTorch, deep learning]
 bibliography: references.bib
 csl: https://www.zotero.org/styles/vancouver
 format:
@@ -20,20 +21,10 @@ execute:
 
 ## From point estimates to posteriors
 
-The [SIR PINN tutorial](neural_ode_pinn_sir.html) recovered *point estimates* of $\beta$
-and $\gamma$ — the single most-likely parameter values given the observations. But
-surveillance data are sparse and noisy. The right question is not "what is $\beta$?" but
-"what is the **distribution** of $\beta$ consistent with these data?"
+The [SIR PINN tutorial](https://www.jonghoonk.com/blog/posts/pinn_sir/) recovered *point estimates* of $\beta$
+and $\gamma$. Here we exlore the **distribution** of $\beta$ consistent with these data.
 
 This distinction matters for three concrete reasons:
-
-1. **Forecasting credibility.** Point forecasts mislead planners who need the worst-case
-   envelope, not the most-likely trajectory.
-2. **Early-epidemic inference.** With only 20–30 observations, the posterior on $\beta$
-   can be wide. Reporting a single estimate without uncertainty is overconfident.
-3. **Threshold decisions.** In the pre-emptive vs.\ reactive OCV policy framework, the
-   critical quantity is whether outbreak probability $p$ exceeds a threshold $p_\text{crit}$.
-   That requires a *distribution* over $R_0$, not a point estimate.
 
 This post extends the PINN to a **Bayesian PINN (B-PINN)** [@yang_2021]: $\beta$ and
 $\gamma$ become random variables, and we learn a variational posterior from the data using
@@ -543,18 +534,112 @@ print(f"Ensemble γ:  mean={gamma_ens.mean():.3f}  std={gamma_ens.std():.3f}  "
 ```
 
 ```{python}
-fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
+# ── HMC over (log β, log γ) via differentiable Euler ODE ────────────────────
+# Uses a differentiable Euler integrator as the likelihood — no PINN surrogate
+# needed, no extra dependencies.  Gradients flow directly through the ODE steps.
+
+sigma_obs = torch.tensor(20.0 / N)   # observation noise in scaled units
+
+def _sir_euler(lb, lg, n_steps=500):
+    """
+    Euler integration of the SIR model in scaled time tau = t / T_max.
+    Returns I(t_obs_s) — fully differentiable w.r.t. lb and lg.
+    """
+    beta_s  = torch.exp(lb) * T_max
+    gamma_s = torch.exp(lg) * T_max
+    dt      = 1.0 / n_steps
+    S, I, R = y0_s[0].clone(), y0_s[1].clone(), y0_s[2].clone()
+    I_grid  = [I]
+    for _ in range(n_steps):
+        dS = -beta_s * S * I
+        dI =  beta_s * S * I - gamma_s * I
+        dR =  gamma_s * I
+        S, I, R = S + dt * dS, I + dt * dI, R + dt * dR
+        I_grid.append(I)
+    I_grid  = torch.stack(I_grid)                   # (n_steps+1,)
+    obs_idx = (t_obs_s * n_steps).long().clamp(0, n_steps)
+    return I_grid[obs_idx]
+
+
+def _log_post_hmc(lb, lg):
+    I_hat   = _sir_euler(lb, lg)
+    log_lik = -0.5 * ((I_hat - I_obs_s)**2 / sigma_obs**2).sum()
+    log_pri = -0.5 * (((lb - prior_mu_lb)**2 + (lg - prior_mu_lg)**2)
+                      / prior_sig**2)
+    return log_lik + log_pri
+
+
+def _grad_U(lb, lg):
+    lb_ = lb.detach().requires_grad_(True)
+    lg_ = lg.detach().requires_grad_(True)
+    (-_log_post_hmc(lb_, lg_)).backward()
+    return lb_.grad.detach(), lg_.grad.detach()
+
+
+def _leapfrog_hmc(lb, lg, p_lb, p_lg, step, L):
+    lb, lg = lb.detach().clone(), lg.detach().clone()
+    g_lb, g_lg = _grad_U(lb, lg)
+    p_lb = p_lb - 0.5 * step * g_lb
+    p_lg = p_lg - 0.5 * step * g_lg
+    for i in range(L):
+        lb = lb + step * p_lb
+        lg = lg + step * p_lg
+        g_lb, g_lg = _grad_U(lb, lg)
+        factor = 0.5 if i == L - 1 else 1.0
+        p_lb = p_lb - factor * step * g_lb
+        p_lg = p_lg - factor * step * g_lg
+    return lb, lg, p_lb, p_lg
+
+
+torch.manual_seed(0);  np.random.seed(0)
+lb_c   = torch.tensor(float(np.log(0.3)))
+lg_c   = torch.tensor(float(np.log(0.1)))
+curr_lp = _log_post_hmc(lb_c, lg_c).item()
+
+n_warm_h, n_samp_h = 200, 500
+step_h, L_h = 0.05, 15
+
+hmc_lb, hmc_lg, n_acc = [], [], 0
+
+for i in range(n_warm_h + n_samp_h):
+    p_lb = torch.randn(());  p_lg = torch.randn(())
+    H_c  = -curr_lp + 0.5 * float(p_lb**2 + p_lg**2)
+    lb_p, lg_p, p_lb_p, p_lg_p = _leapfrog_hmc(lb_c, lg_c, p_lb, p_lg, step_h, L_h)
+    prop_lp = _log_post_hmc(lb_p, lg_p).item()
+    H_p     = -prop_lp + 0.5 * float(p_lb_p**2 + p_lg_p**2)
+    if np.log(np.random.uniform() + 1e-15) < H_c - H_p:
+        lb_c, lg_c, curr_lp = lb_p, lg_p, prop_lp
+        n_acc += 1
+    if i >= n_warm_h:
+        hmc_lb.append(lb_c.item());  hmc_lg.append(lg_c.item())
+
+beta_hmc  = np.exp(hmc_lb);  gamma_hmc = np.exp(hmc_lg)
+print(f"HMC acceptance rate: {n_acc / (n_warm_h + n_samp_h):.2f}")
+print(f"HMC β:  mean={beta_hmc.mean():.3f}  std={beta_hmc.std():.3f}  (true {beta_true})")
+print(f"HMC γ:  mean={gamma_hmc.mean():.3f}  std={gamma_hmc.std():.3f}  (true {gamma_true})")
+
+traj_hmc = np.zeros((n_samp_h, len(t_viz_np), 3))
+for i, (b, g) in enumerate(zip(beta_hmc, gamma_hmc)):
+    traj_hmc[i] = scipy_odeint(sir_rhs, y0, t_viz_np, args=(float(b), float(g), N))
+
+I_lo_h  = np.percentile(traj_hmc[:, :, 1], 2.5,  axis=0)
+I_med_h = np.percentile(traj_hmc[:, :, 1], 50,   axis=0)
+I_hi_h  = np.percentile(traj_hmc[:, :, 1], 97.5, axis=0)
+```
+
+```{python}
+fig, axes = plt.subplots(1, 3, figsize=(9, 3.5))
 
 for ax, lo, med, hi, title in [
-    (axes[0], I_lo,   I_med,   I_hi,   "B-PINN (variational, M=500)"),
-    (axes[1], I_lo_e, I_med_e, I_hi_e, f"Ensemble PINN (n={n_ens})"),
+    (axes[0], I_lo,   I_med,   I_hi,   "B-PINN VI (M=500)"),
+    (axes[1], I_lo_h, I_med_h, I_hi_h, f"HMC (n={n_samp_h})"),
+    (axes[2], I_lo_e, I_med_e, I_hi_e, f"Ensemble PINN (n={n_ens})"),
 ]:
-    ax.fill_between(t_viz_np, lo, hi, alpha=0.25, color=C_PI,
-                    label="95% PI")
+    ax.fill_between(t_viz_np, lo, hi, alpha=0.25, color=C_PI, label="95% PI")
     ax.plot(t_viz_np, med,            color=C_POST, lw=1.5, label="Median")
     ax.plot(t_viz_np, sol_viz[:, 1],  color=C_I,    lw=1.5, ls="--",
             alpha=0.7, label="True I(t)")
-    ax.scatter(t_obs, I_obs, color=C_OBS, s=15, zorder=5, label="Observed")
+    ax.scatter(t_obs, I_obs, color=C_OBS, s=12, zorder=5, label="Observed")
     ax.set(xlabel="Day", ylabel="Infectious (I)", title=title)
     ax.legend()
 
@@ -563,11 +648,16 @@ plt.show()
 ```
 
 ::: {.callout-note}
-The B-PINN credible band is wider because the mean-field variational family misses the
-negative $\beta$–$\gamma$ correlation: high-$\beta$/high-$\gamma$ and
-low-$\beta$/low-$\gamma$ pairs both fit the data but produce very different trajectories,
-inflating the envelope. The Ensemble PINN implicitly selects only parameter combinations
-that individually fit the data, giving a tighter and better-calibrated band.
+**Why HMC outperforms mean-field VI**
+
+Mean-field VI assumes $q(\beta, \gamma) = q(\beta) \cdot q(\gamma)$ — independent
+marginals. But $I(t)$ data constrain $\beta/\gamma \approx R_0$ more tightly than
+either parameter alone, creating a strong negative correlation in the joint posterior.
+HMC explores this ridge correctly via gradient-driven leapfrog proposals; VI inflates
+the marginal variances to compensate for the missing correlation, widening the
+predictive envelope. The Ensemble PINN bypasses the posterior entirely — each PINN
+converges to a point near the true parameters, so the spread reflects optimisation
+variability rather than principled Bayesian uncertainty.
 :::
 
 ### Marginal posteriors
