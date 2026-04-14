@@ -433,12 +433,14 @@ plt.show()
 
 ### Posterior predictive trajectories
 
-The left panel shows the B-PINN variational posterior predictive: $M = 500$ samples
-$(\beta^{(m)}, \gamma^{(m)}) \sim q$ are drawn, the SIR ODE is integrated for each,
-and percentiles form the credible band. The right panel shows an **Ensemble PINN**
-alternative: $n = 10$ independent point-estimate PINNs are trained from different
-random seeds, and their converged $(\hat\beta, \hat\gamma)$ values are treated as
-implicit posterior samples.
+All three panels show the **full posterior predictive for observed counts**: each
+trajectory sample has independent observation noise $\varepsilon \sim \mathcal{N}(0,\,20^2)$
+added before computing percentiles, so the bands reflect where future observations
+would scatter — not just uncertainty in the underlying epidemic curve.
+
+The left panel uses $M = 500$ samples $(\beta^{(m)}, \gamma^{(m)}) \sim q$ from the
+variational posterior. The middle uses 500 HMC draws. The right panel draws 500
+replicates from the 10 ensemble members with added observation noise.
 
 ```{python}
 M        = 500
@@ -455,9 +457,13 @@ traj = np.zeros((M, len(t_viz_np), 3))
 for m, (b, g) in enumerate(zip(beta_samp, gamma_samp)):
     traj[m] = scipy_odeint(sir_rhs, y0, t_viz_np, args=(float(b), float(g), N))
 
-I_lo  = np.percentile(traj[:, :, 1], 2.5,  axis=0)
-I_med = np.percentile(traj[:, :, 1], 50,   axis=0)
-I_hi  = np.percentile(traj[:, :, 1], 97.5, axis=0)
+# Add observation noise to get the full posterior predictive for observed counts
+np.random.seed(42)
+I_noisy = traj[:, :, 1] + np.random.normal(0, 20, traj[:, :, 1].shape)
+I_noisy = np.clip(I_noisy, 0, N)
+I_lo  = np.percentile(I_noisy, 2.5,  axis=0)
+I_med = np.percentile(I_noisy, 50,   axis=0)
+I_hi  = np.percentile(I_noisy, 97.5, axis=0)
 ```
 
 ```{python}
@@ -523,9 +529,14 @@ traj_ens = np.zeros((n_ens, len(t_viz_np), 3))
 for i, (b, g) in enumerate(zip(beta_ens, gamma_ens)):
     traj_ens[i] = scipy_odeint(sir_rhs, y0, t_viz_np, args=(float(b), float(g), N))
 
-I_lo_e  = np.percentile(traj_ens[:, :, 1], 2.5,  axis=0)
-I_med_e = np.percentile(traj_ens[:, :, 1], 50,   axis=0)
-I_hi_e  = np.percentile(traj_ens[:, :, 1], 97.5, axis=0)
+# Resample ensemble members 500× and add observation noise
+np.random.seed(42)
+idx_e   = np.random.choice(n_ens, 500, replace=True)
+I_ens_r = traj_ens[idx_e, :, 1] + np.random.normal(0, 20, (500, len(t_viz_np)))
+I_ens_r = np.clip(I_ens_r, 0, N)
+I_lo_e  = np.percentile(I_ens_r, 2.5,  axis=0)
+I_med_e = np.percentile(I_ens_r, 50,   axis=0)
+I_hi_e  = np.percentile(I_ens_r, 97.5, axis=0)
 
 print(f"Ensemble β:  mean={beta_ens.mean():.3f}  std={beta_ens.std():.3f}  "
       f"(true {beta_true})")
@@ -622,9 +633,12 @@ traj_hmc = np.zeros((n_samp_h, len(t_viz_np), 3))
 for i, (b, g) in enumerate(zip(beta_hmc, gamma_hmc)):
     traj_hmc[i] = scipy_odeint(sir_rhs, y0, t_viz_np, args=(float(b), float(g), N))
 
-I_lo_h  = np.percentile(traj_hmc[:, :, 1], 2.5,  axis=0)
-I_med_h = np.percentile(traj_hmc[:, :, 1], 50,   axis=0)
-I_hi_h  = np.percentile(traj_hmc[:, :, 1], 97.5, axis=0)
+np.random.seed(42)
+I_hmc_noisy = traj_hmc[:, :, 1] + np.random.normal(0, 20, traj_hmc[:, :, 1].shape)
+I_hmc_noisy = np.clip(I_hmc_noisy, 0, N)
+I_lo_h  = np.percentile(I_hmc_noisy, 2.5,  axis=0)
+I_med_h = np.percentile(I_hmc_noisy, 50,   axis=0)
+I_hi_h  = np.percentile(I_hmc_noisy, 97.5, axis=0)
 ```
 
 ```{python}
@@ -635,7 +649,7 @@ for ax, lo, med, hi, title in [
     (axes[1], I_lo_h, I_med_h, I_hi_h, f"HMC (n={n_samp_h})"),
     (axes[2], I_lo_e, I_med_e, I_hi_e, f"Ensemble PINN (n={n_ens})"),
 ]:
-    ax.fill_between(t_viz_np, lo, hi, alpha=0.25, color=C_PI, label="95% PI")
+    ax.fill_between(t_viz_np, lo, hi, alpha=0.25, color=C_PI, label="95% PI (+ obs noise)")
     ax.plot(t_viz_np, med,            color=C_POST, lw=1.5, label="Median")
     ax.plot(t_viz_np, sol_viz[:, 1],  color=C_I,    lw=1.5, ls="--",
             alpha=0.7, label="True I(t)")
