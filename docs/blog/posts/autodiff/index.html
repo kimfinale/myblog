@@ -504,7 +504,7 @@ f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
 <li><strong>Round-off error</strong> <span class="math inline">\(\sim O(\epsilon_{\text{mach}}/h)\)</span>: grows as <span class="math inline">\(h \to 0\)</span>, because we subtract two nearly equal numbers in floating point.</li>
 </ul>
 <p>Minimising the sum gives an optimal <span class="math inline">\(h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}\)</span> in double precision:</p>
-<div id="6290a386" class="cell" data-execution_count="1">
+<div id="9fb727f2" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -678,7 +678,7 @@ f(a + b\varepsilon) = f(a) + f'(a) \cdot b\varepsilon + \tfrac{1}{2}f''(a) \cdot
 </section>
 <section id="a-working-implementation-in-40-lines" class="level2" data-number="4.3">
 <h2 data-number="4.3" class="anchored" data-anchor-id="a-working-implementation-in-40-lines"><span class="header-section-number">4.3</span> A working implementation in ~40 lines</h2>
-<div id="59259c05" class="cell" data-execution_count="2">
+<div id="495fe64f" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -839,7 +839,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </section>
 <section id="a-working-implementation-in-70-lines" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="a-working-implementation-in-70-lines"><span class="header-section-number">5.3</span> A working implementation in ~70 lines</h2>
-<div id="7be2c73e" class="cell" data-execution_count="3">
+<div id="1ea09130" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Var:</span>
@@ -986,7 +986,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 <section id="higher-order-derivatives" class="level1" data-number="8">
 <h1 data-number="8"><span class="header-section-number">8</span> Higher-order derivatives</h1>
 <p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">4</a>)</span> — we apply AD to the output of AD. In PyTorch:</p>
-<div id="aee3946c" class="cell" data-execution_count="4">
+<div id="fc99207d" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
@@ -1047,7 +1047,7 @@ d²y/dx²  = 0.1750</code></pre>
 <li><strong>Reverse mode</strong> first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of <em>outputs</em>.</li>
 <li>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</li>
 <li>PINNs additionally use reverse-mode AD <em>inside</em> the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD <em>around</em> the loss to train. <code>create_graph=True</code> is what makes this composition possible.</li>
-<li>The implementations shown here ($$40 lines for forward mode, $$70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</li>
+<li>The implementations shown here (<span class="math inline">\(\sim\)</span> 40 lines for forward mode, <span class="math inline">\(\sim\)</span> 70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</li>
 </ul>
 <p>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <code>loss.backward()</code> stops being magic.</p>
 <hr>
@@ -2059,7 +2059,7 @@ d²y/dx²  = 0.1750</code></pre>
 <span id="cb12-520"><a href="#cb12-520" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Reverse mode** first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of *outputs*.</span>
 <span id="cb12-521"><a href="#cb12-521" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</span>
 <span id="cb12-522"><a href="#cb12-522" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>PINNs additionally use reverse-mode AD *inside* the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD *around* the loss to train. <span class="in">`create_graph=True`</span> is what makes this composition possible.</span>
-<span id="cb12-523"><a href="#cb12-523" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The implementations shown here ($\sim$40 lines for forward mode, $\sim$70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</span>
+<span id="cb12-523"><a href="#cb12-523" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The implementations shown here ($\sim$ 40 lines for forward mode, $\sim$ 70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</span>
 <span id="cb12-524"><a href="#cb12-524" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-525"><a href="#cb12-525" aria-hidden="true" tabindex="-1"></a>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <span class="in">`loss.backward()`</span> stops being magic.</span>
 <span id="cb12-526"><a href="#cb12-526" aria-hidden="true" tabindex="-1"></a></span>
