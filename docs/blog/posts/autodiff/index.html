@@ -504,7 +504,7 @@ f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
 <li><strong>Round-off error</strong> <span class="math inline">\(\sim O(\epsilon_{\text{mach}}/h)\)</span>: grows as <span class="math inline">\(h \to 0\)</span>, because we subtract two nearly equal numbers in floating point.</li>
 </ul>
 <p>Minimising the sum gives an optimal <span class="math inline">\(h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}\)</span> in double precision:</p>
-<div id="9fb727f2" class="cell" data-execution_count="1">
+<div id="a53ddade" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -678,7 +678,7 @@ f(a + b\varepsilon) = f(a) + f'(a) \cdot b\varepsilon + \tfrac{1}{2}f''(a) \cdot
 </section>
 <section id="a-working-implementation-in-40-lines" class="level2" data-number="4.3">
 <h2 data-number="4.3" class="anchored" data-anchor-id="a-working-implementation-in-40-lines"><span class="header-section-number">4.3</span> A working implementation in ~40 lines</h2>
-<div id="495fe64f" class="cell" data-execution_count="2">
+<div id="9db81422" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -839,7 +839,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </section>
 <section id="a-working-implementation-in-70-lines" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="a-working-implementation-in-70-lines"><span class="header-section-number">5.3</span> A working implementation in ~70 lines</h2>
-<div id="1ea09130" class="cell" data-execution_count="3">
+<div id="3e0ecf24" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Var:</span>
@@ -986,7 +986,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 <section id="higher-order-derivatives" class="level1" data-number="8">
 <h1 data-number="8"><span class="header-section-number">8</span> Higher-order derivatives</h1>
 <p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">4</a>)</span> — we apply AD to the output of AD. In PyTorch:</p>
-<div id="fc99207d" class="cell" data-execution_count="4">
+<div id="a8733dbd" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
@@ -1026,16 +1026,16 @@ d²y/dx²  = 0.1750</code></pre>
 <section id="a-brief-note-for-r-users" class="level1" data-number="10">
 <h1 data-number="10"><span class="header-section-number">10</span> A brief note for R users</h1>
 <p>Since I work mostly in R, I want to mention that the same machinery is available there. The <code>torch</code> R package <span class="citation" data-cites="torchR">(<a href="#ref-torchR" role="doc-biblioref">5</a>)</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="fl">1.5</span>, <span class="at">requires_grad =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">torch_sin</span>(x) <span class="sc">*</span> x<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>dy_dx   <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(y, x, <span class="at">create_graph =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(dy_dx, x)[[<span class="dv">1</span>]]</span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"dy/dx   = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(dy_dx)))</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"d2y/dx2 = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(d2y_dx2)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre class="{r}"><code>library(torch)
+
+x &lt;- torch_tensor(1.5, requires_grad = TRUE)
+y &lt;- torch_sin(x) * x^2
+
+dy_dx &lt;- autograd_grad(y, x, create_graph = TRUE)[[1]]
+d2y_dx2 &lt;- autograd_grad(dy_dx, x)[[1]]
+
+cat(sprintf("dy/dx   = %.4f\n", as.numeric(dy_dx)))
+cat(sprintf("d2y/dx2 = %.4f\n", as.numeric(d2y_dx2)))</code></pre>
 <p>For more flexibility, <code>jax</code> (via <code>reticulate</code>) and Julia’s <code>Zygote.jl</code> <span class="citation" data-cites="zygote">(<a href="#ref-zygote" role="doc-biblioref">6</a>)</span> are both mature reverse-mode AD systems worth exploring.</p>
 <hr>
 </section>
@@ -2035,40 +2035,40 @@ d²y/dx²  = 0.1750</code></pre>
 <span id="cb12-496"><a href="#cb12-496" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-497"><a href="#cb12-497" aria-hidden="true" tabindex="-1"></a>Since I work mostly in R, I want to mention that the same machinery is available there. The <span class="in">`torch`</span> R package <span class="co">[</span><span class="ot">@torchR</span><span class="co">]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</span>
 <span id="cb12-498"><a href="#cb12-498" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-499"><a href="#cb12-499" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
-<span id="cb12-500"><a href="#cb12-500" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
-<span id="cb12-501"><a href="#cb12-501" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-502"><a href="#cb12-502" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="fl">1.5</span>, <span class="at">requires_grad =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb12-503"><a href="#cb12-503" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">torch_sin</span>(x) <span class="sc">*</span> x<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb12-504"><a href="#cb12-504" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-505"><a href="#cb12-505" aria-hidden="true" tabindex="-1"></a>dy_dx   <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(y, x, <span class="at">create_graph =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
-<span id="cb12-506"><a href="#cb12-506" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(dy_dx, x)[[<span class="dv">1</span>]]</span>
-<span id="cb12-507"><a href="#cb12-507" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-508"><a href="#cb12-508" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"dy/dx   = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(dy_dx)))</span>
-<span id="cb12-509"><a href="#cb12-509" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"d2y/dx2 = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(d2y_dx2)))</span>
-<span id="cb12-510"><a href="#cb12-510" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-511"><a href="#cb12-511" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-512"><a href="#cb12-512" aria-hidden="true" tabindex="-1"></a>For more flexibility, <span class="in">`jax`</span> (via <span class="in">`reticulate`</span>) and Julia's <span class="in">`Zygote.jl`</span> <span class="co">[</span><span class="ot">@zygote</span><span class="co">]</span> are both mature reverse-mode AD systems worth exploring.</span>
+<span id="cb12-501"><a href="#cb12-501" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-502"><a href="#cb12-502" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb12-503"><a href="#cb12-503" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-504"><a href="#cb12-504" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="fl">1.5</span>, <span class="at">requires_grad =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-505"><a href="#cb12-505" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">torch_sin</span>(x) <span class="sc">*</span> x<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb12-506"><a href="#cb12-506" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-507"><a href="#cb12-507" aria-hidden="true" tabindex="-1"></a>dy_dx <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(y, x, <span class="at">create_graph =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
+<span id="cb12-508"><a href="#cb12-508" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(dy_dx, x)[[<span class="dv">1</span>]]</span>
+<span id="cb12-509"><a href="#cb12-509" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-510"><a href="#cb12-510" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"dy/dx   = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(dy_dx)))</span>
+<span id="cb12-511"><a href="#cb12-511" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"d2y/dx2 = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(d2y_dx2)))</span>
+<span id="cb12-512"><a href="#cb12-512" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-513"><a href="#cb12-513" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-514"><a href="#cb12-514" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-514"><a href="#cb12-514" aria-hidden="true" tabindex="-1"></a>For more flexibility, <span class="in">`jax`</span> (via <span class="in">`reticulate`</span>) and Julia's <span class="in">`Zygote.jl`</span> <span class="co">[</span><span class="ot">@zygote</span><span class="co">]</span> are both mature reverse-mode AD systems worth exploring.</span>
 <span id="cb12-515"><a href="#cb12-515" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-516"><a href="#cb12-516" aria-hidden="true" tabindex="-1"></a><span class="fu"># Summary</span></span>
+<span id="cb12-516"><a href="#cb12-516" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-517"><a href="#cb12-517" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-518"><a href="#cb12-518" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Every differentiable program is a composition of elementary operations with known local derivatives. AD applies the chain rule across this composition.</span>
-<span id="cb12-519"><a href="#cb12-519" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Forward mode** carries a derivative alongside each value (dual numbers). Cost scales with the number of *inputs*.</span>
-<span id="cb12-520"><a href="#cb12-520" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Reverse mode** first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of *outputs*.</span>
-<span id="cb12-521"><a href="#cb12-521" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</span>
-<span id="cb12-522"><a href="#cb12-522" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>PINNs additionally use reverse-mode AD *inside* the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD *around* the loss to train. <span class="in">`create_graph=True`</span> is what makes this composition possible.</span>
-<span id="cb12-523"><a href="#cb12-523" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The implementations shown here ($\sim$ 40 lines for forward mode, $\sim$ 70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</span>
-<span id="cb12-524"><a href="#cb12-524" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-525"><a href="#cb12-525" aria-hidden="true" tabindex="-1"></a>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <span class="in">`loss.backward()`</span> stops being magic.</span>
+<span id="cb12-518"><a href="#cb12-518" aria-hidden="true" tabindex="-1"></a><span class="fu"># Summary</span></span>
+<span id="cb12-519"><a href="#cb12-519" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-520"><a href="#cb12-520" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Every differentiable program is a composition of elementary operations with known local derivatives. AD applies the chain rule across this composition.</span>
+<span id="cb12-521"><a href="#cb12-521" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Forward mode** carries a derivative alongside each value (dual numbers). Cost scales with the number of *inputs*.</span>
+<span id="cb12-522"><a href="#cb12-522" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Reverse mode** first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of *outputs*.</span>
+<span id="cb12-523"><a href="#cb12-523" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</span>
+<span id="cb12-524"><a href="#cb12-524" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>PINNs additionally use reverse-mode AD *inside* the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD *around* the loss to train. <span class="in">`create_graph=True`</span> is what makes this composition possible.</span>
+<span id="cb12-525"><a href="#cb12-525" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The implementations shown here ($\sim$ 40 lines for forward mode, $\sim$ 70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</span>
 <span id="cb12-526"><a href="#cb12-526" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-527"><a href="#cb12-527" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-527"><a href="#cb12-527" aria-hidden="true" tabindex="-1"></a>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <span class="in">`loss.backward()`</span> stops being magic.</span>
 <span id="cb12-528"><a href="#cb12-528" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-529"><a href="#cb12-529" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {-}</span></span>
+<span id="cb12-529"><a href="#cb12-529" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-530"><a href="#cb12-530" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-531"><a href="#cb12-531" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
-<span id="cb12-532"><a href="#cb12-532" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb12-531"><a href="#cb12-531" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {-}</span></span>
+<span id="cb12-532"><a href="#cb12-532" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-533"><a href="#cb12-533" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb12-534"><a href="#cb12-534" aria-hidden="true" tabindex="-1"></a>:::</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
