@@ -415,7 +415,7 @@ window.Quarto = {
   <li><a href="#revisiting-the-pinn-code" id="toc-revisiting-the-pinn-code" class="nav-link" data-scroll-target="#revisiting-the-pinn-code"><span class="header-section-number">7</span> Revisiting the PINN code</a></li>
   <li><a href="#higher-order-derivatives" id="toc-higher-order-derivatives" class="nav-link" data-scroll-target="#higher-order-derivatives"><span class="header-section-number">8</span> Higher-order derivatives</a></li>
   <li><a href="#practical-considerations" id="toc-practical-considerations" class="nav-link" data-scroll-target="#practical-considerations"><span class="header-section-number">9</span> Practical considerations</a></li>
-  <li><a href="#a-brief-note-for-r-users" id="toc-a-brief-note-for-r-users" class="nav-link" data-scroll-target="#a-brief-note-for-r-users"><span class="header-section-number">10</span> A brief note for R users</a></li>
+  <li><a href="#torch-r-package" id="toc-torch-r-package" class="nav-link" data-scroll-target="#torch-r-package"><span class="header-section-number">10</span> <code>torch</code> R package</a></li>
   <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">11</span> Summary</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
@@ -504,7 +504,7 @@ f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
 <li><strong>Round-off error</strong> <span class="math inline">\(\sim O(\epsilon_{\text{mach}}/h)\)</span>: grows as <span class="math inline">\(h \to 0\)</span>, because we subtract two nearly equal numbers in floating point.</li>
 </ul>
 <p>Minimising the sum gives an optimal <span class="math inline">\(h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}\)</span> in double precision:</p>
-<div id="a53ddade" class="cell" data-execution_count="1">
+<div id="add3858d" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -678,7 +678,7 @@ f(a + b\varepsilon) = f(a) + f'(a) \cdot b\varepsilon + \tfrac{1}{2}f''(a) \cdot
 </section>
 <section id="a-working-implementation-in-40-lines" class="level2" data-number="4.3">
 <h2 data-number="4.3" class="anchored" data-anchor-id="a-working-implementation-in-40-lines"><span class="header-section-number">4.3</span> A working implementation in ~40 lines</h2>
-<div id="9db81422" class="cell" data-execution_count="2">
+<div id="81d02d81" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -839,7 +839,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </section>
 <section id="a-working-implementation-in-70-lines" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="a-working-implementation-in-70-lines"><span class="header-section-number">5.3</span> A working implementation in ~70 lines</h2>
-<div id="3e0ecf24" class="cell" data-execution_count="3">
+<div id="2a31a38c" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Var:</span>
@@ -986,7 +986,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 <section id="higher-order-derivatives" class="level1" data-number="8">
 <h1 data-number="8"><span class="header-section-number">8</span> Higher-order derivatives</h1>
 <p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">4</a>)</span> — we apply AD to the output of AD. In PyTorch:</p>
-<div id="a8733dbd" class="cell" data-execution_count="4">
+<div id="2353f4e0" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
@@ -1023,9 +1023,9 @@ d²y/dx²  = 0.1750</code></pre>
 <p><strong>Numerical stability.</strong> AD gives exact derivatives of the <em>program as written</em>, not of the underlying math. If your forward pass has a numerically unstable formulation (say, <span class="math inline">\(\log(\text{softmax}(x))\)</span> computed in two steps), the gradient will also be unstable. Combined operators like <code>log_softmax</code> exist precisely because they allow a more stable backward formulation.</p>
 <hr>
 </section>
-<section id="a-brief-note-for-r-users" class="level1" data-number="10">
-<h1 data-number="10"><span class="header-section-number">10</span> A brief note for R users</h1>
-<p>Since I work mostly in R, I want to mention that the same machinery is available there. The <code>torch</code> R package <span class="citation" data-cites="torchR">(<a href="#ref-torchR" role="doc-biblioref">5</a>)</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</p>
+<section id="torch-r-package" class="level1" data-number="10">
+<h1 data-number="10"><span class="header-section-number">10</span> <code>torch</code> R package</h1>
+<p>The <code>torch</code> R package <span class="citation" data-cites="torchR">(<a href="#ref-torchR" role="doc-biblioref">5</a>)</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</p>
 <pre class="{r}"><code>library(torch)
 
 x &lt;- torch_tensor(1.5, requires_grad = TRUE)
@@ -2031,9 +2031,9 @@ cat(sprintf("d2y/dx2 = %.4f\n", as.numeric(d2y_dx2)))</code></pre>
 <span id="cb12-492"><a href="#cb12-492" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-493"><a href="#cb12-493" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-494"><a href="#cb12-494" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-495"><a href="#cb12-495" aria-hidden="true" tabindex="-1"></a><span class="fu"># A brief note for R users</span></span>
+<span id="cb12-495"><a href="#cb12-495" aria-hidden="true" tabindex="-1"></a><span class="fu"># `torch` R package</span></span>
 <span id="cb12-496"><a href="#cb12-496" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-497"><a href="#cb12-497" aria-hidden="true" tabindex="-1"></a>Since I work mostly in R, I want to mention that the same machinery is available there. The <span class="in">`torch`</span> R package <span class="co">[</span><span class="ot">@torchR</span><span class="co">]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</span>
+<span id="cb12-497"><a href="#cb12-497" aria-hidden="true" tabindex="-1"></a>The <span class="in">`torch`</span> R package <span class="co">[</span><span class="ot">@torchR</span><span class="co">]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</span>
 <span id="cb12-498"><a href="#cb12-498" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-501"><a href="#cb12-501" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
 <span id="cb12-502"><a href="#cb12-502" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
