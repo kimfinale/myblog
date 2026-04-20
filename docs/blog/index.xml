@@ -65,7 +65,7 @@ font-style: inherit;">0</span>]</span></code></pre></div></div>
 <li><strong>Round-off error</strong> <img src="https://latex.codecogs.com/png.latex?%5Csim%20O(%5Cepsilon_%7B%5Ctext%7Bmach%7D%7D/h)">: grows as <img src="https://latex.codecogs.com/png.latex?h%20%5Cto%200">, because we subtract two nearly equal numbers in floating point.</li>
 </ul>
 <p>Minimising the sum gives an optimal <img src="https://latex.codecogs.com/png.latex?h%20%5Capprox%20%5Csqrt%7B%5Cepsilon_%7B%5Ctext%7Bmach%7D%7D%7D%20%5Capprox%2010%5E%7B-8%7D"> in double precision:</p>
-<div id="a53ddade" class="cell" data-execution_count="1">
+<div id="91a07cad" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
@@ -356,7 +356,7 @@ font-style: inherit;">"Finite differences: error vs step size"</span>)</span>
 </section>
 <section id="a-working-implementation-in-40-lines" class="level2" data-number="4.3">
 <h2 data-number="4.3" class="anchored" data-anchor-id="a-working-implementation-in-40-lines"><span class="header-section-number">4.3</span> A working implementation in ~40 lines</h2>
-<div id="9db81422" class="cell" data-execution_count="2">
+<div id="fd1033af" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="im" style="color: #00769E;
@@ -813,7 +813,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </section>
 <section id="a-working-implementation-in-70-lines" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="a-working-implementation-in-70-lines"><span class="header-section-number">5.3</span> A working implementation in ~70 lines</h2>
-<div id="3e0ecf24" class="cell" data-execution_count="3">
+<div id="f3695381" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
@@ -1265,7 +1265,10 @@ font-style: inherit;"># expect 1.7163...</span></span></code></pre></div></div>
 <section id="revisiting-the-pinn-code" class="level1" data-number="7">
 <h1 data-number="7"><span class="header-section-number">7</span> Revisiting the PINN code</h1>
 <p>Now read the physics-loss function from my earlier PINN post with AD in mind:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="kw" style="color: #003B4F;
+<div id="c62f807d" class="cell" data-execution_count="4">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> physics_loss(model, t_col_base):</span>
@@ -1382,6 +1385,8 @@ background-color: null;
 font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>).mean()</span></code></pre></div></div>
+</details>
+</div>
 <p>Line by line:</p>
 <ul>
 <li><code>requires_grad_(True)</code> registers <code>t</code> as a leaf in the computational graph. PyTorch now tracks every operation that uses it.</li>
@@ -1395,7 +1400,7 @@ font-style: inherit;">2</span>).mean()</span></code></pre></div></div>
 <section id="higher-order-derivatives" class="level1" data-number="8">
 <h1 data-number="8"><span class="header-section-number">8</span> Higher-order derivatives</h1>
 <p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">(4)</span> — we apply AD to the output of AD. In PyTorch:</p>
-<div id="a8733dbd" class="cell" data-execution_count="4">
+<div id="c11cceda" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="im" style="color: #00769E;
@@ -1506,9 +1511,9 @@ d²y/dx²  = 0.1750</code></pre>
 <p><strong>Numerical stability.</strong> AD gives exact derivatives of the <em>program as written</em>, not of the underlying math. If your forward pass has a numerically unstable formulation (say, <img src="https://latex.codecogs.com/png.latex?%5Clog(%5Ctext%7Bsoftmax%7D(x))"> computed in two steps), the gradient will also be unstable. Combined operators like <code>log_softmax</code> exist precisely because they allow a more stable backward formulation.</p>
 <hr>
 </section>
-<section id="a-brief-note-for-r-users" class="level1" data-number="10">
-<h1 data-number="10"><span class="header-section-number">10</span> A brief note for R users</h1>
-<p>Since I work mostly in R, I want to mention that the same machinery is available there. The <code>torch</code> R package <span class="citation" data-cites="torchR">(5)</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</p>
+<section id="torch-r-package" class="level1" data-number="10">
+<h1 data-number="10"><span class="header-section-number">10</span> <code>torch</code> R package</h1>
+<p>The <code>torch</code> R package <span class="citation" data-cites="torchR">(5)</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</p>
 <pre class="{r}"><code>library(torch)
 
 x &lt;- torch_tensor(1.5, requires_grad = TRUE)

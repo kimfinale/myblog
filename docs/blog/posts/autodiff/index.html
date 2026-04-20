@@ -504,7 +504,7 @@ f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
 <li><strong>Round-off error</strong> <span class="math inline">\(\sim O(\epsilon_{\text{mach}}/h)\)</span>: grows as <span class="math inline">\(h \to 0\)</span>, because we subtract two nearly equal numbers in floating point.</li>
 </ul>
 <p>Minimising the sum gives an optimal <span class="math inline">\(h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}\)</span> in double precision:</p>
-<div id="add3858d" class="cell" data-execution_count="1">
+<div id="91a07cad" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -678,7 +678,7 @@ f(a + b\varepsilon) = f(a) + f'(a) \cdot b\varepsilon + \tfrac{1}{2}f''(a) \cdot
 </section>
 <section id="a-working-implementation-in-40-lines" class="level2" data-number="4.3">
 <h2 data-number="4.3" class="anchored" data-anchor-id="a-working-implementation-in-40-lines"><span class="header-section-number">4.3</span> A working implementation in ~40 lines</h2>
-<div id="81d02d81" class="cell" data-execution_count="2">
+<div id="fd1033af" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -839,7 +839,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </section>
 <section id="a-working-implementation-in-70-lines" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="a-working-implementation-in-70-lines"><span class="header-section-number">5.3</span> A working implementation in ~70 lines</h2>
-<div id="2a31a38c" class="cell" data-execution_count="3">
+<div id="f3695381" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Var:</span>
@@ -958,7 +958,10 @@ Dual(11.6521, ε·1.7163)</code></pre>
 <section id="revisiting-the-pinn-code" class="level1" data-number="7">
 <h1 data-number="7"><span class="header-section-number">7</span> Revisiting the PINN code</h1>
 <p>Now read the physics-loss function from my earlier PINN post with AD in mind:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> physics_loss(model, t_col_base):</span>
+<div id="c62f807d" class="cell" data-execution_count="4">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> physics_loss(model, t_col_base):</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> t_col_base.clone().requires_grad_(<span class="va">True</span>)    <span class="co"># leaf in the graph</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    sir <span class="op">=</span> model(t)                                 <span class="co"># forward pass through network</span></span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> sir[:, <span class="dv">0</span>], sir[:, <span class="dv">1</span>], sir[:, <span class="dv">2</span>]</span>
@@ -973,6 +976,8 @@ Dual(11.6521, ε·1.7163)</code></pre>
 <span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    res_I <span class="op">=</span> dI <span class="op">-</span> b <span class="op">*</span> S <span class="op">*</span> I <span class="op">+</span> g <span class="op">*</span> I</span>
 <span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    res_R <span class="op">=</span> dR <span class="op">-</span> g <span class="op">*</span> I</span>
 <span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (res_S<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_I<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_R<span class="op">**</span><span class="dv">2</span>).mean()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
 <p>Line by line:</p>
 <ul>
 <li><code>requires_grad_(True)</code> registers <code>t</code> as a leaf in the computational graph. PyTorch now tracks every operation that uses it.</li>
@@ -986,7 +991,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 <section id="higher-order-derivatives" class="level1" data-number="8">
 <h1 data-number="8"><span class="header-section-number">8</span> Higher-order derivatives</h1>
 <p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">4</a>)</span> — we apply AD to the output of AD. In PyTorch:</p>
-<div id="2353f4e0" class="cell" data-execution_count="4">
+<div id="c11cceda" class="cell" data-execution_count="5">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
@@ -1961,114 +1966,114 @@ cat(sprintf("d2y/dx2 = %.4f\n", as.numeric(d2y_dx2)))</code></pre>
 <span id="cb12-420"><a href="#cb12-420" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-421"><a href="#cb12-421" aria-hidden="true" tabindex="-1"></a>Now read the physics-loss function from my earlier PINN post with AD in mind:</span>
 <span id="cb12-422"><a href="#cb12-422" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-423"><a href="#cb12-423" aria-hidden="true" tabindex="-1"></a><span class="in">```python</span></span>
-<span id="cb12-424"><a href="#cb12-424" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> physics_loss(model, t_col_base):</span>
-<span id="cb12-425"><a href="#cb12-425" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> t_col_base.clone().requires_grad_(<span class="va">True</span>)    <span class="co"># leaf in the graph</span></span>
-<span id="cb12-426"><a href="#cb12-426" aria-hidden="true" tabindex="-1"></a>    sir <span class="op">=</span> model(t)                                 <span class="co"># forward pass through network</span></span>
-<span id="cb12-427"><a href="#cb12-427" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> sir[:, <span class="dv">0</span>], sir[:, <span class="dv">1</span>], sir[:, <span class="dv">2</span>]</span>
-<span id="cb12-428"><a href="#cb12-428" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-429"><a href="#cb12-429" aria-hidden="true" tabindex="-1"></a>    ones <span class="op">=</span> torch.ones(<span class="bu">len</span>(t))</span>
-<span id="cb12-430"><a href="#cb12-430" aria-hidden="true" tabindex="-1"></a>    dS <span class="op">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-431"><a href="#cb12-431" aria-hidden="true" tabindex="-1"></a>    dI <span class="op">=</span> torch.autograd.grad(I, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-432"><a href="#cb12-432" aria-hidden="true" tabindex="-1"></a>    dR <span class="op">=</span> torch.autograd.grad(R, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-433"><a href="#cb12-433" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-434"><a href="#cb12-434" aria-hidden="true" tabindex="-1"></a>    b, g <span class="op">=</span> model.beta_s, model.gamma_s</span>
-<span id="cb12-435"><a href="#cb12-435" aria-hidden="true" tabindex="-1"></a>    res_S <span class="op">=</span> dS <span class="op">+</span> b <span class="op">*</span> S <span class="op">*</span> I</span>
-<span id="cb12-436"><a href="#cb12-436" aria-hidden="true" tabindex="-1"></a>    res_I <span class="op">=</span> dI <span class="op">-</span> b <span class="op">*</span> S <span class="op">*</span> I <span class="op">+</span> g <span class="op">*</span> I</span>
-<span id="cb12-437"><a href="#cb12-437" aria-hidden="true" tabindex="-1"></a>    res_R <span class="op">=</span> dR <span class="op">-</span> g <span class="op">*</span> I</span>
-<span id="cb12-438"><a href="#cb12-438" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (res_S<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_I<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_R<span class="op">**</span><span class="dv">2</span>).mean()</span>
-<span id="cb12-439"><a href="#cb12-439" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-440"><a href="#cb12-440" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-441"><a href="#cb12-441" aria-hidden="true" tabindex="-1"></a>Line by line:</span>
+<span id="cb12-425"><a href="#cb12-425" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-426"><a href="#cb12-426" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> physics_loss(model, t_col_base):</span>
+<span id="cb12-427"><a href="#cb12-427" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> t_col_base.clone().requires_grad_(<span class="va">True</span>)    <span class="co"># leaf in the graph</span></span>
+<span id="cb12-428"><a href="#cb12-428" aria-hidden="true" tabindex="-1"></a>    sir <span class="op">=</span> model(t)                                 <span class="co"># forward pass through network</span></span>
+<span id="cb12-429"><a href="#cb12-429" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> sir[:, <span class="dv">0</span>], sir[:, <span class="dv">1</span>], sir[:, <span class="dv">2</span>]</span>
+<span id="cb12-430"><a href="#cb12-430" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-431"><a href="#cb12-431" aria-hidden="true" tabindex="-1"></a>    ones <span class="op">=</span> torch.ones(<span class="bu">len</span>(t))</span>
+<span id="cb12-432"><a href="#cb12-432" aria-hidden="true" tabindex="-1"></a>    dS <span class="op">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-433"><a href="#cb12-433" aria-hidden="true" tabindex="-1"></a>    dI <span class="op">=</span> torch.autograd.grad(I, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-434"><a href="#cb12-434" aria-hidden="true" tabindex="-1"></a>    dR <span class="op">=</span> torch.autograd.grad(R, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-435"><a href="#cb12-435" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-436"><a href="#cb12-436" aria-hidden="true" tabindex="-1"></a>    b, g <span class="op">=</span> model.beta_s, model.gamma_s</span>
+<span id="cb12-437"><a href="#cb12-437" aria-hidden="true" tabindex="-1"></a>    res_S <span class="op">=</span> dS <span class="op">+</span> b <span class="op">*</span> S <span class="op">*</span> I</span>
+<span id="cb12-438"><a href="#cb12-438" aria-hidden="true" tabindex="-1"></a>    res_I <span class="op">=</span> dI <span class="op">-</span> b <span class="op">*</span> S <span class="op">*</span> I <span class="op">+</span> g <span class="op">*</span> I</span>
+<span id="cb12-439"><a href="#cb12-439" aria-hidden="true" tabindex="-1"></a>    res_R <span class="op">=</span> dR <span class="op">-</span> g <span class="op">*</span> I</span>
+<span id="cb12-440"><a href="#cb12-440" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (res_S<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_I<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_R<span class="op">**</span><span class="dv">2</span>).mean()</span>
+<span id="cb12-441"><a href="#cb12-441" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-442"><a href="#cb12-442" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-443"><a href="#cb12-443" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`requires_grad_(True)`</span> registers <span class="in">`t`</span> as a leaf in the computational graph. PyTorch now tracks every operation that uses it.</span>
-<span id="cb12-444"><a href="#cb12-444" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`sir = model(t)`</span> runs the forward pass. Each layer's operations get recorded on the tape.</span>
-<span id="cb12-445"><a href="#cb12-445" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`torch.autograd.grad(S, t, ...)`</span> runs a *reverse-mode backward pass from `S` to `t`*. Because we ask for <span class="in">`grad_outputs=ones`</span>, we seed the cotangent with $1$ at every element, and the result is $dS/dt$ evaluated at every collocation point — one row of the Jacobian, computed in a single sweep.</span>
-<span id="cb12-446"><a href="#cb12-446" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`create_graph=True`</span> is the key flag. It tells PyTorch to record *the backward pass itself* onto the tape, so we can differentiate through it again when we call <span class="in">`loss.backward()`</span> later. Without it, <span class="in">`dS`</span> would be a plain tensor detached from the graph, and the training gradient would miss the physics contribution.</span>
-<span id="cb12-447"><a href="#cb12-447" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-448"><a href="#cb12-448" aria-hidden="true" tabindex="-1"></a>The training loop's <span class="in">`loss.backward()`</span> is then a second reverse-mode pass — this time with respect to the network weights and the learnable $\beta, \gamma$. We are differentiating a function whose definition contains a derivative, which is precisely what PINNs require.</span>
+<span id="cb12-443"><a href="#cb12-443" aria-hidden="true" tabindex="-1"></a>Line by line:</span>
+<span id="cb12-444"><a href="#cb12-444" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-445"><a href="#cb12-445" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`requires_grad_(True)`</span> registers <span class="in">`t`</span> as a leaf in the computational graph. PyTorch now tracks every operation that uses it.</span>
+<span id="cb12-446"><a href="#cb12-446" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`sir = model(t)`</span> runs the forward pass. Each layer's operations get recorded on the tape.</span>
+<span id="cb12-447"><a href="#cb12-447" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`torch.autograd.grad(S, t, ...)`</span> runs a *reverse-mode backward pass from `S` to `t`*. Because we ask for <span class="in">`grad_outputs=ones`</span>, we seed the cotangent with $1$ at every element, and the result is $dS/dt$ evaluated at every collocation point — one row of the Jacobian, computed in a single sweep.</span>
+<span id="cb12-448"><a href="#cb12-448" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`create_graph=True`</span> is the key flag. It tells PyTorch to record *the backward pass itself* onto the tape, so we can differentiate through it again when we call <span class="in">`loss.backward()`</span> later. Without it, <span class="in">`dS`</span> would be a plain tensor detached from the graph, and the training gradient would miss the physics contribution.</span>
 <span id="cb12-449"><a href="#cb12-449" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-450"><a href="#cb12-450" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-450"><a href="#cb12-450" aria-hidden="true" tabindex="-1"></a>The training loop's <span class="in">`loss.backward()`</span> is then a second reverse-mode pass — this time with respect to the network weights and the learnable $\beta, \gamma$. We are differentiating a function whose definition contains a derivative, which is precisely what PINNs require.</span>
 <span id="cb12-451"><a href="#cb12-451" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-452"><a href="#cb12-452" aria-hidden="true" tabindex="-1"></a><span class="fu"># Higher-order derivatives</span></span>
+<span id="cb12-452"><a href="#cb12-452" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-453"><a href="#cb12-453" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-454"><a href="#cb12-454" aria-hidden="true" tabindex="-1"></a>For second derivatives — e.g. the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="co">[</span><span class="ot">@raissi2019</span><span class="co">]</span> — we apply AD to the output of AD. In PyTorch:</span>
+<span id="cb12-454"><a href="#cb12-454" aria-hidden="true" tabindex="-1"></a><span class="fu"># Higher-order derivatives</span></span>
 <span id="cb12-455"><a href="#cb12-455" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-458"><a href="#cb12-458" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb12-459"><a href="#cb12-459" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
-<span id="cb12-460"><a href="#cb12-460" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-461"><a href="#cb12-461" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.tensor(<span class="fl">1.5</span>, requires_grad<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb12-462"><a href="#cb12-462" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.sin(x) <span class="op">*</span> x<span class="op">**</span><span class="dv">2</span></span>
-<span id="cb12-463"><a href="#cb12-463" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-464"><a href="#cb12-464" aria-hidden="true" tabindex="-1"></a><span class="co"># First derivative: dy/dx — must keep the graph alive</span></span>
-<span id="cb12-465"><a href="#cb12-465" aria-hidden="true" tabindex="-1"></a>dy_dx <span class="op">=</span> torch.autograd.grad(y, x, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-466"><a href="#cb12-466" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-467"><a href="#cb12-467" aria-hidden="true" tabindex="-1"></a><span class="co"># Second derivative: differentiate dy_dx again</span></span>
-<span id="cb12-468"><a href="#cb12-468" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="op">=</span> torch.autograd.grad(dy_dx, x)[<span class="dv">0</span>]</span>
-<span id="cb12-469"><a href="#cb12-469" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-470"><a href="#cb12-470" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"y        = </span><span class="sc">{</span>y<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb12-471"><a href="#cb12-471" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"dy/dx    = </span><span class="sc">{</span>dy_dx<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)      <span class="co"># analytic: cos(x)·x² + 2x·sin(x)</span></span>
-<span id="cb12-472"><a href="#cb12-472" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"d²y/dx²  = </span><span class="sc">{</span>d2y_dx2<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)    <span class="co"># analytic: -sin(x)·x² + 4x·cos(x) + 2·sin(x)</span></span>
-<span id="cb12-473"><a href="#cb12-473" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-474"><a href="#cb12-474" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-475"><a href="#cb12-475" aria-hidden="true" tabindex="-1"></a>Each call to <span class="in">`torch.autograd.grad`</span> triggers a backward pass; <span class="in">`create_graph=True`</span> ensures that pass is itself recorded, so we can differentiate it. Third, fourth, and higher derivatives work the same way. The memory cost grows linearly with derivative order, because each extra pass adds another layer of tape.</span>
+<span id="cb12-456"><a href="#cb12-456" aria-hidden="true" tabindex="-1"></a>For second derivatives — e.g. the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="co">[</span><span class="ot">@raissi2019</span><span class="co">]</span> — we apply AD to the output of AD. In PyTorch:</span>
+<span id="cb12-457"><a href="#cb12-457" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-460"><a href="#cb12-460" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-461"><a href="#cb12-461" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb12-462"><a href="#cb12-462" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-463"><a href="#cb12-463" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.tensor(<span class="fl">1.5</span>, requires_grad<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb12-464"><a href="#cb12-464" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.sin(x) <span class="op">*</span> x<span class="op">**</span><span class="dv">2</span></span>
+<span id="cb12-465"><a href="#cb12-465" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-466"><a href="#cb12-466" aria-hidden="true" tabindex="-1"></a><span class="co"># First derivative: dy/dx — must keep the graph alive</span></span>
+<span id="cb12-467"><a href="#cb12-467" aria-hidden="true" tabindex="-1"></a>dy_dx <span class="op">=</span> torch.autograd.grad(y, x, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-468"><a href="#cb12-468" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-469"><a href="#cb12-469" aria-hidden="true" tabindex="-1"></a><span class="co"># Second derivative: differentiate dy_dx again</span></span>
+<span id="cb12-470"><a href="#cb12-470" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="op">=</span> torch.autograd.grad(dy_dx, x)[<span class="dv">0</span>]</span>
+<span id="cb12-471"><a href="#cb12-471" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-472"><a href="#cb12-472" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"y        = </span><span class="sc">{</span>y<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb12-473"><a href="#cb12-473" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"dy/dx    = </span><span class="sc">{</span>dy_dx<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)      <span class="co"># analytic: cos(x)·x² + 2x·sin(x)</span></span>
+<span id="cb12-474"><a href="#cb12-474" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"d²y/dx²  = </span><span class="sc">{</span>d2y_dx2<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)    <span class="co"># analytic: -sin(x)·x² + 4x·cos(x) + 2·sin(x)</span></span>
+<span id="cb12-475"><a href="#cb12-475" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-476"><a href="#cb12-476" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-477"><a href="#cb12-477" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-477"><a href="#cb12-477" aria-hidden="true" tabindex="-1"></a>Each call to <span class="in">`torch.autograd.grad`</span> triggers a backward pass; <span class="in">`create_graph=True`</span> ensures that pass is itself recorded, so we can differentiate it. Third, fourth, and higher derivatives work the same way. The memory cost grows linearly with derivative order, because each extra pass adds another layer of tape.</span>
 <span id="cb12-478"><a href="#cb12-478" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-479"><a href="#cb12-479" aria-hidden="true" tabindex="-1"></a><span class="fu"># Practical considerations</span></span>
+<span id="cb12-479"><a href="#cb12-479" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-480"><a href="#cb12-480" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-481"><a href="#cb12-481" aria-hidden="true" tabindex="-1"></a>**Non-differentiable operations.** Functions like $|x|$, $\max$, and ReLU are non-differentiable at isolated points. AD frameworks adopt a *subgradient* convention: the derivative of $\max(0, x)$ at $x = 0$ is defined as $0$ (PyTorch) or $1$ (some other frameworks). In practice this is invisible — the exact point is measure-zero on a random initialisation.</span>
+<span id="cb12-481"><a href="#cb12-481" aria-hidden="true" tabindex="-1"></a><span class="fu"># Practical considerations</span></span>
 <span id="cb12-482"><a href="#cb12-482" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-483"><a href="#cb12-483" aria-hidden="true" tabindex="-1"></a>**Control flow.** <span class="in">`if`</span>, <span class="in">`for`</span>, and <span class="in">`while`</span> are fine in AD, because the tape records only the operations that actually ran on this input. Unlike symbolic differentiation, AD does not need to reason about branches it did not take. However, the derivative can be discontinuous across branches, which sometimes causes training instability.</span>
+<span id="cb12-483"><a href="#cb12-483" aria-hidden="true" tabindex="-1"></a>**Non-differentiable operations.** Functions like $|x|$, $\max$, and ReLU are non-differentiable at isolated points. AD frameworks adopt a *subgradient* convention: the derivative of $\max(0, x)$ at $x = 0$ is defined as $0$ (PyTorch) or $1$ (some other frameworks). In practice this is invisible — the exact point is measure-zero on a random initialisation.</span>
 <span id="cb12-484"><a href="#cb12-484" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-485"><a href="#cb12-485" aria-hidden="true" tabindex="-1"></a>**In-place operations.** <span class="in">`x.add_(1)`</span> modifies the tensor that the backward pass was going to read, and PyTorch raises an error. Prefer <span class="in">`x = x + 1`</span> unless you know what you are doing.</span>
+<span id="cb12-485"><a href="#cb12-485" aria-hidden="true" tabindex="-1"></a>**Control flow.** <span class="in">`if`</span>, <span class="in">`for`</span>, and <span class="in">`while`</span> are fine in AD, because the tape records only the operations that actually ran on this input. Unlike symbolic differentiation, AD does not need to reason about branches it did not take. However, the derivative can be discontinuous across branches, which sometimes causes training instability.</span>
 <span id="cb12-486"><a href="#cb12-486" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-487"><a href="#cb12-487" aria-hidden="true" tabindex="-1"></a>**Memory.** The tape stores intermediate tensors for the backward pass. For a deep network processing a large batch, this is the dominant memory cost — more than the parameters. Techniques like *gradient checkpointing* trade compute for memory by re-running parts of the forward pass during the backward rather than storing everything.</span>
+<span id="cb12-487"><a href="#cb12-487" aria-hidden="true" tabindex="-1"></a>**In-place operations.** <span class="in">`x.add_(1)`</span> modifies the tensor that the backward pass was going to read, and PyTorch raises an error. Prefer <span class="in">`x = x + 1`</span> unless you know what you are doing.</span>
 <span id="cb12-488"><a href="#cb12-488" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-489"><a href="#cb12-489" aria-hidden="true" tabindex="-1"></a>**Stopping gradients.** <span class="in">`x.detach()`</span> and <span class="in">`with torch.no_grad():`</span> cut the graph at that point. Useful when you want to use a tensor's *value* as a constant, without tracking it for differentiation — e.g. target networks in reinforcement learning, or inputs to a critic that should not update the generator.</span>
+<span id="cb12-489"><a href="#cb12-489" aria-hidden="true" tabindex="-1"></a>**Memory.** The tape stores intermediate tensors for the backward pass. For a deep network processing a large batch, this is the dominant memory cost — more than the parameters. Techniques like *gradient checkpointing* trade compute for memory by re-running parts of the forward pass during the backward rather than storing everything.</span>
 <span id="cb12-490"><a href="#cb12-490" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-491"><a href="#cb12-491" aria-hidden="true" tabindex="-1"></a>**Numerical stability.** AD gives exact derivatives of the *program as written*, not of the underlying math. If your forward pass has a numerically unstable formulation (say, $\log(\text{softmax}(x))$ computed in two steps), the gradient will also be unstable. Combined operators like <span class="in">`log_softmax`</span> exist precisely because they allow a more stable backward formulation.</span>
+<span id="cb12-491"><a href="#cb12-491" aria-hidden="true" tabindex="-1"></a>**Stopping gradients.** <span class="in">`x.detach()`</span> and <span class="in">`with torch.no_grad():`</span> cut the graph at that point. Useful when you want to use a tensor's *value* as a constant, without tracking it for differentiation — e.g. target networks in reinforcement learning, or inputs to a critic that should not update the generator.</span>
 <span id="cb12-492"><a href="#cb12-492" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-493"><a href="#cb12-493" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-493"><a href="#cb12-493" aria-hidden="true" tabindex="-1"></a>**Numerical stability.** AD gives exact derivatives of the *program as written*, not of the underlying math. If your forward pass has a numerically unstable formulation (say, $\log(\text{softmax}(x))$ computed in two steps), the gradient will also be unstable. Combined operators like <span class="in">`log_softmax`</span> exist precisely because they allow a more stable backward formulation.</span>
 <span id="cb12-494"><a href="#cb12-494" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-495"><a href="#cb12-495" aria-hidden="true" tabindex="-1"></a><span class="fu"># `torch` R package</span></span>
+<span id="cb12-495"><a href="#cb12-495" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-496"><a href="#cb12-496" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-497"><a href="#cb12-497" aria-hidden="true" tabindex="-1"></a>The <span class="in">`torch`</span> R package <span class="co">[</span><span class="ot">@torchR</span><span class="co">]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</span>
+<span id="cb12-497"><a href="#cb12-497" aria-hidden="true" tabindex="-1"></a><span class="fu"># `torch` R package</span></span>
 <span id="cb12-498"><a href="#cb12-498" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-501"><a href="#cb12-501" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-502"><a href="#cb12-502" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
-<span id="cb12-503"><a href="#cb12-503" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-504"><a href="#cb12-504" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="fl">1.5</span>, <span class="at">requires_grad =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb12-505"><a href="#cb12-505" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">torch_sin</span>(x) <span class="sc">*</span> x<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb12-506"><a href="#cb12-506" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-507"><a href="#cb12-507" aria-hidden="true" tabindex="-1"></a>dy_dx <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(y, x, <span class="at">create_graph =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
-<span id="cb12-508"><a href="#cb12-508" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(dy_dx, x)[[<span class="dv">1</span>]]</span>
-<span id="cb12-509"><a href="#cb12-509" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-510"><a href="#cb12-510" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"dy/dx   = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(dy_dx)))</span>
-<span id="cb12-511"><a href="#cb12-511" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"d2y/dx2 = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(d2y_dx2)))</span>
-<span id="cb12-512"><a href="#cb12-512" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-513"><a href="#cb12-513" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-514"><a href="#cb12-514" aria-hidden="true" tabindex="-1"></a>For more flexibility, <span class="in">`jax`</span> (via <span class="in">`reticulate`</span>) and Julia's <span class="in">`Zygote.jl`</span> <span class="co">[</span><span class="ot">@zygote</span><span class="co">]</span> are both mature reverse-mode AD systems worth exploring.</span>
+<span id="cb12-499"><a href="#cb12-499" aria-hidden="true" tabindex="-1"></a>The <span class="in">`torch`</span> R package <span class="co">[</span><span class="ot">@torchR</span><span class="co">]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</span>
+<span id="cb12-500"><a href="#cb12-500" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-503"><a href="#cb12-503" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb12-504"><a href="#cb12-504" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb12-505"><a href="#cb12-505" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-506"><a href="#cb12-506" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="fl">1.5</span>, <span class="at">requires_grad =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-507"><a href="#cb12-507" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">torch_sin</span>(x) <span class="sc">*</span> x<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb12-508"><a href="#cb12-508" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-509"><a href="#cb12-509" aria-hidden="true" tabindex="-1"></a>dy_dx <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(y, x, <span class="at">create_graph =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
+<span id="cb12-510"><a href="#cb12-510" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(dy_dx, x)[[<span class="dv">1</span>]]</span>
+<span id="cb12-511"><a href="#cb12-511" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-512"><a href="#cb12-512" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"dy/dx   = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(dy_dx)))</span>
+<span id="cb12-513"><a href="#cb12-513" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"d2y/dx2 = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(d2y_dx2)))</span>
+<span id="cb12-514"><a href="#cb12-514" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-515"><a href="#cb12-515" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-516"><a href="#cb12-516" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-516"><a href="#cb12-516" aria-hidden="true" tabindex="-1"></a>For more flexibility, <span class="in">`jax`</span> (via <span class="in">`reticulate`</span>) and Julia's <span class="in">`Zygote.jl`</span> <span class="co">[</span><span class="ot">@zygote</span><span class="co">]</span> are both mature reverse-mode AD systems worth exploring.</span>
 <span id="cb12-517"><a href="#cb12-517" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-518"><a href="#cb12-518" aria-hidden="true" tabindex="-1"></a><span class="fu"># Summary</span></span>
+<span id="cb12-518"><a href="#cb12-518" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-519"><a href="#cb12-519" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-520"><a href="#cb12-520" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Every differentiable program is a composition of elementary operations with known local derivatives. AD applies the chain rule across this composition.</span>
-<span id="cb12-521"><a href="#cb12-521" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Forward mode** carries a derivative alongside each value (dual numbers). Cost scales with the number of *inputs*.</span>
-<span id="cb12-522"><a href="#cb12-522" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Reverse mode** first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of *outputs*.</span>
-<span id="cb12-523"><a href="#cb12-523" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</span>
-<span id="cb12-524"><a href="#cb12-524" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>PINNs additionally use reverse-mode AD *inside* the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD *around* the loss to train. <span class="in">`create_graph=True`</span> is what makes this composition possible.</span>
-<span id="cb12-525"><a href="#cb12-525" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The implementations shown here ($\sim$ 40 lines for forward mode, $\sim$ 70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</span>
-<span id="cb12-526"><a href="#cb12-526" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-527"><a href="#cb12-527" aria-hidden="true" tabindex="-1"></a>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <span class="in">`loss.backward()`</span> stops being magic.</span>
+<span id="cb12-520"><a href="#cb12-520" aria-hidden="true" tabindex="-1"></a><span class="fu"># Summary</span></span>
+<span id="cb12-521"><a href="#cb12-521" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-522"><a href="#cb12-522" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Every differentiable program is a composition of elementary operations with known local derivatives. AD applies the chain rule across this composition.</span>
+<span id="cb12-523"><a href="#cb12-523" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Forward mode** carries a derivative alongside each value (dual numbers). Cost scales with the number of *inputs*.</span>
+<span id="cb12-524"><a href="#cb12-524" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Reverse mode** first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of *outputs*.</span>
+<span id="cb12-525"><a href="#cb12-525" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</span>
+<span id="cb12-526"><a href="#cb12-526" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>PINNs additionally use reverse-mode AD *inside* the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD *around* the loss to train. <span class="in">`create_graph=True`</span> is what makes this composition possible.</span>
+<span id="cb12-527"><a href="#cb12-527" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The implementations shown here ($\sim$ 40 lines for forward mode, $\sim$ 70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</span>
 <span id="cb12-528"><a href="#cb12-528" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-529"><a href="#cb12-529" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-529"><a href="#cb12-529" aria-hidden="true" tabindex="-1"></a>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <span class="in">`loss.backward()`</span> stops being magic.</span>
 <span id="cb12-530"><a href="#cb12-530" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-531"><a href="#cb12-531" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {-}</span></span>
+<span id="cb12-531"><a href="#cb12-531" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-532"><a href="#cb12-532" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-533"><a href="#cb12-533" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
-<span id="cb12-534"><a href="#cb12-534" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb12-533"><a href="#cb12-533" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {-}</span></span>
+<span id="cb12-534"><a href="#cb12-534" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-535"><a href="#cb12-535" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb12-536"><a href="#cb12-536" aria-hidden="true" tabindex="-1"></a>:::</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
