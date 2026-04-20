@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-04-20">
+
+<title>Minimax: Planning for the Worst-Case Epidemic – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-953e13259b406e3222ebc3917f29fddf.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#from-nash-to-minimax" id="toc-from-nash-to-minimax" class="nav-link active" data-scroll-target="#from-nash-to-minimax"><span class="header-section-number">1</span> From Nash to minimax</a></li>
+  <li><a href="#von-neumann-zero-sum-games-and-the-minimax-theorem" id="toc-von-neumann-zero-sum-games-and-the-minimax-theorem" class="nav-link" data-scroll-target="#von-neumann-zero-sum-games-and-the-minimax-theorem"><span class="header-section-number">2</span> Von Neumann, zero-sum games, and the minimax theorem</a></li>
+  <li><a href="#minimax-as-a-decision-rule" id="toc-minimax-as-a-decision-rule" class="nav-link" data-scroll-target="#minimax-as-a-decision-rule"><span class="header-section-number">3</span> Minimax as a decision rule</a></li>
+  <li><a href="#the-minimax-vaccination-problem" id="toc-the-minimax-vaccination-problem" class="nav-link" data-scroll-target="#the-minimax-vaccination-problem"><span class="header-section-number">4</span> The minimax vaccination problem</a>
+  <ul class="collapse">
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup"><span class="header-section-number">4.1</span> Setup</a></li>
+  <li><a href="#implementation" id="toc-implementation" class="nav-link" data-scroll-target="#implementation"><span class="header-section-number">4.2</span> Implementation</a></li>
+  <li><a href="#a-worked-example" id="toc-a-worked-example" class="nav-link" data-scroll-target="#a-worked-example"><span class="header-section-number">4.3</span> A worked example</a></li>
+  <li><a href="#an-analytical-short-cut" id="toc-an-analytical-short-cut" class="nav-link" data-scroll-target="#an-analytical-short-cut"><span class="header-section-number">4.4</span> An analytical short-cut</a></li>
+  <li><a href="#visualising-the-loss-surface" id="toc-visualising-the-loss-surface" class="nav-link" data-scroll-target="#visualising-the-loss-surface"><span class="header-section-number">4.5</span> Visualising the loss surface</a></li>
+  <li><a href="#how-the-policies-respond-to-the-width-of-the-uncertainty-set" id="toc-how-the-policies-respond-to-the-width-of-the-uncertainty-set" class="nav-link" data-scroll-target="#how-the-policies-respond-to-the-width-of-the-uncertainty-set"><span class="header-section-number">4.6</span> How the policies respond to the width of the uncertainty set</a></li>
+  </ul></li>
+  <li><a href="#hostpathogen-games-two-caveats" id="toc-hostpathogen-games-two-caveats" class="nav-link" data-scroll-target="#hostpathogen-games-two-caveats"><span class="header-section-number">5</span> Host–pathogen games: two caveats</a></li>
+  <li><a href="#minimax-outside-of-game-theory" id="toc-minimax-outside-of-game-theory" class="nav-link" data-scroll-target="#minimax-outside-of-game-theory"><span class="header-section-number">6</span> Minimax outside of game theory</a></li>
+  <li><a href="#when-minimax-is-too-pessimistic" id="toc-when-minimax-is-too-pessimistic" class="nav-link" data-scroll-target="#when-minimax-is-too-pessimistic"><span class="header-section-number">7</span> When minimax is too pessimistic</a></li>
+  <li><a href="#what-the-minimax-frame-tells-us" id="toc-what-the-minimax-frame-tells-us" class="nav-link" data-scroll-target="#what-the-minimax-frame-tells-us"><span class="header-section-number">8</span> What the minimax frame tells us</a></li>
+  <li><a href="#series-roadmap" id="toc-series-roadmap" class="nav-link" data-scroll-target="#series-roadmap"><span class="header-section-number">9</span> Series roadmap</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Minimax: Planning for the Worst-Case Epidemic</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+<p class="subtitle lead">When uncertainty is adversarial, the robust planner plays a zero-sum game against Nature</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">game theory</div>
+    <div class="quarto-category">minimax</div>
+    <div class="quarto-category">robust decision</div>
+    <div class="quarto-category">vaccination</div>
+    <div class="quarto-category">cholera</div>
+    <div class="quarto-category">R</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 20, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="from-nash-to-minimax" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> From Nash to minimax</h1>
+<p><a href="https://www.jonghoonk.com/blog/posts/game_theory_vacc/">The vaccination game</a> was a game between people. Each individual weighed the cost of vaccination against the risk of infection, and the Nash equilibrium emerged from their simultaneous best responses. That framework explains a lot — why voluntary uptake stalls below the herd-immunity threshold, and how large the gap can be.</p>
+<p>But at IVI, and in public-health agencies more generally, the operative decision-maker is usually not a pair of strategic individuals. It is a planner — a ministry of health, a WHO technical advisory group, a vaccine-allocation committee — who must commit to a policy before the epidemic unfolds, under substantial uncertainty about what the epidemic will do. The uncertainty can be <em>parameter</em> uncertainty (<span class="math inline">\(R_0\)</span>, vaccine efficacy, waning), <em>structural</em> uncertainty (which compartmental model?), or genuinely <em>adversarial</em> (which strain will emerge? where will adherence collapse?).</p>
+<p>A useful frame for this is the <strong>game against Nature</strong>. The planner chooses an action; Nature then reveals the state of the world; the planner absorbs the resulting cost. If the planner is risk-neutral and holds a credible prior over Nature’s moves, she minimizes expected cost — the <strong>Bayes rule</strong>. If she is unwilling to commit to a prior, or if Nature’s move is genuinely adversarial, she minimizes the <em>worst-case</em> cost — the <strong>minimax rule</strong>. This post is about the minimax rule: where it comes from, how to compute it, when it is the right thing to do, and when it is not.</p>
+</section>
+<section id="von-neumann-zero-sum-games-and-the-minimax-theorem" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Von Neumann, zero-sum games, and the minimax theorem</h1>
+<p>Minimax is the oldest result in modern game theory. Von Neumann proved the minimax theorem in 1928 <span class="citation" data-cites="vonneumann1928">(<a href="#ref-vonneumann1928" role="doc-biblioref">1</a>)</span>, sixteen years before <em>Theory of Games and Economic Behavior</em> and twenty-two years before Nash. Its original setting was the two-player zero-sum game.</p>
+<p>Let two players choose mixed strategies <span class="math inline">\(x \in \Delta_n\)</span> and <span class="math inline">\(y \in \Delta_m\)</span> over their respective pure strategies, and let <span class="math inline">\(A\)</span> be an <span class="math inline">\(n \times m\)</span> payoff matrix (Player 1 receives <span class="math inline">\(x^\top A y\)</span>; Player 2 receives <span class="math inline">\(-x^\top A y\)</span>). Player 1’s <strong>maximin</strong> value is what she can guarantee against any opponent:</p>
+<p><span class="math display">\[
+\underline{v} \;=\; \max_x \min_y\; x^\top A y.
+\]</span></p>
+<p>Player 2’s <strong>minimax</strong> value is what she can limit her opponent to:</p>
+<p><span class="math display">\[
+\overline{v} \;=\; \min_y \max_x\; x^\top A y.
+\]</span></p>
+<p>It is always true that <span class="math inline">\(\underline{v} \le \overline{v}\)</span>. <strong>Von Neumann’s minimax theorem</strong> asserts that for finite zero-sum games played in mixed strategies, equality holds:</p>
+<p><span class="math display">\[
+\underline{v} \;=\; \overline{v} \;=\; v, \tag{1}
+\]</span></p>
+<p>and the common value <span class="math inline">\(v\)</span> is the <strong>value of the game</strong>. Pure-strategy equilibria can fail to exist — rock–paper–scissors has none — but mixed-strategy equilibria always do. Existence is proved via the separating-hyperplane theorem (equivalently, LP duality); it was the first equilibrium existence result in game theory and a precursor to Nash’s 1950 theorem for general <span class="math inline">\(n\)</span>-player games <span class="citation" data-cites="nash1950">(<a href="#ref-nash1950" role="doc-biblioref">2</a>)</span>.</p>
+<p>The key link back to Part 1: <strong>in two-player zero-sum games, Nash equilibrium, minimax, and maximin all coincide</strong>. Outside this class — including the vaccination game, which is non-zero-sum and has externalities — they generally differ.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>What you need
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">"dplyr"</span>, <span class="st">"tidyr"</span>, <span class="st">"ggplot2"</span>, <span class="st">"patchwork"</span>, <span class="st">"truncnorm"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Code tested with: R 4.4, <code>ggplot2 3.5</code>, <code>dplyr 1.1</code>.</p>
+</div>
+</div>
+<hr>
+</section>
+<section id="minimax-as-a-decision-rule" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Minimax as a decision rule</h1>
+<p>Wald <span class="citation" data-cites="wald1950">(<a href="#ref-wald1950" role="doc-biblioref">3</a>)</span> generalised minimax from game theory to statistical decision theory. Consider a decision-maker choosing action <span class="math inline">\(a\)</span> in a space <span class="math inline">\(\mathcal{A}\)</span>, facing an unknown state of nature <span class="math inline">\(\theta \in \Theta\)</span>, with loss <span class="math inline">\(L(a, \theta)\)</span>. Three canonical rules deserve their names:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Rule</th>
+<th>Formula</th>
+<th>When it is the right thing</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Bayes</strong></td>
+<td><span class="math inline">\(a_B \;=\; \arg\min_a \int L(a, \theta)\, \pi(\theta)\, d\theta\)</span></td>
+<td>We trust the prior <span class="math inline">\(\pi\)</span></td>
+</tr>
+<tr class="even">
+<td><strong>Minimax</strong></td>
+<td><span class="math inline">\(a_M \;=\; \arg\min_a \sup_{\theta \in \Theta} L(a, \theta)\)</span></td>
+<td>We do not trust the prior; Nature is (or might as well be) adversarial</td>
+</tr>
+<tr class="odd">
+<td><strong>Minimax regret</strong></td>
+<td><span class="math inline">\(a_R \;=\; \arg\min_a \sup_\theta \big\{ L(a, \theta) - \min_{a'} L(a', \theta) \big\}\)</span></td>
+<td>We want to minimise <em>opportunity loss</em> rather than absolute loss</td>
+</tr>
+</tbody>
+</table>
+<p>Minimax is often criticised as <strong>pessimistic</strong>: it hedges against states of nature that may be vanishingly improbable. For an infectious-disease planner, this can mean hedging against <span class="math inline">\(R_0 = 15\)</span> in a setting where credible estimates place <span class="math inline">\(R_0\)</span> in <span class="math inline">\([2, 4]\)</span>. The remedy is not to abandon minimax but to <strong>restrict the uncertainty set</strong> <span class="math inline">\(\Theta\)</span> — a device called <strong><span class="math inline">\(\Gamma\)</span>-minimax</strong> when <span class="math inline">\(\Gamma\)</span> is a family of priors rather than a set of parameters <span class="citation" data-cites="berger1985">(<a href="#ref-berger1985" role="doc-biblioref">4</a>)</span>. We return to this at the end.</p>
+<hr>
+</section>
+<section id="the-minimax-vaccination-problem" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> The minimax vaccination problem</h1>
+<p>Let us ground the abstraction in a problem close to our work at IVI: a cholera-prone setting where oral cholera vaccine (OCV) must be allocated before outbreak onset, under uncertainty about transmissibility. We will compute the minimax coverage <span class="math inline">\(\pi_{\text{mm}}\)</span> and compare it against two references — a Bayes-optimal coverage <span class="math inline">\(\pi_{B}\)</span> and the Nash coverage <span class="math inline">\(\pi^*\)</span> from Part 1.</p>
+<section id="setup" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="setup"><span class="header-section-number">4.1</span> Setup</h2>
+<p>Fix an SIR model with a perfect pre-epidemic vaccine, coverage <span class="math inline">\(\pi\)</span>, and basic reproduction number <span class="math inline">\(R_0\)</span>. Among the unvaccinated, the attack fraction <span class="math inline">\(w\)</span> satisfies the classical final-size relation</p>
+<p><span class="math display">\[
+w \;=\; 1 - \exp\!\big(-R_0\,(1 - \pi)\,w\big), \tag{2}
+\]</span></p>
+<p>with <span class="math inline">\(w = 0\)</span> whenever <span class="math inline">\(R_0(1 - \pi) \le 1\)</span>. The population-level attack rate is <span class="math inline">\(\text{AR}(\pi, R_0) = (1-\pi)\, w\)</span>. We take the planner’s per-capita loss as</p>
+<p><span class="math display">\[
+L(\pi, R_0) \;=\; c_v \cdot \pi \;+\; c_i \cdot \text{AR}(\pi, R_0), \tag{3}
+\]</span></p>
+<p>where <span class="math inline">\(c_v\)</span> is the per-dose vaccination cost and <span class="math inline">\(c_i\)</span> is the per-case cost (DALYs, economic loss, …). The only uncertainty is over <span class="math inline">\(R_0\)</span>, which lies in <span class="math inline">\([R_{\min}, R_{\max}]\)</span>.</p>
+</section>
+<section id="implementation" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="implementation"><span class="header-section-number">4.2</span> Implementation</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(truncnorm)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_set</span>(</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">10</span>) <span class="sc">+</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        <span class="fu">theme</span>(</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>            <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>            <span class="at">plot.title       =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">size =</span> <span class="dv">10</span>),</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>            <span class="at">legend.position  =</span> <span class="st">"bottom"</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>C_NASH <span class="ot">&lt;-</span> <span class="st">"#F44336"</span> <span class="co"># red</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>C_SOCIAL <span class="ot">&lt;-</span> <span class="st">"#2196F3"</span> <span class="co"># blue</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>C_CRIT <span class="ot">&lt;-</span> <span class="st">"#4CAF50"</span> <span class="co"># green</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>C_MINIMAX <span class="ot">&lt;-</span> <span class="st">"#FF9800"</span> <span class="co"># orange</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>C_GAP <span class="ot">&lt;-</span> <span class="st">"#9C27B0"</span> <span class="co"># purple</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Attack rate from the SIR final-size relation (perfect pre-vaccination)</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>attack_rate <span class="ot">&lt;-</span> <span class="cf">function</span>(pi, R0) {</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    Reff <span class="ot">&lt;-</span> R0 <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> pi)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (Reff <span class="sc">&lt;=</span> <span class="dv">1</span>) {</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    w <span class="ot">&lt;-</span> <span class="fu">uniroot</span>(</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        \(w) w <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span>Reff <span class="sc">*</span> w)),</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        <span class="at">interval =</span> <span class="fu">c</span>(<span class="fl">1e-8</span>, <span class="dv">1</span> <span class="sc">-</span> <span class="fl">1e-8</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    )<span class="sc">$</span>root</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">-</span> pi) <span class="sc">*</span> w</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Planner's per-capita loss</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>loss <span class="ot">&lt;-</span> <span class="cf">function</span>(pi, R0, <span class="at">cv =</span> <span class="fl">0.10</span>, <span class="at">ci =</span> <span class="fl">1.0</span>) {</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    cv <span class="sc">*</span> pi <span class="sc">+</span> ci <span class="sc">*</span> <span class="fu">attack_rate</span>(pi, R0)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Worst-case loss over R0 in [R_lo, R_hi]</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>worst_case <span class="ot">&lt;-</span> <span class="cf">function</span>(pi, R_lo, R_hi, cv, ci) {</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    R_grid <span class="ot">&lt;-</span> <span class="fu">seq</span>(R_lo, R_hi, <span class="at">length.out =</span> <span class="dv">60</span>)</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">max</span>(<span class="fu">sapply</span>(R_grid, \(R0) <span class="fu">loss</span>(pi, R0, cv, ci)))</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Minimax coverage: minimises the worst-case loss</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>minimax_pi <span class="ot">&lt;-</span> <span class="cf">function</span>(R_lo, R_hi, <span class="at">cv =</span> <span class="fl">0.10</span>, <span class="at">ci =</span> <span class="fl">1.0</span>) {</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">optimize</span>(\(pi) <span class="fu">worst_case</span>(pi, R_lo, R_hi, cv, ci),</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">interval =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    )<span class="sc">$</span>minimum</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Bayes coverage: minimises expected loss under a truncated-normal prior</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>bayes_pi <span class="ot">&lt;-</span> <span class="cf">function</span>(R0_mean, R0_sd, <span class="at">R_lo =</span> <span class="fl">1.1</span>, <span class="at">R_hi =</span> <span class="dv">20</span>,</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>                     <span class="at">cv =</span> <span class="fl">0.10</span>, <span class="at">ci =</span> <span class="fl">1.0</span>, <span class="at">n =</span> <span class="dv">500</span>) {</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    R0_samples <span class="ot">&lt;-</span> <span class="fu">rtruncnorm</span>(n,</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>        <span class="at">a =</span> R_lo, <span class="at">b =</span> R_hi,</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>        <span class="at">mean =</span> R0_mean, <span class="at">sd =</span> R0_sd</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    <span class="fu">optimize</span>(</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>        \(pi) <span class="fu">mean</span>(<span class="fu">sapply</span>(R0_samples, \(R0) <span class="fu">loss</span>(pi, R0, cv, ci))),</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>        <span class="at">interval =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    )<span class="sc">$</span>minimum</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Nash coverage from Part 1 (linear pi_inf)</span></span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>nash_coverage <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, q, r) {</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>    pi_c <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> <span class="dv">1</span> <span class="sc">/</span> R0</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (r <span class="sc">&gt;=</span> q) {</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>        <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>    <span class="fu">uniroot</span>(</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>        \(pi) q <span class="sc">*</span> <span class="fu">pmax</span>(<span class="dv">0</span>, <span class="dv">1</span> <span class="sc">-</span> pi <span class="sc">/</span> pi_c) <span class="sc">-</span> r,</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>        <span class="at">interval =</span> <span class="fu">c</span>(<span class="dv">0</span>, pi_c)</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>    )<span class="sc">$</span>root</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="a-worked-example" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="a-worked-example"><span class="header-section-number">4.3</span> A worked example</h2>
+<p>Take the uncertainty set <span class="math inline">\(R_0 \in [1.5, 6]\)</span> — a range spanning published cholera estimates across endemic and outbreak settings. Set <span class="math inline">\(c_v = 0.10\)</span> and <span class="math inline">\(c_i = 1\)</span> (a single dose costs 10% of an averted case), and place a Bayesian prior centred at <span class="math inline">\(R_0 = 2.5\)</span> with standard deviation <span class="math inline">\(0.8\)</span>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>R_lo <span class="ot">&lt;-</span> <span class="fl">1.5</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>R_hi <span class="ot">&lt;-</span> <span class="dv">6</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>cv <span class="ot">&lt;-</span> <span class="fl">0.10</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>ci <span class="ot">&lt;-</span> <span class="fl">1.0</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>pi_mm <span class="ot">&lt;-</span> <span class="fu">minimax_pi</span>(R_lo, R_hi, cv, ci)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>pi_B <span class="ot">&lt;-</span> <span class="fu">bayes_pi</span>(</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">R0_mean =</span> <span class="fl">2.5</span>, <span class="at">R0_sd =</span> <span class="fl">0.8</span>,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">R_lo =</span> R_lo, <span class="at">R_hi =</span> R_hi, <span class="at">cv =</span> cv, <span class="at">ci =</span> ci</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>pi_N <span class="ot">&lt;-</span> <span class="fu">nash_coverage</span>(<span class="at">R0 =</span> <span class="fl">2.5</span>, <span class="at">q =</span> <span class="fl">0.5</span>, <span class="at">r =</span> <span class="fl">0.10</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">strategy =</span> <span class="fu">c</span>(</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Nash equilibrium (pi*, from Part 1)"</span>,</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Bayes-optimal (pi_B)"</span>,</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Minimax (pi_mm)"</span>,</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Herd-immunity threshold at R_max"</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">value =</span> <span class="fu">c</span>(pi_N, pi_B, pi_mm, <span class="dv">1</span> <span class="sc">-</span> <span class="dv">1</span> <span class="sc">/</span> R_hi)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">sprintf</span>(<span class="st">"%.3f"</span>, value)) <span class="sc">|&gt;</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">strategy</th>
+<th style="text-align: left;">value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Nash equilibrium (pi*, from Part 1)</td>
+<td style="text-align: left;">0.480</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Bayes-optimal (pi_B)</td>
+<td style="text-align: left;">0.742</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Minimax (pi_mm)</td>
+<td style="text-align: left;">0.833</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Herd-immunity threshold at R_max</td>
+<td style="text-align: left;">0.833</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The pattern is what the theory anticipates. Voluntary uptake (Nash) is lowest — individuals free-ride on the herd. The Bayes planner does better, pulling coverage upward to internalise the externality. The minimax planner does <em>more</em>, pushing coverage close to the herd-immunity threshold of the worst-case <span class="math inline">\(R_0\)</span> in the uncertainty set.</p>
+</section>
+<section id="an-analytical-short-cut" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="an-analytical-short-cut"><span class="header-section-number">4.4</span> An analytical short-cut</h2>
+<p>Because <span class="math inline">\(L(\pi, R_0)\)</span> is monotone increasing in <span class="math inline">\(R_0\)</span> whenever <span class="math inline">\(\pi &lt; 1 - 1/R_0\)</span>, the inner supremum in the minimax problem is attained at <span class="math inline">\(R_0 = R_{\max}\)</span>:</p>
+<p><span class="math display">\[
+\pi_{\text{mm}} \;=\; \arg\min_\pi\, L(\pi, R_{\max}). \tag{4}
+\]</span></p>
+<p><strong>The minimax planner acts as if <span class="math inline">\(R_0\)</span> were pinned at its upper bound and ignores everything else.</strong> This is simultaneously minimax’s strength — it is robust to misspecification of the prior — and its weakness. It can demand expensive hedging against very unlikely scenarios.</p>
+</section>
+<section id="visualising-the-loss-surface" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="visualising-the-loss-surface"><span class="header-section-number">4.5</span> Visualising the loss surface</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>grid <span class="ot">&lt;-</span> <span class="fu">expand_grid</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">pi =</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="fl">0.95</span>, <span class="at">length.out =</span> <span class="dv">70</span>),</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">R0 =</span> <span class="fu">seq</span>(R_lo, R_hi, <span class="at">length.out =</span> <span class="dv">70</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rowwise</span>() <span class="sc">|&gt;</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">L =</span> <span class="fu">loss</span>(pi, R0, cv, ci)) <span class="sc">|&gt;</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>()</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(grid, <span class="fu">aes</span>(<span class="at">x =</span> pi, <span class="at">y =</span> R0, <span class="at">fill =</span> L)) <span class="sc">+</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_raster</span>() <span class="sc">+</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_fill_viridis_c</span>(<span class="at">option =</span> <span class="st">"magma"</span>, <span class="at">direction =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">name =</span> <span class="st">"Loss"</span>) <span class="sc">+</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> pi_N, <span class="at">colour =</span> C_NASH, <span class="at">linewidth =</span> <span class="fl">1.0</span>, <span class="at">linetype =</span> <span class="st">"dotted"</span>) <span class="sc">+</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> pi_B, <span class="at">colour =</span> C_SOCIAL, <span class="at">linewidth =</span> <span class="fl">1.0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> pi_mm, <span class="at">colour =</span> C_MINIMAX, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> pi_N, <span class="at">y =</span> R_hi <span class="sc">-</span> <span class="fl">0.15</span>, <span class="at">label =</span> <span class="st">"Nash"</span>, <span class="at">hjust =</span> <span class="sc">-</span><span class="fl">0.1</span>, <span class="at">colour =</span> C_NASH, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> pi_B, <span class="at">y =</span> R_hi <span class="sc">-</span> <span class="fl">0.45</span>, <span class="at">label =</span> <span class="st">"Bayes"</span>, <span class="at">hjust =</span> <span class="sc">-</span><span class="fl">0.1</span>, <span class="at">colour =</span> C_SOCIAL, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> pi_mm, <span class="at">y =</span> R_hi <span class="sc">-</span> <span class="fl">0.75</span>, <span class="at">label =</span> <span class="st">"Minimax"</span>, <span class="at">hjust =</span> <span class="sc">-</span><span class="fl">0.1</span>, <span class="at">colour =</span> C_MINIMAX, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        <span class="at">x =</span> <span class="fu">expression</span>(<span class="st">"Vaccination coverage  "</span> <span class="sc">*</span> pi),</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="at">y =</span> <span class="fu">expression</span>(R[<span class="dv">0</span>]),</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>        <span class="at">title =</span> <span class="st">"Three policies on one loss surface"</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/loss-surface-1.png" class="img-fluid figure-img" width="624"></p>
+<figcaption>Planner’s loss as a function of coverage <span class="math inline">\(\pi\)</span> and <span class="math inline">\(R_0\)</span>, with three candidate policies overlaid. The minimax policy is pinned to the worst-case <span class="math inline">\(R_0 = 6\)</span>; the Bayes policy responds to the full prior; the Nash coverage ignores the externality entirely.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="how-the-policies-respond-to-the-width-of-the-uncertainty-set" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="how-the-policies-respond-to-the-width-of-the-uncertainty-set"><span class="header-section-number">4.6</span> How the policies respond to the width of the uncertainty set</h2>
+<p>The most revealing comparison is over the <em>width</em> of the uncertainty set. A Bayesian planner tracks the mean of the prior; a minimax planner tracks its upper bound.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>R0_centre <span class="ot">&lt;-</span> <span class="fl">2.5</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>widths <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.2</span>, <span class="dv">7</span>, <span class="at">length.out =</span> <span class="dv">30</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>sweep <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">width =</span> widths,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">R_lo  =</span> <span class="fu">pmax</span>(<span class="fl">1.1</span>, R0_centre <span class="sc">-</span> widths <span class="sc">/</span> <span class="dv">2</span>),</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">R_hi  =</span> R0_centre <span class="sc">+</span> widths <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rowwise</span>() <span class="sc">|&gt;</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        <span class="at">pi_minimax =</span> <span class="fu">minimax_pi</span>(R_lo, R_hi, cv, ci),</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        <span class="at">pi_bayes =</span> <span class="fu">bayes_pi</span>(</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>            R0_centre, <span class="fu">pmax</span>(widths <span class="sc">/</span> <span class="dv">4</span>, <span class="fl">0.05</span>),</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>            R_lo, R_hi, cv, ci</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>()</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sweep, <span class="fu">aes</span>(<span class="at">x =</span> width)) <span class="sc">+</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> pi_minimax, <span class="at">colour =</span> <span class="st">"Minimax"</span>), <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> pi_bayes, <span class="at">colour =</span> <span class="st">"Bayes"</span>), <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_colour_manual</span>(</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>        <span class="at">values =</span> <span class="fu">c</span>(<span class="at">Minimax =</span> C_MINIMAX, <span class="at">Bayes =</span> C_SOCIAL),</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> <span class="cn">NULL</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>        <span class="at">x =</span> <span class="fu">expression</span>(R[max] <span class="sc">-</span> R[min]),</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">y =</span> <span class="st">"Optimal coverage"</span>,</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">title =</span> <span class="st">"Minimax is increasingly conservative as uncertainty widens"</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">coord_cartesian</span>(<span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/uncertainty-width-1.png" class="img-fluid figure-img" width="624"></p>
+<figcaption>Optimal coverage as a function of the width of the uncertainty set, centred on <span class="math inline">\(R_0 = 2.5\)</span>. The minimax policy scales with the upper bound of the set; the Bayes policy is largely driven by the mean.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>When the uncertainty set is narrow the two policies agree. As it widens, the minimax policy pulls sharply upward, tracking the worst plausible <span class="math inline">\(R_0\)</span>, while the Bayes policy stays close to the prior mean. Which is appropriate depends on how much trust the prior deserves.</p>
+<hr>
+</section>
+</section>
+<section id="hostpathogen-games-two-caveats" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Host–pathogen games: two caveats</h1>
+<p>It is tempting to describe host-pathogen interactions as minimax games: the pathogen “wants” to maximise spread; the host “wants” to minimise it. Some of the formal machinery transfers usefully — ESS analysis uses fixed-point arguments that echo minimax — but the analogy needs two caveats.</p>
+<p><strong>(1) Pathogens do not optimise.</strong> Evolution by natural selection produces strategies that are evolutionarily stable <em>given the current environment</em>, but it does not anticipate or counter-select. A strict minimax frame in which the pathogen chooses the worst case for the host typically over-states what evolution can do.</p>
+<p><strong>(2) The game is rarely zero-sum.</strong> Virulence–transmissibility trade-offs <span class="citation" data-cites="anderson1982 alizon2009">(<a href="#ref-anderson1982" role="doc-biblioref">5</a>,<a href="#ref-alizon2009" role="doc-biblioref">6</a>)</span> show that a more virulent strain can be bad for both pathogen persistence and host welfare — the pathogen’s payoff is not a simple negation of the host’s.</p>
+<p>That said, two minimax-like frames are genuinely useful for pathogen-evolution problems:</p>
+<ul>
+<li><strong>Robust vaccine design.</strong> The planner chooses a vaccine whose efficacy must hold across a set of circulating strains. This is minimax in antigen space, used in seasonal influenza vaccine composition and — increasingly — for typhoid Vi-TCV against potential Vi-negative escape.</li>
+<li><strong>Adversarial simulation.</strong> In outbreak-response planning, we often stress-test policies against a “red team” parameter choice. That is minimax in practice, even when it is not named as such.</li>
+</ul>
+<p>A fuller treatment of evolutionary games awaits Post 4.</p>
+<hr>
+</section>
+<section id="minimax-outside-of-game-theory" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Minimax outside of game theory</h1>
+<p>Minimax has made a second career outside game theory, and three instances are worth knowing if you build models at the interface of epidemiology and machine learning.</p>
+<p><strong>Distributionally robust optimisation (DRO).</strong> Rather than minimise expected loss under a fixed data distribution, one minimises expected loss under the <em>worst-case distribution within a divergence ball</em> around the empirical distribution <span class="citation" data-cites="benTal2009 duchi2021">(<a href="#ref-benTal2009" role="doc-biblioref">7</a>,<a href="#ref-duchi2021" role="doc-biblioref">8</a>)</span>:</p>
+<p><span class="math display">\[
+\hat\theta \;=\; \arg\min_\theta\; \sup_{Q\,:\, D(Q\,\|\,\hat P)\, \le\, \rho}\; \mathbb{E}_Q\big[L(\theta, X)\big]. \tag{5}
+\]</span></p>
+<p>For fitting disease models to outbreak data, DRO is a principled guard against covariate shift between the training setting and the deployment setting.</p>
+<p><strong>Adversarial training.</strong> A neural-network classifier is trained against worst-case small perturbations of its inputs <span class="citation" data-cites="goodfellow2015">(<a href="#ref-goodfellow2015" role="doc-biblioref">9</a>)</span>:</p>
+<p><span class="math display">\[
+\min_\theta\, \mathbb{E}_{(x,y)}\!\Big[\, \max_{\|\delta\| \le \epsilon}\, L\big(f_\theta(x + \delta),\, y\big)\,\Big]. \tag{6}
+\]</span></p>
+<p>This is a standard ingredient when building diagnostic models that must be robust to slight image-acquisition differences across sites.</p>
+<p><strong>Minimax-weighted PINN training.</strong> A physics-informed neural network fits data loss and PDE-residual loss jointly. Several recent papers recast the balancing of the two loss terms as a minimax problem — the network minimising while a dual variable maximises across collocation points — and find that this stabilises training and improves out-of-distribution generalisation <span class="citation" data-cites="mcclenny2023">(<a href="#ref-mcclenny2023" role="doc-biblioref">10</a>)</span>. The frame is of direct interest for PINN-based epidemic reconstruction.</p>
+<p>The common thread is that <strong>minimax is what we reach for when we want guarantees in the presence of something we cannot control or cannot model</strong> — an unobserved parameter, a distributional shift, a crafted perturbation, or (in game theory proper) a strategic opponent.</p>
+<hr>
+</section>
+<section id="when-minimax-is-too-pessimistic" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> When minimax is too pessimistic</h1>
+<p>Pure minimax has three well-known pathologies, each with a standard remedy.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Pathology</th>
+<th>Remedy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Hedges against vanishingly improbable states</td>
+<td><strong><span class="math inline">\(\Gamma\)</span>-minimax</strong>: optimise over the worst prior in a restricted family <span class="math inline">\(\Gamma\)</span></td>
+</tr>
+<tr class="even">
+<td>Ignores the <em>margin</em> by which other actions are worse in good states</td>
+<td><strong>Minimax regret</strong> <span class="citation" data-cites="savage1951">(<a href="#ref-savage1951" role="doc-biblioref">11</a>)</span></td>
+</tr>
+<tr class="odd">
+<td>Changes sharply when the uncertainty set is expanded</td>
+<td><strong>Smooth ambiguity</strong> <span class="citation" data-cites="klibanoff2005">(<a href="#ref-klibanoff2005" role="doc-biblioref">12</a>)</span></td>
+</tr>
+</tbody>
+</table>
+<p>For OCV allocation in particular, minimax <em>regret</em> is often the more defensible frame: <em>how much worse could I be, relative to the best policy in hindsight?</em> It produces less cautious — and more communicable — recommendations than pure minimax.</p>
+<hr>
+</section>
+<section id="what-the-minimax-frame-tells-us" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> What the minimax frame tells us</h1>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Does minimax coincide with Nash?</td>
+<td>Only in 2-player zero-sum games.</td>
+</tr>
+<tr class="even">
+<td>Does minimax depend on a prior?</td>
+<td>No — that is its virtue, and its cost.</td>
+</tr>
+<tr class="odd">
+<td>Is the minimax planner “rational”?</td>
+<td>Rational in the Wald sense; often over-cautious in the Bayesian sense.</td>
+</tr>
+<tr class="even">
+<td>When should an epidemiologist reach for it?</td>
+<td>When the uncertainty set is plausibly broad, the consequences of underestimating it are severe, and no credible prior is available.</td>
+</tr>
+<tr class="odd">
+<td>When should an epidemiologist avoid it?</td>
+<td>When expert priors are well-calibrated and decision-relevant.</td>
+</tr>
+<tr class="even">
+<td>What is the operational short-cut?</td>
+<td>For monotone losses, the minimax planner optimises at the worst-case parameter.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="series-roadmap" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Series roadmap</h1>
+<ol type="1">
+<li><strong><a href="https://www.jonghoonk.com/blog/posts/game_theory_vacc/">Foundations.</a></strong> Vaccination game, Nash equilibrium, social optimum, price of anarchy.</li>
+<li><strong>(This post) Minimax and the adversarial planner.</strong> Von Neumann’s theorem, Wald decision theory, worst-case OCV allocation, connections to DRO and PINN robustness.</li>
+<li><strong>Coupled behaviour–disease dynamics.</strong> Replicator and imitation dynamics layered onto SIR models.</li>
+<li><strong>Evolutionary game theory for pathogens.</strong> Virulence–transmissibility trade-offs, ESS analysis, strain replacement under vaccination pressure — with cholera and typhoid as running examples.</li>
+<li><strong>Policy and mechanism design.</strong> Subsidies, mandates, information campaigns, network games, and agentic LLM-driven decision models.</li>
+</ol>
+<hr>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-vonneumann1928" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Neumann J von. Zur <span>Theorie</span> der <span>Gesellschaftsspiele</span>. Mathematische Annalen. 1928;100(1):295–320. doi:<a href="https://doi.org/10.1007/BF01448847">10.1007/BF01448847</a></div>
+</div>
+<div id="ref-nash1950" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Nash JF. Equilibrium points in <span class="math inline">\(n\)</span>-person games. Proceedings of the National Academy of Sciences. 1950;36(1):48–9. doi:<a href="https://doi.org/10.1073/pnas.36.1.48">10.1073/pnas.36.1.48</a></div>
+</div>
+<div id="ref-wald1950" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Wald A. Statistical decision functions. New York: John Wiley &amp; Sons; 1950.</div>
+</div>
+<div id="ref-berger1985" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Berger JO. Statistical decision theory and <span>Bayesian</span> analysis. 2nd ed. New York: Springer; 1985.</div>
+</div>
+<div id="ref-anderson1982" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Anderson RM, May RM. Coevolution of hosts and parasites. Parasitology. 1982;85(2):411–26. doi:<a href="https://doi.org/10.1017/S0031182000055360">10.1017/S0031182000055360</a></div>
+</div>
+<div id="ref-alizon2009" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Alizon S, Hurford A, Mideo N, Van Baalen M. Virulence evolution and the trade-off hypothesis: History, current state of affairs and the future. Journal of Evolutionary Biology. 2009;22(2):245–59. doi:<a href="https://doi.org/10.1111/j.1420-9101.2008.01658.x">10.1111/j.1420-9101.2008.01658.x</a></div>
+</div>
+<div id="ref-benTal2009" class="csl-entry" role="listitem">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline">Ben-Tal A, El Ghaoui L, Nemirovski A. Robust optimization. Princeton: Princeton University Press; 2009.</div>
+</div>
+<div id="ref-duchi2021" class="csl-entry" role="listitem">
+<div class="csl-left-margin">8. </div><div class="csl-right-inline">Duchi JC, Namkoong H. Learning models with uniform performance via distributionally robust optimization. Annals of Statistics. 2021;49(3):1378–406. doi:<a href="https://doi.org/10.1214/20-AOS2004">10.1214/20-AOS2004</a></div>
+</div>
+<div id="ref-goodfellow2015" class="csl-entry" role="listitem">
+<div class="csl-left-margin">9. </div><div class="csl-right-inline">Goodfellow IJ, Shlens J, Szegedy C. Explaining and harnessing adversarial examples. In: International conference on learning representations (ICLR) [Internet]. 2015. Available from: <a href="https://arxiv.org/abs/1412.6572">https://arxiv.org/abs/1412.6572</a></div>
+</div>
+<div id="ref-mcclenny2023" class="csl-entry" role="listitem">
+<div class="csl-left-margin">10. </div><div class="csl-right-inline">McClenny LD, Braga-Neto UM. Self-adaptive physics-informed neural networks. Journal of Computational Physics. 2023;474:111722. doi:<a href="https://doi.org/10.1016/j.jcp.2022.111722">10.1016/j.jcp.2022.111722</a></div>
+</div>
+<div id="ref-savage1951" class="csl-entry" role="listitem">
+<div class="csl-left-margin">11. </div><div class="csl-right-inline">Savage LJ. The theory of statistical decision. Journal of the American Statistical Association. 1951;46(253):55–67. doi:<a href="https://doi.org/10.1080/01621459.1951.10500768">10.1080/01621459.1951.10500768</a></div>
+</div>
+<div id="ref-klibanoff2005" class="csl-entry" role="listitem">
+<div class="csl-left-margin">12. </div><div class="csl-right-inline">Klibanoff P, Marinacci M, Mukerji S. A smooth model of decision making under ambiguity. Econometrica. 2005;73(6):1849–92. doi:<a href="https://doi.org/10.1111/j.1468-0262.2005.00640.x">10.1111/j.1468-0262.2005.00640.x</a></div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>R          4.5.3</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>ggplot2    4.0.2
+dplyr      1.2.0
+tidyr      1.3.2
+patchwork  1.3.2
+truncnorm  1.0.9</code></pre>
+</div>
+</div>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Minimax: Planning for the Worst-Case Epidemic"</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "When uncertainty is adversarial, the robust planner plays a zero-sum game against Nature"</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Jong-Hoon Kim"</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-04-20"</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> [game theory, minimax, robust decision, vaccination, cholera, R]</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="an">bibliography:</span><span class="co"> references.bib</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="an">csl:</span><span class="co"> https://www.zotero.org/styles/vancouver</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="co">    number-sections: true</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-width: 6</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-height: 4</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-align: center</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="an">knitr:</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="co">  opts_chunk:</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="co">    message: false</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="co">    warning: false</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co">    fig.retina: 2</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="fu"># From Nash to minimax</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">The vaccination game</span><span class="co">](https://www.jonghoonk.com/blog/posts/game_theory_vacc/)</span> was a game between people. Each individual weighed the cost of vaccination against the risk of infection, and the Nash equilibrium emerged from their simultaneous best responses. That framework explains a lot — why voluntary uptake stalls below the herd-immunity threshold, and how large the gap can be.</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>But at IVI, and in public-health agencies more generally, the operative decision-maker is usually not a pair of strategic individuals. It is a planner — a ministry of health, a WHO technical advisory group, a vaccine-allocation committee — who must commit to a policy before the epidemic unfolds, under substantial uncertainty about what the epidemic will do. The uncertainty can be *parameter* uncertainty ($R_0$, vaccine efficacy, waning), *structural* uncertainty (which compartmental model?), or genuinely *adversarial* (which strain will emerge? where will adherence collapse?).</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>A useful frame for this is the **game against Nature**. The planner chooses an action; Nature then reveals the state of the world; the planner absorbs the resulting cost. If the planner is risk-neutral and holds a credible prior over Nature's moves, she minimizes expected cost — the **Bayes rule**. If she is unwilling to commit to a prior, or if Nature's move is genuinely adversarial, she minimizes the *worst-case* cost — the **minimax rule**. This post is about the minimax rule: where it comes from, how to compute it, when it is the right thing to do, and when it is not.</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a><span class="fu"># Von Neumann, zero-sum games, and the minimax theorem</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>Minimax is the oldest result in modern game theory. Von Neumann proved the minimax theorem in 1928 <span class="co">[</span><span class="ot">@vonneumann1928</span><span class="co">]</span>, sixteen years before *Theory of Games and Economic Behavior* and twenty-two years before Nash. Its original setting was the two-player zero-sum game.</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>Let two players choose mixed strategies $x \in \Delta_n$ and $y \in \Delta_m$ over their respective pure strategies, and let $A$ be an $n \times m$ payoff matrix (Player 1 receives $x^\top A y$; Player 2 receives $-x^\top A y$). Player 1's **maximin** value is what she can guarantee against any opponent:</span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>\underline{v} \;=\; \max_x \min_y\; x^\top A y.</span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>Player 2's **minimax** value is what she can limit her opponent to:</span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>\overline{v} \;=\; \min_y \max_x\; x^\top A y.</span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>It is always true that $\underline{v} \le \overline{v}$. **Von Neumann's minimax theorem** asserts that for finite zero-sum games played in mixed strategies, equality holds:</span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>\underline{v} \;=\; \overline{v} \;=\; v, \tag{1}</span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>and the common value $v$ is the **value of the game**. Pure-strategy equilibria can fail to exist — rock–paper–scissors has none — but mixed-strategy equilibria always do. Existence is proved via the separating-hyperplane theorem (equivalently, LP duality); it was the first equilibrium existence result in game theory and a precursor to Nash's 1950 theorem for general $n$-player games <span class="co">[</span><span class="ot">@nash1950</span><span class="co">]</span>.</span>
+<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>The key link back to Part 1: **in two-player zero-sum games, Nash equilibrium, minimax, and maximin all coincide**. Outside this class — including the vaccination game, which is non-zero-sum and has externalities — they generally differ.</span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>::: {.callout-tip}</span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a><span class="fu">## What you need</span></span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">"dplyr"</span>, <span class="st">"tidyr"</span>, <span class="st">"ggplot2"</span>, <span class="st">"patchwork"</span>, <span class="st">"truncnorm"</span>))</span>
+<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-67"><a href="#cb9-67" aria-hidden="true" tabindex="-1"></a>Code tested with: R 4.4, <span class="in">`ggplot2 3.5`</span>, <span class="in">`dplyr 1.1`</span>.</span>
+<span id="cb9-68"><a href="#cb9-68" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb9-69"><a href="#cb9-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-70"><a href="#cb9-70" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-71"><a href="#cb9-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-72"><a href="#cb9-72" aria-hidden="true" tabindex="-1"></a><span class="fu"># Minimax as a decision rule</span></span>
+<span id="cb9-73"><a href="#cb9-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-74"><a href="#cb9-74" aria-hidden="true" tabindex="-1"></a>Wald <span class="co">[</span><span class="ot">@wald1950</span><span class="co">]</span> generalised minimax from game theory to statistical decision theory. Consider a decision-maker choosing action $a$ in a space $\mathcal{A}$, facing an unknown state of nature $\theta \in \Theta$, with loss $L(a, \theta)$. Three canonical rules deserve their names:</span>
+<span id="cb9-75"><a href="#cb9-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-76"><a href="#cb9-76" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Rule <span class="pp">|</span> Formula <span class="pp">|</span> When it is the right thing <span class="pp">|</span></span>
+<span id="cb9-77"><a href="#cb9-77" aria-hidden="true" tabindex="-1"></a><span class="pp">| ---</span> <span class="pp">| ---</span> <span class="pp">| ---</span> <span class="pp">|</span></span>
+<span id="cb9-78"><a href="#cb9-78" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Bayes** <span class="pp">|</span> $a_B \;=\; \arg\min_a \int L(a, \theta)\, \pi(\theta)\, d\theta$ <span class="pp">|</span> We trust the prior $\pi$ <span class="pp">|</span></span>
+<span id="cb9-79"><a href="#cb9-79" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Minimax** <span class="pp">|</span> $a_M \;=\; \arg\min_a \sup_{\theta \in \Theta} L(a, \theta)$ <span class="pp">|</span> We do not trust the prior; Nature is (or might as well be) adversarial <span class="pp">|</span></span>
+<span id="cb9-80"><a href="#cb9-80" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Minimax regret** <span class="pp">|</span> $a_R \;=\; \arg\min_a \sup_\theta \big<span class="sc">\{</span> L(a, \theta) - \min_{a'} L(a', \theta) \big<span class="sc">\}</span>$ <span class="pp">|</span> We want to minimise *opportunity loss* rather than absolute loss <span class="pp">|</span></span>
+<span id="cb9-81"><a href="#cb9-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-82"><a href="#cb9-82" aria-hidden="true" tabindex="-1"></a>Minimax is often criticised as **pessimistic**: it hedges against states of nature that may be vanishingly improbable. For an infectious-disease planner, this can mean hedging against $R_0 = 15$ in a setting where credible estimates place $R_0$ in $[2, 4]$. The remedy is not to abandon minimax but to **restrict the uncertainty set** $\Theta$ — a device called **$\Gamma$-minimax** when $\Gamma$ is a family of priors rather than a set of parameters <span class="co">[</span><span class="ot">@berger1985</span><span class="co">]</span>. We return to this at the end.</span>
+<span id="cb9-83"><a href="#cb9-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-84"><a href="#cb9-84" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-85"><a href="#cb9-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-86"><a href="#cb9-86" aria-hidden="true" tabindex="-1"></a><span class="fu"># The minimax vaccination problem</span></span>
+<span id="cb9-87"><a href="#cb9-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-88"><a href="#cb9-88" aria-hidden="true" tabindex="-1"></a>Let us ground the abstraction in a problem close to our work at IVI: a cholera-prone setting where oral cholera vaccine (OCV) must be allocated before outbreak onset, under uncertainty about transmissibility. We will compute the minimax coverage $\pi_{\text{mm}}$ and compare it against two references — a Bayes-optimal coverage $\pi_{B}$ and the Nash coverage $\pi^*$ from Part 1.</span>
+<span id="cb9-89"><a href="#cb9-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-90"><a href="#cb9-90" aria-hidden="true" tabindex="-1"></a><span class="fu">## Setup</span></span>
+<span id="cb9-91"><a href="#cb9-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-92"><a href="#cb9-92" aria-hidden="true" tabindex="-1"></a>Fix an SIR model with a perfect pre-epidemic vaccine, coverage $\pi$, and basic reproduction number $R_0$. Among the unvaccinated, the attack fraction $w$ satisfies the classical final-size relation</span>
+<span id="cb9-93"><a href="#cb9-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-94"><a href="#cb9-94" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-95"><a href="#cb9-95" aria-hidden="true" tabindex="-1"></a>w \;=\; 1 - \exp<span class="sc">\!</span>\big(-R_0\,(1 - \pi)\,w\big), \tag{2}</span>
+<span id="cb9-96"><a href="#cb9-96" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-97"><a href="#cb9-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-98"><a href="#cb9-98" aria-hidden="true" tabindex="-1"></a>with $w = 0$ whenever $R_0(1 - \pi) \le 1$. The population-level attack rate is $\text{AR}(\pi, R_0) = (1-\pi)\, w$. We take the planner's per-capita loss as</span>
+<span id="cb9-99"><a href="#cb9-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-100"><a href="#cb9-100" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-101"><a href="#cb9-101" aria-hidden="true" tabindex="-1"></a>L(\pi, R_0) \;=\; c_v \cdot \pi \;+\; c_i \cdot \text{AR}(\pi, R_0), \tag{3}</span>
+<span id="cb9-102"><a href="#cb9-102" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-103"><a href="#cb9-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-104"><a href="#cb9-104" aria-hidden="true" tabindex="-1"></a>where $c_v$ is the per-dose vaccination cost and $c_i$ is the per-case cost (DALYs, economic loss, …). The only uncertainty is over $R_0$, which lies in $<span class="co">[</span><span class="ot">R_{\min}, R_{\max}</span><span class="co">]</span>$.</span>
+<span id="cb9-105"><a href="#cb9-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-106"><a href="#cb9-106" aria-hidden="true" tabindex="-1"></a><span class="fu">## Implementation</span></span>
+<span id="cb9-107"><a href="#cb9-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-110"><a href="#cb9-110" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-111"><a href="#cb9-111" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
+<span id="cb9-112"><a href="#cb9-112" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb9-113"><a href="#cb9-113" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb9-114"><a href="#cb9-114" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb9-115"><a href="#cb9-115" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb9-116"><a href="#cb9-116" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(truncnorm)</span>
+<span id="cb9-117"><a href="#cb9-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-118"><a href="#cb9-118" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_set</span>(</span>
+<span id="cb9-119"><a href="#cb9-119" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">10</span>) <span class="sc">+</span></span>
+<span id="cb9-120"><a href="#cb9-120" aria-hidden="true" tabindex="-1"></a>        <span class="fu">theme</span>(</span>
+<span id="cb9-121"><a href="#cb9-121" aria-hidden="true" tabindex="-1"></a>            <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb9-122"><a href="#cb9-122" aria-hidden="true" tabindex="-1"></a>            <span class="at">plot.title       =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">size =</span> <span class="dv">10</span>),</span>
+<span id="cb9-123"><a href="#cb9-123" aria-hidden="true" tabindex="-1"></a>            <span class="at">legend.position  =</span> <span class="st">"bottom"</span></span>
+<span id="cb9-124"><a href="#cb9-124" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb9-125"><a href="#cb9-125" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-126"><a href="#cb9-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-127"><a href="#cb9-127" aria-hidden="true" tabindex="-1"></a>C_NASH <span class="ot">&lt;-</span> <span class="st">"#F44336"</span> <span class="co"># red</span></span>
+<span id="cb9-128"><a href="#cb9-128" aria-hidden="true" tabindex="-1"></a>C_SOCIAL <span class="ot">&lt;-</span> <span class="st">"#2196F3"</span> <span class="co"># blue</span></span>
+<span id="cb9-129"><a href="#cb9-129" aria-hidden="true" tabindex="-1"></a>C_CRIT <span class="ot">&lt;-</span> <span class="st">"#4CAF50"</span> <span class="co"># green</span></span>
+<span id="cb9-130"><a href="#cb9-130" aria-hidden="true" tabindex="-1"></a>C_MINIMAX <span class="ot">&lt;-</span> <span class="st">"#FF9800"</span> <span class="co"># orange</span></span>
+<span id="cb9-131"><a href="#cb9-131" aria-hidden="true" tabindex="-1"></a>C_GAP <span class="ot">&lt;-</span> <span class="st">"#9C27B0"</span> <span class="co"># purple</span></span>
+<span id="cb9-132"><a href="#cb9-132" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-133"><a href="#cb9-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-136"><a href="#cb9-136" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-137"><a href="#cb9-137" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: core-functions</span></span>
+<span id="cb9-138"><a href="#cb9-138" aria-hidden="true" tabindex="-1"></a><span class="co"># Attack rate from the SIR final-size relation (perfect pre-vaccination)</span></span>
+<span id="cb9-139"><a href="#cb9-139" aria-hidden="true" tabindex="-1"></a>attack_rate <span class="ot">&lt;-</span> <span class="cf">function</span>(pi, R0) {</span>
+<span id="cb9-140"><a href="#cb9-140" aria-hidden="true" tabindex="-1"></a>    Reff <span class="ot">&lt;-</span> R0 <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> pi)</span>
+<span id="cb9-141"><a href="#cb9-141" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (Reff <span class="sc">&lt;=</span> <span class="dv">1</span>) {</span>
+<span id="cb9-142"><a href="#cb9-142" aria-hidden="true" tabindex="-1"></a>        <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb9-143"><a href="#cb9-143" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb9-144"><a href="#cb9-144" aria-hidden="true" tabindex="-1"></a>    w <span class="ot">&lt;-</span> <span class="fu">uniroot</span>(</span>
+<span id="cb9-145"><a href="#cb9-145" aria-hidden="true" tabindex="-1"></a>        \(w) w <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span>Reff <span class="sc">*</span> w)),</span>
+<span id="cb9-146"><a href="#cb9-146" aria-hidden="true" tabindex="-1"></a>        <span class="at">interval =</span> <span class="fu">c</span>(<span class="fl">1e-8</span>, <span class="dv">1</span> <span class="sc">-</span> <span class="fl">1e-8</span>)</span>
+<span id="cb9-147"><a href="#cb9-147" aria-hidden="true" tabindex="-1"></a>    )<span class="sc">$</span>root</span>
+<span id="cb9-148"><a href="#cb9-148" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">-</span> pi) <span class="sc">*</span> w</span>
+<span id="cb9-149"><a href="#cb9-149" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-150"><a href="#cb9-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-151"><a href="#cb9-151" aria-hidden="true" tabindex="-1"></a><span class="co"># Planner's per-capita loss</span></span>
+<span id="cb9-152"><a href="#cb9-152" aria-hidden="true" tabindex="-1"></a>loss <span class="ot">&lt;-</span> <span class="cf">function</span>(pi, R0, <span class="at">cv =</span> <span class="fl">0.10</span>, <span class="at">ci =</span> <span class="fl">1.0</span>) {</span>
+<span id="cb9-153"><a href="#cb9-153" aria-hidden="true" tabindex="-1"></a>    cv <span class="sc">*</span> pi <span class="sc">+</span> ci <span class="sc">*</span> <span class="fu">attack_rate</span>(pi, R0)</span>
+<span id="cb9-154"><a href="#cb9-154" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-155"><a href="#cb9-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-156"><a href="#cb9-156" aria-hidden="true" tabindex="-1"></a><span class="co"># Worst-case loss over R0 in [R_lo, R_hi]</span></span>
+<span id="cb9-157"><a href="#cb9-157" aria-hidden="true" tabindex="-1"></a>worst_case <span class="ot">&lt;-</span> <span class="cf">function</span>(pi, R_lo, R_hi, cv, ci) {</span>
+<span id="cb9-158"><a href="#cb9-158" aria-hidden="true" tabindex="-1"></a>    R_grid <span class="ot">&lt;-</span> <span class="fu">seq</span>(R_lo, R_hi, <span class="at">length.out =</span> <span class="dv">60</span>)</span>
+<span id="cb9-159"><a href="#cb9-159" aria-hidden="true" tabindex="-1"></a>    <span class="fu">max</span>(<span class="fu">sapply</span>(R_grid, \(R0) <span class="fu">loss</span>(pi, R0, cv, ci)))</span>
+<span id="cb9-160"><a href="#cb9-160" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a><span class="co"># Minimax coverage: minimises the worst-case loss</span></span>
+<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a>minimax_pi <span class="ot">&lt;-</span> <span class="cf">function</span>(R_lo, R_hi, <span class="at">cv =</span> <span class="fl">0.10</span>, <span class="at">ci =</span> <span class="fl">1.0</span>) {</span>
+<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a>    <span class="fu">optimize</span>(\(pi) <span class="fu">worst_case</span>(pi, R_lo, R_hi, cv, ci),</span>
+<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a>        <span class="at">interval =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb9-166"><a href="#cb9-166" aria-hidden="true" tabindex="-1"></a>    )<span class="sc">$</span>minimum</span>
+<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-168"><a href="#cb9-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-169"><a href="#cb9-169" aria-hidden="true" tabindex="-1"></a><span class="co"># Bayes coverage: minimises expected loss under a truncated-normal prior</span></span>
+<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a>bayes_pi <span class="ot">&lt;-</span> <span class="cf">function</span>(R0_mean, R0_sd, <span class="at">R_lo =</span> <span class="fl">1.1</span>, <span class="at">R_hi =</span> <span class="dv">20</span>,</span>
+<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a>                     <span class="at">cv =</span> <span class="fl">0.10</span>, <span class="at">ci =</span> <span class="fl">1.0</span>, <span class="at">n =</span> <span class="dv">500</span>) {</span>
+<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a>    R0_samples <span class="ot">&lt;-</span> <span class="fu">rtruncnorm</span>(n,</span>
+<span id="cb9-173"><a href="#cb9-173" aria-hidden="true" tabindex="-1"></a>        <span class="at">a =</span> R_lo, <span class="at">b =</span> R_hi,</span>
+<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a>        <span class="at">mean =</span> R0_mean, <span class="at">sd =</span> R0_sd</span>
+<span id="cb9-175"><a href="#cb9-175" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb9-176"><a href="#cb9-176" aria-hidden="true" tabindex="-1"></a>    <span class="fu">optimize</span>(</span>
+<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a>        \(pi) <span class="fu">mean</span>(<span class="fu">sapply</span>(R0_samples, \(R0) <span class="fu">loss</span>(pi, R0, cv, ci))),</span>
+<span id="cb9-178"><a href="#cb9-178" aria-hidden="true" tabindex="-1"></a>        <span class="at">interval =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb9-179"><a href="#cb9-179" aria-hidden="true" tabindex="-1"></a>    )<span class="sc">$</span>minimum</span>
+<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-181"><a href="#cb9-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-182"><a href="#cb9-182" aria-hidden="true" tabindex="-1"></a><span class="co"># Nash coverage from Part 1 (linear pi_inf)</span></span>
+<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a>nash_coverage <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, q, r) {</span>
+<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a>    pi_c <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> <span class="dv">1</span> <span class="sc">/</span> R0</span>
+<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (r <span class="sc">&gt;=</span> q) {</span>
+<span id="cb9-186"><a href="#cb9-186" aria-hidden="true" tabindex="-1"></a>        <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a>    <span class="fu">uniroot</span>(</span>
+<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a>        \(pi) q <span class="sc">*</span> <span class="fu">pmax</span>(<span class="dv">0</span>, <span class="dv">1</span> <span class="sc">-</span> pi <span class="sc">/</span> pi_c) <span class="sc">-</span> r,</span>
+<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a>        <span class="at">interval =</span> <span class="fu">c</span>(<span class="dv">0</span>, pi_c)</span>
+<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a>    )<span class="sc">$</span>root</span>
+<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a><span class="fu">## A worked example</span></span>
+<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a>Take the uncertainty set $R_0 \in <span class="co">[</span><span class="ot">1.5, 6</span><span class="co">]</span>$ — a range spanning published cholera estimates across endemic and outbreak settings. Set $c_v = 0.10$ and $c_i = 1$ (a single dose costs 10% of an averted case), and place a Bayesian prior centred at $R_0 = 2.5$ with standard deviation $0.8$.</span>
+<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: three-strategies</span></span>
+<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a>R_lo <span class="ot">&lt;-</span> <span class="fl">1.5</span></span>
+<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a>R_hi <span class="ot">&lt;-</span> <span class="dv">6</span></span>
+<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a>cv <span class="ot">&lt;-</span> <span class="fl">0.10</span></span>
+<span id="cb9-206"><a href="#cb9-206" aria-hidden="true" tabindex="-1"></a>ci <span class="ot">&lt;-</span> <span class="fl">1.0</span></span>
+<span id="cb9-207"><a href="#cb9-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-208"><a href="#cb9-208" aria-hidden="true" tabindex="-1"></a>pi_mm <span class="ot">&lt;-</span> <span class="fu">minimax_pi</span>(R_lo, R_hi, cv, ci)</span>
+<span id="cb9-209"><a href="#cb9-209" aria-hidden="true" tabindex="-1"></a>pi_B <span class="ot">&lt;-</span> <span class="fu">bayes_pi</span>(</span>
+<span id="cb9-210"><a href="#cb9-210" aria-hidden="true" tabindex="-1"></a>    <span class="at">R0_mean =</span> <span class="fl">2.5</span>, <span class="at">R0_sd =</span> <span class="fl">0.8</span>,</span>
+<span id="cb9-211"><a href="#cb9-211" aria-hidden="true" tabindex="-1"></a>    <span class="at">R_lo =</span> R_lo, <span class="at">R_hi =</span> R_hi, <span class="at">cv =</span> cv, <span class="at">ci =</span> ci</span>
+<span id="cb9-212"><a href="#cb9-212" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-213"><a href="#cb9-213" aria-hidden="true" tabindex="-1"></a>pi_N <span class="ot">&lt;-</span> <span class="fu">nash_coverage</span>(<span class="at">R0 =</span> <span class="fl">2.5</span>, <span class="at">q =</span> <span class="fl">0.5</span>, <span class="at">r =</span> <span class="fl">0.10</span>)</span>
+<span id="cb9-214"><a href="#cb9-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-215"><a href="#cb9-215" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb9-216"><a href="#cb9-216" aria-hidden="true" tabindex="-1"></a>    <span class="at">strategy =</span> <span class="fu">c</span>(</span>
+<span id="cb9-217"><a href="#cb9-217" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Nash equilibrium (pi*, from Part 1)"</span>,</span>
+<span id="cb9-218"><a href="#cb9-218" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Bayes-optimal (pi_B)"</span>,</span>
+<span id="cb9-219"><a href="#cb9-219" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Minimax (pi_mm)"</span>,</span>
+<span id="cb9-220"><a href="#cb9-220" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Herd-immunity threshold at R_max"</span></span>
+<span id="cb9-221"><a href="#cb9-221" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb9-222"><a href="#cb9-222" aria-hidden="true" tabindex="-1"></a>    <span class="at">value =</span> <span class="fu">c</span>(pi_N, pi_B, pi_mm, <span class="dv">1</span> <span class="sc">-</span> <span class="dv">1</span> <span class="sc">/</span> R_hi)</span>
+<span id="cb9-223"><a href="#cb9-223" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb9-224"><a href="#cb9-224" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">sprintf</span>(<span class="st">"%.3f"</span>, value)) <span class="sc">|&gt;</span></span>
+<span id="cb9-225"><a href="#cb9-225" aria-hidden="true" tabindex="-1"></a>    knitr<span class="sc">::</span><span class="fu">kable</span>()</span>
+<span id="cb9-226"><a href="#cb9-226" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-227"><a href="#cb9-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-228"><a href="#cb9-228" aria-hidden="true" tabindex="-1"></a>The pattern is what the theory anticipates. Voluntary uptake (Nash) is lowest — individuals free-ride on the herd. The Bayes planner does better, pulling coverage upward to internalise the externality. The minimax planner does *more*, pushing coverage close to the herd-immunity threshold of the worst-case $R_0$ in the uncertainty set.</span>
+<span id="cb9-229"><a href="#cb9-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-230"><a href="#cb9-230" aria-hidden="true" tabindex="-1"></a><span class="fu">## An analytical short-cut</span></span>
+<span id="cb9-231"><a href="#cb9-231" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-232"><a href="#cb9-232" aria-hidden="true" tabindex="-1"></a>Because $L(\pi, R_0)$ is monotone increasing in $R_0$ whenever $\pi &lt; 1 - 1/R_0$, the inner supremum in the minimax problem is attained at $R_0 = R_{\max}$:</span>
+<span id="cb9-233"><a href="#cb9-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-234"><a href="#cb9-234" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-235"><a href="#cb9-235" aria-hidden="true" tabindex="-1"></a>\pi_{\text{mm}} \;=\; \arg\min_\pi\, L(\pi, R_{\max}). \tag{4}</span>
+<span id="cb9-236"><a href="#cb9-236" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-237"><a href="#cb9-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-238"><a href="#cb9-238" aria-hidden="true" tabindex="-1"></a>**The minimax planner acts as if $R_0$ were pinned at its upper bound and ignores everything else.** This is simultaneously minimax's strength — it is robust to misspecification of the prior — and its weakness. It can demand expensive hedging against very unlikely scenarios.</span>
+<span id="cb9-239"><a href="#cb9-239" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-240"><a href="#cb9-240" aria-hidden="true" tabindex="-1"></a><span class="fu">## Visualising the loss surface</span></span>
+<span id="cb9-241"><a href="#cb9-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-244"><a href="#cb9-244" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-245"><a href="#cb9-245" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: loss-surface</span></span>
+<span id="cb9-246"><a href="#cb9-246" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Planner's loss as a function of coverage $\\pi$ and $R_0$, with three candidate policies overlaid. The minimax policy is pinned to the worst-case $R_0 = 6$; the Bayes policy responds to the full prior; the Nash coverage ignores the externality entirely."</span></span>
+<span id="cb9-247"><a href="#cb9-247" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 6.5</span></span>
+<span id="cb9-248"><a href="#cb9-248" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4.2</span></span>
+<span id="cb9-249"><a href="#cb9-249" aria-hidden="true" tabindex="-1"></a>grid <span class="ot">&lt;-</span> <span class="fu">expand_grid</span>(</span>
+<span id="cb9-250"><a href="#cb9-250" aria-hidden="true" tabindex="-1"></a>    <span class="at">pi =</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="fl">0.95</span>, <span class="at">length.out =</span> <span class="dv">70</span>),</span>
+<span id="cb9-251"><a href="#cb9-251" aria-hidden="true" tabindex="-1"></a>    <span class="at">R0 =</span> <span class="fu">seq</span>(R_lo, R_hi, <span class="at">length.out =</span> <span class="dv">70</span>)</span>
+<span id="cb9-252"><a href="#cb9-252" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb9-253"><a href="#cb9-253" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rowwise</span>() <span class="sc">|&gt;</span></span>
+<span id="cb9-254"><a href="#cb9-254" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">L =</span> <span class="fu">loss</span>(pi, R0, cv, ci)) <span class="sc">|&gt;</span></span>
+<span id="cb9-255"><a href="#cb9-255" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>()</span>
+<span id="cb9-256"><a href="#cb9-256" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-257"><a href="#cb9-257" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(grid, <span class="fu">aes</span>(<span class="at">x =</span> pi, <span class="at">y =</span> R0, <span class="at">fill =</span> L)) <span class="sc">+</span></span>
+<span id="cb9-258"><a href="#cb9-258" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_raster</span>() <span class="sc">+</span></span>
+<span id="cb9-259"><a href="#cb9-259" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_fill_viridis_c</span>(<span class="at">option =</span> <span class="st">"magma"</span>, <span class="at">direction =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">name =</span> <span class="st">"Loss"</span>) <span class="sc">+</span></span>
+<span id="cb9-260"><a href="#cb9-260" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> pi_N, <span class="at">colour =</span> C_NASH, <span class="at">linewidth =</span> <span class="fl">1.0</span>, <span class="at">linetype =</span> <span class="st">"dotted"</span>) <span class="sc">+</span></span>
+<span id="cb9-261"><a href="#cb9-261" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> pi_B, <span class="at">colour =</span> C_SOCIAL, <span class="at">linewidth =</span> <span class="fl">1.0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb9-262"><a href="#cb9-262" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> pi_mm, <span class="at">colour =</span> C_MINIMAX, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb9-263"><a href="#cb9-263" aria-hidden="true" tabindex="-1"></a>    <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> pi_N, <span class="at">y =</span> R_hi <span class="sc">-</span> <span class="fl">0.15</span>, <span class="at">label =</span> <span class="st">"Nash"</span>, <span class="at">hjust =</span> <span class="sc">-</span><span class="fl">0.1</span>, <span class="at">colour =</span> C_NASH, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb9-264"><a href="#cb9-264" aria-hidden="true" tabindex="-1"></a>    <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> pi_B, <span class="at">y =</span> R_hi <span class="sc">-</span> <span class="fl">0.45</span>, <span class="at">label =</span> <span class="st">"Bayes"</span>, <span class="at">hjust =</span> <span class="sc">-</span><span class="fl">0.1</span>, <span class="at">colour =</span> C_SOCIAL, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb9-265"><a href="#cb9-265" aria-hidden="true" tabindex="-1"></a>    <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> pi_mm, <span class="at">y =</span> R_hi <span class="sc">-</span> <span class="fl">0.75</span>, <span class="at">label =</span> <span class="st">"Minimax"</span>, <span class="at">hjust =</span> <span class="sc">-</span><span class="fl">0.1</span>, <span class="at">colour =</span> C_MINIMAX, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb9-266"><a href="#cb9-266" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(</span>
+<span id="cb9-267"><a href="#cb9-267" aria-hidden="true" tabindex="-1"></a>        <span class="at">x =</span> <span class="fu">expression</span>(<span class="st">"Vaccination coverage  "</span> <span class="sc">*</span> pi),</span>
+<span id="cb9-268"><a href="#cb9-268" aria-hidden="true" tabindex="-1"></a>        <span class="at">y =</span> <span class="fu">expression</span>(R[<span class="dv">0</span>]),</span>
+<span id="cb9-269"><a href="#cb9-269" aria-hidden="true" tabindex="-1"></a>        <span class="at">title =</span> <span class="st">"Three policies on one loss surface"</span></span>
+<span id="cb9-270"><a href="#cb9-270" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb9-271"><a href="#cb9-271" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-272"><a href="#cb9-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-273"><a href="#cb9-273" aria-hidden="true" tabindex="-1"></a><span class="fu">## How the policies respond to the width of the uncertainty set</span></span>
+<span id="cb9-274"><a href="#cb9-274" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-275"><a href="#cb9-275" aria-hidden="true" tabindex="-1"></a>The most revealing comparison is over the *width* of the uncertainty set. A Bayesian planner tracks the mean of the prior; a minimax planner tracks its upper bound.</span>
+<span id="cb9-276"><a href="#cb9-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-279"><a href="#cb9-279" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-280"><a href="#cb9-280" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: uncertainty-width</span></span>
+<span id="cb9-281"><a href="#cb9-281" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Optimal coverage as a function of the width of the uncertainty set, centred on $R_0 = 2.5$. The minimax policy scales with the upper bound of the set; the Bayes policy is largely driven by the mean."</span></span>
+<span id="cb9-282"><a href="#cb9-282" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 6.5</span></span>
+<span id="cb9-283"><a href="#cb9-283" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
+<span id="cb9-284"><a href="#cb9-284" aria-hidden="true" tabindex="-1"></a>R0_centre <span class="ot">&lt;-</span> <span class="fl">2.5</span></span>
+<span id="cb9-285"><a href="#cb9-285" aria-hidden="true" tabindex="-1"></a>widths <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.2</span>, <span class="dv">7</span>, <span class="at">length.out =</span> <span class="dv">30</span>)</span>
+<span id="cb9-286"><a href="#cb9-286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-287"><a href="#cb9-287" aria-hidden="true" tabindex="-1"></a>sweep <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb9-288"><a href="#cb9-288" aria-hidden="true" tabindex="-1"></a>    <span class="at">width =</span> widths,</span>
+<span id="cb9-289"><a href="#cb9-289" aria-hidden="true" tabindex="-1"></a>    <span class="at">R_lo  =</span> <span class="fu">pmax</span>(<span class="fl">1.1</span>, R0_centre <span class="sc">-</span> widths <span class="sc">/</span> <span class="dv">2</span>),</span>
+<span id="cb9-290"><a href="#cb9-290" aria-hidden="true" tabindex="-1"></a>    <span class="at">R_hi  =</span> R0_centre <span class="sc">+</span> widths <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb9-291"><a href="#cb9-291" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb9-292"><a href="#cb9-292" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rowwise</span>() <span class="sc">|&gt;</span></span>
+<span id="cb9-293"><a href="#cb9-293" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb9-294"><a href="#cb9-294" aria-hidden="true" tabindex="-1"></a>        <span class="at">pi_minimax =</span> <span class="fu">minimax_pi</span>(R_lo, R_hi, cv, ci),</span>
+<span id="cb9-295"><a href="#cb9-295" aria-hidden="true" tabindex="-1"></a>        <span class="at">pi_bayes =</span> <span class="fu">bayes_pi</span>(</span>
+<span id="cb9-296"><a href="#cb9-296" aria-hidden="true" tabindex="-1"></a>            R0_centre, <span class="fu">pmax</span>(widths <span class="sc">/</span> <span class="dv">4</span>, <span class="fl">0.05</span>),</span>
+<span id="cb9-297"><a href="#cb9-297" aria-hidden="true" tabindex="-1"></a>            R_lo, R_hi, cv, ci</span>
+<span id="cb9-298"><a href="#cb9-298" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb9-299"><a href="#cb9-299" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb9-300"><a href="#cb9-300" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>()</span>
+<span id="cb9-301"><a href="#cb9-301" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-302"><a href="#cb9-302" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sweep, <span class="fu">aes</span>(<span class="at">x =</span> width)) <span class="sc">+</span></span>
+<span id="cb9-303"><a href="#cb9-303" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> pi_minimax, <span class="at">colour =</span> <span class="st">"Minimax"</span>), <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb9-304"><a href="#cb9-304" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> pi_bayes, <span class="at">colour =</span> <span class="st">"Bayes"</span>), <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb9-305"><a href="#cb9-305" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_colour_manual</span>(</span>
+<span id="cb9-306"><a href="#cb9-306" aria-hidden="true" tabindex="-1"></a>        <span class="at">values =</span> <span class="fu">c</span>(<span class="at">Minimax =</span> C_MINIMAX, <span class="at">Bayes =</span> C_SOCIAL),</span>
+<span id="cb9-307"><a href="#cb9-307" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> <span class="cn">NULL</span></span>
+<span id="cb9-308"><a href="#cb9-308" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb9-309"><a href="#cb9-309" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(</span>
+<span id="cb9-310"><a href="#cb9-310" aria-hidden="true" tabindex="-1"></a>        <span class="at">x =</span> <span class="fu">expression</span>(R[max] <span class="sc">-</span> R[min]),</span>
+<span id="cb9-311"><a href="#cb9-311" aria-hidden="true" tabindex="-1"></a>        <span class="at">y =</span> <span class="st">"Optimal coverage"</span>,</span>
+<span id="cb9-312"><a href="#cb9-312" aria-hidden="true" tabindex="-1"></a>        <span class="at">title =</span> <span class="st">"Minimax is increasingly conservative as uncertainty widens"</span></span>
+<span id="cb9-313"><a href="#cb9-313" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb9-314"><a href="#cb9-314" aria-hidden="true" tabindex="-1"></a>    <span class="fu">coord_cartesian</span>(<span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>))</span>
+<span id="cb9-315"><a href="#cb9-315" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-316"><a href="#cb9-316" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-317"><a href="#cb9-317" aria-hidden="true" tabindex="-1"></a>When the uncertainty set is narrow the two policies agree. As it widens, the minimax policy pulls sharply upward, tracking the worst plausible $R_0$, while the Bayes policy stays close to the prior mean. Which is appropriate depends on how much trust the prior deserves.</span>
+<span id="cb9-318"><a href="#cb9-318" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-319"><a href="#cb9-319" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-320"><a href="#cb9-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-321"><a href="#cb9-321" aria-hidden="true" tabindex="-1"></a><span class="fu"># Host–pathogen games: two caveats</span></span>
+<span id="cb9-322"><a href="#cb9-322" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-323"><a href="#cb9-323" aria-hidden="true" tabindex="-1"></a>It is tempting to describe host-pathogen interactions as minimax games: the pathogen "wants" to maximise spread; the host "wants" to minimise it. Some of the formal machinery transfers usefully — ESS analysis uses fixed-point arguments that echo minimax — but the analogy needs two caveats.</span>
+<span id="cb9-324"><a href="#cb9-324" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-325"><a href="#cb9-325" aria-hidden="true" tabindex="-1"></a>**(1) Pathogens do not optimise.** Evolution by natural selection produces strategies that are evolutionarily stable *given the current environment*, but it does not anticipate or counter-select. A strict minimax frame in which the pathogen chooses the worst case for the host typically over-states what evolution can do.</span>
+<span id="cb9-326"><a href="#cb9-326" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-327"><a href="#cb9-327" aria-hidden="true" tabindex="-1"></a>**(2) The game is rarely zero-sum.** Virulence–transmissibility trade-offs <span class="co">[</span><span class="ot">@anderson1982; @alizon2009</span><span class="co">]</span> show that a more virulent strain can be bad for both pathogen persistence and host welfare — the pathogen's payoff is not a simple negation of the host's.</span>
+<span id="cb9-328"><a href="#cb9-328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-329"><a href="#cb9-329" aria-hidden="true" tabindex="-1"></a>That said, two minimax-like frames are genuinely useful for pathogen-evolution problems:</span>
+<span id="cb9-330"><a href="#cb9-330" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-331"><a href="#cb9-331" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Robust vaccine design.** The planner chooses a vaccine whose efficacy must hold across a set of circulating strains. This is minimax in antigen space, used in seasonal influenza vaccine composition and — increasingly — for typhoid Vi-TCV against potential Vi-negative escape.</span>
+<span id="cb9-332"><a href="#cb9-332" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Adversarial simulation.** In outbreak-response planning, we often stress-test policies against a "red team" parameter choice. That is minimax in practice, even when it is not named as such.</span>
+<span id="cb9-333"><a href="#cb9-333" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-334"><a href="#cb9-334" aria-hidden="true" tabindex="-1"></a>A fuller treatment of evolutionary games awaits Post 4.</span>
+<span id="cb9-335"><a href="#cb9-335" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-336"><a href="#cb9-336" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-337"><a href="#cb9-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-338"><a href="#cb9-338" aria-hidden="true" tabindex="-1"></a><span class="fu"># Minimax outside of game theory</span></span>
+<span id="cb9-339"><a href="#cb9-339" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-340"><a href="#cb9-340" aria-hidden="true" tabindex="-1"></a>Minimax has made a second career outside game theory, and three instances are worth knowing if you build models at the interface of epidemiology and machine learning.</span>
+<span id="cb9-341"><a href="#cb9-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-342"><a href="#cb9-342" aria-hidden="true" tabindex="-1"></a>**Distributionally robust optimisation (DRO).** Rather than minimise expected loss under a fixed data distribution, one minimises expected loss under the *worst-case distribution within a divergence ball* around the empirical distribution <span class="co">[</span><span class="ot">@benTal2009; @duchi2021</span><span class="co">]</span>:</span>
+<span id="cb9-343"><a href="#cb9-343" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-344"><a href="#cb9-344" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-345"><a href="#cb9-345" aria-hidden="true" tabindex="-1"></a>\hat\theta \;=\; \arg\min_\theta\; \sup_{Q\,:\, D(Q\,<span class="sc">\|</span>\,\hat P)\, \le\, \rho}\; \mathbb{E}_Q\big<span class="co">[</span><span class="ot">L(\theta, X)\big</span><span class="co">]</span>. \tag{5}</span>
+<span id="cb9-346"><a href="#cb9-346" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-347"><a href="#cb9-347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-348"><a href="#cb9-348" aria-hidden="true" tabindex="-1"></a>For fitting disease models to outbreak data, DRO is a principled guard against covariate shift between the training setting and the deployment setting.</span>
+<span id="cb9-349"><a href="#cb9-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-350"><a href="#cb9-350" aria-hidden="true" tabindex="-1"></a>**Adversarial training.** A neural-network classifier is trained against worst-case small perturbations of its inputs <span class="co">[</span><span class="ot">@goodfellow2015</span><span class="co">]</span>:</span>
+<span id="cb9-351"><a href="#cb9-351" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-352"><a href="#cb9-352" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-353"><a href="#cb9-353" aria-hidden="true" tabindex="-1"></a>\min_\theta\, \mathbb{E}_{(x,y)}\!\Big[\, \max_{\|\delta\| \le \epsilon}\, L\big(f_\theta(x + \delta),\, y\big)\,\Big]. \tag{6}</span>
+<span id="cb9-354"><a href="#cb9-354" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb9-355"><a href="#cb9-355" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-356"><a href="#cb9-356" aria-hidden="true" tabindex="-1"></a>This is a standard ingredient when building diagnostic models that must be robust to slight image-acquisition differences across sites.</span>
+<span id="cb9-357"><a href="#cb9-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-358"><a href="#cb9-358" aria-hidden="true" tabindex="-1"></a>**Minimax-weighted PINN training.** A physics-informed neural network fits data loss and PDE-residual loss jointly. Several recent papers recast the balancing of the two loss terms as a minimax problem — the network minimising while a dual variable maximises across collocation points — and find that this stabilises training and improves out-of-distribution generalisation <span class="co">[</span><span class="ot">@mcclenny2023</span><span class="co">]</span>. The frame is of direct interest for PINN-based epidemic reconstruction.</span>
+<span id="cb9-359"><a href="#cb9-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-360"><a href="#cb9-360" aria-hidden="true" tabindex="-1"></a>The common thread is that **minimax is what we reach for when we want guarantees in the presence of something we cannot control or cannot model** — an unobserved parameter, a distributional shift, a crafted perturbation, or (in game theory proper) a strategic opponent.</span>
+<span id="cb9-361"><a href="#cb9-361" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-362"><a href="#cb9-362" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-363"><a href="#cb9-363" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-364"><a href="#cb9-364" aria-hidden="true" tabindex="-1"></a><span class="fu"># When minimax is too pessimistic</span></span>
+<span id="cb9-365"><a href="#cb9-365" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-366"><a href="#cb9-366" aria-hidden="true" tabindex="-1"></a>Pure minimax has three well-known pathologies, each with a standard remedy.</span>
+<span id="cb9-367"><a href="#cb9-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-368"><a href="#cb9-368" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pathology <span class="pp">|</span> Remedy <span class="pp">|</span></span>
+<span id="cb9-369"><a href="#cb9-369" aria-hidden="true" tabindex="-1"></a><span class="pp">| ---</span> <span class="pp">| ---</span> <span class="pp">|</span></span>
+<span id="cb9-370"><a href="#cb9-370" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Hedges against vanishingly improbable states <span class="pp">|</span> **$\Gamma$-minimax**: optimise over the worst prior in a restricted family $\Gamma$ <span class="pp">|</span></span>
+<span id="cb9-371"><a href="#cb9-371" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Ignores the *margin* by which other actions are worse in good states | **Minimax regret** <span class="co">[</span><span class="ot">@savage1951</span><span class="co">]</span> <span class="pp">|</span></span>
+<span id="cb9-372"><a href="#cb9-372" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Changes sharply when the uncertainty set is expanded <span class="pp">|</span> **Smooth ambiguity** <span class="co">[</span><span class="ot">@klibanoff2005</span><span class="co">]</span> <span class="pp">|</span></span>
+<span id="cb9-373"><a href="#cb9-373" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-374"><a href="#cb9-374" aria-hidden="true" tabindex="-1"></a>For OCV allocation in particular, minimax *regret* is often the more defensible frame: *how much worse could I be, relative to the best policy in hindsight?* It produces less cautious — and more communicable — recommendations than pure minimax.</span>
+<span id="cb9-375"><a href="#cb9-375" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-376"><a href="#cb9-376" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-377"><a href="#cb9-377" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-378"><a href="#cb9-378" aria-hidden="true" tabindex="-1"></a><span class="fu"># What the minimax frame tells us</span></span>
+<span id="cb9-379"><a href="#cb9-379" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-380"><a href="#cb9-380" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Question <span class="pp">|</span> Answer <span class="pp">|</span></span>
+<span id="cb9-381"><a href="#cb9-381" aria-hidden="true" tabindex="-1"></a><span class="pp">| ---</span> <span class="pp">| ---</span> <span class="pp">|</span></span>
+<span id="cb9-382"><a href="#cb9-382" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Does minimax coincide with Nash? <span class="pp">|</span> Only in 2-player zero-sum games. <span class="pp">|</span></span>
+<span id="cb9-383"><a href="#cb9-383" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Does minimax depend on a prior? <span class="pp">|</span> No — that is its virtue, and its cost. <span class="pp">|</span></span>
+<span id="cb9-384"><a href="#cb9-384" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Is the minimax planner "rational"? <span class="pp">|</span> Rational in the Wald sense; often over-cautious in the Bayesian sense. <span class="pp">|</span></span>
+<span id="cb9-385"><a href="#cb9-385" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> When should an epidemiologist reach for it? <span class="pp">|</span> When the uncertainty set is plausibly broad, the consequences of underestimating it are severe, and no credible prior is available. <span class="pp">|</span></span>
+<span id="cb9-386"><a href="#cb9-386" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> When should an epidemiologist avoid it? <span class="pp">|</span> When expert priors are well-calibrated and decision-relevant. <span class="pp">|</span></span>
+<span id="cb9-387"><a href="#cb9-387" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> What is the operational short-cut? <span class="pp">|</span> For monotone losses, the minimax planner optimises at the worst-case parameter. <span class="pp">|</span></span>
+<span id="cb9-388"><a href="#cb9-388" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-389"><a href="#cb9-389" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-390"><a href="#cb9-390" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-391"><a href="#cb9-391" aria-hidden="true" tabindex="-1"></a><span class="fu"># Series roadmap</span></span>
+<span id="cb9-392"><a href="#cb9-392" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-393"><a href="#cb9-393" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**[Foundations.](https://www.jonghoonk.com/blog/posts/game_theory_vacc/)** Vaccination game, Nash equilibrium, social optimum, price of anarchy.</span>
+<span id="cb9-394"><a href="#cb9-394" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**(This post) Minimax and the adversarial planner.** Von Neumann's theorem, Wald decision theory, worst-case OCV allocation, connections to DRO and PINN robustness.</span>
+<span id="cb9-395"><a href="#cb9-395" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Coupled behaviour–disease dynamics.** Replicator and imitation dynamics layered onto SIR models.</span>
+<span id="cb9-396"><a href="#cb9-396" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Evolutionary game theory for pathogens.** Virulence–transmissibility trade-offs, ESS analysis, strain replacement under vaccination pressure — with cholera and typhoid as running examples.</span>
+<span id="cb9-397"><a href="#cb9-397" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Policy and mechanism design.** Subsidies, mandates, information campaigns, network games, and agentic LLM-driven decision models.</span>
+<span id="cb9-398"><a href="#cb9-398" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-399"><a href="#cb9-399" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-400"><a href="#cb9-400" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-401"><a href="#cb9-401" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {.unnumbered}</span></span>
+<span id="cb9-402"><a href="#cb9-402" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-403"><a href="#cb9-403" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb9-404"><a href="#cb9-404" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb9-405"><a href="#cb9-405" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-408"><a href="#cb9-408" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-409"><a href="#cb9-409" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: session-info</span></span>
+<span id="cb9-410"><a href="#cb9-410" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
+<span id="cb9-411"><a href="#cb9-411" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"R          %s</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">paste</span>(R.version<span class="sc">$</span>major, R.version<span class="sc">$</span>minor, <span class="at">sep =</span> <span class="st">"."</span>)))</span>
+<span id="cb9-412"><a href="#cb9-412" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (pkg <span class="cf">in</span> <span class="fu">c</span>(<span class="st">"ggplot2"</span>, <span class="st">"dplyr"</span>, <span class="st">"tidyr"</span>, <span class="st">"patchwork"</span>, <span class="st">"truncnorm"</span>)) {</span>
+<span id="cb9-413"><a href="#cb9-413" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"%-10s %s</span><span class="sc">\n</span><span class="st">"</span>, pkg, <span class="fu">as.character</span>(<span class="fu">packageVersion</span>(pkg))))</span>
+<span id="cb9-414"><a href="#cb9-414" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-415"><a href="#cb9-415" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
