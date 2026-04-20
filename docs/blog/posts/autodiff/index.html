@@ -466,8 +466,8 @@ window.Quarto = {
 
 <p>In my <a href="https://www.jonghoonk.com/blog/posts/pinn_sir/">previous post on Physics-Informed Neural Networks</a>, the SIR residual was computed with a single line:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>dS <span class="op">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>That line hides one of the most beautiful ideas in scientific computing. It is not a finite difference, it is not symbolic differentiation, and it is not an approximation. It is <strong>automatic differentiation</strong> (AD), and it computes <span class="math inline">\(dS/dt\)</span> to machine precision for arbitrary networks in roughly the same time it takes to evaluate the network itself.</p>
-<p>This post takes AD apart. By the end we will have implemented two small but working autodiff engines — one in forward mode, one in reverse mode — and we will understand exactly what PyTorch is doing when we call <code>.backward()</code> or <code>torch.autograd.grad(...)</code>.</p>
+<p>That line uses <strong>automatic differentiation</strong> (AD). It computes <span class="math inline">\(dS/dt\)</span> to machine precision for arbitrary networks in roughly the same time it takes to evaluate the network itself.</p>
+<p>This post takes AD apart. We will implement two small but working autodiff engines — one in forward mode, one in reverse mode — and understand exactly what PyTorch is doing when we call <code>.backward()</code> or <code>torch.autograd.grad(...)</code>.</p>
 <hr>
 <section id="why-automatic-differentiation-matters" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> Why automatic differentiation matters</h1>
@@ -479,7 +479,7 @@ window.Quarto = {
 </section>
 <section id="three-ways-to-differentiate" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Three ways to differentiate</h1>
-<p>Before explaining AD, it helps to be precise about what it is <em>not</em>. Suppose we have</p>
+<p>Suppose we have the following function:</p>
 <p><span class="math display">\[
 f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
 \]</span></p>
@@ -490,7 +490,7 @@ f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
 <p><span class="math display">\[
 \frac{\partial f}{\partial x_1} = \frac{1}{x_1} + x_2.
 \]</span></p>
-<p>This is what Mathematica and SymPy do. It returns a <em>formula</em> that we then evaluate. The problem is <strong>expression swell</strong>: repeated application of the product and chain rules on deep compositions produces expressions that grow exponentially. Symbolic differentiation of a neural network with a million parameters is not feasible.</p>
+<p>This is what Mathematica and SymPy do. It returns a formula that we then evaluate. The problem is that repeated application of the product and chain rules on deep compositions produces expressions that grow exponentially. Symbolic differentiation of a neural network with a million parameters is not feasible.</p>
 </section>
 <section id="numerical-differentiation" class="level2" data-number="2.2">
 <h2 data-number="2.2" class="anchored" data-anchor-id="numerical-differentiation"><span class="header-section-number">2.2</span> Numerical differentiation</h2>
@@ -503,8 +503,8 @@ f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
 <li><strong>Truncation error</strong> <span class="math inline">\(\sim O(h)\)</span> (or <span class="math inline">\(O(h^2)\)</span> for centred differences): shrinks as <span class="math inline">\(h \to 0\)</span>.</li>
 <li><strong>Round-off error</strong> <span class="math inline">\(\sim O(\epsilon_{\text{mach}}/h)\)</span>: grows as <span class="math inline">\(h \to 0\)</span>, because we subtract two nearly equal numbers in floating point.</li>
 </ul>
-<p>Minimising the sum gives an optimal <span class="math inline">\(h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}\)</span> in double precision, and even then we only recover about half the digits. The U-shaped error curve is unavoidable:</p>
-<div id="103c29a2" class="cell" data-execution_count="1">
+<p>Minimising the sum gives an optimal <span class="math inline">\(h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}\)</span> in double precision:</p>
+<div id="0b5a8102" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -678,7 +678,7 @@ f(a + b\varepsilon) = f(a) + f'(a) \cdot b\varepsilon + \tfrac{1}{2}f''(a) \cdot
 </section>
 <section id="a-working-implementation-in-40-lines" class="level2" data-number="4.3">
 <h2 data-number="4.3" class="anchored" data-anchor-id="a-working-implementation-in-40-lines"><span class="header-section-number">4.3</span> A working implementation in ~40 lines</h2>
-<div id="fa641bcf" class="cell" data-execution_count="2">
+<div id="b256df64" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -839,7 +839,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </section>
 <section id="a-working-implementation-in-70-lines" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="a-working-implementation-in-70-lines"><span class="header-section-number">5.3</span> A working implementation in ~70 lines</h2>
-<div id="2c113a0f" class="cell" data-execution_count="3">
+<div id="f5fa304f" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Var:</span>
@@ -951,7 +951,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </tbody>
 </table>
 <p>Deep learning is the extreme case of the second regime: the loss is a <strong>scalar</strong> (<span class="math inline">\(m = 1\)</span>), and the parameters are <strong>millions</strong> (<span class="math inline">\(n \gg 1\)</span>). A single backward pass returns every parameter gradient. Forward mode would need millions of passes for the same result.</p>
-<p>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="citation" data-cites="rumelhart1986">[@rumelhart1986]</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa’s 1970 master’s thesis <span class="citation" data-cites="linnainmaa1970">[@linnainmaa1970]</span>, and Speelpenning’s 1980 PhD thesis showed it applied to arbitrary programs <span class="citation" data-cites="speelpenning1980">[@speelpenning1980]</span>.</p>
+<p>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="citation" data-cites="rumelhart1986">(<a href="#ref-rumelhart1986" role="doc-biblioref">1</a>)</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa’s 1970 master’s thesis <span class="citation" data-cites="linnainmaa1970">(<a href="#ref-linnainmaa1970" role="doc-biblioref">2</a>)</span>, and Speelpenning’s 1980 PhD thesis showed it applied to arbitrary programs <span class="citation" data-cites="speelpenning1980">(<a href="#ref-speelpenning1980" role="doc-biblioref">3</a>)</span>.</p>
 <p>For PINNs, the story has a wrinkle: the <em>physics</em> loss itself contains derivatives of the network. We therefore need to differentiate a function that already contains differentiation — higher-order AD. We come back to this in Section 8.</p>
 <hr>
 </section>
@@ -985,8 +985,8 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </section>
 <section id="higher-order-derivatives" class="level1" data-number="8">
 <h1 data-number="8"><span class="header-section-number">8</span> Higher-order derivatives</h1>
-<p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">[@raissi2019]</span> — we apply AD to the output of AD. In PyTorch:</p>
-<div id="7984be79" class="cell" data-execution_count="4">
+<p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">4</a>)</span> — we apply AD to the output of AD. In PyTorch:</p>
+<div id="16cc0cdd" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
@@ -1025,7 +1025,7 @@ d²y/dx²  = 0.1750</code></pre>
 </section>
 <section id="a-brief-note-for-r-users" class="level1" data-number="10">
 <h1 data-number="10"><span class="header-section-number">10</span> A brief note for R users</h1>
-<p>Since I work mostly in R, I want to mention that the same machinery is available there. The <code>torch</code> R package <span class="citation" data-cites="torchR">[@torchR]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</p>
+<p>Since I work mostly in R, I want to mention that the same machinery is available there. The <code>torch</code> R package <span class="citation" data-cites="torchR">(<a href="#ref-torchR" role="doc-biblioref">5</a>)</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="fl">1.5</span>, <span class="at">requires_grad =</span> <span class="cn">TRUE</span>)</span>
@@ -1036,7 +1036,7 @@ d²y/dx²  = 0.1750</code></pre>
 <span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"dy/dx   = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(dy_dx)))</span>
 <span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"d2y/dx2 = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(d2y_dx2)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>For more flexibility, <code>jax</code> (via <code>reticulate</code>) and Julia’s <code>Zygote.jl</code> <span class="citation" data-cites="zygote">[@zygote]</span> are both mature reverse-mode AD systems worth exploring.</p>
+<p>For more flexibility, <code>jax</code> (via <code>reticulate</code>) and Julia’s <code>Zygote.jl</code> <span class="citation" data-cites="zygote">(<a href="#ref-zygote" role="doc-biblioref">6</a>)</span> are both mature reverse-mode AD systems worth exploring.</p>
 <hr>
 </section>
 <section id="summary" class="level1" data-number="11">
@@ -1054,15 +1054,25 @@ d²y/dx²  = 0.1750</code></pre>
 </section>
 <section id="references" class="level1 unnumbered">
 <h1 class="unnumbered">References</h1>
-<div id="refs" role="list">
-<p><span class="citation" data-cites="linnainmaa1970">[@linnainmaa1970]</span> Linnainmaa S. <em>The representation of the cumulative rounding error of an algorithm as a Taylor expansion of the local rounding errors</em>. Master’s thesis, University of Helsinki, 1970.</p>
-<p><span class="citation" data-cites="speelpenning1980">[@speelpenning1980]</span> Speelpenning B. <em>Compiling fast partial derivatives of functions given by algorithms</em>. PhD thesis, University of Illinois at Urbana-Champaign, 1980.</p>
-<p><span class="citation" data-cites="rumelhart1986">[@rumelhart1986]</span> Rumelhart DE, Hinton GE, Williams RJ. Learning representations by back-propagating errors. <em>Nature</em>. 1986;323:533–536. doi:<a href="https://doi.org/10.1038/323533a0">10.1038/323533a0</a></p>
-<p><span class="citation" data-cites="griewank2008">[@griewank2008]</span> Griewank A, Walther A. <em>Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation</em>. 2nd ed.&nbsp;SIAM, 2008.</p>
-<p><span class="citation" data-cites="baydin2018">[@baydin2018]</span> Baydin AG, Pearlmutter BA, Radul AA, Siskind JM. Automatic differentiation in machine learning: a survey. <em>Journal of Machine Learning Research</em>. 2018;18(153):1–43. Available at <a href="https://www.jmlr.org/papers/v18/17-468.html">jmlr.org/papers/v18/17-468.html</a></p>
-<p><span class="citation" data-cites="raissi2019">[@raissi2019]</span> Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. <em>Journal of Computational Physics</em>. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></p>
-<p><span class="citation" data-cites="torchR">[@torchR]</span> Falbel D, Luraschi J. <em>torch: Tensors and Neural Networks with ‘GPU’ Acceleration</em>. R package. Available at <a href="https://torch.mlverse.org">torch.mlverse.org</a></p>
-<p><span class="citation" data-cites="zygote">[@zygote]</span> Innes M. Don’t Unroll Adjoint: Differentiating SSA-Form Programs. arXiv:1810.07951, 2019.</p>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-rumelhart1986" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Rumelhart DE, Hinton GE, Williams RJ. Learning representations by back-propagating errors. Nature. 1986;323:533–6. doi:<a href="https://doi.org/10.1038/323533a0">10.1038/323533a0</a></div>
+</div>
+<div id="ref-linnainmaa1970" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Linnainmaa S. The representation of the cumulative rounding error of an algorithm as a <span>Taylor</span> expansion of the local rounding errors [Master’s thesis]. University of Helsinki; 1970.</div>
+</div>
+<div id="ref-speelpenning1980" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Speelpenning B. Compiling fast partial derivatives of functions given by algorithms [PhD thesis]. University of Illinois at Urbana-Champaign; 1980.</div>
+</div>
+<div id="ref-raissi2019" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: <span>A</span> deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+<div id="ref-torchR" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Falbel D, Luraschi J. Torch: <span>Tensors</span> and neural networks with <span><span>“GPU”</span></span> acceleration [Internet]. Available from: <a href="https://torch.mlverse.org">https://torch.mlverse.org</a></div>
+</div>
+<div id="ref-zygote" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Innes M. Don’t unroll adjoint: Differentiating <span>SSA</span>-form programs [Internet]. 2019. Available from: <a href="https://arxiv.org/abs/1810.07951">https://arxiv.org/abs/1810.07951</a></div>
+</div>
 </div>
 
 
@@ -1544,536 +1554,521 @@ d²y/dx²  = 0.1750</code></pre>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-04-20"</span></span>
 <span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> [automatic differentiation, deep learning, PINN, backpropagation, Python]</span></span>
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="an">jupyter:</span><span class="co"> python3</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">    number-sections: true</span></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: show</span></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="co">  echo: true</span></span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="co">  warning: false</span></span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="co">  message: false</span></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>In my <span class="co">[</span><span class="ot">previous post on Physics-Informed Neural Networks</span><span class="co">](https://www.jonghoonk.com/blog/posts/pinn_sir/)</span>, the SIR residual was computed with a single line:</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="an">bibliography:</span><span class="co"> references.bib</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="an">csl:</span><span class="co"> https://www.zotero.org/styles/vancouver</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co">    number-sections: true</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: show</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="co">  echo: true</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="co">  warning: false</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="co">  message: false</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="in">```python</span></span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>dS <span class="op">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>That line hides one of the most beautiful ideas in scientific computing. It is not a finite difference, it is not symbolic differentiation, and it is not an approximation. It is **automatic differentiation** (AD), and it computes $dS/dt$ to machine precision for arbitrary networks in roughly the same time it takes to evaluate the network itself.</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>In my <span class="co">[</span><span class="ot">previous post on Physics-Informed Neural Networks</span><span class="co">](https://www.jonghoonk.com/blog/posts/pinn_sir/)</span>, the SIR residual was computed with a single line:</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="in">```python</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>dS <span class="op">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>This post takes AD apart. By the end we will have implemented two small but working autodiff engines — one in forward mode, one in reverse mode — and we will understand exactly what PyTorch is doing when we call <span class="in">`.backward()`</span> or <span class="in">`torch.autograd.grad(...)`</span>.</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>That line uses **automatic differentiation** (AD). It computes $dS/dt$ to machine precision for arbitrary networks in roughly the same time it takes to evaluate the network itself.</span>
 <span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>This post takes AD apart. We will implement two small but working autodiff engines — one in forward mode, one in reverse mode — and understand exactly what PyTorch is doing when we call <span class="in">`.backward()`</span> or <span class="in">`torch.autograd.grad(...)`</span>.</span>
 <span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="fu"># Why automatic differentiation matters</span></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>Modern deep learning is gradient descent on composed functions. Two places where derivatives show up in a typical PINN pipeline:</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a><span class="fu"># Why automatic differentiation matters</span></span>
 <span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>**Parameter gradients for training.** If $\mathcal{L}(\theta)$ is the loss and $\theta$ contains millions of network weights, we need $\nabla_\theta \mathcal{L}$ to update the weights with Adam or SGD.</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>Modern deep learning is gradient descent on composed functions. Two places where derivatives show up in a typical PINN pipeline:</span>
 <span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>**Derivatives inside the loss itself.** For a PINN solving the SIR ODE, the physics loss involves $dS/dt, dI/dt, dR/dt$ — derivatives of the *network output* with respect to the *network input*. These are computed through the same AD machinery.</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>**Parameter gradients for training.** If $\mathcal{L}(\theta)$ is the loss and $\theta$ contains millions of network weights, we need $\nabla_\theta \mathcal{L}$ to update the weights with Adam or SGD.</span>
 <span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>Both cases reduce to one question: given a program that computes a numerical function, can we obtain its derivatives automatically, exactly, and efficiently? The answer is yes, and the mechanism is AD.</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>**Derivatives inside the loss itself.** For a PINN solving the SIR ODE, the physics loss involves $dS/dt, dI/dt, dR/dt$ — derivatives of the *network output* with respect to the *network input*. These are computed through the same AD machinery.</span>
 <span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>Both cases reduce to one question: given a program that computes a numerical function, can we obtain its derivatives automatically, exactly, and efficiently? The answer is yes, and the mechanism is AD.</span>
 <span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="fu"># Three ways to differentiate</span></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>Before explaining AD, it helps to be precise about what it is *not*. Suppose we have</span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="fu"># Three ways to differentiate</span></span>
 <span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).</span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>Suppose we have the following function:</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>There are three ways a computer might compute $\partial f / \partial x_1$ at, say, $x_1 = 2, x_2 = 5$.</span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).</span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a><span class="fu">## Symbolic differentiation</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>There are three ways a computer might compute $\partial f / \partial x_1$ at, say, $x_1 = 2, x_2 = 5$.</span>
 <span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>Apply differentiation rules to the expression itself:</span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a><span class="fu">## Symbolic differentiation</span></span>
 <span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>\frac{\partial f}{\partial x_1} = \frac{1}{x_1} + x_2.</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>Apply differentiation rules to the expression itself:</span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>This is what Mathematica and SymPy do. It returns a *formula* that we then evaluate. The problem is **expression swell**: repeated application of the product and chain rules on deep compositions produces expressions that grow exponentially. Symbolic differentiation of a neural network with a million parameters is not feasible.</span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>\frac{\partial f}{\partial x_1} = \frac{1}{x_1} + x_2.</span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a><span class="fu">## Numerical differentiation</span></span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a>This is what Mathematica and SymPy do. It returns a formula that we then evaluate. The problem is that repeated application of the product and chain rules on deep compositions produces expressions that grow exponentially. Symbolic differentiation of a neural network with a million parameters is not feasible.</span>
 <span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a>Use a finite-difference approximation:</span>
+<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a><span class="fu">## Numerical differentiation</span></span>
 <span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a>\frac{\partial f}{\partial x_1}(x_1, x_2) \approx \frac{f(x_1 + h, x_2) - f(x_1, x_2)}{h}</span>
+<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a>Use a finite-difference approximation:</span>
+<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-70"><a href="#cb12-70" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-71"><a href="#cb12-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-72"><a href="#cb12-72" aria-hidden="true" tabindex="-1"></a>for small $h$. This is easy to implement but suffers from a fundamental tension between two errors:</span>
+<span id="cb12-71"><a href="#cb12-71" aria-hidden="true" tabindex="-1"></a>\frac{\partial f}{\partial x_1}(x_1, x_2) \approx \frac{f(x_1 + h, x_2) - f(x_1, x_2)}{h}</span>
+<span id="cb12-72"><a href="#cb12-72" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-73"><a href="#cb12-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-74"><a href="#cb12-74" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Truncation error** $\sim O(h)$ (or $O(h^2)$ for centred differences): shrinks as $h \to 0$.</span>
-<span id="cb12-75"><a href="#cb12-75" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Round-off error** $\sim O(\epsilon_{\text{mach}}/h)$: grows as $h \to 0$, because we subtract two nearly equal numbers in floating point.</span>
-<span id="cb12-76"><a href="#cb12-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-77"><a href="#cb12-77" aria-hidden="true" tabindex="-1"></a>Minimising the sum gives an optimal $h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}$ in double precision, and even then we only recover about half the digits. The U-shaped error curve is unavoidable:</span>
+<span id="cb12-74"><a href="#cb12-74" aria-hidden="true" tabindex="-1"></a>for small $h$. This is easy to implement but suffers from a fundamental tension between two errors:</span>
+<span id="cb12-75"><a href="#cb12-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-76"><a href="#cb12-76" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Truncation error** $\sim O(h)$ (or $O(h^2)$ for centred differences): shrinks as $h \to 0$.</span>
+<span id="cb12-77"><a href="#cb12-77" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Round-off error** $\sim O(\epsilon_{\text{mach}}/h)$: grows as $h \to 0$, because we subtract two nearly equal numbers in floating point.</span>
 <span id="cb12-78"><a href="#cb12-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-81"><a href="#cb12-81" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb12-82"><a href="#cb12-82" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
-<span id="cb12-83"><a href="#cb12-83" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Total error of a forward finite difference versus step size, showing the classic U-curve."</span></span>
-<span id="cb12-84"><a href="#cb12-84" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb12-85"><a href="#cb12-85" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb12-86"><a href="#cb12-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-87"><a href="#cb12-87" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f(x):        <span class="cf">return</span> np.log(x) <span class="op">+</span> x <span class="op">*</span> <span class="dv">5</span> <span class="op">-</span> np.sin(<span class="fl">5.0</span>)</span>
-<span id="cb12-88"><a href="#cb12-88" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f_prime(x):  <span class="cf">return</span> <span class="fl">1.0</span> <span class="op">/</span> x <span class="op">+</span> <span class="dv">5</span>                <span class="co"># analytic</span></span>
-<span id="cb12-89"><a href="#cb12-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-90"><a href="#cb12-90" aria-hidden="true" tabindex="-1"></a>x0 <span class="op">=</span> <span class="fl">2.0</span></span>
-<span id="cb12-91"><a href="#cb12-91" aria-hidden="true" tabindex="-1"></a>hs <span class="op">=</span> np.logspace(<span class="op">-</span><span class="dv">16</span>, <span class="dv">0</span>, <span class="dv">200</span>)</span>
-<span id="cb12-92"><a href="#cb12-92" aria-hidden="true" tabindex="-1"></a>fd <span class="op">=</span> (f(x0 <span class="op">+</span> hs) <span class="op">-</span> f(x0)) <span class="op">/</span> hs</span>
-<span id="cb12-93"><a href="#cb12-93" aria-hidden="true" tabindex="-1"></a>err <span class="op">=</span> np.<span class="bu">abs</span>(fd <span class="op">-</span> f_prime(x0))</span>
-<span id="cb12-94"><a href="#cb12-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-95"><a href="#cb12-95" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">5</span>, <span class="dv">3</span>))</span>
-<span id="cb12-96"><a href="#cb12-96" aria-hidden="true" tabindex="-1"></a>ax.loglog(hs, err, lw<span class="op">=</span><span class="fl">1.6</span>, color<span class="op">=</span><span class="st">"#9C27B0"</span>)</span>
-<span id="cb12-97"><a href="#cb12-97" aria-hidden="true" tabindex="-1"></a>ax.axvline(np.sqrt(np.finfo(<span class="bu">float</span>).eps), color<span class="op">=</span><span class="st">"black"</span>, ls<span class="op">=</span><span class="st">"--"</span>, lw<span class="op">=</span><span class="dv">1</span>,</span>
-<span id="cb12-98"><a href="#cb12-98" aria-hidden="true" tabindex="-1"></a>           label<span class="op">=</span><span class="vs">r"</span><span class="dv">$</span><span class="vs">h = </span><span class="dv">\s</span><span class="vs">qrt{</span><span class="er">\</span><span class="vs">epsilon_{</span><span class="dv">\m</span><span class="vs">athrm{mach}}}</span><span class="dv">$</span><span class="vs">"</span>)</span>
-<span id="cb12-99"><a href="#cb12-99" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"step size $h$"</span>, ylabel<span class="op">=</span><span class="st">"|numerical − true|"</span>,</span>
-<span id="cb12-100"><a href="#cb12-100" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Finite differences: error vs step size"</span>)</span>
-<span id="cb12-101"><a href="#cb12-101" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
-<span id="cb12-102"><a href="#cb12-102" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb12-103"><a href="#cb12-103" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
-<span id="cb12-104"><a href="#cb12-104" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-105"><a href="#cb12-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-106"><a href="#cb12-106" aria-hidden="true" tabindex="-1"></a>Worse, computing the gradient of a function with $n$ inputs by finite differences requires $n+1$ function evaluations. For a network with a million parameters, that is a million forward passes per gradient step. Completely impractical.</span>
+<span id="cb12-79"><a href="#cb12-79" aria-hidden="true" tabindex="-1"></a>Minimising the sum gives an optimal $h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}$ in double precision:</span>
+<span id="cb12-80"><a href="#cb12-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-83"><a href="#cb12-83" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-84"><a href="#cb12-84" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
+<span id="cb12-85"><a href="#cb12-85" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Total error of a forward finite difference versus step size, showing the classic U-curve."</span></span>
+<span id="cb12-86"><a href="#cb12-86" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb12-87"><a href="#cb12-87" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb12-88"><a href="#cb12-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-89"><a href="#cb12-89" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f(x):        <span class="cf">return</span> np.log(x) <span class="op">+</span> x <span class="op">*</span> <span class="dv">5</span> <span class="op">-</span> np.sin(<span class="fl">5.0</span>)</span>
+<span id="cb12-90"><a href="#cb12-90" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f_prime(x):  <span class="cf">return</span> <span class="fl">1.0</span> <span class="op">/</span> x <span class="op">+</span> <span class="dv">5</span>                <span class="co"># analytic</span></span>
+<span id="cb12-91"><a href="#cb12-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-92"><a href="#cb12-92" aria-hidden="true" tabindex="-1"></a>x0 <span class="op">=</span> <span class="fl">2.0</span></span>
+<span id="cb12-93"><a href="#cb12-93" aria-hidden="true" tabindex="-1"></a>hs <span class="op">=</span> np.logspace(<span class="op">-</span><span class="dv">16</span>, <span class="dv">0</span>, <span class="dv">200</span>)</span>
+<span id="cb12-94"><a href="#cb12-94" aria-hidden="true" tabindex="-1"></a>fd <span class="op">=</span> (f(x0 <span class="op">+</span> hs) <span class="op">-</span> f(x0)) <span class="op">/</span> hs</span>
+<span id="cb12-95"><a href="#cb12-95" aria-hidden="true" tabindex="-1"></a>err <span class="op">=</span> np.<span class="bu">abs</span>(fd <span class="op">-</span> f_prime(x0))</span>
+<span id="cb12-96"><a href="#cb12-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-97"><a href="#cb12-97" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">5</span>, <span class="dv">3</span>))</span>
+<span id="cb12-98"><a href="#cb12-98" aria-hidden="true" tabindex="-1"></a>ax.loglog(hs, err, lw<span class="op">=</span><span class="fl">1.6</span>, color<span class="op">=</span><span class="st">"#9C27B0"</span>)</span>
+<span id="cb12-99"><a href="#cb12-99" aria-hidden="true" tabindex="-1"></a>ax.axvline(np.sqrt(np.finfo(<span class="bu">float</span>).eps), color<span class="op">=</span><span class="st">"black"</span>, ls<span class="op">=</span><span class="st">"--"</span>, lw<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb12-100"><a href="#cb12-100" aria-hidden="true" tabindex="-1"></a>           label<span class="op">=</span><span class="vs">r"</span><span class="dv">$</span><span class="vs">h = </span><span class="dv">\s</span><span class="vs">qrt{</span><span class="er">\</span><span class="vs">epsilon_{</span><span class="dv">\m</span><span class="vs">athrm{mach}}}</span><span class="dv">$</span><span class="vs">"</span>)</span>
+<span id="cb12-101"><a href="#cb12-101" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"step size $h$"</span>, ylabel<span class="op">=</span><span class="st">"|numerical − true|"</span>,</span>
+<span id="cb12-102"><a href="#cb12-102" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Finite differences: error vs step size"</span>)</span>
+<span id="cb12-103"><a href="#cb12-103" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
+<span id="cb12-104"><a href="#cb12-104" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb12-105"><a href="#cb12-105" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb12-106"><a href="#cb12-106" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-107"><a href="#cb12-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-108"><a href="#cb12-108" aria-hidden="true" tabindex="-1"></a><span class="fu">## Automatic differentiation</span></span>
+<span id="cb12-108"><a href="#cb12-108" aria-hidden="true" tabindex="-1"></a>Worse, computing the gradient of a function with $n$ inputs by finite differences requires $n+1$ function evaluations. For a network with a million parameters, that is a million forward passes per gradient step. Completely impractical.</span>
 <span id="cb12-109"><a href="#cb12-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-110"><a href="#cb12-110" aria-hidden="true" tabindex="-1"></a>AD sits between these two extremes. Like symbolic differentiation, it uses the chain rule exactly, so there is no truncation error. Unlike symbolic differentiation, it does not build a closed-form expression — it propagates *numerical derivative values* alongside the primal computation. The result: exact derivatives (to machine precision), at a cost comparable to a single function evaluation.</span>
+<span id="cb12-110"><a href="#cb12-110" aria-hidden="true" tabindex="-1"></a><span class="fu">## Automatic differentiation</span></span>
 <span id="cb12-111"><a href="#cb12-111" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-112"><a href="#cb12-112" aria-hidden="true" tabindex="-1"></a>The trick is that every program — no matter how complex — is ultimately a composition of a small number of elementary operations ($+, \times, \sin, \exp, \log, \ldots$) whose derivatives we know by hand. AD applies the chain rule across this composition, one operation at a time.</span>
+<span id="cb12-112"><a href="#cb12-112" aria-hidden="true" tabindex="-1"></a>AD sits between these two extremes. Like symbolic differentiation, it uses the chain rule exactly, so there is no truncation error. Unlike symbolic differentiation, it does not build a closed-form expression — it propagates *numerical derivative values* alongside the primal computation. The result: exact derivatives (to machine precision), at a cost comparable to a single function evaluation.</span>
 <span id="cb12-113"><a href="#cb12-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-114"><a href="#cb12-114" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-114"><a href="#cb12-114" aria-hidden="true" tabindex="-1"></a>The trick is that every program — no matter how complex — is ultimately a composition of a small number of elementary operations ($+, \times, \sin, \exp, \log, \ldots$) whose derivatives we know by hand. AD applies the chain rule across this composition, one operation at a time.</span>
 <span id="cb12-115"><a href="#cb12-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-116"><a href="#cb12-116" aria-hidden="true" tabindex="-1"></a><span class="fu"># The computational graph</span></span>
+<span id="cb12-116"><a href="#cb12-116" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-117"><a href="#cb12-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-118"><a href="#cb12-118" aria-hidden="true" tabindex="-1"></a>The program for $f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2)$ can be written as a sequence of elementary operations:</span>
+<span id="cb12-118"><a href="#cb12-118" aria-hidden="true" tabindex="-1"></a><span class="fu"># The computational graph</span></span>
 <span id="cb12-119"><a href="#cb12-119" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-120"><a href="#cb12-120" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-121"><a href="#cb12-121" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
-<span id="cb12-122"><a href="#cb12-122" aria-hidden="true" tabindex="-1"></a>v_1 &amp;= x_1 <span class="sc">\\</span></span>
-<span id="cb12-123"><a href="#cb12-123" aria-hidden="true" tabindex="-1"></a>v_2 &amp;= x_2 <span class="sc">\\</span></span>
-<span id="cb12-124"><a href="#cb12-124" aria-hidden="true" tabindex="-1"></a>v_3 &amp;= \ln(v_1) <span class="sc">\\</span></span>
-<span id="cb12-125"><a href="#cb12-125" aria-hidden="true" tabindex="-1"></a>v_4 &amp;= v_1 \cdot v_2 <span class="sc">\\</span></span>
-<span id="cb12-126"><a href="#cb12-126" aria-hidden="true" tabindex="-1"></a>v_5 &amp;= \sin(v_2) <span class="sc">\\</span></span>
-<span id="cb12-127"><a href="#cb12-127" aria-hidden="true" tabindex="-1"></a>v_6 &amp;= v_3 + v_4 <span class="sc">\\</span></span>
-<span id="cb12-128"><a href="#cb12-128" aria-hidden="true" tabindex="-1"></a>v_7 &amp;= v_6 - v_5 <span class="sc">\\</span></span>
-<span id="cb12-129"><a href="#cb12-129" aria-hidden="true" tabindex="-1"></a>f   &amp;= v_7</span>
-<span id="cb12-130"><a href="#cb12-130" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
-<span id="cb12-131"><a href="#cb12-131" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-132"><a href="#cb12-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-133"><a href="#cb12-133" aria-hidden="true" tabindex="-1"></a>This is called a **Wengert list** or **trace**. We can draw it as a directed acyclic graph where edges indicate data flow:</span>
+<span id="cb12-120"><a href="#cb12-120" aria-hidden="true" tabindex="-1"></a>The program for $f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2)$ can be written as a sequence of elementary operations:</span>
+<span id="cb12-121"><a href="#cb12-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-122"><a href="#cb12-122" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb12-123"><a href="#cb12-123" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
+<span id="cb12-124"><a href="#cb12-124" aria-hidden="true" tabindex="-1"></a>v_1 &amp;= x_1 <span class="sc">\\</span></span>
+<span id="cb12-125"><a href="#cb12-125" aria-hidden="true" tabindex="-1"></a>v_2 &amp;= x_2 <span class="sc">\\</span></span>
+<span id="cb12-126"><a href="#cb12-126" aria-hidden="true" tabindex="-1"></a>v_3 &amp;= \ln(v_1) <span class="sc">\\</span></span>
+<span id="cb12-127"><a href="#cb12-127" aria-hidden="true" tabindex="-1"></a>v_4 &amp;= v_1 \cdot v_2 <span class="sc">\\</span></span>
+<span id="cb12-128"><a href="#cb12-128" aria-hidden="true" tabindex="-1"></a>v_5 &amp;= \sin(v_2) <span class="sc">\\</span></span>
+<span id="cb12-129"><a href="#cb12-129" aria-hidden="true" tabindex="-1"></a>v_6 &amp;= v_3 + v_4 <span class="sc">\\</span></span>
+<span id="cb12-130"><a href="#cb12-130" aria-hidden="true" tabindex="-1"></a>v_7 &amp;= v_6 - v_5 <span class="sc">\\</span></span>
+<span id="cb12-131"><a href="#cb12-131" aria-hidden="true" tabindex="-1"></a>f   &amp;= v_7</span>
+<span id="cb12-132"><a href="#cb12-132" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
+<span id="cb12-133"><a href="#cb12-133" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-134"><a href="#cb12-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-137"><a href="#cb12-137" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
-<span id="cb12-138"><a href="#cb12-138" aria-hidden="true" tabindex="-1"></a>flowchart LR</span>
-<span id="cb12-139"><a href="#cb12-139" aria-hidden="true" tabindex="-1"></a>    x1((x₁)) --&gt; v3[<span class="ot">"</span><span class="st">v₃ = ln(v₁)</span><span class="ot">"</span>]</span>
-<span id="cb12-140"><a href="#cb12-140" aria-hidden="true" tabindex="-1"></a>    x1 --&gt; v4[<span class="ot">"</span><span class="st">v₄ = v₁·v₂</span><span class="ot">"</span>]</span>
-<span id="cb12-141"><a href="#cb12-141" aria-hidden="true" tabindex="-1"></a>    x2((x₂)) --&gt; v4</span>
-<span id="cb12-142"><a href="#cb12-142" aria-hidden="true" tabindex="-1"></a>    x2 --&gt; v5[<span class="ot">"</span><span class="st">v₅ = sin(v₂)</span><span class="ot">"</span>]</span>
-<span id="cb12-143"><a href="#cb12-143" aria-hidden="true" tabindex="-1"></a>    v3 --&gt; v6[<span class="ot">"</span><span class="st">v₆ = v₃ + v₄</span><span class="ot">"</span>]</span>
-<span id="cb12-144"><a href="#cb12-144" aria-hidden="true" tabindex="-1"></a>    v4 --&gt; v6</span>
-<span id="cb12-145"><a href="#cb12-145" aria-hidden="true" tabindex="-1"></a>    v6 --&gt; v7[<span class="ot">"</span><span class="st">v₇ = v₆ - v₅</span><span class="ot">"</span>]</span>
-<span id="cb12-146"><a href="#cb12-146" aria-hidden="true" tabindex="-1"></a>    v5 --&gt; v7</span>
-<span id="cb12-147"><a href="#cb12-147" aria-hidden="true" tabindex="-1"></a>    v7 --&gt; f((f))</span>
-<span id="cb12-148"><a href="#cb12-148" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-149"><a href="#cb12-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-150"><a href="#cb12-150" aria-hidden="true" tabindex="-1"></a>Every node corresponds to an elementary operation whose local derivative we know analytically. The chain rule tells us how to combine these local derivatives into the global derivative $\partial f / \partial x_i$. **This is the whole story.** What differs between *forward* and *reverse* mode AD is the order in which we traverse this graph.</span>
+<span id="cb12-135"><a href="#cb12-135" aria-hidden="true" tabindex="-1"></a>This is called a **Wengert list** or **trace**. We can draw it as a directed acyclic graph where edges indicate data flow:</span>
+<span id="cb12-136"><a href="#cb12-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-139"><a href="#cb12-139" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
+<span id="cb12-140"><a href="#cb12-140" aria-hidden="true" tabindex="-1"></a>flowchart LR</span>
+<span id="cb12-141"><a href="#cb12-141" aria-hidden="true" tabindex="-1"></a>    x1((x₁)) --&gt; v3[<span class="ot">"</span><span class="st">v₃ = ln(v₁)</span><span class="ot">"</span>]</span>
+<span id="cb12-142"><a href="#cb12-142" aria-hidden="true" tabindex="-1"></a>    x1 --&gt; v4[<span class="ot">"</span><span class="st">v₄ = v₁·v₂</span><span class="ot">"</span>]</span>
+<span id="cb12-143"><a href="#cb12-143" aria-hidden="true" tabindex="-1"></a>    x2((x₂)) --&gt; v4</span>
+<span id="cb12-144"><a href="#cb12-144" aria-hidden="true" tabindex="-1"></a>    x2 --&gt; v5[<span class="ot">"</span><span class="st">v₅ = sin(v₂)</span><span class="ot">"</span>]</span>
+<span id="cb12-145"><a href="#cb12-145" aria-hidden="true" tabindex="-1"></a>    v3 --&gt; v6[<span class="ot">"</span><span class="st">v₆ = v₃ + v₄</span><span class="ot">"</span>]</span>
+<span id="cb12-146"><a href="#cb12-146" aria-hidden="true" tabindex="-1"></a>    v4 --&gt; v6</span>
+<span id="cb12-147"><a href="#cb12-147" aria-hidden="true" tabindex="-1"></a>    v6 --&gt; v7[<span class="ot">"</span><span class="st">v₇ = v₆ - v₅</span><span class="ot">"</span>]</span>
+<span id="cb12-148"><a href="#cb12-148" aria-hidden="true" tabindex="-1"></a>    v5 --&gt; v7</span>
+<span id="cb12-149"><a href="#cb12-149" aria-hidden="true" tabindex="-1"></a>    v7 --&gt; f((f))</span>
+<span id="cb12-150"><a href="#cb12-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-151"><a href="#cb12-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-152"><a href="#cb12-152" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-152"><a href="#cb12-152" aria-hidden="true" tabindex="-1"></a>Every node corresponds to an elementary operation whose local derivative we know analytically. The chain rule tells us how to combine these local derivatives into the global derivative $\partial f / \partial x_i$. **This is the whole story.** What differs between *forward* and *reverse* mode AD is the order in which we traverse this graph.</span>
 <span id="cb12-153"><a href="#cb12-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-154"><a href="#cb12-154" aria-hidden="true" tabindex="-1"></a><span class="fu"># Forward mode: dual numbers</span></span>
+<span id="cb12-154"><a href="#cb12-154" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-155"><a href="#cb12-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-156"><a href="#cb12-156" aria-hidden="true" tabindex="-1"></a><span class="fu">## Intuition</span></span>
+<span id="cb12-156"><a href="#cb12-156" aria-hidden="true" tabindex="-1"></a><span class="fu"># Forward mode: dual numbers</span></span>
 <span id="cb12-157"><a href="#cb12-157" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-158"><a href="#cb12-158" aria-hidden="true" tabindex="-1"></a>In forward mode, we propagate derivatives **alongside** values, in the same order as the original computation. At each node we carry a pair: the value $v_i$ (called the *primal*) and the derivative $\dot v_i = \partial v_i / \partial x_1$ with respect to some chosen input (called the *tangent*).</span>
+<span id="cb12-158"><a href="#cb12-158" aria-hidden="true" tabindex="-1"></a><span class="fu">## Intuition</span></span>
 <span id="cb12-159"><a href="#cb12-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-160"><a href="#cb12-160" aria-hidden="true" tabindex="-1"></a>Initialise at the leaves:</span>
+<span id="cb12-160"><a href="#cb12-160" aria-hidden="true" tabindex="-1"></a>In forward mode, we propagate derivatives **alongside** values, in the same order as the original computation. At each node we carry a pair: the value $v_i$ (called the *primal*) and the derivative $\dot v_i = \partial v_i / \partial x_1$ with respect to some chosen input (called the *tangent*).</span>
 <span id="cb12-161"><a href="#cb12-161" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-162"><a href="#cb12-162" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$v_1 = x_1, \quad \dot v_1 = 1$  (we are differentiating w.r.t. $x_1$)</span>
-<span id="cb12-163"><a href="#cb12-163" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$v_2 = x_2, \quad \dot v_2 = 0$</span>
-<span id="cb12-164"><a href="#cb12-164" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-165"><a href="#cb12-165" aria-hidden="true" tabindex="-1"></a>Propagate forward using the chain rule at each node. For $v_4 = v_1 \cdot v_2$:</span>
+<span id="cb12-162"><a href="#cb12-162" aria-hidden="true" tabindex="-1"></a>Initialise at the leaves:</span>
+<span id="cb12-163"><a href="#cb12-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-164"><a href="#cb12-164" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$v_1 = x_1, \quad \dot v_1 = 1$  (we are differentiating w.r.t. $x_1$)</span>
+<span id="cb12-165"><a href="#cb12-165" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$v_2 = x_2, \quad \dot v_2 = 0$</span>
 <span id="cb12-166"><a href="#cb12-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-167"><a href="#cb12-167" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-168"><a href="#cb12-168" aria-hidden="true" tabindex="-1"></a>\dot v_4 = \dot v_1 \cdot v_2 + v_1 \cdot \dot v_2.</span>
+<span id="cb12-167"><a href="#cb12-167" aria-hidden="true" tabindex="-1"></a>Propagate forward using the chain rule at each node. For $v_4 = v_1 \cdot v_2$:</span>
+<span id="cb12-168"><a href="#cb12-168" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-169"><a href="#cb12-169" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-170"><a href="#cb12-170" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-171"><a href="#cb12-171" aria-hidden="true" tabindex="-1"></a>By the time we reach the output, $\dot f = \partial f / \partial x_1$ drops out.</span>
+<span id="cb12-170"><a href="#cb12-170" aria-hidden="true" tabindex="-1"></a>\dot v_4 = \dot v_1 \cdot v_2 + v_1 \cdot \dot v_2.</span>
+<span id="cb12-171"><a href="#cb12-171" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-172"><a href="#cb12-172" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-173"><a href="#cb12-173" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $i$ <span class="pp">|</span> $v_i$            <span class="pp">|</span> $\dot v_i$ (w.r.t. $x_1$)           <span class="pp">|</span></span>
-<span id="cb12-174"><a href="#cb12-174" aria-hidden="true" tabindex="-1"></a><span class="pp">|-----|------------------|-------------------------------------|</span></span>
-<span id="cb12-175"><a href="#cb12-175" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 1   <span class="pp">|</span> $x_1 = 2$        <span class="pp">|</span> $1$                                 <span class="pp">|</span></span>
-<span id="cb12-176"><a href="#cb12-176" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2   <span class="pp">|</span> $x_2 = 5$        <span class="pp">|</span> $0$                                 <span class="pp">|</span></span>
-<span id="cb12-177"><a href="#cb12-177" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 3   <span class="pp">|</span> $\ln 2 = 0.693$  <span class="pp">|</span> $\dot v_1 / v_1 = 0.5$              <span class="pp">|</span></span>
-<span id="cb12-178"><a href="#cb12-178" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 4   <span class="pp">|</span> $2 \cdot 5 = 10$ <span class="pp">|</span> $\dot v_1 v_2 + v_1 \dot v_2 = 5$   <span class="pp">|</span></span>
-<span id="cb12-179"><a href="#cb12-179" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 5   <span class="pp">|</span> $\sin 5 = -0.959$<span class="pp">|</span> $\cos(v_2)\,\dot v_2 = 0$           <span class="pp">|</span></span>
-<span id="cb12-180"><a href="#cb12-180" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 6   <span class="pp">|</span> $10.693$         <span class="pp">|</span> $\dot v_3 + \dot v_4 = 5.5$         <span class="pp">|</span></span>
-<span id="cb12-181"><a href="#cb12-181" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 7   <span class="pp">|</span> $11.652$         <span class="pp">|</span> $\dot v_6 - \dot v_5 = 5.5$         <span class="pp">|</span></span>
-<span id="cb12-182"><a href="#cb12-182" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-183"><a href="#cb12-183" aria-hidden="true" tabindex="-1"></a>So $\partial f / \partial x_1 = 5.5$, which matches the analytic answer $1/x_1 + x_2 = 0.5 + 5 = 5.5$.</span>
+<span id="cb12-173"><a href="#cb12-173" aria-hidden="true" tabindex="-1"></a>By the time we reach the output, $\dot f = \partial f / \partial x_1$ drops out.</span>
+<span id="cb12-174"><a href="#cb12-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-175"><a href="#cb12-175" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $i$ <span class="pp">|</span> $v_i$            <span class="pp">|</span> $\dot v_i$ (w.r.t. $x_1$)           <span class="pp">|</span></span>
+<span id="cb12-176"><a href="#cb12-176" aria-hidden="true" tabindex="-1"></a><span class="pp">|-----|------------------|-------------------------------------|</span></span>
+<span id="cb12-177"><a href="#cb12-177" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 1   <span class="pp">|</span> $x_1 = 2$        <span class="pp">|</span> $1$                                 <span class="pp">|</span></span>
+<span id="cb12-178"><a href="#cb12-178" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2   <span class="pp">|</span> $x_2 = 5$        <span class="pp">|</span> $0$                                 <span class="pp">|</span></span>
+<span id="cb12-179"><a href="#cb12-179" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 3   <span class="pp">|</span> $\ln 2 = 0.693$  <span class="pp">|</span> $\dot v_1 / v_1 = 0.5$              <span class="pp">|</span></span>
+<span id="cb12-180"><a href="#cb12-180" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 4   <span class="pp">|</span> $2 \cdot 5 = 10$ <span class="pp">|</span> $\dot v_1 v_2 + v_1 \dot v_2 = 5$   <span class="pp">|</span></span>
+<span id="cb12-181"><a href="#cb12-181" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 5   <span class="pp">|</span> $\sin 5 = -0.959$<span class="pp">|</span> $\cos(v_2)\,\dot v_2 = 0$           <span class="pp">|</span></span>
+<span id="cb12-182"><a href="#cb12-182" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 6   <span class="pp">|</span> $10.693$         <span class="pp">|</span> $\dot v_3 + \dot v_4 = 5.5$         <span class="pp">|</span></span>
+<span id="cb12-183"><a href="#cb12-183" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 7   <span class="pp">|</span> $11.652$         <span class="pp">|</span> $\dot v_6 - \dot v_5 = 5.5$         <span class="pp">|</span></span>
 <span id="cb12-184"><a href="#cb12-184" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-185"><a href="#cb12-185" aria-hidden="true" tabindex="-1"></a><span class="fu">## Dual numbers: an elegant implementation</span></span>
+<span id="cb12-185"><a href="#cb12-185" aria-hidden="true" tabindex="-1"></a>So $\partial f / \partial x_1 = 5.5$, which matches the analytic answer $1/x_1 + x_2 = 0.5 + 5 = 5.5$.</span>
 <span id="cb12-186"><a href="#cb12-186" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-187"><a href="#cb12-187" aria-hidden="true" tabindex="-1"></a>Forward-mode AD has a stunning algebraic reformulation. Introduce a symbol $\varepsilon$ with the rule $\varepsilon^2 = 0$ (but $\varepsilon \neq 0$). A **dual number** is an expression $a + b\varepsilon$ where $a$ and $b$ are real. The arithmetic rules are:</span>
+<span id="cb12-187"><a href="#cb12-187" aria-hidden="true" tabindex="-1"></a><span class="fu">## Dual numbers: an elegant implementation</span></span>
 <span id="cb12-188"><a href="#cb12-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-189"><a href="#cb12-189" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-190"><a href="#cb12-190" aria-hidden="true" tabindex="-1"></a>(a + b\varepsilon) + (c + d\varepsilon) = (a+c) + (b+d)\varepsilon</span>
+<span id="cb12-189"><a href="#cb12-189" aria-hidden="true" tabindex="-1"></a>Forward-mode AD has a stunning algebraic reformulation. Introduce a symbol $\varepsilon$ with the rule $\varepsilon^2 = 0$ (but $\varepsilon \neq 0$). A **dual number** is an expression $a + b\varepsilon$ where $a$ and $b$ are real. The arithmetic rules are:</span>
+<span id="cb12-190"><a href="#cb12-190" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-191"><a href="#cb12-191" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-192"><a href="#cb12-192" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-193"><a href="#cb12-193" aria-hidden="true" tabindex="-1"></a>(a + b\varepsilon)(c + d\varepsilon) = ac + (ad + bc)\varepsilon + bd\,\varepsilon^2 = ac + (ad+bc)\varepsilon</span>
+<span id="cb12-192"><a href="#cb12-192" aria-hidden="true" tabindex="-1"></a>(a + b\varepsilon) + (c + d\varepsilon) = (a+c) + (b+d)\varepsilon</span>
+<span id="cb12-193"><a href="#cb12-193" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-194"><a href="#cb12-194" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-195"><a href="#cb12-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-196"><a href="#cb12-196" aria-hidden="true" tabindex="-1"></a>The magic: for any smooth $f$, the Taylor expansion gives</span>
+<span id="cb12-195"><a href="#cb12-195" aria-hidden="true" tabindex="-1"></a>(a + b\varepsilon)(c + d\varepsilon) = ac + (ad + bc)\varepsilon + bd\,\varepsilon^2 = ac + (ad+bc)\varepsilon</span>
+<span id="cb12-196"><a href="#cb12-196" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-197"><a href="#cb12-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-198"><a href="#cb12-198" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-199"><a href="#cb12-199" aria-hidden="true" tabindex="-1"></a>f(a + b\varepsilon) = f(a) + f'(a) \cdot b\varepsilon + \tfrac{1}{2}f''(a) \cdot b^2 \varepsilon^2 + \cdots = f(a) + f'(a) b \varepsilon,</span>
+<span id="cb12-198"><a href="#cb12-198" aria-hidden="true" tabindex="-1"></a>The magic: for any smooth $f$, the Taylor expansion gives</span>
+<span id="cb12-199"><a href="#cb12-199" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-200"><a href="#cb12-200" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-201"><a href="#cb12-201" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-202"><a href="#cb12-202" aria-hidden="true" tabindex="-1"></a>because every term with $\varepsilon^2$ or higher vanishes. So if we evaluate $f$ on the dual number $x + \varepsilon$, the primal part is $f(x)$ and the dual part is $f'(x)$. **The derivative is computed as a by-product of a single function evaluation**, simply by running the ordinary code on dual numbers instead of floats.</span>
+<span id="cb12-201"><a href="#cb12-201" aria-hidden="true" tabindex="-1"></a>f(a + b\varepsilon) = f(a) + f'(a) \cdot b\varepsilon + \tfrac{1}{2}f''(a) \cdot b^2 \varepsilon^2 + \cdots = f(a) + f'(a) b \varepsilon,</span>
+<span id="cb12-202"><a href="#cb12-202" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-203"><a href="#cb12-203" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-204"><a href="#cb12-204" aria-hidden="true" tabindex="-1"></a><span class="fu">## A working implementation in ~40 lines</span></span>
+<span id="cb12-204"><a href="#cb12-204" aria-hidden="true" tabindex="-1"></a>because every term with $\varepsilon^2$ or higher vanishes. So if we evaluate $f$ on the dual number $x + \varepsilon$, the primal part is $f(x)$ and the dual part is $f'(x)$. **The derivative is computed as a by-product of a single function evaluation**, simply by running the ordinary code on dual numbers instead of floats.</span>
 <span id="cb12-205"><a href="#cb12-205" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-208"><a href="#cb12-208" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb12-209"><a href="#cb12-209" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
-<span id="cb12-210"><a href="#cb12-210" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-211"><a href="#cb12-211" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Dual:</span>
-<span id="cb12-212"><a href="#cb12-212" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Forward-mode AD via dual numbers: a + b·ε, ε² = 0."""</span></span>
-<span id="cb12-213"><a href="#cb12-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-214"><a href="#cb12-214" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, primal, tangent<span class="op">=</span><span class="fl">0.0</span>):</span>
-<span id="cb12-215"><a href="#cb12-215" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.primal  <span class="op">=</span> primal</span>
-<span id="cb12-216"><a href="#cb12-216" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.tangent <span class="op">=</span> tangent</span>
-<span id="cb12-217"><a href="#cb12-217" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-218"><a href="#cb12-218" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ------------------------------------------------------------------</span></span>
-<span id="cb12-219"><a href="#cb12-219" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Elementary operator overloads</span></span>
+<span id="cb12-206"><a href="#cb12-206" aria-hidden="true" tabindex="-1"></a><span class="fu">## A working implementation in ~40 lines</span></span>
+<span id="cb12-207"><a href="#cb12-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-210"><a href="#cb12-210" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-211"><a href="#cb12-211" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
+<span id="cb12-212"><a href="#cb12-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-213"><a href="#cb12-213" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Dual:</span>
+<span id="cb12-214"><a href="#cb12-214" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Forward-mode AD via dual numbers: a + b·ε, ε² = 0."""</span></span>
+<span id="cb12-215"><a href="#cb12-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-216"><a href="#cb12-216" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, primal, tangent<span class="op">=</span><span class="fl">0.0</span>):</span>
+<span id="cb12-217"><a href="#cb12-217" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.primal  <span class="op">=</span> primal</span>
+<span id="cb12-218"><a href="#cb12-218" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.tangent <span class="op">=</span> tangent</span>
+<span id="cb12-219"><a href="#cb12-219" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-220"><a href="#cb12-220" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ------------------------------------------------------------------</span></span>
-<span id="cb12-221"><a href="#cb12-221" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__add__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-222"><a href="#cb12-222" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Dual) <span class="cf">else</span> Dual(other)</span>
-<span id="cb12-223"><a href="#cb12-223" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Dual(<span class="va">self</span>.primal <span class="op">+</span> o.primal, <span class="va">self</span>.tangent <span class="op">+</span> o.tangent)</span>
-<span id="cb12-224"><a href="#cb12-224" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-225"><a href="#cb12-225" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__sub__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-226"><a href="#cb12-226" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Dual) <span class="cf">else</span> Dual(other)</span>
-<span id="cb12-227"><a href="#cb12-227" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Dual(<span class="va">self</span>.primal <span class="op">-</span> o.primal, <span class="va">self</span>.tangent <span class="op">-</span> o.tangent)</span>
-<span id="cb12-228"><a href="#cb12-228" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-229"><a href="#cb12-229" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__mul__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-230"><a href="#cb12-230" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Dual) <span class="cf">else</span> Dual(other)</span>
-<span id="cb12-231"><a href="#cb12-231" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Dual(<span class="va">self</span>.primal <span class="op">*</span> o.primal,</span>
-<span id="cb12-232"><a href="#cb12-232" aria-hidden="true" tabindex="-1"></a>                    <span class="va">self</span>.primal <span class="op">*</span> o.tangent <span class="op">+</span> <span class="va">self</span>.tangent <span class="op">*</span> o.primal)</span>
-<span id="cb12-233"><a href="#cb12-233" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-234"><a href="#cb12-234" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__truediv__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-235"><a href="#cb12-235" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Dual) <span class="cf">else</span> Dual(other)</span>
-<span id="cb12-236"><a href="#cb12-236" aria-hidden="true" tabindex="-1"></a>        p <span class="op">=</span> <span class="va">self</span>.primal <span class="op">/</span> o.primal</span>
-<span id="cb12-237"><a href="#cb12-237" aria-hidden="true" tabindex="-1"></a>        t <span class="op">=</span> (<span class="va">self</span>.tangent <span class="op">*</span> o.primal <span class="op">-</span> <span class="va">self</span>.primal <span class="op">*</span> o.tangent) <span class="op">/</span> o.primal<span class="op">**</span><span class="dv">2</span></span>
-<span id="cb12-238"><a href="#cb12-238" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Dual(p, t)</span>
-<span id="cb12-239"><a href="#cb12-239" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-240"><a href="#cb12-240" aria-hidden="true" tabindex="-1"></a>    <span class="fu">__radd__</span>, <span class="fu">__rsub__</span>, <span class="fu">__rmul__</span> <span class="op">=</span> <span class="fu">__add__</span>, <span class="fu">__sub__</span>, <span class="fu">__mul__</span></span>
+<span id="cb12-221"><a href="#cb12-221" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Elementary operator overloads</span></span>
+<span id="cb12-222"><a href="#cb12-222" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ------------------------------------------------------------------</span></span>
+<span id="cb12-223"><a href="#cb12-223" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__add__</span>(<span class="va">self</span>, other):</span>
+<span id="cb12-224"><a href="#cb12-224" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Dual) <span class="cf">else</span> Dual(other)</span>
+<span id="cb12-225"><a href="#cb12-225" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Dual(<span class="va">self</span>.primal <span class="op">+</span> o.primal, <span class="va">self</span>.tangent <span class="op">+</span> o.tangent)</span>
+<span id="cb12-226"><a href="#cb12-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-227"><a href="#cb12-227" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__sub__</span>(<span class="va">self</span>, other):</span>
+<span id="cb12-228"><a href="#cb12-228" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Dual) <span class="cf">else</span> Dual(other)</span>
+<span id="cb12-229"><a href="#cb12-229" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Dual(<span class="va">self</span>.primal <span class="op">-</span> o.primal, <span class="va">self</span>.tangent <span class="op">-</span> o.tangent)</span>
+<span id="cb12-230"><a href="#cb12-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-231"><a href="#cb12-231" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__mul__</span>(<span class="va">self</span>, other):</span>
+<span id="cb12-232"><a href="#cb12-232" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Dual) <span class="cf">else</span> Dual(other)</span>
+<span id="cb12-233"><a href="#cb12-233" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Dual(<span class="va">self</span>.primal <span class="op">*</span> o.primal,</span>
+<span id="cb12-234"><a href="#cb12-234" aria-hidden="true" tabindex="-1"></a>                    <span class="va">self</span>.primal <span class="op">*</span> o.tangent <span class="op">+</span> <span class="va">self</span>.tangent <span class="op">*</span> o.primal)</span>
+<span id="cb12-235"><a href="#cb12-235" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-236"><a href="#cb12-236" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__truediv__</span>(<span class="va">self</span>, other):</span>
+<span id="cb12-237"><a href="#cb12-237" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Dual) <span class="cf">else</span> Dual(other)</span>
+<span id="cb12-238"><a href="#cb12-238" aria-hidden="true" tabindex="-1"></a>        p <span class="op">=</span> <span class="va">self</span>.primal <span class="op">/</span> o.primal</span>
+<span id="cb12-239"><a href="#cb12-239" aria-hidden="true" tabindex="-1"></a>        t <span class="op">=</span> (<span class="va">self</span>.tangent <span class="op">*</span> o.primal <span class="op">-</span> <span class="va">self</span>.primal <span class="op">*</span> o.tangent) <span class="op">/</span> o.primal<span class="op">**</span><span class="dv">2</span></span>
+<span id="cb12-240"><a href="#cb12-240" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Dual(p, t)</span>
 <span id="cb12-241"><a href="#cb12-241" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-242"><a href="#cb12-242" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__repr__</span>(<span class="va">self</span>):</span>
-<span id="cb12-243"><a href="#cb12-243" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="ss">f"Dual(</span><span class="sc">{</span><span class="va">self</span><span class="sc">.</span>primal<span class="sc">:.4f}</span><span class="ss">, ε·</span><span class="sc">{</span><span class="va">self</span><span class="sc">.</span>tangent<span class="sc">:.4f}</span><span class="ss">)"</span></span>
-<span id="cb12-244"><a href="#cb12-244" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-245"><a href="#cb12-245" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sin(x):  <span class="cf">return</span> Dual(math.sin(x.primal),  math.cos(x.primal) <span class="op">*</span> x.tangent)</span>
-<span id="cb12-246"><a href="#cb12-246" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cos(x):  <span class="cf">return</span> Dual(math.cos(x.primal), <span class="op">-</span>math.sin(x.primal) <span class="op">*</span> x.tangent)</span>
-<span id="cb12-247"><a href="#cb12-247" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> exp(x):  <span class="cf">return</span> Dual(math.exp(x.primal),  math.exp(x.primal) <span class="op">*</span> x.tangent)</span>
-<span id="cb12-248"><a href="#cb12-248" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> log(x):  <span class="cf">return</span> Dual(math.log(x.primal),  x.tangent <span class="op">/</span> x.primal)</span>
-<span id="cb12-249"><a href="#cb12-249" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-250"><a href="#cb12-250" aria-hidden="true" tabindex="-1"></a><span class="co"># ------------------------------------------------------------------</span></span>
-<span id="cb12-251"><a href="#cb12-251" aria-hidden="true" tabindex="-1"></a><span class="co"># Differentiate f(x1, x2) = ln(x1) + x1*x2 - sin(x2) at (2, 5)</span></span>
+<span id="cb12-242"><a href="#cb12-242" aria-hidden="true" tabindex="-1"></a>    <span class="fu">__radd__</span>, <span class="fu">__rsub__</span>, <span class="fu">__rmul__</span> <span class="op">=</span> <span class="fu">__add__</span>, <span class="fu">__sub__</span>, <span class="fu">__mul__</span></span>
+<span id="cb12-243"><a href="#cb12-243" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-244"><a href="#cb12-244" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__repr__</span>(<span class="va">self</span>):</span>
+<span id="cb12-245"><a href="#cb12-245" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="ss">f"Dual(</span><span class="sc">{</span><span class="va">self</span><span class="sc">.</span>primal<span class="sc">:.4f}</span><span class="ss">, ε·</span><span class="sc">{</span><span class="va">self</span><span class="sc">.</span>tangent<span class="sc">:.4f}</span><span class="ss">)"</span></span>
+<span id="cb12-246"><a href="#cb12-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-247"><a href="#cb12-247" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sin(x):  <span class="cf">return</span> Dual(math.sin(x.primal),  math.cos(x.primal) <span class="op">*</span> x.tangent)</span>
+<span id="cb12-248"><a href="#cb12-248" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cos(x):  <span class="cf">return</span> Dual(math.cos(x.primal), <span class="op">-</span>math.sin(x.primal) <span class="op">*</span> x.tangent)</span>
+<span id="cb12-249"><a href="#cb12-249" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> exp(x):  <span class="cf">return</span> Dual(math.exp(x.primal),  math.exp(x.primal) <span class="op">*</span> x.tangent)</span>
+<span id="cb12-250"><a href="#cb12-250" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> log(x):  <span class="cf">return</span> Dual(math.log(x.primal),  x.tangent <span class="op">/</span> x.primal)</span>
+<span id="cb12-251"><a href="#cb12-251" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-252"><a href="#cb12-252" aria-hidden="true" tabindex="-1"></a><span class="co"># ------------------------------------------------------------------</span></span>
-<span id="cb12-253"><a href="#cb12-253" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f(x1, x2):</span>
-<span id="cb12-254"><a href="#cb12-254" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> log(x1) <span class="op">+</span> x1 <span class="op">*</span> x2 <span class="op">-</span> sin(x2)</span>
-<span id="cb12-255"><a href="#cb12-255" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-256"><a href="#cb12-256" aria-hidden="true" tabindex="-1"></a><span class="co"># Seed tangent on x1 to get ∂f/∂x1</span></span>
-<span id="cb12-257"><a href="#cb12-257" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> Dual(<span class="fl">2.0</span>, <span class="fl">1.0</span>)</span>
-<span id="cb12-258"><a href="#cb12-258" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> Dual(<span class="fl">5.0</span>, <span class="fl">0.0</span>)</span>
-<span id="cb12-259"><a href="#cb12-259" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(f(x1, x2))   <span class="co"># primal = f(2,5), tangent = ∂f/∂x1</span></span>
-<span id="cb12-260"><a href="#cb12-260" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-261"><a href="#cb12-261" aria-hidden="true" tabindex="-1"></a><span class="co"># Seed tangent on x2 to get ∂f/∂x2</span></span>
-<span id="cb12-262"><a href="#cb12-262" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> Dual(<span class="fl">2.0</span>, <span class="fl">0.0</span>)</span>
-<span id="cb12-263"><a href="#cb12-263" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> Dual(<span class="fl">5.0</span>, <span class="fl">1.0</span>)</span>
-<span id="cb12-264"><a href="#cb12-264" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(f(x1, x2))</span>
-<span id="cb12-265"><a href="#cb12-265" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-266"><a href="#cb12-266" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-267"><a href="#cb12-267" aria-hidden="true" tabindex="-1"></a>That is a complete, working autodiff system in about 40 lines. The mathematical content is identical to what PyTorch does in forward mode. The only thing missing is generalisation from scalars to tensors.</span>
+<span id="cb12-253"><a href="#cb12-253" aria-hidden="true" tabindex="-1"></a><span class="co"># Differentiate f(x1, x2) = ln(x1) + x1*x2 - sin(x2) at (2, 5)</span></span>
+<span id="cb12-254"><a href="#cb12-254" aria-hidden="true" tabindex="-1"></a><span class="co"># ------------------------------------------------------------------</span></span>
+<span id="cb12-255"><a href="#cb12-255" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f(x1, x2):</span>
+<span id="cb12-256"><a href="#cb12-256" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> log(x1) <span class="op">+</span> x1 <span class="op">*</span> x2 <span class="op">-</span> sin(x2)</span>
+<span id="cb12-257"><a href="#cb12-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-258"><a href="#cb12-258" aria-hidden="true" tabindex="-1"></a><span class="co"># Seed tangent on x1 to get ∂f/∂x1</span></span>
+<span id="cb12-259"><a href="#cb12-259" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> Dual(<span class="fl">2.0</span>, <span class="fl">1.0</span>)</span>
+<span id="cb12-260"><a href="#cb12-260" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> Dual(<span class="fl">5.0</span>, <span class="fl">0.0</span>)</span>
+<span id="cb12-261"><a href="#cb12-261" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(f(x1, x2))   <span class="co"># primal = f(2,5), tangent = ∂f/∂x1</span></span>
+<span id="cb12-262"><a href="#cb12-262" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-263"><a href="#cb12-263" aria-hidden="true" tabindex="-1"></a><span class="co"># Seed tangent on x2 to get ∂f/∂x2</span></span>
+<span id="cb12-264"><a href="#cb12-264" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> Dual(<span class="fl">2.0</span>, <span class="fl">0.0</span>)</span>
+<span id="cb12-265"><a href="#cb12-265" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> Dual(<span class="fl">5.0</span>, <span class="fl">1.0</span>)</span>
+<span id="cb12-266"><a href="#cb12-266" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(f(x1, x2))</span>
+<span id="cb12-267"><a href="#cb12-267" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-268"><a href="#cb12-268" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-269"><a href="#cb12-269" aria-hidden="true" tabindex="-1"></a><span class="fu">## When forward mode is efficient</span></span>
+<span id="cb12-269"><a href="#cb12-269" aria-hidden="true" tabindex="-1"></a>That is a complete, working autodiff system in about 40 lines. The mathematical content is identical to what PyTorch does in forward mode. The only thing missing is generalisation from scalars to tensors.</span>
 <span id="cb12-270"><a href="#cb12-270" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-271"><a href="#cb12-271" aria-hidden="true" tabindex="-1"></a>Each forward pass seeds exactly one input. To get the full gradient of $f: \mathbb{R}^n \to \mathbb{R}$, we must run the computation $n$ times, once per input. Cost: $O(n) \times$ cost of evaluating $f$.</span>
+<span id="cb12-271"><a href="#cb12-271" aria-hidden="true" tabindex="-1"></a><span class="fu">## When forward mode is efficient</span></span>
 <span id="cb12-272"><a href="#cb12-272" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-273"><a href="#cb12-273" aria-hidden="true" tabindex="-1"></a>For a neural network with $n = 10^6$ parameters and a scalar loss, that is a million forward passes per gradient step — exactly the same problem finite differences had.</span>
+<span id="cb12-273"><a href="#cb12-273" aria-hidden="true" tabindex="-1"></a>Each forward pass seeds exactly one input. To get the full gradient of $f: \mathbb{R}^n \to \mathbb{R}$, we must run the computation $n$ times, once per input. Cost: $O(n) \times$ cost of evaluating $f$.</span>
 <span id="cb12-274"><a href="#cb12-274" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-275"><a href="#cb12-275" aria-hidden="true" tabindex="-1"></a>Forward mode is efficient in a different regime: **few inputs, many outputs**. Computing a Jacobian $J \in \mathbb{R}^{m \times n}$ column by column costs $O(n)$, but row by row costs $O(m)$. For deep learning, we want rows.</span>
+<span id="cb12-275"><a href="#cb12-275" aria-hidden="true" tabindex="-1"></a>For a neural network with $n = 10^6$ parameters and a scalar loss, that is a million forward passes per gradient step — exactly the same problem finite differences had.</span>
 <span id="cb12-276"><a href="#cb12-276" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-277"><a href="#cb12-277" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-277"><a href="#cb12-277" aria-hidden="true" tabindex="-1"></a>Forward mode is efficient in a different regime: **few inputs, many outputs**. Computing a Jacobian $J \in \mathbb{R}^{m \times n}$ column by column costs $O(n)$, but row by row costs $O(m)$. For deep learning, we want rows.</span>
 <span id="cb12-278"><a href="#cb12-278" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-279"><a href="#cb12-279" aria-hidden="true" tabindex="-1"></a><span class="fu"># Reverse mode: backpropagation</span></span>
+<span id="cb12-279"><a href="#cb12-279" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-280"><a href="#cb12-280" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-281"><a href="#cb12-281" aria-hidden="true" tabindex="-1"></a><span class="fu">## Intuition</span></span>
+<span id="cb12-281"><a href="#cb12-281" aria-hidden="true" tabindex="-1"></a><span class="fu"># Reverse mode: backpropagation</span></span>
 <span id="cb12-282"><a href="#cb12-282" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-283"><a href="#cb12-283" aria-hidden="true" tabindex="-1"></a>Reverse mode inverts the traversal. Instead of propagating $\partial v_i / \partial x_j$ forward from each input, we propagate $\partial f / \partial v_i$ **backward** from the output. This quantity is called the **adjoint** or **cotangent** of $v_i$ and is often written $\bar v_i$.</span>
+<span id="cb12-283"><a href="#cb12-283" aria-hidden="true" tabindex="-1"></a><span class="fu">## Intuition</span></span>
 <span id="cb12-284"><a href="#cb12-284" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-285"><a href="#cb12-285" aria-hidden="true" tabindex="-1"></a>The chain rule, read backward: if $v_j$ depends on $v_i$ through the operation $v_j = \phi(v_i, \ldots)$, then $v_i$ contributes to $\bar v_j$ through $\partial v_j / \partial v_i$:</span>
+<span id="cb12-285"><a href="#cb12-285" aria-hidden="true" tabindex="-1"></a>Reverse mode inverts the traversal. Instead of propagating $\partial v_i / \partial x_j$ forward from each input, we propagate $\partial f / \partial v_i$ **backward** from the output. This quantity is called the **adjoint** or **cotangent** of $v_i$ and is often written $\bar v_i$.</span>
 <span id="cb12-286"><a href="#cb12-286" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-287"><a href="#cb12-287" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-288"><a href="#cb12-288" aria-hidden="true" tabindex="-1"></a>\bar v_i \;=\; \sum_{j \,:\, v_j \text{ uses } v_i} \bar v_j \cdot \frac{\partial v_j}{\partial v_i}.</span>
+<span id="cb12-287"><a href="#cb12-287" aria-hidden="true" tabindex="-1"></a>The chain rule, read backward: if $v_j$ depends on $v_i$ through the operation $v_j = \phi(v_i, \ldots)$, then $v_i$ contributes to $\bar v_j$ through $\partial v_j / \partial v_i$:</span>
+<span id="cb12-288"><a href="#cb12-288" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-289"><a href="#cb12-289" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb12-290"><a href="#cb12-290" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-291"><a href="#cb12-291" aria-hidden="true" tabindex="-1"></a>Starting from $\bar f = 1$ and walking the graph backward, we accumulate $\bar v_i$ at each node. When we reach a leaf $x_k$, its adjoint is $\bar x_k = \partial f / \partial x_k$ — exactly the gradient we wanted.</span>
+<span id="cb12-290"><a href="#cb12-290" aria-hidden="true" tabindex="-1"></a>\bar v_i \;=\; \sum_{j \,:\, v_j \text{ uses } v_i} \bar v_j \cdot \frac{\partial v_j}{\partial v_i}.</span>
+<span id="cb12-291"><a href="#cb12-291" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb12-292"><a href="#cb12-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-293"><a href="#cb12-293" aria-hidden="true" tabindex="-1"></a>The algorithm is two passes:</span>
+<span id="cb12-293"><a href="#cb12-293" aria-hidden="true" tabindex="-1"></a>Starting from $\bar f = 1$ and walking the graph backward, we accumulate $\bar v_i$ at each node. When we reach a leaf $x_k$, its adjoint is $\bar x_k = \partial f / \partial x_k$ — exactly the gradient we wanted.</span>
 <span id="cb12-294"><a href="#cb12-294" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-295"><a href="#cb12-295" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Forward pass**: evaluate the program, recording each operation and its inputs onto a *tape*.</span>
-<span id="cb12-296"><a href="#cb12-296" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Backward pass**: walk the tape in reverse, accumulating adjoints.</span>
-<span id="cb12-297"><a href="#cb12-297" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-298"><a href="#cb12-298" aria-hidden="true" tabindex="-1"></a><span class="fu">## Worked example on $f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2)$</span></span>
+<span id="cb12-295"><a href="#cb12-295" aria-hidden="true" tabindex="-1"></a>The algorithm is two passes:</span>
+<span id="cb12-296"><a href="#cb12-296" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-297"><a href="#cb12-297" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Forward pass**: evaluate the program, recording each operation and its inputs onto a *tape*.</span>
+<span id="cb12-298"><a href="#cb12-298" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Backward pass**: walk the tape in reverse, accumulating adjoints.</span>
 <span id="cb12-299"><a href="#cb12-299" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-300"><a href="#cb12-300" aria-hidden="true" tabindex="-1"></a>Forward pass at $(x_1, x_2) = (2, 5)$ produces $v_3 = 0.693, v_4 = 10, v_5 = -0.959, v_6 = 10.693, v_7 = 11.652$, and we record each operation's local derivatives.</span>
+<span id="cb12-300"><a href="#cb12-300" aria-hidden="true" tabindex="-1"></a><span class="fu">## Worked example on $f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2)$</span></span>
 <span id="cb12-301"><a href="#cb12-301" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-302"><a href="#cb12-302" aria-hidden="true" tabindex="-1"></a>Backward pass, starting with $\bar v_7 = 1$:</span>
+<span id="cb12-302"><a href="#cb12-302" aria-hidden="true" tabindex="-1"></a>Forward pass at $(x_1, x_2) = (2, 5)$ produces $v_3 = 0.693, v_4 = 10, v_5 = -0.959, v_6 = 10.693, v_7 = 11.652$, and we record each operation's local derivatives.</span>
 <span id="cb12-303"><a href="#cb12-303" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-304"><a href="#cb12-304" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Step <span class="pp">|</span> Update                                            <span class="pp">|</span> Value                       <span class="pp">|</span></span>
-<span id="cb12-305"><a href="#cb12-305" aria-hidden="true" tabindex="-1"></a><span class="pp">|------|---------------------------------------------------|-----------------------------|</span></span>
-<span id="cb12-306"><a href="#cb12-306" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_7 = 1$                                                               <span class="pp">|</span>                             <span class="pp">|</span></span>
-<span id="cb12-307"><a href="#cb12-307" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_6 = \bar v_7 \cdot \partial v_7 / \partial v_6 = 1 \cdot 1$           <span class="pp">|</span> $1$                         <span class="pp">|</span></span>
-<span id="cb12-308"><a href="#cb12-308" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_5 = \bar v_7 \cdot \partial v_7 / \partial v_5 = 1 \cdot (-1)$        <span class="pp">|</span> $-1$                        <span class="pp">|</span></span>
-<span id="cb12-309"><a href="#cb12-309" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_4 = \bar v_6 \cdot \partial v_6 / \partial v_4 = 1 \cdot 1$           <span class="pp">|</span> $1$                         <span class="pp">|</span></span>
-<span id="cb12-310"><a href="#cb12-310" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_3 = \bar v_6 \cdot \partial v_6 / \partial v_3 = 1 \cdot 1$           <span class="pp">|</span> $1$                         <span class="pp">|</span></span>
-<span id="cb12-311"><a href="#cb12-311" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_2 \mathrel{+}= \bar v_4 \cdot v_1 = 1 \cdot 2$                        <span class="pp">|</span> $2$                         <span class="pp">|</span></span>
-<span id="cb12-312"><a href="#cb12-312" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_2 \mathrel{+}= \bar v_5 \cdot \cos(v_2) = -1 \cdot \cos 5$            <span class="pp">|</span> $2 - \cos 5 \approx 1.716$  <span class="pp">|</span></span>
-<span id="cb12-313"><a href="#cb12-313" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_1 \mathrel{+}= \bar v_4 \cdot v_2 = 1 \cdot 5$                        <span class="pp">|</span> $5$                         <span class="pp">|</span></span>
-<span id="cb12-314"><a href="#cb12-314" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_1 \mathrel{+}= \bar v_3 \cdot (1/v_1) = 1 \cdot 0.5$                  <span class="pp">|</span> $5.5$                       <span class="pp">|</span></span>
-<span id="cb12-315"><a href="#cb12-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-316"><a href="#cb12-316" aria-hidden="true" tabindex="-1"></a>Final adjoints: $\partial f/\partial x_1 = \bar v_1 = 5.5$ and $\partial f/\partial x_2 = \bar v_2 \approx 1.716$. One forward pass, one backward pass, both gradients.</span>
+<span id="cb12-304"><a href="#cb12-304" aria-hidden="true" tabindex="-1"></a>Backward pass, starting with $\bar v_7 = 1$:</span>
+<span id="cb12-305"><a href="#cb12-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-306"><a href="#cb12-306" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Step <span class="pp">|</span> Update                                            <span class="pp">|</span> Value                       <span class="pp">|</span></span>
+<span id="cb12-307"><a href="#cb12-307" aria-hidden="true" tabindex="-1"></a><span class="pp">|------|---------------------------------------------------|-----------------------------|</span></span>
+<span id="cb12-308"><a href="#cb12-308" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_7 = 1$                                                               <span class="pp">|</span>                             <span class="pp">|</span></span>
+<span id="cb12-309"><a href="#cb12-309" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_6 = \bar v_7 \cdot \partial v_7 / \partial v_6 = 1 \cdot 1$           <span class="pp">|</span> $1$                         <span class="pp">|</span></span>
+<span id="cb12-310"><a href="#cb12-310" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_5 = \bar v_7 \cdot \partial v_7 / \partial v_5 = 1 \cdot (-1)$        <span class="pp">|</span> $-1$                        <span class="pp">|</span></span>
+<span id="cb12-311"><a href="#cb12-311" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_4 = \bar v_6 \cdot \partial v_6 / \partial v_4 = 1 \cdot 1$           <span class="pp">|</span> $1$                         <span class="pp">|</span></span>
+<span id="cb12-312"><a href="#cb12-312" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_3 = \bar v_6 \cdot \partial v_6 / \partial v_3 = 1 \cdot 1$           <span class="pp">|</span> $1$                         <span class="pp">|</span></span>
+<span id="cb12-313"><a href="#cb12-313" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_2 \mathrel{+}= \bar v_4 \cdot v_1 = 1 \cdot 2$                        <span class="pp">|</span> $2$                         <span class="pp">|</span></span>
+<span id="cb12-314"><a href="#cb12-314" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_2 \mathrel{+}= \bar v_5 \cdot \cos(v_2) = -1 \cdot \cos 5$            <span class="pp">|</span> $2 - \cos 5 \approx 1.716$  <span class="pp">|</span></span>
+<span id="cb12-315"><a href="#cb12-315" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_1 \mathrel{+}= \bar v_4 \cdot v_2 = 1 \cdot 5$                        <span class="pp">|</span> $5$                         <span class="pp">|</span></span>
+<span id="cb12-316"><a href="#cb12-316" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\bar v_1 \mathrel{+}= \bar v_3 \cdot (1/v_1) = 1 \cdot 0.5$                  <span class="pp">|</span> $5.5$                       <span class="pp">|</span></span>
 <span id="cb12-317"><a href="#cb12-317" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-318"><a href="#cb12-318" aria-hidden="true" tabindex="-1"></a>Note that $v_2$ feeds into *two* nodes ($v_4$ and $v_5$), so its adjoint receives contributions from both — this is why reverse mode needs to accumulate with <span class="in">`+=`</span>.</span>
+<span id="cb12-318"><a href="#cb12-318" aria-hidden="true" tabindex="-1"></a>Final adjoints: $\partial f/\partial x_1 = \bar v_1 = 5.5$ and $\partial f/\partial x_2 = \bar v_2 \approx 1.716$. One forward pass, one backward pass, both gradients.</span>
 <span id="cb12-319"><a href="#cb12-319" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-320"><a href="#cb12-320" aria-hidden="true" tabindex="-1"></a><span class="fu">## A working implementation in ~70 lines</span></span>
+<span id="cb12-320"><a href="#cb12-320" aria-hidden="true" tabindex="-1"></a>Note that $v_2$ feeds into *two* nodes ($v_4$ and $v_5$), so its adjoint receives contributions from both — this is why reverse mode needs to accumulate with <span class="in">`+=`</span>.</span>
 <span id="cb12-321"><a href="#cb12-321" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-324"><a href="#cb12-324" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb12-325"><a href="#cb12-325" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Var:</span>
-<span id="cb12-326"><a href="#cb12-326" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Reverse-mode AD: builds a tape during the forward pass, walks it backward."""</span></span>
-<span id="cb12-327"><a href="#cb12-327" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-328"><a href="#cb12-328" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, value, parents<span class="op">=</span>()):</span>
-<span id="cb12-329"><a href="#cb12-329" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.value   <span class="op">=</span> value</span>
-<span id="cb12-330"><a href="#cb12-330" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.parents <span class="op">=</span> parents   <span class="co"># list of (parent_var, local_derivative)</span></span>
-<span id="cb12-331"><a href="#cb12-331" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.grad    <span class="op">=</span> <span class="fl">0.0</span></span>
-<span id="cb12-332"><a href="#cb12-332" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-333"><a href="#cb12-333" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ------------------------------------------------------------------</span></span>
-<span id="cb12-334"><a href="#cb12-334" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Elementary operator overloads — each records its local derivatives</span></span>
+<span id="cb12-322"><a href="#cb12-322" aria-hidden="true" tabindex="-1"></a><span class="fu">## A working implementation in ~70 lines</span></span>
+<span id="cb12-323"><a href="#cb12-323" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-326"><a href="#cb12-326" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-327"><a href="#cb12-327" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Var:</span>
+<span id="cb12-328"><a href="#cb12-328" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Reverse-mode AD: builds a tape during the forward pass, walks it backward."""</span></span>
+<span id="cb12-329"><a href="#cb12-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-330"><a href="#cb12-330" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, value, parents<span class="op">=</span>()):</span>
+<span id="cb12-331"><a href="#cb12-331" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.value   <span class="op">=</span> value</span>
+<span id="cb12-332"><a href="#cb12-332" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.parents <span class="op">=</span> parents   <span class="co"># list of (parent_var, local_derivative)</span></span>
+<span id="cb12-333"><a href="#cb12-333" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.grad    <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb12-334"><a href="#cb12-334" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-335"><a href="#cb12-335" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ------------------------------------------------------------------</span></span>
-<span id="cb12-336"><a href="#cb12-336" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__add__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-337"><a href="#cb12-337" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Var) <span class="cf">else</span> Var(other)</span>
-<span id="cb12-338"><a href="#cb12-338" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Var(<span class="va">self</span>.value <span class="op">+</span> o.value, [(<span class="va">self</span>, <span class="fl">1.0</span>), (o, <span class="fl">1.0</span>)])</span>
-<span id="cb12-339"><a href="#cb12-339" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-340"><a href="#cb12-340" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__sub__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-341"><a href="#cb12-341" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Var) <span class="cf">else</span> Var(other)</span>
-<span id="cb12-342"><a href="#cb12-342" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Var(<span class="va">self</span>.value <span class="op">-</span> o.value, [(<span class="va">self</span>, <span class="fl">1.0</span>), (o, <span class="op">-</span><span class="fl">1.0</span>)])</span>
-<span id="cb12-343"><a href="#cb12-343" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-344"><a href="#cb12-344" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__mul__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-345"><a href="#cb12-345" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Var) <span class="cf">else</span> Var(other)</span>
-<span id="cb12-346"><a href="#cb12-346" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Var(<span class="va">self</span>.value <span class="op">*</span> o.value, [(<span class="va">self</span>, o.value), (o, <span class="va">self</span>.value)])</span>
-<span id="cb12-347"><a href="#cb12-347" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-348"><a href="#cb12-348" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__truediv__</span>(<span class="va">self</span>, other):</span>
-<span id="cb12-349"><a href="#cb12-349" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Var) <span class="cf">else</span> Var(other)</span>
-<span id="cb12-350"><a href="#cb12-350" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Var(<span class="va">self</span>.value <span class="op">/</span> o.value,</span>
-<span id="cb12-351"><a href="#cb12-351" aria-hidden="true" tabindex="-1"></a>                   [(<span class="va">self</span>, <span class="fl">1.0</span> <span class="op">/</span> o.value),</span>
-<span id="cb12-352"><a href="#cb12-352" aria-hidden="true" tabindex="-1"></a>                    (o, <span class="op">-</span><span class="va">self</span>.value <span class="op">/</span> o.value<span class="op">**</span><span class="dv">2</span>)])</span>
-<span id="cb12-353"><a href="#cb12-353" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-354"><a href="#cb12-354" aria-hidden="true" tabindex="-1"></a>    <span class="fu">__radd__</span>, <span class="fu">__rsub__</span>, <span class="fu">__rmul__</span> <span class="op">=</span> <span class="fu">__add__</span>, <span class="fu">__sub__</span>, <span class="fu">__mul__</span></span>
+<span id="cb12-336"><a href="#cb12-336" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Elementary operator overloads — each records its local derivatives</span></span>
+<span id="cb12-337"><a href="#cb12-337" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ------------------------------------------------------------------</span></span>
+<span id="cb12-338"><a href="#cb12-338" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__add__</span>(<span class="va">self</span>, other):</span>
+<span id="cb12-339"><a href="#cb12-339" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Var) <span class="cf">else</span> Var(other)</span>
+<span id="cb12-340"><a href="#cb12-340" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Var(<span class="va">self</span>.value <span class="op">+</span> o.value, [(<span class="va">self</span>, <span class="fl">1.0</span>), (o, <span class="fl">1.0</span>)])</span>
+<span id="cb12-341"><a href="#cb12-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-342"><a href="#cb12-342" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__sub__</span>(<span class="va">self</span>, other):</span>
+<span id="cb12-343"><a href="#cb12-343" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Var) <span class="cf">else</span> Var(other)</span>
+<span id="cb12-344"><a href="#cb12-344" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Var(<span class="va">self</span>.value <span class="op">-</span> o.value, [(<span class="va">self</span>, <span class="fl">1.0</span>), (o, <span class="op">-</span><span class="fl">1.0</span>)])</span>
+<span id="cb12-345"><a href="#cb12-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-346"><a href="#cb12-346" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__mul__</span>(<span class="va">self</span>, other):</span>
+<span id="cb12-347"><a href="#cb12-347" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Var) <span class="cf">else</span> Var(other)</span>
+<span id="cb12-348"><a href="#cb12-348" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Var(<span class="va">self</span>.value <span class="op">*</span> o.value, [(<span class="va">self</span>, o.value), (o, <span class="va">self</span>.value)])</span>
+<span id="cb12-349"><a href="#cb12-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-350"><a href="#cb12-350" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__truediv__</span>(<span class="va">self</span>, other):</span>
+<span id="cb12-351"><a href="#cb12-351" aria-hidden="true" tabindex="-1"></a>        o <span class="op">=</span> other <span class="cf">if</span> <span class="bu">isinstance</span>(other, Var) <span class="cf">else</span> Var(other)</span>
+<span id="cb12-352"><a href="#cb12-352" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Var(<span class="va">self</span>.value <span class="op">/</span> o.value,</span>
+<span id="cb12-353"><a href="#cb12-353" aria-hidden="true" tabindex="-1"></a>                   [(<span class="va">self</span>, <span class="fl">1.0</span> <span class="op">/</span> o.value),</span>
+<span id="cb12-354"><a href="#cb12-354" aria-hidden="true" tabindex="-1"></a>                    (o, <span class="op">-</span><span class="va">self</span>.value <span class="op">/</span> o.value<span class="op">**</span><span class="dv">2</span>)])</span>
 <span id="cb12-355"><a href="#cb12-355" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-356"><a href="#cb12-356" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> backward(<span class="va">self</span>, seed<span class="op">=</span><span class="fl">1.0</span>):</span>
-<span id="cb12-357"><a href="#cb12-357" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Reverse-accumulate gradients into every ancestor's .grad field."""</span></span>
-<span id="cb12-358"><a href="#cb12-358" aria-hidden="true" tabindex="-1"></a>        topo, visited <span class="op">=</span> [], <span class="bu">set</span>()</span>
-<span id="cb12-359"><a href="#cb12-359" aria-hidden="true" tabindex="-1"></a>        <span class="kw">def</span> build(v):</span>
-<span id="cb12-360"><a href="#cb12-360" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="bu">id</span>(v) <span class="kw">in</span> visited: <span class="cf">return</span></span>
-<span id="cb12-361"><a href="#cb12-361" aria-hidden="true" tabindex="-1"></a>            visited.add(<span class="bu">id</span>(v))</span>
-<span id="cb12-362"><a href="#cb12-362" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> p, _ <span class="kw">in</span> v.parents:</span>
-<span id="cb12-363"><a href="#cb12-363" aria-hidden="true" tabindex="-1"></a>                build(p)</span>
-<span id="cb12-364"><a href="#cb12-364" aria-hidden="true" tabindex="-1"></a>            topo.append(v)</span>
-<span id="cb12-365"><a href="#cb12-365" aria-hidden="true" tabindex="-1"></a>        build(<span class="va">self</span>)</span>
-<span id="cb12-366"><a href="#cb12-366" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-367"><a href="#cb12-367" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.grad <span class="op">=</span> seed</span>
-<span id="cb12-368"><a href="#cb12-368" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> v <span class="kw">in</span> <span class="bu">reversed</span>(topo):</span>
-<span id="cb12-369"><a href="#cb12-369" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> parent, local <span class="kw">in</span> v.parents:</span>
-<span id="cb12-370"><a href="#cb12-370" aria-hidden="true" tabindex="-1"></a>                parent.grad <span class="op">+=</span> v.grad <span class="op">*</span> local</span>
-<span id="cb12-371"><a href="#cb12-371" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-372"><a href="#cb12-372" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sinv(x): <span class="cf">return</span> Var(math.sin(x.value),  [(x,  math.cos(x.value))])</span>
-<span id="cb12-373"><a href="#cb12-373" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cosv(x): <span class="cf">return</span> Var(math.cos(x.value),  [(x, <span class="op">-</span>math.sin(x.value))])</span>
-<span id="cb12-374"><a href="#cb12-374" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> expv(x): <span class="cf">return</span> Var(math.exp(x.value),  [(x,  math.exp(x.value))])</span>
-<span id="cb12-375"><a href="#cb12-375" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> logv(x): <span class="cf">return</span> Var(math.log(x.value),  [(x,  <span class="fl">1.0</span> <span class="op">/</span> x.value)])</span>
-<span id="cb12-376"><a href="#cb12-376" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-377"><a href="#cb12-377" aria-hidden="true" tabindex="-1"></a><span class="co"># ------------------------------------------------------------------</span></span>
-<span id="cb12-378"><a href="#cb12-378" aria-hidden="true" tabindex="-1"></a><span class="co"># Differentiate f(x1, x2) at (2, 5) — one forward + backward pass</span></span>
+<span id="cb12-356"><a href="#cb12-356" aria-hidden="true" tabindex="-1"></a>    <span class="fu">__radd__</span>, <span class="fu">__rsub__</span>, <span class="fu">__rmul__</span> <span class="op">=</span> <span class="fu">__add__</span>, <span class="fu">__sub__</span>, <span class="fu">__mul__</span></span>
+<span id="cb12-357"><a href="#cb12-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-358"><a href="#cb12-358" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> backward(<span class="va">self</span>, seed<span class="op">=</span><span class="fl">1.0</span>):</span>
+<span id="cb12-359"><a href="#cb12-359" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Reverse-accumulate gradients into every ancestor's .grad field."""</span></span>
+<span id="cb12-360"><a href="#cb12-360" aria-hidden="true" tabindex="-1"></a>        topo, visited <span class="op">=</span> [], <span class="bu">set</span>()</span>
+<span id="cb12-361"><a href="#cb12-361" aria-hidden="true" tabindex="-1"></a>        <span class="kw">def</span> build(v):</span>
+<span id="cb12-362"><a href="#cb12-362" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="bu">id</span>(v) <span class="kw">in</span> visited: <span class="cf">return</span></span>
+<span id="cb12-363"><a href="#cb12-363" aria-hidden="true" tabindex="-1"></a>            visited.add(<span class="bu">id</span>(v))</span>
+<span id="cb12-364"><a href="#cb12-364" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> p, _ <span class="kw">in</span> v.parents:</span>
+<span id="cb12-365"><a href="#cb12-365" aria-hidden="true" tabindex="-1"></a>                build(p)</span>
+<span id="cb12-366"><a href="#cb12-366" aria-hidden="true" tabindex="-1"></a>            topo.append(v)</span>
+<span id="cb12-367"><a href="#cb12-367" aria-hidden="true" tabindex="-1"></a>        build(<span class="va">self</span>)</span>
+<span id="cb12-368"><a href="#cb12-368" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-369"><a href="#cb12-369" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.grad <span class="op">=</span> seed</span>
+<span id="cb12-370"><a href="#cb12-370" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> v <span class="kw">in</span> <span class="bu">reversed</span>(topo):</span>
+<span id="cb12-371"><a href="#cb12-371" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> parent, local <span class="kw">in</span> v.parents:</span>
+<span id="cb12-372"><a href="#cb12-372" aria-hidden="true" tabindex="-1"></a>                parent.grad <span class="op">+=</span> v.grad <span class="op">*</span> local</span>
+<span id="cb12-373"><a href="#cb12-373" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-374"><a href="#cb12-374" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sinv(x): <span class="cf">return</span> Var(math.sin(x.value),  [(x,  math.cos(x.value))])</span>
+<span id="cb12-375"><a href="#cb12-375" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cosv(x): <span class="cf">return</span> Var(math.cos(x.value),  [(x, <span class="op">-</span>math.sin(x.value))])</span>
+<span id="cb12-376"><a href="#cb12-376" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> expv(x): <span class="cf">return</span> Var(math.exp(x.value),  [(x,  math.exp(x.value))])</span>
+<span id="cb12-377"><a href="#cb12-377" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> logv(x): <span class="cf">return</span> Var(math.log(x.value),  [(x,  <span class="fl">1.0</span> <span class="op">/</span> x.value)])</span>
+<span id="cb12-378"><a href="#cb12-378" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-379"><a href="#cb12-379" aria-hidden="true" tabindex="-1"></a><span class="co"># ------------------------------------------------------------------</span></span>
-<span id="cb12-380"><a href="#cb12-380" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> Var(<span class="fl">2.0</span>)</span>
-<span id="cb12-381"><a href="#cb12-381" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> Var(<span class="fl">5.0</span>)</span>
-<span id="cb12-382"><a href="#cb12-382" aria-hidden="true" tabindex="-1"></a>y  <span class="op">=</span> logv(x1) <span class="op">+</span> x1 <span class="op">*</span> x2 <span class="op">-</span> sinv(x2)</span>
-<span id="cb12-383"><a href="#cb12-383" aria-hidden="true" tabindex="-1"></a>y.backward()</span>
-<span id="cb12-384"><a href="#cb12-384" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-385"><a href="#cb12-385" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"f(2, 5)        = </span><span class="sc">{</span>y<span class="sc">.</span>value<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
-<span id="cb12-386"><a href="#cb12-386" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"∂f/∂x1 at (2,5) = </span><span class="sc">{</span>x1<span class="sc">.</span>grad<span class="sc">:.6f}</span><span class="ss">"</span>)    <span class="co"># expect 5.5</span></span>
-<span id="cb12-387"><a href="#cb12-387" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"∂f/∂x2 at (2,5) = </span><span class="sc">{</span>x2<span class="sc">.</span>grad<span class="sc">:.6f}</span><span class="ss">"</span>)    <span class="co"># expect 1.7163...</span></span>
-<span id="cb12-388"><a href="#cb12-388" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-389"><a href="#cb12-389" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-390"><a href="#cb12-390" aria-hidden="true" tabindex="-1"></a>This is, in essence, a miniature PyTorch. <span class="in">`Var`</span> corresponds to <span class="in">`torch.Tensor`</span>, the <span class="in">`parents`</span> list is the computation graph (what PyTorch calls <span class="in">`grad_fn`</span>), and <span class="in">`.backward()`</span> is <span class="in">`.backward()`</span>. The real PyTorch adds tensor operations, GPU kernels, and optimisations, but the algorithmic core is what you see here.</span>
+<span id="cb12-380"><a href="#cb12-380" aria-hidden="true" tabindex="-1"></a><span class="co"># Differentiate f(x1, x2) at (2, 5) — one forward + backward pass</span></span>
+<span id="cb12-381"><a href="#cb12-381" aria-hidden="true" tabindex="-1"></a><span class="co"># ------------------------------------------------------------------</span></span>
+<span id="cb12-382"><a href="#cb12-382" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> Var(<span class="fl">2.0</span>)</span>
+<span id="cb12-383"><a href="#cb12-383" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> Var(<span class="fl">5.0</span>)</span>
+<span id="cb12-384"><a href="#cb12-384" aria-hidden="true" tabindex="-1"></a>y  <span class="op">=</span> logv(x1) <span class="op">+</span> x1 <span class="op">*</span> x2 <span class="op">-</span> sinv(x2)</span>
+<span id="cb12-385"><a href="#cb12-385" aria-hidden="true" tabindex="-1"></a>y.backward()</span>
+<span id="cb12-386"><a href="#cb12-386" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-387"><a href="#cb12-387" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"f(2, 5)        = </span><span class="sc">{</span>y<span class="sc">.</span>value<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb12-388"><a href="#cb12-388" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"∂f/∂x1 at (2,5) = </span><span class="sc">{</span>x1<span class="sc">.</span>grad<span class="sc">:.6f}</span><span class="ss">"</span>)    <span class="co"># expect 5.5</span></span>
+<span id="cb12-389"><a href="#cb12-389" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"∂f/∂x2 at (2,5) = </span><span class="sc">{</span>x2<span class="sc">.</span>grad<span class="sc">:.6f}</span><span class="ss">"</span>)    <span class="co"># expect 1.7163...</span></span>
+<span id="cb12-390"><a href="#cb12-390" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-391"><a href="#cb12-391" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-392"><a href="#cb12-392" aria-hidden="true" tabindex="-1"></a><span class="fu">## When reverse mode is efficient</span></span>
+<span id="cb12-392"><a href="#cb12-392" aria-hidden="true" tabindex="-1"></a>This is, in essence, a miniature PyTorch. <span class="in">`Var`</span> corresponds to <span class="in">`torch.Tensor`</span>, the <span class="in">`parents`</span> list is the computation graph (what PyTorch calls <span class="in">`grad_fn`</span>), and <span class="in">`.backward()`</span> is <span class="in">`.backward()`</span>. The real PyTorch adds tensor operations, GPU kernels, and optimisations, but the algorithmic core is what you see here.</span>
 <span id="cb12-393"><a href="#cb12-393" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-394"><a href="#cb12-394" aria-hidden="true" tabindex="-1"></a>One backward pass from $\bar f = 1$ yields the *entire* gradient $\nabla f$. Cost: $O(1) \times$ cost of evaluating $f$.</span>
+<span id="cb12-394"><a href="#cb12-394" aria-hidden="true" tabindex="-1"></a><span class="fu">## When reverse mode is efficient</span></span>
 <span id="cb12-395"><a href="#cb12-395" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-396"><a href="#cb12-396" aria-hidden="true" tabindex="-1"></a>More generally, for $f: \mathbb{R}^n \to \mathbb{R}^m$, one backward sweep costs roughly the same as one forward evaluation and produces one row of the Jacobian (a *vector-Jacobian product*, VJP). So obtaining the full Jacobian costs $O(m)$.</span>
+<span id="cb12-396"><a href="#cb12-396" aria-hidden="true" tabindex="-1"></a>One backward pass from $\bar f = 1$ yields the *entire* gradient $\nabla f$. Cost: $O(1) \times$ cost of evaluating $f$.</span>
 <span id="cb12-397"><a href="#cb12-397" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-398"><a href="#cb12-398" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-398"><a href="#cb12-398" aria-hidden="true" tabindex="-1"></a>More generally, for $f: \mathbb{R}^n \to \mathbb{R}^m$, one backward sweep costs roughly the same as one forward evaluation and produces one row of the Jacobian (a *vector-Jacobian product*, VJP). So obtaining the full Jacobian costs $O(m)$.</span>
 <span id="cb12-399"><a href="#cb12-399" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-400"><a href="#cb12-400" aria-hidden="true" tabindex="-1"></a><span class="fu"># Complexity: why reverse mode dominates deep learning</span></span>
+<span id="cb12-400"><a href="#cb12-400" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-401"><a href="#cb12-401" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-402"><a href="#cb12-402" aria-hidden="true" tabindex="-1"></a>Putting the two modes side by side:</span>
+<span id="cb12-402"><a href="#cb12-402" aria-hidden="true" tabindex="-1"></a><span class="fu"># Complexity: why reverse mode dominates deep learning</span></span>
 <span id="cb12-403"><a href="#cb12-403" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-404"><a href="#cb12-404" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Mode    <span class="pp">|</span> Cost of full Jacobian of $f: \mathbb{R}^n \to \mathbb{R}^m$    <span class="pp">|</span> Best when                       <span class="pp">|</span></span>
-<span id="cb12-405"><a href="#cb12-405" aria-hidden="true" tabindex="-1"></a><span class="pp">|---------|----------------------------------------------------------------|---------------------------------|</span></span>
-<span id="cb12-406"><a href="#cb12-406" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Forward <span class="pp">|</span> $O(n) \times \text{cost}(f)$                                   <span class="pp">|</span> $n \ll m$ (few inputs)          <span class="pp">|</span></span>
-<span id="cb12-407"><a href="#cb12-407" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Reverse <span class="pp">|</span> $O(m) \times \text{cost}(f)$                                   <span class="pp">|</span> $m \ll n$ (few outputs)         <span class="pp">|</span></span>
-<span id="cb12-408"><a href="#cb12-408" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-409"><a href="#cb12-409" aria-hidden="true" tabindex="-1"></a>Deep learning is the extreme case of the second regime: the loss is a **scalar** ($m = 1$), and the parameters are **millions** ($n \gg 1$). A single backward pass returns every parameter gradient. Forward mode would need millions of passes for the same result.</span>
+<span id="cb12-404"><a href="#cb12-404" aria-hidden="true" tabindex="-1"></a>Putting the two modes side by side:</span>
+<span id="cb12-405"><a href="#cb12-405" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-406"><a href="#cb12-406" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Mode    <span class="pp">|</span> Cost of full Jacobian of $f: \mathbb{R}^n \to \mathbb{R}^m$    <span class="pp">|</span> Best when                       <span class="pp">|</span></span>
+<span id="cb12-407"><a href="#cb12-407" aria-hidden="true" tabindex="-1"></a><span class="pp">|---------|----------------------------------------------------------------|---------------------------------|</span></span>
+<span id="cb12-408"><a href="#cb12-408" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Forward <span class="pp">|</span> $O(n) \times \text{cost}(f)$                                   <span class="pp">|</span> $n \ll m$ (few inputs)          <span class="pp">|</span></span>
+<span id="cb12-409"><a href="#cb12-409" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Reverse <span class="pp">|</span> $O(m) \times \text{cost}(f)$                                   <span class="pp">|</span> $m \ll n$ (few outputs)         <span class="pp">|</span></span>
 <span id="cb12-410"><a href="#cb12-410" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-411"><a href="#cb12-411" aria-hidden="true" tabindex="-1"></a>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="co">[</span><span class="ot">@rumelhart1986</span><span class="co">]</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa's 1970 master's thesis <span class="co">[</span><span class="ot">@linnainmaa1970</span><span class="co">]</span>, and Speelpenning's 1980 PhD thesis showed it applied to arbitrary programs <span class="co">[</span><span class="ot">@speelpenning1980</span><span class="co">]</span>.</span>
+<span id="cb12-411"><a href="#cb12-411" aria-hidden="true" tabindex="-1"></a>Deep learning is the extreme case of the second regime: the loss is a **scalar** ($m = 1$), and the parameters are **millions** ($n \gg 1$). A single backward pass returns every parameter gradient. Forward mode would need millions of passes for the same result.</span>
 <span id="cb12-412"><a href="#cb12-412" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-413"><a href="#cb12-413" aria-hidden="true" tabindex="-1"></a>For PINNs, the story has a wrinkle: the *physics* loss itself contains derivatives of the network. We therefore need to differentiate a function that already contains differentiation — higher-order AD. We come back to this in Section 8.</span>
+<span id="cb12-413"><a href="#cb12-413" aria-hidden="true" tabindex="-1"></a>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="co">[</span><span class="ot">@rumelhart1986</span><span class="co">]</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa's 1970 master's thesis <span class="co">[</span><span class="ot">@linnainmaa1970</span><span class="co">]</span>, and Speelpenning's 1980 PhD thesis showed it applied to arbitrary programs <span class="co">[</span><span class="ot">@speelpenning1980</span><span class="co">]</span>.</span>
 <span id="cb12-414"><a href="#cb12-414" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-415"><a href="#cb12-415" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-415"><a href="#cb12-415" aria-hidden="true" tabindex="-1"></a>For PINNs, the story has a wrinkle: the *physics* loss itself contains derivatives of the network. We therefore need to differentiate a function that already contains differentiation — higher-order AD. We come back to this in Section 8.</span>
 <span id="cb12-416"><a href="#cb12-416" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-417"><a href="#cb12-417" aria-hidden="true" tabindex="-1"></a><span class="fu"># Revisiting the PINN code</span></span>
+<span id="cb12-417"><a href="#cb12-417" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-418"><a href="#cb12-418" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-419"><a href="#cb12-419" aria-hidden="true" tabindex="-1"></a>Now read the physics-loss function from my earlier PINN post with AD in mind:</span>
+<span id="cb12-419"><a href="#cb12-419" aria-hidden="true" tabindex="-1"></a><span class="fu"># Revisiting the PINN code</span></span>
 <span id="cb12-420"><a href="#cb12-420" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-421"><a href="#cb12-421" aria-hidden="true" tabindex="-1"></a><span class="in">```python</span></span>
-<span id="cb12-422"><a href="#cb12-422" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> physics_loss(model, t_col_base):</span>
-<span id="cb12-423"><a href="#cb12-423" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> t_col_base.clone().requires_grad_(<span class="va">True</span>)    <span class="co"># leaf in the graph</span></span>
-<span id="cb12-424"><a href="#cb12-424" aria-hidden="true" tabindex="-1"></a>    sir <span class="op">=</span> model(t)                                 <span class="co"># forward pass through network</span></span>
-<span id="cb12-425"><a href="#cb12-425" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> sir[:, <span class="dv">0</span>], sir[:, <span class="dv">1</span>], sir[:, <span class="dv">2</span>]</span>
-<span id="cb12-426"><a href="#cb12-426" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-427"><a href="#cb12-427" aria-hidden="true" tabindex="-1"></a>    ones <span class="op">=</span> torch.ones(<span class="bu">len</span>(t))</span>
-<span id="cb12-428"><a href="#cb12-428" aria-hidden="true" tabindex="-1"></a>    dS <span class="op">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-429"><a href="#cb12-429" aria-hidden="true" tabindex="-1"></a>    dI <span class="op">=</span> torch.autograd.grad(I, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-430"><a href="#cb12-430" aria-hidden="true" tabindex="-1"></a>    dR <span class="op">=</span> torch.autograd.grad(R, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-431"><a href="#cb12-431" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-432"><a href="#cb12-432" aria-hidden="true" tabindex="-1"></a>    b, g <span class="op">=</span> model.beta_s, model.gamma_s</span>
-<span id="cb12-433"><a href="#cb12-433" aria-hidden="true" tabindex="-1"></a>    res_S <span class="op">=</span> dS <span class="op">+</span> b <span class="op">*</span> S <span class="op">*</span> I</span>
-<span id="cb12-434"><a href="#cb12-434" aria-hidden="true" tabindex="-1"></a>    res_I <span class="op">=</span> dI <span class="op">-</span> b <span class="op">*</span> S <span class="op">*</span> I <span class="op">+</span> g <span class="op">*</span> I</span>
-<span id="cb12-435"><a href="#cb12-435" aria-hidden="true" tabindex="-1"></a>    res_R <span class="op">=</span> dR <span class="op">-</span> g <span class="op">*</span> I</span>
-<span id="cb12-436"><a href="#cb12-436" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (res_S<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_I<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_R<span class="op">**</span><span class="dv">2</span>).mean()</span>
-<span id="cb12-437"><a href="#cb12-437" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-438"><a href="#cb12-438" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-439"><a href="#cb12-439" aria-hidden="true" tabindex="-1"></a>Line by line:</span>
+<span id="cb12-421"><a href="#cb12-421" aria-hidden="true" tabindex="-1"></a>Now read the physics-loss function from my earlier PINN post with AD in mind:</span>
+<span id="cb12-422"><a href="#cb12-422" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-423"><a href="#cb12-423" aria-hidden="true" tabindex="-1"></a><span class="in">```python</span></span>
+<span id="cb12-424"><a href="#cb12-424" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> physics_loss(model, t_col_base):</span>
+<span id="cb12-425"><a href="#cb12-425" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> t_col_base.clone().requires_grad_(<span class="va">True</span>)    <span class="co"># leaf in the graph</span></span>
+<span id="cb12-426"><a href="#cb12-426" aria-hidden="true" tabindex="-1"></a>    sir <span class="op">=</span> model(t)                                 <span class="co"># forward pass through network</span></span>
+<span id="cb12-427"><a href="#cb12-427" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> sir[:, <span class="dv">0</span>], sir[:, <span class="dv">1</span>], sir[:, <span class="dv">2</span>]</span>
+<span id="cb12-428"><a href="#cb12-428" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-429"><a href="#cb12-429" aria-hidden="true" tabindex="-1"></a>    ones <span class="op">=</span> torch.ones(<span class="bu">len</span>(t))</span>
+<span id="cb12-430"><a href="#cb12-430" aria-hidden="true" tabindex="-1"></a>    dS <span class="op">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-431"><a href="#cb12-431" aria-hidden="true" tabindex="-1"></a>    dI <span class="op">=</span> torch.autograd.grad(I, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-432"><a href="#cb12-432" aria-hidden="true" tabindex="-1"></a>    dR <span class="op">=</span> torch.autograd.grad(R, t, grad_outputs<span class="op">=</span>ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-433"><a href="#cb12-433" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-434"><a href="#cb12-434" aria-hidden="true" tabindex="-1"></a>    b, g <span class="op">=</span> model.beta_s, model.gamma_s</span>
+<span id="cb12-435"><a href="#cb12-435" aria-hidden="true" tabindex="-1"></a>    res_S <span class="op">=</span> dS <span class="op">+</span> b <span class="op">*</span> S <span class="op">*</span> I</span>
+<span id="cb12-436"><a href="#cb12-436" aria-hidden="true" tabindex="-1"></a>    res_I <span class="op">=</span> dI <span class="op">-</span> b <span class="op">*</span> S <span class="op">*</span> I <span class="op">+</span> g <span class="op">*</span> I</span>
+<span id="cb12-437"><a href="#cb12-437" aria-hidden="true" tabindex="-1"></a>    res_R <span class="op">=</span> dR <span class="op">-</span> g <span class="op">*</span> I</span>
+<span id="cb12-438"><a href="#cb12-438" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (res_S<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_I<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_R<span class="op">**</span><span class="dv">2</span>).mean()</span>
+<span id="cb12-439"><a href="#cb12-439" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-440"><a href="#cb12-440" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-441"><a href="#cb12-441" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`requires_grad_(True)`</span> registers <span class="in">`t`</span> as a leaf in the computational graph. PyTorch now tracks every operation that uses it.</span>
-<span id="cb12-442"><a href="#cb12-442" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`sir = model(t)`</span> runs the forward pass. Each layer's operations get recorded on the tape.</span>
-<span id="cb12-443"><a href="#cb12-443" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`torch.autograd.grad(S, t, ...)`</span> runs a *reverse-mode backward pass from `S` to `t`*. Because we ask for <span class="in">`grad_outputs=ones`</span>, we seed the cotangent with $1$ at every element, and the result is $dS/dt$ evaluated at every collocation point — one row of the Jacobian, computed in a single sweep.</span>
-<span id="cb12-444"><a href="#cb12-444" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`create_graph=True`</span> is the key flag. It tells PyTorch to record *the backward pass itself* onto the tape, so we can differentiate through it again when we call <span class="in">`loss.backward()`</span> later. Without it, <span class="in">`dS`</span> would be a plain tensor detached from the graph, and the training gradient would miss the physics contribution.</span>
-<span id="cb12-445"><a href="#cb12-445" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-446"><a href="#cb12-446" aria-hidden="true" tabindex="-1"></a>The training loop's <span class="in">`loss.backward()`</span> is then a second reverse-mode pass — this time with respect to the network weights and the learnable $\beta, \gamma$. We are differentiating a function whose definition contains a derivative, which is precisely what PINNs require.</span>
+<span id="cb12-441"><a href="#cb12-441" aria-hidden="true" tabindex="-1"></a>Line by line:</span>
+<span id="cb12-442"><a href="#cb12-442" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-443"><a href="#cb12-443" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`requires_grad_(True)`</span> registers <span class="in">`t`</span> as a leaf in the computational graph. PyTorch now tracks every operation that uses it.</span>
+<span id="cb12-444"><a href="#cb12-444" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`sir = model(t)`</span> runs the forward pass. Each layer's operations get recorded on the tape.</span>
+<span id="cb12-445"><a href="#cb12-445" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`torch.autograd.grad(S, t, ...)`</span> runs a *reverse-mode backward pass from `S` to `t`*. Because we ask for <span class="in">`grad_outputs=ones`</span>, we seed the cotangent with $1$ at every element, and the result is $dS/dt$ evaluated at every collocation point — one row of the Jacobian, computed in a single sweep.</span>
+<span id="cb12-446"><a href="#cb12-446" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`create_graph=True`</span> is the key flag. It tells PyTorch to record *the backward pass itself* onto the tape, so we can differentiate through it again when we call <span class="in">`loss.backward()`</span> later. Without it, <span class="in">`dS`</span> would be a plain tensor detached from the graph, and the training gradient would miss the physics contribution.</span>
 <span id="cb12-447"><a href="#cb12-447" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-448"><a href="#cb12-448" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-448"><a href="#cb12-448" aria-hidden="true" tabindex="-1"></a>The training loop's <span class="in">`loss.backward()`</span> is then a second reverse-mode pass — this time with respect to the network weights and the learnable $\beta, \gamma$. We are differentiating a function whose definition contains a derivative, which is precisely what PINNs require.</span>
 <span id="cb12-449"><a href="#cb12-449" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-450"><a href="#cb12-450" aria-hidden="true" tabindex="-1"></a><span class="fu"># Higher-order derivatives</span></span>
+<span id="cb12-450"><a href="#cb12-450" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-451"><a href="#cb12-451" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-452"><a href="#cb12-452" aria-hidden="true" tabindex="-1"></a>For second derivatives — e.g. the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="co">[</span><span class="ot">@raissi2019</span><span class="co">]</span> — we apply AD to the output of AD. In PyTorch:</span>
+<span id="cb12-452"><a href="#cb12-452" aria-hidden="true" tabindex="-1"></a><span class="fu"># Higher-order derivatives</span></span>
 <span id="cb12-453"><a href="#cb12-453" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-456"><a href="#cb12-456" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb12-457"><a href="#cb12-457" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
-<span id="cb12-458"><a href="#cb12-458" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-459"><a href="#cb12-459" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.tensor(<span class="fl">1.5</span>, requires_grad<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb12-460"><a href="#cb12-460" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.sin(x) <span class="op">*</span> x<span class="op">**</span><span class="dv">2</span></span>
-<span id="cb12-461"><a href="#cb12-461" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-462"><a href="#cb12-462" aria-hidden="true" tabindex="-1"></a><span class="co"># First derivative: dy/dx — must keep the graph alive</span></span>
-<span id="cb12-463"><a href="#cb12-463" aria-hidden="true" tabindex="-1"></a>dy_dx <span class="op">=</span> torch.autograd.grad(y, x, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
-<span id="cb12-464"><a href="#cb12-464" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-465"><a href="#cb12-465" aria-hidden="true" tabindex="-1"></a><span class="co"># Second derivative: differentiate dy_dx again</span></span>
-<span id="cb12-466"><a href="#cb12-466" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="op">=</span> torch.autograd.grad(dy_dx, x)[<span class="dv">0</span>]</span>
-<span id="cb12-467"><a href="#cb12-467" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-468"><a href="#cb12-468" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"y        = </span><span class="sc">{</span>y<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb12-469"><a href="#cb12-469" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"dy/dx    = </span><span class="sc">{</span>dy_dx<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)      <span class="co"># analytic: cos(x)·x² + 2x·sin(x)</span></span>
-<span id="cb12-470"><a href="#cb12-470" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"d²y/dx²  = </span><span class="sc">{</span>d2y_dx2<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)    <span class="co"># analytic: -sin(x)·x² + 4x·cos(x) + 2·sin(x)</span></span>
-<span id="cb12-471"><a href="#cb12-471" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-472"><a href="#cb12-472" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-473"><a href="#cb12-473" aria-hidden="true" tabindex="-1"></a>Each call to <span class="in">`torch.autograd.grad`</span> triggers a backward pass; <span class="in">`create_graph=True`</span> ensures that pass is itself recorded, so we can differentiate it. Third, fourth, and higher derivatives work the same way. The memory cost grows linearly with derivative order, because each extra pass adds another layer of tape.</span>
+<span id="cb12-454"><a href="#cb12-454" aria-hidden="true" tabindex="-1"></a>For second derivatives — e.g. the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="co">[</span><span class="ot">@raissi2019</span><span class="co">]</span> — we apply AD to the output of AD. In PyTorch:</span>
+<span id="cb12-455"><a href="#cb12-455" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-458"><a href="#cb12-458" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb12-459"><a href="#cb12-459" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb12-460"><a href="#cb12-460" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-461"><a href="#cb12-461" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.tensor(<span class="fl">1.5</span>, requires_grad<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb12-462"><a href="#cb12-462" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.sin(x) <span class="op">*</span> x<span class="op">**</span><span class="dv">2</span></span>
+<span id="cb12-463"><a href="#cb12-463" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-464"><a href="#cb12-464" aria-hidden="true" tabindex="-1"></a><span class="co"># First derivative: dy/dx — must keep the graph alive</span></span>
+<span id="cb12-465"><a href="#cb12-465" aria-hidden="true" tabindex="-1"></a>dy_dx <span class="op">=</span> torch.autograd.grad(y, x, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb12-466"><a href="#cb12-466" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-467"><a href="#cb12-467" aria-hidden="true" tabindex="-1"></a><span class="co"># Second derivative: differentiate dy_dx again</span></span>
+<span id="cb12-468"><a href="#cb12-468" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="op">=</span> torch.autograd.grad(dy_dx, x)[<span class="dv">0</span>]</span>
+<span id="cb12-469"><a href="#cb12-469" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-470"><a href="#cb12-470" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"y        = </span><span class="sc">{</span>y<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb12-471"><a href="#cb12-471" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"dy/dx    = </span><span class="sc">{</span>dy_dx<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)      <span class="co"># analytic: cos(x)·x² + 2x·sin(x)</span></span>
+<span id="cb12-472"><a href="#cb12-472" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"d²y/dx²  = </span><span class="sc">{</span>d2y_dx2<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)    <span class="co"># analytic: -sin(x)·x² + 4x·cos(x) + 2·sin(x)</span></span>
+<span id="cb12-473"><a href="#cb12-473" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-474"><a href="#cb12-474" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-475"><a href="#cb12-475" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-475"><a href="#cb12-475" aria-hidden="true" tabindex="-1"></a>Each call to <span class="in">`torch.autograd.grad`</span> triggers a backward pass; <span class="in">`create_graph=True`</span> ensures that pass is itself recorded, so we can differentiate it. Third, fourth, and higher derivatives work the same way. The memory cost grows linearly with derivative order, because each extra pass adds another layer of tape.</span>
 <span id="cb12-476"><a href="#cb12-476" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-477"><a href="#cb12-477" aria-hidden="true" tabindex="-1"></a><span class="fu"># Practical considerations</span></span>
+<span id="cb12-477"><a href="#cb12-477" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-478"><a href="#cb12-478" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-479"><a href="#cb12-479" aria-hidden="true" tabindex="-1"></a>**Non-differentiable operations.** Functions like $|x|$, $\max$, and ReLU are non-differentiable at isolated points. AD frameworks adopt a *subgradient* convention: the derivative of $\max(0, x)$ at $x = 0$ is defined as $0$ (PyTorch) or $1$ (some other frameworks). In practice this is invisible — the exact point is measure-zero on a random initialisation.</span>
+<span id="cb12-479"><a href="#cb12-479" aria-hidden="true" tabindex="-1"></a><span class="fu"># Practical considerations</span></span>
 <span id="cb12-480"><a href="#cb12-480" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-481"><a href="#cb12-481" aria-hidden="true" tabindex="-1"></a>**Control flow.** <span class="in">`if`</span>, <span class="in">`for`</span>, and <span class="in">`while`</span> are fine in AD, because the tape records only the operations that actually ran on this input. Unlike symbolic differentiation, AD does not need to reason about branches it did not take. However, the derivative can be discontinuous across branches, which sometimes causes training instability.</span>
+<span id="cb12-481"><a href="#cb12-481" aria-hidden="true" tabindex="-1"></a>**Non-differentiable operations.** Functions like $|x|$, $\max$, and ReLU are non-differentiable at isolated points. AD frameworks adopt a *subgradient* convention: the derivative of $\max(0, x)$ at $x = 0$ is defined as $0$ (PyTorch) or $1$ (some other frameworks). In practice this is invisible — the exact point is measure-zero on a random initialisation.</span>
 <span id="cb12-482"><a href="#cb12-482" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-483"><a href="#cb12-483" aria-hidden="true" tabindex="-1"></a>**In-place operations.** <span class="in">`x.add_(1)`</span> modifies the tensor that the backward pass was going to read, and PyTorch raises an error. Prefer <span class="in">`x = x + 1`</span> unless you know what you are doing.</span>
+<span id="cb12-483"><a href="#cb12-483" aria-hidden="true" tabindex="-1"></a>**Control flow.** <span class="in">`if`</span>, <span class="in">`for`</span>, and <span class="in">`while`</span> are fine in AD, because the tape records only the operations that actually ran on this input. Unlike symbolic differentiation, AD does not need to reason about branches it did not take. However, the derivative can be discontinuous across branches, which sometimes causes training instability.</span>
 <span id="cb12-484"><a href="#cb12-484" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-485"><a href="#cb12-485" aria-hidden="true" tabindex="-1"></a>**Memory.** The tape stores intermediate tensors for the backward pass. For a deep network processing a large batch, this is the dominant memory cost — more than the parameters. Techniques like *gradient checkpointing* trade compute for memory by re-running parts of the forward pass during the backward rather than storing everything.</span>
+<span id="cb12-485"><a href="#cb12-485" aria-hidden="true" tabindex="-1"></a>**In-place operations.** <span class="in">`x.add_(1)`</span> modifies the tensor that the backward pass was going to read, and PyTorch raises an error. Prefer <span class="in">`x = x + 1`</span> unless you know what you are doing.</span>
 <span id="cb12-486"><a href="#cb12-486" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-487"><a href="#cb12-487" aria-hidden="true" tabindex="-1"></a>**Stopping gradients.** <span class="in">`x.detach()`</span> and <span class="in">`with torch.no_grad():`</span> cut the graph at that point. Useful when you want to use a tensor's *value* as a constant, without tracking it for differentiation — e.g. target networks in reinforcement learning, or inputs to a critic that should not update the generator.</span>
+<span id="cb12-487"><a href="#cb12-487" aria-hidden="true" tabindex="-1"></a>**Memory.** The tape stores intermediate tensors for the backward pass. For a deep network processing a large batch, this is the dominant memory cost — more than the parameters. Techniques like *gradient checkpointing* trade compute for memory by re-running parts of the forward pass during the backward rather than storing everything.</span>
 <span id="cb12-488"><a href="#cb12-488" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-489"><a href="#cb12-489" aria-hidden="true" tabindex="-1"></a>**Numerical stability.** AD gives exact derivatives of the *program as written*, not of the underlying math. If your forward pass has a numerically unstable formulation (say, $\log(\text{softmax}(x))$ computed in two steps), the gradient will also be unstable. Combined operators like <span class="in">`log_softmax`</span> exist precisely because they allow a more stable backward formulation.</span>
+<span id="cb12-489"><a href="#cb12-489" aria-hidden="true" tabindex="-1"></a>**Stopping gradients.** <span class="in">`x.detach()`</span> and <span class="in">`with torch.no_grad():`</span> cut the graph at that point. Useful when you want to use a tensor's *value* as a constant, without tracking it for differentiation — e.g. target networks in reinforcement learning, or inputs to a critic that should not update the generator.</span>
 <span id="cb12-490"><a href="#cb12-490" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-491"><a href="#cb12-491" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-491"><a href="#cb12-491" aria-hidden="true" tabindex="-1"></a>**Numerical stability.** AD gives exact derivatives of the *program as written*, not of the underlying math. If your forward pass has a numerically unstable formulation (say, $\log(\text{softmax}(x))$ computed in two steps), the gradient will also be unstable. Combined operators like <span class="in">`log_softmax`</span> exist precisely because they allow a more stable backward formulation.</span>
 <span id="cb12-492"><a href="#cb12-492" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-493"><a href="#cb12-493" aria-hidden="true" tabindex="-1"></a><span class="fu"># A brief note for R users</span></span>
+<span id="cb12-493"><a href="#cb12-493" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-494"><a href="#cb12-494" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-495"><a href="#cb12-495" aria-hidden="true" tabindex="-1"></a>Since I work mostly in R, I want to mention that the same machinery is available there. The <span class="in">`torch`</span> R package <span class="co">[</span><span class="ot">@torchR</span><span class="co">]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</span>
+<span id="cb12-495"><a href="#cb12-495" aria-hidden="true" tabindex="-1"></a><span class="fu"># A brief note for R users</span></span>
 <span id="cb12-496"><a href="#cb12-496" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-497"><a href="#cb12-497" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
-<span id="cb12-498"><a href="#cb12-498" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
-<span id="cb12-499"><a href="#cb12-499" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-500"><a href="#cb12-500" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="fl">1.5</span>, <span class="at">requires_grad =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb12-501"><a href="#cb12-501" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">torch_sin</span>(x) <span class="sc">*</span> x<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb12-502"><a href="#cb12-502" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-503"><a href="#cb12-503" aria-hidden="true" tabindex="-1"></a>dy_dx   <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(y, x, <span class="at">create_graph =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
-<span id="cb12-504"><a href="#cb12-504" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(dy_dx, x)[[<span class="dv">1</span>]]</span>
-<span id="cb12-505"><a href="#cb12-505" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-506"><a href="#cb12-506" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"dy/dx   = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(dy_dx)))</span>
-<span id="cb12-507"><a href="#cb12-507" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"d2y/dx2 = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(d2y_dx2)))</span>
-<span id="cb12-508"><a href="#cb12-508" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-509"><a href="#cb12-509" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-510"><a href="#cb12-510" aria-hidden="true" tabindex="-1"></a>For more flexibility, <span class="in">`jax`</span> (via <span class="in">`reticulate`</span>) and Julia's <span class="in">`Zygote.jl`</span> <span class="co">[</span><span class="ot">@zygote</span><span class="co">]</span> are both mature reverse-mode AD systems worth exploring.</span>
+<span id="cb12-497"><a href="#cb12-497" aria-hidden="true" tabindex="-1"></a>Since I work mostly in R, I want to mention that the same machinery is available there. The <span class="in">`torch`</span> R package <span class="co">[</span><span class="ot">@torchR</span><span class="co">]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</span>
+<span id="cb12-498"><a href="#cb12-498" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-499"><a href="#cb12-499" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb12-500"><a href="#cb12-500" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb12-501"><a href="#cb12-501" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-502"><a href="#cb12-502" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(<span class="fl">1.5</span>, <span class="at">requires_grad =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-503"><a href="#cb12-503" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">torch_sin</span>(x) <span class="sc">*</span> x<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb12-504"><a href="#cb12-504" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-505"><a href="#cb12-505" aria-hidden="true" tabindex="-1"></a>dy_dx   <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(y, x, <span class="at">create_graph =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
+<span id="cb12-506"><a href="#cb12-506" aria-hidden="true" tabindex="-1"></a>d2y_dx2 <span class="ot">&lt;-</span> <span class="fu">autograd_grad</span>(dy_dx, x)[[<span class="dv">1</span>]]</span>
+<span id="cb12-507"><a href="#cb12-507" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-508"><a href="#cb12-508" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"dy/dx   = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(dy_dx)))</span>
+<span id="cb12-509"><a href="#cb12-509" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"d2y/dx2 = %.4f</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">as.numeric</span>(d2y_dx2)))</span>
+<span id="cb12-510"><a href="#cb12-510" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb12-511"><a href="#cb12-511" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-512"><a href="#cb12-512" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-512"><a href="#cb12-512" aria-hidden="true" tabindex="-1"></a>For more flexibility, <span class="in">`jax`</span> (via <span class="in">`reticulate`</span>) and Julia's <span class="in">`Zygote.jl`</span> <span class="co">[</span><span class="ot">@zygote</span><span class="co">]</span> are both mature reverse-mode AD systems worth exploring.</span>
 <span id="cb12-513"><a href="#cb12-513" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-514"><a href="#cb12-514" aria-hidden="true" tabindex="-1"></a><span class="fu"># Summary</span></span>
+<span id="cb12-514"><a href="#cb12-514" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-515"><a href="#cb12-515" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-516"><a href="#cb12-516" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Every differentiable program is a composition of elementary operations with known local derivatives. AD applies the chain rule across this composition.</span>
-<span id="cb12-517"><a href="#cb12-517" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Forward mode** carries a derivative alongside each value (dual numbers). Cost scales with the number of *inputs*.</span>
-<span id="cb12-518"><a href="#cb12-518" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Reverse mode** first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of *outputs*.</span>
-<span id="cb12-519"><a href="#cb12-519" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</span>
-<span id="cb12-520"><a href="#cb12-520" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>PINNs additionally use reverse-mode AD *inside* the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD *around* the loss to train. <span class="in">`create_graph=True`</span> is what makes this composition possible.</span>
-<span id="cb12-521"><a href="#cb12-521" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The implementations shown here ($\sim$40 lines for forward mode, $\sim$70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</span>
-<span id="cb12-522"><a href="#cb12-522" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-523"><a href="#cb12-523" aria-hidden="true" tabindex="-1"></a>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <span class="in">`loss.backward()`</span> stops being magic.</span>
+<span id="cb12-516"><a href="#cb12-516" aria-hidden="true" tabindex="-1"></a><span class="fu"># Summary</span></span>
+<span id="cb12-517"><a href="#cb12-517" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-518"><a href="#cb12-518" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Every differentiable program is a composition of elementary operations with known local derivatives. AD applies the chain rule across this composition.</span>
+<span id="cb12-519"><a href="#cb12-519" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Forward mode** carries a derivative alongside each value (dual numbers). Cost scales with the number of *inputs*.</span>
+<span id="cb12-520"><a href="#cb12-520" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Reverse mode** first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of *outputs*.</span>
+<span id="cb12-521"><a href="#cb12-521" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</span>
+<span id="cb12-522"><a href="#cb12-522" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>PINNs additionally use reverse-mode AD *inside* the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD *around* the loss to train. <span class="in">`create_graph=True`</span> is what makes this composition possible.</span>
+<span id="cb12-523"><a href="#cb12-523" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The implementations shown here ($\sim$40 lines for forward mode, $\sim$70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</span>
 <span id="cb12-524"><a href="#cb12-524" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-525"><a href="#cb12-525" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-525"><a href="#cb12-525" aria-hidden="true" tabindex="-1"></a>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <span class="in">`loss.backward()`</span> stops being magic.</span>
 <span id="cb12-526"><a href="#cb12-526" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-527"><a href="#cb12-527" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {-}</span></span>
+<span id="cb12-527"><a href="#cb12-527" aria-hidden="true" tabindex="-1"></a>---</span>
 <span id="cb12-528"><a href="#cb12-528" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-529"><a href="#cb12-529" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb12-529"><a href="#cb12-529" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {-}</span></span>
 <span id="cb12-530"><a href="#cb12-530" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-531"><a href="#cb12-531" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">@linnainmaa1970</span><span class="co">]</span> Linnainmaa S. *The representation of the cumulative rounding error of an algorithm as a Taylor expansion of the local rounding errors*. Master's thesis, University of Helsinki, 1970.</span>
-<span id="cb12-532"><a href="#cb12-532" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-533"><a href="#cb12-533" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">@speelpenning1980</span><span class="co">]</span> Speelpenning B. *Compiling fast partial derivatives of functions given by algorithms*. PhD thesis, University of Illinois at Urbana-Champaign, 1980.</span>
-<span id="cb12-534"><a href="#cb12-534" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-535"><a href="#cb12-535" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">@rumelhart1986</span><span class="co">]</span> Rumelhart DE, Hinton GE, Williams RJ. Learning representations by back-propagating errors. *Nature*. 1986;323:533–536. doi:<span class="co">[</span><span class="ot">10.1038/323533a0</span><span class="co">](https://doi.org/10.1038/323533a0)</span></span>
-<span id="cb12-536"><a href="#cb12-536" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-537"><a href="#cb12-537" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">@griewank2008</span><span class="co">]</span> Griewank A, Walther A. *Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation*. 2nd ed. SIAM, 2008.</span>
-<span id="cb12-538"><a href="#cb12-538" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-539"><a href="#cb12-539" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">@baydin2018</span><span class="co">]</span> Baydin AG, Pearlmutter BA, Radul AA, Siskind JM. Automatic differentiation in machine learning: a survey. *Journal of Machine Learning Research*. 2018;18(153):1–43. Available at <span class="co">[</span><span class="ot">jmlr.org/papers/v18/17-468.html</span><span class="co">](https://www.jmlr.org/papers/v18/17-468.html)</span></span>
-<span id="cb12-540"><a href="#cb12-540" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-541"><a href="#cb12-541" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">@raissi2019</span><span class="co">]</span> Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. *Journal of Computational Physics*. 2019;378:686–707. doi:<span class="co">[</span><span class="ot">10.1016/j.jcp.2018.10.045</span><span class="co">](https://doi.org/10.1016/j.jcp.2018.10.045)</span></span>
-<span id="cb12-542"><a href="#cb12-542" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-543"><a href="#cb12-543" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">@torchR</span><span class="co">]</span> Falbel D, Luraschi J. *torch: Tensors and Neural Networks with 'GPU' Acceleration*. R package. Available at <span class="co">[</span><span class="ot">torch.mlverse.org</span><span class="co">](https://torch.mlverse.org)</span></span>
-<span id="cb12-544"><a href="#cb12-544" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-545"><a href="#cb12-545" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">@zygote</span><span class="co">]</span> Innes M. Don't Unroll Adjoint: Differentiating SSA-Form Programs. arXiv:1810.07951, 2019.</span>
-<span id="cb12-546"><a href="#cb12-546" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-547"><a href="#cb12-547" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb12-531"><a href="#cb12-531" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb12-532"><a href="#cb12-532" aria-hidden="true" tabindex="-1"></a>:::</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

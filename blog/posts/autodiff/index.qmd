@@ -5,6 +5,8 @@ author: "Jong-Hoon Kim"
 date: "2026-04-20"
 categories: [automatic differentiation, deep learning, PINN, backpropagation, Python]
 jupyter: python3
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
 format:
   html:
     toc: true
@@ -23,9 +25,9 @@ In my [previous post on Physics-Informed Neural Networks](https://www.jonghoonk.
 dS = torch.autograd.grad(S, t, grad_outputs=ones, create_graph=True)[0]
 ```
 
-That line hides one of the most beautiful ideas in scientific computing. It is not a finite difference, it is not symbolic differentiation, and it is not an approximation. It is **automatic differentiation** (AD), and it computes $dS/dt$ to machine precision for arbitrary networks in roughly the same time it takes to evaluate the network itself.
+That line uses **automatic differentiation** (AD). It computes $dS/dt$ to machine precision for arbitrary networks in roughly the same time it takes to evaluate the network itself.
 
-This post takes AD apart. By the end we will have implemented two small but working autodiff engines — one in forward mode, one in reverse mode — and we will understand exactly what PyTorch is doing when we call `.backward()` or `torch.autograd.grad(...)`.
+This post takes AD apart. We will implement two small but working autodiff engines — one in forward mode, one in reverse mode — and understand exactly what PyTorch is doing when we call `.backward()` or `torch.autograd.grad(...)`.
 
 ---
 
@@ -43,7 +45,7 @@ Both cases reduce to one question: given a program that computes a numerical fun
 
 # Three ways to differentiate
 
-Before explaining AD, it helps to be precise about what it is *not*. Suppose we have
+Suppose we have the following function:
 
 $$
 f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
@@ -59,7 +61,7 @@ $$
 \frac{\partial f}{\partial x_1} = \frac{1}{x_1} + x_2.
 $$
 
-This is what Mathematica and SymPy do. It returns a *formula* that we then evaluate. The problem is **expression swell**: repeated application of the product and chain rules on deep compositions produces expressions that grow exponentially. Symbolic differentiation of a neural network with a million parameters is not feasible.
+This is what Mathematica and SymPy do. It returns a formula that we then evaluate. The problem is that repeated application of the product and chain rules on deep compositions produces expressions that grow exponentially. Symbolic differentiation of a neural network with a million parameters is not feasible.
 
 ## Numerical differentiation
 
@@ -74,7 +76,7 @@ for small $h$. This is easy to implement but suffers from a fundamental tension 
 - **Truncation error** $\sim O(h)$ (or $O(h^2)$ for centred differences): shrinks as $h \to 0$.
 - **Round-off error** $\sim O(\epsilon_{\text{mach}}/h)$: grows as $h \to 0$, because we subtract two nearly equal numbers in floating point.
 
-Minimising the sum gives an optimal $h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}$ in double precision, and even then we only recover about half the digits. The U-shaped error curve is unavoidable:
+Minimising the sum gives an optimal $h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}$ in double precision:
 
 ```{python}
 #| code-fold: true
@@ -517,21 +519,4 @@ Automatic differentiation is one of the few ideas where the implementation is al
 # References {-}
 
 ::: {#refs}
-
-[@linnainmaa1970] Linnainmaa S. *The representation of the cumulative rounding error of an algorithm as a Taylor expansion of the local rounding errors*. Master's thesis, University of Helsinki, 1970.
-
-[@speelpenning1980] Speelpenning B. *Compiling fast partial derivatives of functions given by algorithms*. PhD thesis, University of Illinois at Urbana-Champaign, 1980.
-
-[@rumelhart1986] Rumelhart DE, Hinton GE, Williams RJ. Learning representations by back-propagating errors. *Nature*. 1986;323:533–536. doi:[10.1038/323533a0](https://doi.org/10.1038/323533a0)
-
-[@griewank2008] Griewank A, Walther A. *Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation*. 2nd ed. SIAM, 2008.
-
-[@baydin2018] Baydin AG, Pearlmutter BA, Radul AA, Siskind JM. Automatic differentiation in machine learning: a survey. *Journal of Machine Learning Research*. 2018;18(153):1–43. Available at [jmlr.org/papers/v18/17-468.html](https://www.jmlr.org/papers/v18/17-468.html)
-
-[@raissi2019] Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. *Journal of Computational Physics*. 2019;378:686–707. doi:[10.1016/j.jcp.2018.10.045](https://doi.org/10.1016/j.jcp.2018.10.045)
-
-[@torchR] Falbel D, Luraschi J. *torch: Tensors and Neural Networks with 'GPU' Acceleration*. R package. Available at [torch.mlverse.org](https://torch.mlverse.org)
-
-[@zygote] Innes M. Don't Unroll Adjoint: Differentiating SSA-Form Programs. arXiv:1810.07951, 2019.
-
 :::
