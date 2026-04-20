@@ -504,7 +504,7 @@ f(x_1, x_2) = \ln(x_1) + x_1 x_2 - \sin(x_2).
 <li><strong>Round-off error</strong> <span class="math inline">\(\sim O(\epsilon_{\text{mach}}/h)\)</span>: grows as <span class="math inline">\(h \to 0\)</span>, because we subtract two nearly equal numbers in floating point.</li>
 </ul>
 <p>Minimising the sum gives an optimal <span class="math inline">\(h \approx \sqrt{\epsilon_{\text{mach}}} \approx 10^{-8}\)</span> in double precision:</p>
-<div id="0b5a8102" class="cell" data-execution_count="1">
+<div id="6290a386" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -678,7 +678,7 @@ f(a + b\varepsilon) = f(a) + f'(a) \cdot b\varepsilon + \tfrac{1}{2}f''(a) \cdot
 </section>
 <section id="a-working-implementation-in-40-lines" class="level2" data-number="4.3">
 <h2 data-number="4.3" class="anchored" data-anchor-id="a-working-implementation-in-40-lines"><span class="header-section-number">4.3</span> A working implementation in ~40 lines</h2>
-<div id="b256df64" class="cell" data-execution_count="2">
+<div id="59259c05" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -839,7 +839,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </section>
 <section id="a-working-implementation-in-70-lines" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="a-working-implementation-in-70-lines"><span class="header-section-number">5.3</span> A working implementation in ~70 lines</h2>
-<div id="f5fa304f" class="cell" data-execution_count="3">
+<div id="7be2c73e" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Var:</span>
@@ -951,7 +951,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 </tbody>
 </table>
 <p>Deep learning is the extreme case of the second regime: the loss is a <strong>scalar</strong> (<span class="math inline">\(m = 1\)</span>), and the parameters are <strong>millions</strong> (<span class="math inline">\(n \gg 1\)</span>). A single backward pass returns every parameter gradient. Forward mode would need millions of passes for the same result.</p>
-<p>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="citation" data-cites="rumelhart1986">(<a href="#ref-rumelhart1986" role="doc-biblioref">1</a>)</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa’s 1970 master’s thesis <span class="citation" data-cites="linnainmaa1970">(<a href="#ref-linnainmaa1970" role="doc-biblioref">2</a>)</span>, and Speelpenning’s 1980 PhD thesis showed it applied to arbitrary programs <span class="citation" data-cites="speelpenning1980">(<a href="#ref-speelpenning1980" role="doc-biblioref">3</a>)</span>.</p>
+<p>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="citation" data-cites="rumelhart1986">(<a href="#ref-rumelhart1986" role="doc-biblioref">1</a>)</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa’s 1970 master’s thesis and later also reported in the article <span class="citation" data-cites="linnainmaa1976">(<a href="#ref-linnainmaa1976" role="doc-biblioref">2</a>)</span>, and Speelpenning’s 1980 PhD thesis showed it applied to arbitrary programs <span class="citation" data-cites="speelpenning1980">(<a href="#ref-speelpenning1980" role="doc-biblioref">3</a>)</span>.</p>
 <p>For PINNs, the story has a wrinkle: the <em>physics</em> loss itself contains derivatives of the network. We therefore need to differentiate a function that already contains differentiation — higher-order AD. We come back to this in Section 8.</p>
 <hr>
 </section>
@@ -986,7 +986,7 @@ Dual(11.6521, ε·1.7163)</code></pre>
 <section id="higher-order-derivatives" class="level1" data-number="8">
 <h1 data-number="8"><span class="header-section-number">8</span> Higher-order derivatives</h1>
 <p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">4</a>)</span> — we apply AD to the output of AD. In PyTorch:</p>
-<div id="16cc0cdd" class="cell" data-execution_count="4">
+<div id="aee3946c" class="cell" data-execution_count="4">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
@@ -1058,8 +1058,8 @@ d²y/dx²  = 0.1750</code></pre>
 <div id="ref-rumelhart1986" class="csl-entry" role="listitem">
 <div class="csl-left-margin">1. </div><div class="csl-right-inline">Rumelhart DE, Hinton GE, Williams RJ. Learning representations by back-propagating errors. Nature. 1986;323:533–6. doi:<a href="https://doi.org/10.1038/323533a0">10.1038/323533a0</a></div>
 </div>
-<div id="ref-linnainmaa1970" class="csl-entry" role="listitem">
-<div class="csl-left-margin">2. </div><div class="csl-right-inline">Linnainmaa S. The representation of the cumulative rounding error of an algorithm as a <span>Taylor</span> expansion of the local rounding errors [Master’s thesis]. University of Helsinki; 1970.</div>
+<div id="ref-linnainmaa1976" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Linnainmaa S. Taylor expansion of the accumulated rounding error. BIT Numerical Mathematics. 1976 Jun;16(2):146–60. doi:<a href="https://doi.org/10.1007/BF01931367">10.1007/BF01931367</a></div>
 </div>
 <div id="ref-speelpenning1980" class="csl-entry" role="listitem">
 <div class="csl-left-margin">3. </div><div class="csl-right-inline">Speelpenning B. Compiling fast partial derivatives of functions given by algorithms [PhD thesis]. University of Illinois at Urbana-Champaign; 1980.</div>
@@ -1951,7 +1951,7 @@ d²y/dx²  = 0.1750</code></pre>
 <span id="cb12-410"><a href="#cb12-410" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-411"><a href="#cb12-411" aria-hidden="true" tabindex="-1"></a>Deep learning is the extreme case of the second regime: the loss is a **scalar** ($m = 1$), and the parameters are **millions** ($n \gg 1$). A single backward pass returns every parameter gradient. Forward mode would need millions of passes for the same result.</span>
 <span id="cb12-412"><a href="#cb12-412" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-413"><a href="#cb12-413" aria-hidden="true" tabindex="-1"></a>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="co">[</span><span class="ot">@rumelhart1986</span><span class="co">]</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa's 1970 master's thesis <span class="co">[</span><span class="ot">@linnainmaa1970</span><span class="co">]</span>, and Speelpenning's 1980 PhD thesis showed it applied to arbitrary programs <span class="co">[</span><span class="ot">@speelpenning1980</span><span class="co">]</span>.</span>
+<span id="cb12-413"><a href="#cb12-413" aria-hidden="true" tabindex="-1"></a>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="co">[</span><span class="ot">@rumelhart1986</span><span class="co">]</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa's 1970 master's thesis and later also reported in the article <span class="co">[</span><span class="ot">@linnainmaa1976</span><span class="co">]</span>, and Speelpenning's 1980 PhD thesis showed it applied to arbitrary programs <span class="co">[</span><span class="ot">@speelpenning1980</span><span class="co">]</span>.</span>
 <span id="cb12-414"><a href="#cb12-414" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-415"><a href="#cb12-415" aria-hidden="true" tabindex="-1"></a>For PINNs, the story has a wrinkle: the *physics* loss itself contains derivatives of the network. We therefore need to differentiate a function that already contains differentiation — higher-order AD. We come back to this in Section 8.</span>
 <span id="cb12-416"><a href="#cb12-416" aria-hidden="true" tabindex="-1"></a></span>
