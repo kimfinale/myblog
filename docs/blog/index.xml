@@ -10,7 +10,1620 @@
 <atom:link href="https://www.jonghoonk.com/blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Disease modeling for public health</description>
 <generator>quarto-1.9.36</generator>
-<lastBuildDate>Mon, 13 Apr 2026 15:00:00 GMT</lastBuildDate>
+<lastBuildDate>Sun, 19 Apr 2026 15:00:00 GMT</lastBuildDate>
+<item>
+  <title>Understanding Automatic Differentiation</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/autodiff/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>In my <a href="https://www.jonghoonk.com/blog/posts/pinn_sir/">previous post on Physics-Informed Neural Networks</a>, the SIR residual was computed with a single line:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1">dS <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>ones, create_graph<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span></code></pre></div></div>
+<p>That line hides one of the most beautiful ideas in scientific computing. It is not a finite difference, it is not symbolic differentiation, and it is not an approximation. It is <strong>automatic differentiation</strong> (AD), and it computes <img src="https://latex.codecogs.com/png.latex?dS/dt"> to machine precision for arbitrary networks in roughly the same time it takes to evaluate the network itself.</p>
+<p>This post takes AD apart. By the end we will have implemented two small but working autodiff engines — one in forward mode, one in reverse mode — and we will understand exactly what PyTorch is doing when we call <code>.backward()</code> or <code>torch.autograd.grad(...)</code>.</p>
+<hr>
+<section id="why-automatic-differentiation-matters" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Why automatic differentiation matters</h1>
+<p>Modern deep learning is gradient descent on composed functions. Two places where derivatives show up in a typical PINN pipeline:</p>
+<p><strong>Parameter gradients for training.</strong> If <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D(%5Ctheta)"> is the loss and <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> contains millions of network weights, we need <img src="https://latex.codecogs.com/png.latex?%5Cnabla_%5Ctheta%20%5Cmathcal%7BL%7D"> to update the weights with Adam or SGD.</p>
+<p><strong>Derivatives inside the loss itself.</strong> For a PINN solving the SIR ODE, the physics loss involves <img src="https://latex.codecogs.com/png.latex?dS/dt,%20dI/dt,%20dR/dt"> — derivatives of the <em>network output</em> with respect to the <em>network input</em>. These are computed through the same AD machinery.</p>
+<p>Both cases reduce to one question: given a program that computes a numerical function, can we obtain its derivatives automatically, exactly, and efficiently? The answer is yes, and the mechanism is AD.</p>
+<hr>
+</section>
+<section id="three-ways-to-differentiate" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Three ways to differentiate</h1>
+<p>Before explaining AD, it helps to be precise about what it is <em>not</em>. Suppose we have</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Af(x_1,%20x_2)%20=%20%5Cln(x_1)%20+%20x_1%20x_2%20-%20%5Csin(x_2).%0A"></p>
+<p>There are three ways a computer might compute <img src="https://latex.codecogs.com/png.latex?%5Cpartial%20f%20/%20%5Cpartial%20x_1"> at, say, <img src="https://latex.codecogs.com/png.latex?x_1%20=%202,%20x_2%20=%205">.</p>
+<section id="symbolic-differentiation" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="symbolic-differentiation"><span class="header-section-number">2.1</span> Symbolic differentiation</h2>
+<p>Apply differentiation rules to the expression itself:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20x_1%7D%20=%20%5Cfrac%7B1%7D%7Bx_1%7D%20+%20x_2.%0A"></p>
+<p>This is what Mathematica and SymPy do. It returns a <em>formula</em> that we then evaluate. The problem is <strong>expression swell</strong>: repeated application of the product and chain rules on deep compositions produces expressions that grow exponentially. Symbolic differentiation of a neural network with a million parameters is not feasible.</p>
+</section>
+<section id="numerical-differentiation" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="numerical-differentiation"><span class="header-section-number">2.2</span> Numerical differentiation</h2>
+<p>Use a finite-difference approximation:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20x_1%7D(x_1,%20x_2)%20%5Capprox%20%5Cfrac%7Bf(x_1%20+%20h,%20x_2)%20-%20f(x_1,%20x_2)%7D%7Bh%7D%0A"></p>
+<p>for small <img src="https://latex.codecogs.com/png.latex?h">. This is easy to implement but suffers from a fundamental tension between two errors:</p>
+<ul>
+<li><strong>Truncation error</strong> <img src="https://latex.codecogs.com/png.latex?%5Csim%20O(h)"> (or <img src="https://latex.codecogs.com/png.latex?O(h%5E2)"> for centred differences): shrinks as <img src="https://latex.codecogs.com/png.latex?h%20%5Cto%200">.</li>
+<li><strong>Round-off error</strong> <img src="https://latex.codecogs.com/png.latex?%5Csim%20O(%5Cepsilon_%7B%5Ctext%7Bmach%7D%7D/h)">: grows as <img src="https://latex.codecogs.com/png.latex?h%20%5Cto%200">, because we subtract two nearly equal numbers in floating point.</li>
+</ul>
+<p>Minimising the sum gives an optimal <img src="https://latex.codecogs.com/png.latex?h%20%5Capprox%20%5Csqrt%7B%5Cepsilon_%7B%5Ctext%7Bmach%7D%7D%7D%20%5Capprox%2010%5E%7B-8%7D"> in double precision, and even then we only recover about half the digits. The U-shaped error curve is unavoidable:</p>
+<div id="103c29a2" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> np</span>
+<span id="cb2-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> matplotlib.pyplot <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> plt</span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> f(x):        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.log(x) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> np.sin(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.0</span>)</span>
+<span id="cb2-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> f_prime(x):  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>                <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># analytic</span></span>
+<span id="cb2-6"></span>
+<span id="cb2-7">x0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.0</span></span>
+<span id="cb2-8">hs <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.logspace(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>)</span>
+<span id="cb2-9">fd <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (f(x0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> hs) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> f(x0)) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> hs</span>
+<span id="cb2-10">err <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">abs</span>(fd <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> f_prime(x0))</span>
+<span id="cb2-11"></span>
+<span id="cb2-12">fig, ax <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>))</span>
+<span id="cb2-13">ax.loglog(hs, err, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.6</span>, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#9C27B0"</span>)</span>
+<span id="cb2-14">ax.axvline(np.sqrt(np.finfo(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>).eps), color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"black"</span>, ls<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"--"</span>, lw<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb2-15">           label<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="vs" style="color: #20794D;
+background-color: null;
+font-style: inherit;">r"</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">$</span><span class="vs" style="color: #20794D;
+background-color: null;
+font-style: inherit;">h = </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\s</span><span class="vs" style="color: #20794D;
+background-color: null;
+font-style: inherit;">qrt{</span><span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span><span class="vs" style="color: #20794D;
+background-color: null;
+font-style: inherit;">epsilon_{</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\m</span><span class="vs" style="color: #20794D;
+background-color: null;
+font-style: inherit;">athrm{mach}}}</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">$</span><span class="vs" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb2-16">ax.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span>(xlabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"step size $h$"</span>, ylabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"|numerical − true|"</span>,</span>
+<span id="cb2-17">       title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Finite differences: error vs step size"</span>)</span>
+<span id="cb2-18">ax.legend()</span>
+<span id="cb2-19">plt.tight_layout()</span>
+<span id="cb2-20">plt.show()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/autodiff/index_files/figure-html/cell-2-output-1.png" width="470" height="274" class="figure-img"></p>
+<figcaption>Total error of a forward finite difference versus step size, showing the classic U-curve.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Worse, computing the gradient of a function with <img src="https://latex.codecogs.com/png.latex?n"> inputs by finite differences requires <img src="https://latex.codecogs.com/png.latex?n+1"> function evaluations. For a network with a million parameters, that is a million forward passes per gradient step. Completely impractical.</p>
+</section>
+<section id="automatic-differentiation" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="automatic-differentiation"><span class="header-section-number">2.3</span> Automatic differentiation</h2>
+<p>AD sits between these two extremes. Like symbolic differentiation, it uses the chain rule exactly, so there is no truncation error. Unlike symbolic differentiation, it does not build a closed-form expression — it propagates <em>numerical derivative values</em> alongside the primal computation. The result: exact derivatives (to machine precision), at a cost comparable to a single function evaluation.</p>
+<p>The trick is that every program — no matter how complex — is ultimately a composition of a small number of elementary operations (<img src="https://latex.codecogs.com/png.latex?+,%20%5Ctimes,%20%5Csin,%20%5Cexp,%20%5Clog,%20%5Cldots">) whose derivatives we know by hand. AD applies the chain rule across this composition, one operation at a time.</p>
+<hr>
+</section>
+</section>
+<section id="the-computational-graph" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> The computational graph</h1>
+<p>The program for <img src="https://latex.codecogs.com/png.latex?f(x_1,%20x_2)%20=%20%5Cln(x_1)%20+%20x_1%20x_2%20-%20%5Csin(x_2)"> can be written as a sequence of elementary operations:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Baligned%7D%0Av_1%20&amp;=%20x_1%20%5C%5C%0Av_2%20&amp;=%20x_2%20%5C%5C%0Av_3%20&amp;=%20%5Cln(v_1)%20%5C%5C%0Av_4%20&amp;=%20v_1%20%5Ccdot%20v_2%20%5C%5C%0Av_5%20&amp;=%20%5Csin(v_2)%20%5C%5C%0Av_6%20&amp;=%20v_3%20+%20v_4%20%5C%5C%0Av_7%20&amp;=%20v_6%20-%20v_5%20%5C%5C%0Af%20%20%20&amp;=%20v_7%0A%5Cend%7Baligned%7D%0A"></p>
+<p>This is called a <strong>Wengert list</strong> or <strong>trace</strong>. We can draw it as a directed acyclic graph where edges indicate data flow:</p>
+<div class="cell" data-layout-align="default">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb3-1">flowchart LR</span>
+<span id="cb3-2">    x1((x₁)) --&gt; v3["v₃ = ln(v₁)"]</span>
+<span id="cb3-3">    x1 --&gt; v4["v₄ = v₁·v₂"]</span>
+<span id="cb3-4">    x2((x₂)) --&gt; v4</span>
+<span id="cb3-5">    x2 --&gt; v5["v₅ = sin(v₂)"]</span>
+<span id="cb3-6">    v3 --&gt; v6["v₆ = v₃ + v₄"]</span>
+<span id="cb3-7">    v4 --&gt; v6</span>
+<span id="cb3-8">    v6 --&gt; v7["v₇ = v₆ - v₅"]</span>
+<span id="cb3-9">    v5 --&gt; v7</span>
+<span id="cb3-10">    v7 --&gt; f((f))</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+    x1((x₁)) --&gt; v3["v₃ = ln(v₁)"]
+    x1 --&gt; v4["v₄ = v₁·v₂"]
+    x2((x₂)) --&gt; v4
+    x2 --&gt; v5["v₅ = sin(v₂)"]
+    v3 --&gt; v6["v₆ = v₃ + v₄"]
+    v4 --&gt; v6
+    v6 --&gt; v7["v₇ = v₆ - v₅"]
+    v5 --&gt; v7
+    v7 --&gt; f((f))
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Every node corresponds to an elementary operation whose local derivative we know analytically. The chain rule tells us how to combine these local derivatives into the global derivative <img src="https://latex.codecogs.com/png.latex?%5Cpartial%20f%20/%20%5Cpartial%20x_i">. <strong>This is the whole story.</strong> What differs between <em>forward</em> and <em>reverse</em> mode AD is the order in which we traverse this graph.</p>
+<hr>
+</section>
+<section id="forward-mode-dual-numbers" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Forward mode: dual numbers</h1>
+<section id="intuition" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="intuition"><span class="header-section-number">4.1</span> Intuition</h2>
+<p>In forward mode, we propagate derivatives <strong>alongside</strong> values, in the same order as the original computation. At each node we carry a pair: the value <img src="https://latex.codecogs.com/png.latex?v_i"> (called the <em>primal</em>) and the derivative <img src="https://latex.codecogs.com/png.latex?%5Cdot%20v_i%20=%20%5Cpartial%20v_i%20/%20%5Cpartial%20x_1"> with respect to some chosen input (called the <em>tangent</em>).</p>
+<p>Initialise at the leaves:</p>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?v_1%20=%20x_1,%20%5Cquad%20%5Cdot%20v_1%20=%201"> (we are differentiating w.r.t. <img src="https://latex.codecogs.com/png.latex?x_1">)</li>
+<li><img src="https://latex.codecogs.com/png.latex?v_2%20=%20x_2,%20%5Cquad%20%5Cdot%20v_2%20=%200"></li>
+</ul>
+<p>Propagate forward using the chain rule at each node. For <img src="https://latex.codecogs.com/png.latex?v_4%20=%20v_1%20%5Ccdot%20v_2">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cdot%20v_4%20=%20%5Cdot%20v_1%20%5Ccdot%20v_2%20+%20v_1%20%5Ccdot%20%5Cdot%20v_2.%0A"></p>
+<p>By the time we reach the output, <img src="https://latex.codecogs.com/png.latex?%5Cdot%20f%20=%20%5Cpartial%20f%20/%20%5Cpartial%20x_1"> drops out.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th><img src="https://latex.codecogs.com/png.latex?i"></th>
+<th><img src="https://latex.codecogs.com/png.latex?v_i"></th>
+<th><img src="https://latex.codecogs.com/png.latex?%5Cdot%20v_i"> (w.r.t. <img src="https://latex.codecogs.com/png.latex?x_1">)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><img src="https://latex.codecogs.com/png.latex?x_1%20=%202"></td>
+<td><img src="https://latex.codecogs.com/png.latex?1"></td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><img src="https://latex.codecogs.com/png.latex?x_2%20=%205"></td>
+<td><img src="https://latex.codecogs.com/png.latex?0"></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><img src="https://latex.codecogs.com/png.latex?%5Cln%202%20=%200.693"></td>
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdot%20v_1%20/%20v_1%20=%200.5"></td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><img src="https://latex.codecogs.com/png.latex?2%20%5Ccdot%205%20=%2010"></td>
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdot%20v_1%20v_2%20+%20v_1%20%5Cdot%20v_2%20=%205"></td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><img src="https://latex.codecogs.com/png.latex?%5Csin%205%20=%20-0.959"></td>
+<td><img src="https://latex.codecogs.com/png.latex?%5Ccos(v_2)%5C,%5Cdot%20v_2%20=%200"></td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td><img src="https://latex.codecogs.com/png.latex?10.693"></td>
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdot%20v_3%20+%20%5Cdot%20v_4%20=%205.5"></td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td><img src="https://latex.codecogs.com/png.latex?11.652"></td>
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdot%20v_6%20-%20%5Cdot%20v_5%20=%205.5"></td>
+</tr>
+</tbody>
+</table>
+<p>So <img src="https://latex.codecogs.com/png.latex?%5Cpartial%20f%20/%20%5Cpartial%20x_1%20=%205.5">, which matches the analytic answer <img src="https://latex.codecogs.com/png.latex?1/x_1%20+%20x_2%20=%200.5%20+%205%20=%205.5">.</p>
+</section>
+<section id="dual-numbers-an-elegant-implementation" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="dual-numbers-an-elegant-implementation"><span class="header-section-number">4.2</span> Dual numbers: an elegant implementation</h2>
+<p>Forward-mode AD has a stunning algebraic reformulation. Introduce a symbol <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon"> with the rule <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon%5E2%20=%200"> (but <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon%20%5Cneq%200">). A <strong>dual number</strong> is an expression <img src="https://latex.codecogs.com/png.latex?a%20+%20b%5Cvarepsilon"> where <img src="https://latex.codecogs.com/png.latex?a"> and <img src="https://latex.codecogs.com/png.latex?b"> are real. The arithmetic rules are:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A(a%20+%20b%5Cvarepsilon)%20+%20(c%20+%20d%5Cvarepsilon)%20=%20(a+c)%20+%20(b+d)%5Cvarepsilon%0A"> <img src="https://latex.codecogs.com/png.latex?%0A(a%20+%20b%5Cvarepsilon)(c%20+%20d%5Cvarepsilon)%20=%20ac%20+%20(ad%20+%20bc)%5Cvarepsilon%20+%20bd%5C,%5Cvarepsilon%5E2%20=%20ac%20+%20(ad+bc)%5Cvarepsilon%0A"></p>
+<p>The magic: for any smooth <img src="https://latex.codecogs.com/png.latex?f">, the Taylor expansion gives</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Af(a%20+%20b%5Cvarepsilon)%20=%20f(a)%20+%20f'(a)%20%5Ccdot%20b%5Cvarepsilon%20+%20%5Ctfrac%7B1%7D%7B2%7Df''(a)%20%5Ccdot%20b%5E2%20%5Cvarepsilon%5E2%20+%20%5Ccdots%20=%20f(a)%20+%20f'(a)%20b%20%5Cvarepsilon,%0A"></p>
+<p>because every term with <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon%5E2"> or higher vanishes. So if we evaluate <img src="https://latex.codecogs.com/png.latex?f"> on the dual number <img src="https://latex.codecogs.com/png.latex?x%20+%20%5Cvarepsilon">, the primal part is <img src="https://latex.codecogs.com/png.latex?f(x)"> and the dual part is <img src="https://latex.codecogs.com/png.latex?f'(x)">. <strong>The derivative is computed as a by-product of a single function evaluation</strong>, simply by running the ordinary code on dual numbers instead of floats.</p>
+</section>
+<section id="a-working-implementation-in-40-lines" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="a-working-implementation-in-40-lines"><span class="header-section-number">4.3</span> A working implementation in ~40 lines</h2>
+<div id="fa641bcf" class="cell" data-execution_count="2">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> math</span>
+<span id="cb4-2"></span>
+<span id="cb4-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Dual:</span>
+<span id="cb4-4">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""Forward-mode AD via dual numbers: a + b·ε, ε² = 0."""</span></span>
+<span id="cb4-5"></span>
+<span id="cb4-6">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, primal, tangent<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>):</span>
+<span id="cb4-7">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.primal  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> primal</span>
+<span id="cb4-8">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.tangent <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> tangent</span>
+<span id="cb4-9"></span>
+<span id="cb4-10">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ------------------------------------------------------------------</span></span>
+<span id="cb4-11">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Elementary operator overloads</span></span>
+<span id="cb4-12">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ------------------------------------------------------------------</span></span>
+<span id="cb4-13">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__add__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other):</span>
+<span id="cb4-14">        o <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> other <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Dual) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> Dual(other)</span>
+<span id="cb4-15">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Dual(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.primal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> o.primal, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.tangent <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> o.tangent)</span>
+<span id="cb4-16"></span>
+<span id="cb4-17">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__sub__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other):</span>
+<span id="cb4-18">        o <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> other <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Dual) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> Dual(other)</span>
+<span id="cb4-19">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Dual(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.primal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> o.primal, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.tangent <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> o.tangent)</span>
+<span id="cb4-20"></span>
+<span id="cb4-21">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__mul__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other):</span>
+<span id="cb4-22">        o <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> other <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Dual) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> Dual(other)</span>
+<span id="cb4-23">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Dual(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.primal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> o.primal,</span>
+<span id="cb4-24">                    <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.primal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> o.tangent <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.tangent <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> o.primal)</span>
+<span id="cb4-25"></span>
+<span id="cb4-26">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__truediv__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other):</span>
+<span id="cb4-27">        o <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> other <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Dual) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> Dual(other)</span>
+<span id="cb4-28">        p <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.primal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> o.primal</span>
+<span id="cb4-29">        t <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.tangent <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> o.primal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.primal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> o.tangent) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> o.primal<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb4-30">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Dual(p, t)</span>
+<span id="cb4-31"></span>
+<span id="cb4-32">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__radd__</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__rsub__</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__rmul__</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__add__</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__sub__</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__mul__</span></span>
+<span id="cb4-33"></span>
+<span id="cb4-34">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__repr__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>):</span>
+<span id="cb4-35">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"Dual(</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>primal<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">, ε·</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>tangent<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)"</span></span>
+<span id="cb4-36"></span>
+<span id="cb4-37"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> sin(x):  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Dual(math.sin(x.primal),  math.cos(x.primal) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x.tangent)</span>
+<span id="cb4-38"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> cos(x):  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Dual(math.cos(x.primal), <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>math.sin(x.primal) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x.tangent)</span>
+<span id="cb4-39"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> exp(x):  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Dual(math.exp(x.primal),  math.exp(x.primal) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x.tangent)</span>
+<span id="cb4-40"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> log(x):  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Dual(math.log(x.primal),  x.tangent <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> x.primal)</span>
+<span id="cb4-41"></span>
+<span id="cb4-42"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ------------------------------------------------------------------</span></span>
+<span id="cb4-43"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Differentiate f(x1, x2) = ln(x1) + x1*x2 - sin(x2) at (2, 5)</span></span>
+<span id="cb4-44"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ------------------------------------------------------------------</span></span>
+<span id="cb4-45"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> f(x1, x2):</span>
+<span id="cb4-46">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> log(x1) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> x1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> sin(x2)</span>
+<span id="cb4-47"></span>
+<span id="cb4-48"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Seed tangent on x1 to get ∂f/∂x1</span></span>
+<span id="cb4-49">x1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Dual(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb4-50">x2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Dual(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>)</span>
+<span id="cb4-51"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(f(x1, x2))   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># primal = f(2,5), tangent = ∂f/∂x1</span></span>
+<span id="cb4-52"></span>
+<span id="cb4-53"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Seed tangent on x2 to get ∂f/∂x2</span></span>
+<span id="cb4-54">x1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Dual(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>)</span>
+<span id="cb4-55">x2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Dual(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb4-56"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(f(x1, x2))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Dual(11.6521, ε·5.5000)
+Dual(11.6521, ε·1.7163)</code></pre>
+</div>
+</div>
+<p>That is a complete, working autodiff system in about 40 lines. The mathematical content is identical to what PyTorch does in forward mode. The only thing missing is generalisation from scalars to tensors.</p>
+</section>
+<section id="when-forward-mode-is-efficient" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="when-forward-mode-is-efficient"><span class="header-section-number">4.4</span> When forward mode is efficient</h2>
+<p>Each forward pass seeds exactly one input. To get the full gradient of <img src="https://latex.codecogs.com/png.latex?f:%20%5Cmathbb%7BR%7D%5En%20%5Cto%20%5Cmathbb%7BR%7D">, we must run the computation <img src="https://latex.codecogs.com/png.latex?n"> times, once per input. Cost: <img src="https://latex.codecogs.com/png.latex?O(n)%20%5Ctimes"> cost of evaluating <img src="https://latex.codecogs.com/png.latex?f">.</p>
+<p>For a neural network with <img src="https://latex.codecogs.com/png.latex?n%20=%2010%5E6"> parameters and a scalar loss, that is a million forward passes per gradient step — exactly the same problem finite differences had.</p>
+<p>Forward mode is efficient in a different regime: <strong>few inputs, many outputs</strong>. Computing a Jacobian <img src="https://latex.codecogs.com/png.latex?J%20%5Cin%20%5Cmathbb%7BR%7D%5E%7Bm%20%5Ctimes%20n%7D"> column by column costs <img src="https://latex.codecogs.com/png.latex?O(n)">, but row by row costs <img src="https://latex.codecogs.com/png.latex?O(m)">. For deep learning, we want rows.</p>
+<hr>
+</section>
+</section>
+<section id="reverse-mode-backpropagation" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Reverse mode: backpropagation</h1>
+<section id="intuition-1" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="intuition-1"><span class="header-section-number">5.1</span> Intuition</h2>
+<p>Reverse mode inverts the traversal. Instead of propagating <img src="https://latex.codecogs.com/png.latex?%5Cpartial%20v_i%20/%20%5Cpartial%20x_j"> forward from each input, we propagate <img src="https://latex.codecogs.com/png.latex?%5Cpartial%20f%20/%20%5Cpartial%20v_i"> <strong>backward</strong> from the output. This quantity is called the <strong>adjoint</strong> or <strong>cotangent</strong> of <img src="https://latex.codecogs.com/png.latex?v_i"> and is often written <img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_i">.</p>
+<p>The chain rule, read backward: if <img src="https://latex.codecogs.com/png.latex?v_j"> depends on <img src="https://latex.codecogs.com/png.latex?v_i"> through the operation <img src="https://latex.codecogs.com/png.latex?v_j%20=%20%5Cphi(v_i,%20%5Cldots)">, then <img src="https://latex.codecogs.com/png.latex?v_i"> contributes to <img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_j"> through <img src="https://latex.codecogs.com/png.latex?%5Cpartial%20v_j%20/%20%5Cpartial%20v_i">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbar%20v_i%20%5C;=%5C;%20%5Csum_%7Bj%20%5C,:%5C,%20v_j%20%5Ctext%7B%20uses%20%7D%20v_i%7D%20%5Cbar%20v_j%20%5Ccdot%20%5Cfrac%7B%5Cpartial%20v_j%7D%7B%5Cpartial%20v_i%7D.%0A"></p>
+<p>Starting from <img src="https://latex.codecogs.com/png.latex?%5Cbar%20f%20=%201"> and walking the graph backward, we accumulate <img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_i"> at each node. When we reach a leaf <img src="https://latex.codecogs.com/png.latex?x_k">, its adjoint is <img src="https://latex.codecogs.com/png.latex?%5Cbar%20x_k%20=%20%5Cpartial%20f%20/%20%5Cpartial%20x_k"> — exactly the gradient we wanted.</p>
+<p>The algorithm is two passes:</p>
+<ol type="1">
+<li><strong>Forward pass</strong>: evaluate the program, recording each operation and its inputs onto a <em>tape</em>.</li>
+<li><strong>Backward pass</strong>: walk the tape in reverse, accumulating adjoints.</li>
+</ol>
+</section>
+<section id="worked-example-on-fx_1-x_2-lnx_1-x_1-x_2---sinx_2" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="worked-example-on-fx_1-x_2-lnx_1-x_1-x_2---sinx_2"><span class="header-section-number">5.2</span> Worked example on <img src="https://latex.codecogs.com/png.latex?f(x_1,%20x_2)%20=%20%5Cln(x_1)%20+%20x_1%20x_2%20-%20%5Csin(x_2)"></h2>
+<p>Forward pass at <img src="https://latex.codecogs.com/png.latex?(x_1,%20x_2)%20=%20(2,%205)"> produces <img src="https://latex.codecogs.com/png.latex?v_3%20=%200.693,%20v_4%20=%2010,%20v_5%20=%20-0.959,%20v_6%20=%2010.693,%20v_7%20=%2011.652">, and we record each operation’s local derivatives.</p>
+<p>Backward pass, starting with <img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_7%20=%201">:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 59%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Step</th>
+<th>Update</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_7%20=%201"></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_6%20=%20%5Cbar%20v_7%20%5Ccdot%20%5Cpartial%20v_7%20/%20%5Cpartial%20v_6%20=%201%20%5Ccdot%201"></td>
+<td><img src="https://latex.codecogs.com/png.latex?1"></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_5%20=%20%5Cbar%20v_7%20%5Ccdot%20%5Cpartial%20v_7%20/%20%5Cpartial%20v_5%20=%201%20%5Ccdot%20(-1)"></td>
+<td><img src="https://latex.codecogs.com/png.latex?-1"></td>
+<td></td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_4%20=%20%5Cbar%20v_6%20%5Ccdot%20%5Cpartial%20v_6%20/%20%5Cpartial%20v_4%20=%201%20%5Ccdot%201"></td>
+<td><img src="https://latex.codecogs.com/png.latex?1"></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_3%20=%20%5Cbar%20v_6%20%5Ccdot%20%5Cpartial%20v_6%20/%20%5Cpartial%20v_3%20=%201%20%5Ccdot%201"></td>
+<td><img src="https://latex.codecogs.com/png.latex?1"></td>
+<td></td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_2%20%5Cmathrel%7B+%7D=%20%5Cbar%20v_4%20%5Ccdot%20v_1%20=%201%20%5Ccdot%202"></td>
+<td><img src="https://latex.codecogs.com/png.latex?2"></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_2%20%5Cmathrel%7B+%7D=%20%5Cbar%20v_5%20%5Ccdot%20%5Ccos(v_2)%20=%20-1%20%5Ccdot%20%5Ccos%205"></td>
+<td><img src="https://latex.codecogs.com/png.latex?2%20-%20%5Ccos%205%20%5Capprox%201.716"></td>
+<td></td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_1%20%5Cmathrel%7B+%7D=%20%5Cbar%20v_4%20%5Ccdot%20v_2%20=%201%20%5Ccdot%205"></td>
+<td><img src="https://latex.codecogs.com/png.latex?5"></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cbar%20v_1%20%5Cmathrel%7B+%7D=%20%5Cbar%20v_3%20%5Ccdot%20(1/v_1)%20=%201%20%5Ccdot%200.5"></td>
+<td><img src="https://latex.codecogs.com/png.latex?5.5"></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Final adjoints: <img src="https://latex.codecogs.com/png.latex?%5Cpartial%20f/%5Cpartial%20x_1%20=%20%5Cbar%20v_1%20=%205.5"> and <img src="https://latex.codecogs.com/png.latex?%5Cpartial%20f/%5Cpartial%20x_2%20=%20%5Cbar%20v_2%20%5Capprox%201.716">. One forward pass, one backward pass, both gradients.</p>
+<p>Note that <img src="https://latex.codecogs.com/png.latex?v_2"> feeds into <em>two</em> nodes (<img src="https://latex.codecogs.com/png.latex?v_4"> and <img src="https://latex.codecogs.com/png.latex?v_5">), so its adjoint receives contributions from both — this is why reverse mode needs to accumulate with <code>+=</code>.</p>
+</section>
+<section id="a-working-implementation-in-70-lines" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="a-working-implementation-in-70-lines"><span class="header-section-number">5.3</span> A working implementation in ~70 lines</h2>
+<div id="2c113a0f" class="cell" data-execution_count="3">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Var:</span>
+<span id="cb6-2">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""Reverse-mode AD: builds a tape during the forward pass, walks it backward."""</span></span>
+<span id="cb6-3"></span>
+<span id="cb6-4">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, value, parents<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>()):</span>
+<span id="cb6-5">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> value</span>
+<span id="cb6-6">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.parents <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> parents   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># list of (parent_var, local_derivative)</span></span>
+<span id="cb6-7">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.grad    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span></span>
+<span id="cb6-8"></span>
+<span id="cb6-9">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ------------------------------------------------------------------</span></span>
+<span id="cb6-10">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Elementary operator overloads — each records its local derivatives</span></span>
+<span id="cb6-11">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ------------------------------------------------------------------</span></span>
+<span id="cb6-12">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__add__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other):</span>
+<span id="cb6-13">        o <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> other <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Var) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> Var(other)</span>
+<span id="cb6-14">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Var(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> o.value, [(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>), (o, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)])</span>
+<span id="cb6-15"></span>
+<span id="cb6-16">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__sub__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other):</span>
+<span id="cb6-17">        o <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> other <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Var) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> Var(other)</span>
+<span id="cb6-18">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Var(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> o.value, [(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>), (o, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)])</span>
+<span id="cb6-19"></span>
+<span id="cb6-20">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__mul__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other):</span>
+<span id="cb6-21">        o <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> other <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Var) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> Var(other)</span>
+<span id="cb6-22">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Var(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> o.value, [(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, o.value), (o, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value)])</span>
+<span id="cb6-23"></span>
+<span id="cb6-24">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__truediv__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, other):</span>
+<span id="cb6-25">        o <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> other <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">isinstance</span>(other, Var) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> Var(other)</span>
+<span id="cb6-26">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Var(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> o.value,</span>
+<span id="cb6-27">                   [(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> o.value),</span>
+<span id="cb6-28">                    (o, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.value <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> o.value<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)])</span>
+<span id="cb6-29"></span>
+<span id="cb6-30">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__radd__</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__rsub__</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__rmul__</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__add__</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__sub__</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__mul__</span></span>
+<span id="cb6-31"></span>
+<span id="cb6-32">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> backward(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, seed<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>):</span>
+<span id="cb6-33">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""Reverse-accumulate gradients into every ancestor's .grad field."""</span></span>
+<span id="cb6-34">        topo, visited <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [], <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span>()</span>
+<span id="cb6-35">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> build(v):</span>
+<span id="cb6-36">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">id</span>(v) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> visited: <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span></span>
+<span id="cb6-37">            visited.add(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">id</span>(v))</span>
+<span id="cb6-38">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> p, _ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> v.parents:</span>
+<span id="cb6-39">                build(p)</span>
+<span id="cb6-40">            topo.append(v)</span>
+<span id="cb6-41">        build(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>)</span>
+<span id="cb6-42"></span>
+<span id="cb6-43">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.grad <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> seed</span>
+<span id="cb6-44">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> v <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">reversed</span>(topo):</span>
+<span id="cb6-45">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> parent, local <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> v.parents:</span>
+<span id="cb6-46">                parent.grad <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+=</span> v.grad <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> local</span>
+<span id="cb6-47"></span>
+<span id="cb6-48"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> sinv(x): <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Var(math.sin(x.value),  [(x,  math.cos(x.value))])</span>
+<span id="cb6-49"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> cosv(x): <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Var(math.cos(x.value),  [(x, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>math.sin(x.value))])</span>
+<span id="cb6-50"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> expv(x): <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Var(math.exp(x.value),  [(x,  math.exp(x.value))])</span>
+<span id="cb6-51"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> logv(x): <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> Var(math.log(x.value),  [(x,  <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> x.value)])</span>
+<span id="cb6-52"></span>
+<span id="cb6-53"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ------------------------------------------------------------------</span></span>
+<span id="cb6-54"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Differentiate f(x1, x2) at (2, 5) — one forward + backward pass</span></span>
+<span id="cb6-55"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ------------------------------------------------------------------</span></span>
+<span id="cb6-56">x1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Var(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.0</span>)</span>
+<span id="cb6-57">x2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Var(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.0</span>)</span>
+<span id="cb6-58">y  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> logv(x1) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> x1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> sinv(x2)</span>
+<span id="cb6-59">y.backward()</span>
+<span id="cb6-60"></span>
+<span id="cb6-61"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"f(2, 5)        = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>y<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>value<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.6f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb6-62"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"∂f/∂x1 at (2,5) = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>x1<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>grad<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.6f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># expect 5.5</span></span>
+<span id="cb6-63"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"∂f/∂x2 at (2,5) = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>x2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>grad<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.6f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># expect 1.7163...</span></span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>f(2, 5)        = 11.652071
+∂f/∂x1 at (2,5) = 5.500000
+∂f/∂x2 at (2,5) = 1.716338</code></pre>
+</div>
+</div>
+<p>This is, in essence, a miniature PyTorch. <code>Var</code> corresponds to <code>torch.Tensor</code>, the <code>parents</code> list is the computation graph (what PyTorch calls <code>grad_fn</code>), and <code>.backward()</code> is <code>.backward()</code>. The real PyTorch adds tensor operations, GPU kernels, and optimisations, but the algorithmic core is what you see here.</p>
+</section>
+<section id="when-reverse-mode-is-efficient" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="when-reverse-mode-is-efficient"><span class="header-section-number">5.4</span> When reverse mode is efficient</h2>
+<p>One backward pass from <img src="https://latex.codecogs.com/png.latex?%5Cbar%20f%20=%201"> yields the <em>entire</em> gradient <img src="https://latex.codecogs.com/png.latex?%5Cnabla%20f">. Cost: <img src="https://latex.codecogs.com/png.latex?O(1)%20%5Ctimes"> cost of evaluating <img src="https://latex.codecogs.com/png.latex?f">.</p>
+<p>More generally, for <img src="https://latex.codecogs.com/png.latex?f:%20%5Cmathbb%7BR%7D%5En%20%5Cto%20%5Cmathbb%7BR%7D%5Em">, one backward sweep costs roughly the same as one forward evaluation and produces one row of the Jacobian (a <em>vector-Jacobian product</em>, VJP). So obtaining the full Jacobian costs <img src="https://latex.codecogs.com/png.latex?O(m)">.</p>
+<hr>
+</section>
+</section>
+<section id="complexity-why-reverse-mode-dominates-deep-learning" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Complexity: why reverse mode dominates deep learning</h1>
+<p>Putting the two modes side by side:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 60%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Mode</th>
+<th>Cost of full Jacobian of <img src="https://latex.codecogs.com/png.latex?f:%20%5Cmathbb%7BR%7D%5En%20%5Cto%20%5Cmathbb%7BR%7D%5Em"></th>
+<th>Best when</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Forward</td>
+<td><img src="https://latex.codecogs.com/png.latex?O(n)%20%5Ctimes%20%5Ctext%7Bcost%7D(f)"></td>
+<td><img src="https://latex.codecogs.com/png.latex?n%20%5Cll%20m"> (few inputs)</td>
+</tr>
+<tr class="even">
+<td>Reverse</td>
+<td><img src="https://latex.codecogs.com/png.latex?O(m)%20%5Ctimes%20%5Ctext%7Bcost%7D(f)"></td>
+<td><img src="https://latex.codecogs.com/png.latex?m%20%5Cll%20n"> (few outputs)</td>
+</tr>
+</tbody>
+</table>
+<p>Deep learning is the extreme case of the second regime: the loss is a <strong>scalar</strong> (<img src="https://latex.codecogs.com/png.latex?m%20=%201">), and the parameters are <strong>millions</strong> (<img src="https://latex.codecogs.com/png.latex?n%20%5Cgg%201">). A single backward pass returns every parameter gradient. Forward mode would need millions of passes for the same result.</p>
+<p>The elegance of backpropagation — what Rumelhart, Hinton and Williams popularised in 1986 <span class="citation" data-cites="rumelhart1986">[@rumelhart1986]</span> — is that it is just reverse-mode AD applied to the loss of a neural network. The core algorithm was already in Linnainmaa’s 1970 master’s thesis <span class="citation" data-cites="linnainmaa1970">[@linnainmaa1970]</span>, and Speelpenning’s 1980 PhD thesis showed it applied to arbitrary programs <span class="citation" data-cites="speelpenning1980">[@speelpenning1980]</span>.</p>
+<p>For PINNs, the story has a wrinkle: the <em>physics</em> loss itself contains derivatives of the network. We therefore need to differentiate a function that already contains differentiation — higher-order AD. We come back to this in Section 8.</p>
+<hr>
+</section>
+<section id="revisiting-the-pinn-code" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Revisiting the PINN code</h1>
+<p>Now read the physics-loss function from my earlier PINN post with AD in mind:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> physics_loss(model, t_col_base):</span>
+<span id="cb8-2">    t <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> t_col_base.clone().requires_grad_(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># leaf in the graph</span></span>
+<span id="cb8-3">    sir <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> model(t)                                 <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># forward pass through network</span></span>
+<span id="cb8-4">    S, I, R <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> sir[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>], sir[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], sir[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]</span>
+<span id="cb8-5"></span>
+<span id="cb8-6">    ones <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.ones(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(t))</span>
+<span id="cb8-7">    dS <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(S, t, grad_outputs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>ones, create_graph<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb8-8">    dI <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(I, t, grad_outputs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>ones, create_graph<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb8-9">    dR <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(R, t, grad_outputs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>ones, create_graph<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb8-10"></span>
+<span id="cb8-11">    b, g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> model.beta_s, model.gamma_s</span>
+<span id="cb8-12">    res_S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> dS <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb8-13">    res_I <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> dI <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> b <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb8-14">    res_R <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> dR <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb8-15">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> (res_S<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> res_I<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> res_R<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>).mean()</span></code></pre></div></div>
+<p>Line by line:</p>
+<ul>
+<li><code>requires_grad_(True)</code> registers <code>t</code> as a leaf in the computational graph. PyTorch now tracks every operation that uses it.</li>
+<li><code>sir = model(t)</code> runs the forward pass. Each layer’s operations get recorded on the tape.</li>
+<li><code>torch.autograd.grad(S, t, ...)</code> runs a <em>reverse-mode backward pass from <code>S</code> to <code>t</code></em>. Because we ask for <code>grad_outputs=ones</code>, we seed the cotangent with <img src="https://latex.codecogs.com/png.latex?1"> at every element, and the result is <img src="https://latex.codecogs.com/png.latex?dS/dt"> evaluated at every collocation point — one row of the Jacobian, computed in a single sweep.</li>
+<li><code>create_graph=True</code> is the key flag. It tells PyTorch to record <em>the backward pass itself</em> onto the tape, so we can differentiate through it again when we call <code>loss.backward()</code> later. Without it, <code>dS</code> would be a plain tensor detached from the graph, and the training gradient would miss the physics contribution.</li>
+</ul>
+<p>The training loop’s <code>loss.backward()</code> is then a second reverse-mode pass — this time with respect to the network weights and the learnable <img src="https://latex.codecogs.com/png.latex?%5Cbeta,%20%5Cgamma">. We are differentiating a function whose definition contains a derivative, which is precisely what PINNs require.</p>
+<hr>
+</section>
+<section id="higher-order-derivatives" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Higher-order derivatives</h1>
+<p>For second derivatives — e.g.&nbsp;the Laplacian in the Navier–Stokes PINN of Raissi et al. <span class="citation" data-cites="raissi2019">[@raissi2019]</span> — we apply AD to the output of AD. In PyTorch:</p>
+<div id="7984be79" class="cell" data-execution_count="4">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> torch</span>
+<span id="cb9-2"></span>
+<span id="cb9-3">x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.tensor(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>, requires_grad<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb9-4">y <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.sin(x) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb9-5"></span>
+<span id="cb9-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># First derivative: dy/dx — must keep the graph alive</span></span>
+<span id="cb9-7">dy_dx <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(y, x, create_graph<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb9-8"></span>
+<span id="cb9-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Second derivative: differentiate dy_dx again</span></span>
+<span id="cb9-10">d2y_dx2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> torch.autograd.grad(dy_dx, x)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb9-11"></span>
+<span id="cb9-12"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"y        = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>y<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb9-13"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"dy/dx    = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>dy_dx<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># analytic: cos(x)·x² + 2x·sin(x)</span></span>
+<span id="cb9-14"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">print</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"d²y/dx²  = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>d2y_dx2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>item()<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:.4f}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># analytic: -sin(x)·x² + 4x·cos(x) + 2·sin(x)</span></span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>y        = 2.2444
+dy/dx    = 3.1516
+d²y/dx²  = 0.1750</code></pre>
+</div>
+</div>
+<p>Each call to <code>torch.autograd.grad</code> triggers a backward pass; <code>create_graph=True</code> ensures that pass is itself recorded, so we can differentiate it. Third, fourth, and higher derivatives work the same way. The memory cost grows linearly with derivative order, because each extra pass adds another layer of tape.</p>
+<hr>
+</section>
+<section id="practical-considerations" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Practical considerations</h1>
+<p><strong>Non-differentiable operations.</strong> Functions like <img src="https://latex.codecogs.com/png.latex?%7Cx%7C">, <img src="https://latex.codecogs.com/png.latex?%5Cmax">, and ReLU are non-differentiable at isolated points. AD frameworks adopt a <em>subgradient</em> convention: the derivative of <img src="https://latex.codecogs.com/png.latex?%5Cmax(0,%20x)"> at <img src="https://latex.codecogs.com/png.latex?x%20=%200"> is defined as <img src="https://latex.codecogs.com/png.latex?0"> (PyTorch) or <img src="https://latex.codecogs.com/png.latex?1"> (some other frameworks). In practice this is invisible — the exact point is measure-zero on a random initialisation.</p>
+<p><strong>Control flow.</strong> <code>if</code>, <code>for</code>, and <code>while</code> are fine in AD, because the tape records only the operations that actually ran on this input. Unlike symbolic differentiation, AD does not need to reason about branches it did not take. However, the derivative can be discontinuous across branches, which sometimes causes training instability.</p>
+<p><strong>In-place operations.</strong> <code>x.add_(1)</code> modifies the tensor that the backward pass was going to read, and PyTorch raises an error. Prefer <code>x = x + 1</code> unless you know what you are doing.</p>
+<p><strong>Memory.</strong> The tape stores intermediate tensors for the backward pass. For a deep network processing a large batch, this is the dominant memory cost — more than the parameters. Techniques like <em>gradient checkpointing</em> trade compute for memory by re-running parts of the forward pass during the backward rather than storing everything.</p>
+<p><strong>Stopping gradients.</strong> <code>x.detach()</code> and <code>with torch.no_grad():</code> cut the graph at that point. Useful when you want to use a tensor’s <em>value</em> as a constant, without tracking it for differentiation — e.g.&nbsp;target networks in reinforcement learning, or inputs to a critic that should not update the generator.</p>
+<p><strong>Numerical stability.</strong> AD gives exact derivatives of the <em>program as written</em>, not of the underlying math. If your forward pass has a numerically unstable formulation (say, <img src="https://latex.codecogs.com/png.latex?%5Clog(%5Ctext%7Bsoftmax%7D(x))"> computed in two steps), the gradient will also be unstable. Combined operators like <code>log_softmax</code> exist precisely because they allow a more stable backward formulation.</p>
+<hr>
+</section>
+<section id="a-brief-note-for-r-users" class="level1" data-number="10">
+<h1 data-number="10"><span class="header-section-number">10</span> A brief note for R users</h1>
+<p>Since I work mostly in R, I want to mention that the same machinery is available there. The <code>torch</code> R package <span class="citation" data-cites="torchR">[@torchR]</span> provides the same autograd API as PyTorch. The syntax transposes naturally:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(torch)</span>
+<span id="cb11-2"></span>
+<span id="cb11-3">x <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">torch_tensor</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">requires_grad =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb11-4">y <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">torch_sin</span>(x) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb11-5"></span>
+<span id="cb11-6">dy_dx   <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autograd_grad</span>(y, x, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">create_graph =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)[[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]]</span>
+<span id="cb11-7">d2y_dx2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autograd_grad</span>(dy_dx, x)[[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]]</span>
+<span id="cb11-8"></span>
+<span id="cb11-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cat</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dy/dx   = %.4f</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(dy_dx)))</span>
+<span id="cb11-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cat</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"d2y/dx2 = %.4f</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(d2y_dx2)))</span></code></pre></div></div>
+<p>For more flexibility, <code>jax</code> (via <code>reticulate</code>) and Julia’s <code>Zygote.jl</code> <span class="citation" data-cites="zygote">[@zygote]</span> are both mature reverse-mode AD systems worth exploring.</p>
+<hr>
+</section>
+<section id="summary" class="level1" data-number="11">
+<h1 data-number="11"><span class="header-section-number">11</span> Summary</h1>
+<ul>
+<li>Every differentiable program is a composition of elementary operations with known local derivatives. AD applies the chain rule across this composition.</li>
+<li><strong>Forward mode</strong> carries a derivative alongside each value (dual numbers). Cost scales with the number of <em>inputs</em>.</li>
+<li><strong>Reverse mode</strong> first records a tape, then walks it backward, accumulating adjoints. Cost scales with the number of <em>outputs</em>.</li>
+<li>For neural networks the loss is scalar and parameters are numerous: reverse mode (backpropagation) is the right choice.</li>
+<li>PINNs additionally use reverse-mode AD <em>inside</em> the loss — to obtain derivatives of the network output with respect to its input — and then reverse-mode AD <em>around</em> the loss to train. <code>create_graph=True</code> is what makes this composition possible.</li>
+<li>The implementations shown here ($$40 lines for forward mode, $$70 for reverse) are algorithmically complete. Everything PyTorch adds is about scale, hardware, and convenience, not about the underlying idea.</li>
+</ul>
+<p>Automatic differentiation is one of the few ideas where the implementation is almost as simple as the explanation. Once you have written a Wengert list on paper and walked through a backward pass by hand, <code>loss.backward()</code> stops being magic.</p>
+<hr>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs">
+<p><span class="citation" data-cites="linnainmaa1970">[@linnainmaa1970]</span> Linnainmaa S. <em>The representation of the cumulative rounding error of an algorithm as a Taylor expansion of the local rounding errors</em>. Master’s thesis, University of Helsinki, 1970.</p>
+<p><span class="citation" data-cites="speelpenning1980">[@speelpenning1980]</span> Speelpenning B. <em>Compiling fast partial derivatives of functions given by algorithms</em>. PhD thesis, University of Illinois at Urbana-Champaign, 1980.</p>
+<p><span class="citation" data-cites="rumelhart1986">[@rumelhart1986]</span> Rumelhart DE, Hinton GE, Williams RJ. Learning representations by back-propagating errors. <em>Nature</em>. 1986;323:533–536. doi:<a href="https://doi.org/10.1038/323533a0">10.1038/323533a0</a></p>
+<p><span class="citation" data-cites="griewank2008">[@griewank2008]</span> Griewank A, Walther A. <em>Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation</em>. 2nd ed.&nbsp;SIAM, 2008.</p>
+<p><span class="citation" data-cites="baydin2018">[@baydin2018]</span> Baydin AG, Pearlmutter BA, Radul AA, Siskind JM. Automatic differentiation in machine learning: a survey. <em>Journal of Machine Learning Research</em>. 2018;18(153):1–43. Available at <a href="https://www.jmlr.org/papers/v18/17-468.html">jmlr.org/papers/v18/17-468.html</a></p>
+<p><span class="citation" data-cites="raissi2019">[@raissi2019]</span> Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. <em>Journal of Computational Physics</em>. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></p>
+<p><span class="citation" data-cites="torchR">[@torchR]</span> Falbel D, Luraschi J. <em>torch: Tensors and Neural Networks with ‘GPU’ Acceleration</em>. R package. Available at <a href="https://torch.mlverse.org">torch.mlverse.org</a></p>
+<p><span class="citation" data-cites="zygote">[@zygote]</span> Innes M. Don’t Unroll Adjoint: Differentiating SSA-Form Programs. arXiv:1810.07951, 2019.</p>
+</div>
+
+
+<!-- -->
+
+</section>
+
+ ]]></description>
+  <category>automatic differentiation</category>
+  <category>deep learning</category>
+  <category>PINN</category>
+  <category>backpropagation</category>
+  <category>Python</category>
+  <guid>https://www.jonghoonk.com/blog/posts/autodiff/</guid>
+  <pubDate>Sun, 19 Apr 2026 15:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Reinforcement Learning for Epidemic Control</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
@@ -36174,1030 +37787,6 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
   <guid>https://www.jonghoonk.com/blog/posts/behavior_change/</guid>
   <pubDate>Sat, 20 Jul 2024 15:00:00 GMT</pubDate>
   <media:content url="https://www.jonghoonk.com/blog/posts/behavior_change/sample_figure.png" medium="image" type="image/png"/>
-</item>
-<item>
-  <title>Kalman filter to estimate R using the FKF package</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/kalman_filter/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p><a href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0244474">Arroyo-Marioli et al</a> used a Kalman filter approach to estimate. I tried to reproduce in R. Let’s use a SIR model as was used in my <a href="https://www.jonghoonk.com/posts/sir_deSolve_odin_diffeqr/">previous post</a> to generate growth rate time series.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(diffeqr)</span>
-<span id="cb1-2">de <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> diffeqr<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">diffeq_setup</span>()</span>
-<span id="cb1-3"></span>
-<span id="cb1-4">sir_julia <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(u, p, t){</span>
-<span id="cb1-5">  N <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sum</span>(u)</span>
-<span id="cb1-6">  R <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ifelse</span>(t <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">20</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ifelse</span>(t <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">40</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.9</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.4</span>)) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># R varies </span></span>
-<span id="cb1-7">  p[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> R <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> p[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]</span>
-<span id="cb1-8">  </span>
-<span id="cb1-9">  du1 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> p[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>u[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>u[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>N</span>
-<span id="cb1-10">  du2 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> p[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>u[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>u[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>N <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> p[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>u[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]</span>
-<span id="cb1-11">  du3 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> p[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>u[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]</span>
-<span id="cb1-12">  </span>
-<span id="cb1-13">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(du1,du2,du3))</span>
-<span id="cb1-14">}</span>
-<span id="cb1-15"></span>
-<span id="cb1-16">u0 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.99</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.01</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.0</span>)</span>
-<span id="cb1-17">tspan <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.0</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50.0</span>)</span>
-<span id="cb1-18">p <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.4</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.2</span>)</span>
-<span id="cb1-19">prob <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> de<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ODEProblem</span>(sir_julia, u0, tspan, p)</span>
-<span id="cb1-20"></span>
-<span id="cb1-21"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># prob_jit &lt;- diffeqr::jitoptimize_ode(de, prob)</span></span>
-<span id="cb1-22">sol <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> de<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">solve</span>(prob, de<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Tsit5</span>(), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">saveat=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb1-23"></span>
-<span id="cb1-24">mat <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(sol<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>u, identity)</span>
-<span id="cb1-25">udf <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.data.frame</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">t</span>(mat))</span>
-<span id="cb1-26">tudf <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cbind</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">t=</span>sol<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>t), udf)</span>
-<span id="cb1-27"></span>
-<span id="cb1-28"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(ggplot2)</span>
-<span id="cb1-29"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(tudf, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x=</span>t)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-30">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y=</span>V1, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"S"</span>)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-31">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y=</span>V2, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"I"</span>)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-32">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y=</span>V3, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"R"</span>)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-33">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scale_color_manual</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">""</span>, </span>
-<span id="cb1-34">                     <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">values=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"S"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"steelblue"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"I"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"firebrick"</span>,</span>
-<span id="cb1-35">                              <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"R"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"darkgreen"</span>))<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-36">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Number of individuals"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Time"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">""</span>)</span></code></pre></div></div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/kalman_filter/index_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>Generate daily incidence assuming 100,000 population</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">I <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100000</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (tudf<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>V3 <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.01</span>) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># true number of infected people at time t</span></span>
-<span id="cb2-2">case_daily <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rpois</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(I)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lambda=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">diff</span>(I)) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># observed number of infected people at t</span></span></code></pre></div></div>
-</div>
-<p><img src="https://latex.codecogs.com/png.latex?I_t%20=%20(1-%5Cgamma)%20I_%7Bt-1%7D%20+%20%5Ctext%7Bnew%20cases%20at%20%7Dt"> <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7BI_t-I_%7Bt-1%7D%7D%7BI_%7Bt-1%7D%7D%5Cequiv%20r_t%20=%20%5Cgamma(R_t-1)%20+%20%5Cepsilon_i"> <img src="https://latex.codecogs.com/png.latex?R_t%20=%20R_%7Bt-1%7D%20+%20%5Ceta_i"></p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">gamma <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.2</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># recovery rate, which is the same as p[2] in the ODE model</span></span>
-<span id="cb3-2">I_hat <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rep</span>(<span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NA</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(case_daily)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># true number of infected people at time t</span></span>
-<span id="cb3-3">I_hat[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> I[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># cheating, it's okay as this is the simulation check </span></span>
-<span id="cb3-4"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> (i <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(I_hat)) {</span>
-<span id="cb3-5">  I_hat[i] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>gamma)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>I_hat[i<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">-1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> case_daily[i<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">-1</span>]</span>
-<span id="cb3-6">}</span>
-<span id="cb3-7"></span>
-<span id="cb3-8">It <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> I_hat <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># observed number of infected people at t</span></span>
-<span id="cb3-9">n <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(It)</span>
-<span id="cb3-10">gr <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> (It[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>n] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> It[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>(n<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">-1</span>)]) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> It[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>(n<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">-1</span>)] <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># observed growth rate</span></span>
-<span id="cb3-11">t <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span></span>
-<span id="cb3-12">R_true <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ifelse</span>(t <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">20</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ifelse</span>(t <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">40</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.9</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.4</span>))</span>
-<span id="cb3-13">gr_true <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> gamma <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (R_true <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb3-14">R_hat <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> gr <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> gamma <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span></span>
-<span id="cb3-15"></span>
-<span id="cb3-16"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot</span>(R_hat, R_true[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(R_hat)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)], <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xlim=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>,<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylim=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>,<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>), </span>
-<span id="cb3-17">     <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xlab=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"R_hat"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylab=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"R_true"</span>)</span>
-<span id="cb3-18"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">abline</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">a=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">b=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span></code></pre></div></div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/kalman_filter/index_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>Inferring R based on the Kalman filter</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(FKF)</span>
-<span id="cb4-2">y <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> gr</span>
-<span id="cb4-3">a0 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> y[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]</span>
-<span id="cb4-4">P0 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb4-5"></span>
-<span id="cb4-6">dt <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>)</span>
-<span id="cb4-7">ct <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> gamma)  </span>
-<span id="cb4-8">Zt <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(gamma)</span>
-<span id="cb4-9">Tt <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb4-10"></span>
-<span id="cb4-11">fit.fkf <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">optim</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">HHt =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">var</span>(y, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">na.rm =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">TRUE</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> .<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>,</span>
-<span id="cb4-12">                   <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">GGt =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">var</span>(y, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">na.rm =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">TRUE</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> .<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>),</span>
-<span id="cb4-13">                 <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">fn =</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(par, ...)</span>
-<span id="cb4-14">                 <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">fkf</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">HHt =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(par[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">GGt =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(par[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]), ...)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>logLik,</span>
-<span id="cb4-15">                 <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">yt =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rbind</span>(y), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">a0 =</span> a0, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">P0 =</span> P0, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">dt =</span> dt, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ct =</span> ct,</span>
-<span id="cb4-16">                 <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Zt =</span> Zt, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Tt =</span> Tt)</span>
-<span id="cb4-17"></span>
-<span id="cb4-18"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># recover values</span></span>
-<span id="cb4-19">HHt <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(fit.fkf<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>par[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>])</span>
-<span id="cb4-20">GGt <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(fit.fkf<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>par[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>])</span>
-<span id="cb4-21">HHt; GGt</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 0.01137336</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] -1.187671e-05</code></pre>
-</div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">y_kf <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">fkf</span>(a0, P0, dt, ct, Tt, Zt,</span>
-<span id="cb7-2">             <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">HHt =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(HHt), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">GGt =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(HHt),</span>
-<span id="cb7-3">             <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">yt =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rbind</span>(y)) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Kalman filtering</span></span>
-<span id="cb7-4"></span>
-<span id="cb7-5">y_ks <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">fks</span>(y_kf) <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Kalman smoothing</span></span></code></pre></div></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">data <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">from =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">to =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">by =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>),</span>
-<span id="cb8-2">                   <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> R_true,</span>
-<span id="cb8-3">                   <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y_hat =</span> R_hat,</span>
-<span id="cb8-4">                   <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y_kf =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(y_kf<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>att),</span>
-<span id="cb8-5">                   <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y_ks =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(y_ks<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>ahatt),</span>
-<span id="cb8-6">                   <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y_ks_ub =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(y_ks<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>ahatt) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.96</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sqrt</span>(y_ks<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>Vt)),</span>
-<span id="cb8-7">                   <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y_ks_lb =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(y_ks<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>ahatt) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.96</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sqrt</span>(y_ks<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>Vt)))</span>
-<span id="cb8-8"></span>
-<span id="cb8-9"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(data, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> x)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-10">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> y_hat)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-11">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> y_kf, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Kalman filter"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-12">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> y_ks, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Kalman smooth"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-13">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> y_ks_ub, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Kalman smooth"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linetype=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Upper bound"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-14">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> y_ks_lb, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Kalman smooth"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linetype=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Lower bound"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-15">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> y, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"True"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.2</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-16">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">xlab</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"day"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ylab</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"reproduction number"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-17">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggtitle</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Reproduction number inferred with Kalman Filter"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-18">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_bw</span>()<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-19">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scale_color_manual</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">""</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">values=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"True"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"firebrick"</span>,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Kalman filter"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"steelblue"</span>,</span>
-<span id="cb8-20">                                  <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Kalman smooth"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"forestgreen"</span>))<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-21">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scale_linetype_manual</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">""</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">values=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Upper bound"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dotted"</span>,</span>
-<span id="cb8-22">                                     <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Lower bound"</span><span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dotted"</span>))</span></code></pre></div></div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/kalman_filter/index_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-
-
-
- ]]></description>
-  <category>kalman filter</category>
-  <guid>https://www.jonghoonk.com/blog/posts/kalman_filter/</guid>
-  <pubDate>Wed, 10 Jul 2024 15:00:00 GMT</pubDate>
-  <media:content url="https://www.jonghoonk.com/blog/posts/kalman_filter/kalman_filter.png" medium="image" type="image/png" height="135" width="144"/>
 </item>
 </channel>
 </rss>
