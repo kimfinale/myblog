@@ -10,7 +10,1228 @@
 <atom:link href="https://www.jonghoonk.com/blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Disease modeling for public health</description>
 <generator>quarto-1.9.36</generator>
-<lastBuildDate>Mon, 20 Apr 2026 15:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 21 Apr 2026 15:00:00 GMT</lastBuildDate>
+<item>
+  <title>Within-Host Dynamics of Vaccine-Induced Immunity</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/digital_twin_within_host/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="why-start-here" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Why start here?</h1>
+<p>The <a href="../../../blog/posts/digital_twin_clinical_trial/index.html">previous post</a> introduced digital twins for clinical trials at a high level. A vaccine digital twin is, at its core, a model that takes one patient’s characteristics as input and predicts how their immune system will respond to a given vaccine regimen. Before we can build that model, we need to understand what it needs to represent.</p>
+<p>The answer is antibody kinetics: the rise and fall of serum IgG following vaccination. Almost every vaccine endpoint — neutralisation titre, correlate of protection, waning immunity, need for boosters — is downstream of this single quantity. Mechanistic models of antibody kinetics are therefore the foundational building block for everything that follows in this series.</p>
+<p>This post derives a minimal but biologically grounded ODE model, implements it in R, and shows what it can (and cannot) capture. Posts 2 onward build directly on this foundation.</p>
+<hr>
+</section>
+<section id="the-biology-in-brief" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> The biology in brief</h1>
+<p>When a vaccine antigen enters the body, a cascade of events unfolds over days to months <span class="citation" data-cites="victora2012">(1)</span>:</p>
+<ol type="1">
+<li><strong>Innate activation.</strong> Dendritic cells at the injection site capture antigen and migrate to draining lymph nodes, presenting peptide fragments on MHC molecules.</li>
+<li><strong>B-cell activation and germinal centre reaction.</strong> Antigen-specific naive B cells recognise the antigen, receive T-cell help, and enter germinal centres — specialised microstructures in the lymph node where rapid proliferation, somatic hypermutation, and affinity maturation occur.</li>
+<li><strong>Plasma cell differentiation.</strong> Germinal-centre B cells differentiate into plasma cells — antibody factories. <em>Short-lived plasma cells</em> (SLPCs) emerge within days and produce a rapid burst of antibody before dying in 1–2 weeks. <em>Long-lived plasma cells</em> (LLPCs) migrate to bone-marrow niches and can survive for decades, secreting antibody constitutively <span class="citation" data-cites="slifka1998 amanna2007">(2,3)</span>.</li>
+<li><strong>Memory B-cell formation.</strong> A fraction of germinal-centre B cells exit as memory cells rather than plasma cells. These are quiescent but respond much faster to a second antigen encounter.</li>
+<li><strong>Antibody titre dynamics.</strong> Serum IgG rises as plasma cells secrete antibody, peaks 2–4 weeks post-vaccination, then wanes. The rate of waning reflects the ratio of SLPCs to LLPCs: SLPC-dominated responses wane quickly; LLPC-dominated responses produce persistent titres.</li>
+</ol>
+<p>A landmark study by Amanna et al. <span class="citation" data-cites="amanna2007">(3)</span> measured antibody half-lives for 10 antigens in a 26-year longitudinal cohort. Half-lives ranged from 11 years (tetanus) to 50 years (vaccinia). The extraordinary persistence seen with the best vaccines is attributed almost entirely to LLPCs settled in bone-marrow niches — a finding that changed how we think about what a good vaccine needs to do.</p>
+<hr>
+</section>
+<section id="the-ode-model" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> The ODE model</h1>
+<p>We model five compartments:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Symbol</th>
+<th>Interpretation</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?A(t)"></td>
+<td>Vaccine antigen depot</td>
+<td>a.u.</td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?S(t)"></td>
+<td>Short-lived plasma cells</td>
+<td>a.u.</td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?L(t)"></td>
+<td>Long-lived plasma cells</td>
+<td>a.u.</td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?M(t)"></td>
+<td>Memory B cells</td>
+<td>a.u.</td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Ctext%7BAb%7D(t)"></td>
+<td>Serum antibody titre</td>
+<td>a.u.</td>
+</tr>
+</tbody>
+</table>
+<p>The equations are:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdA%7D%7Bdt%7D%20=%20-%5Cdelta_A%20A%20%5Ctag%7B1%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdS%7D%7Bdt%7D%20=%20k_S%5C,%20A%5C,(1%20+%20%5Cphi_S%20M)%20-%20%5Cdelta_S%20S%20%5Ctag%7B2%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdL%7D%7Bdt%7D%20=%20k_L%5C,%20A%5C,(1%20+%20%5Cphi_L%20M)%20-%20%5Cdelta_L%20L%20%5Ctag%7B3%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdM%7D%7Bdt%7D%20=%20%5Cvarepsilon%20S%20-%20%5Cdelta_M%20M%20%5Ctag%7B4%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7Bd%5Ctext%7BAb%7D%7D%7Bdt%7D%20=%20r_S%20S%20+%20r_L%20L%20-%20%5Cdelta_%7B%5Ctext%7BAb%7D%7D%5C,%5Ctext%7BAb%7D%20%5Ctag%7B5%7D%0A"></p>
+<p><strong>Equation 1.</strong> The antigen depot decays at rate <img src="https://latex.codecogs.com/png.latex?%5Cdelta_A">. This captures both in-vivo clearance of the antigen and the finite duration over which the immune system receives stimulation.</p>
+<p><strong>Equations 2–3.</strong> Both plasma-cell populations are stimulated proportionally to antigen availability <img src="https://latex.codecogs.com/png.latex?A">. The memory-recall term <img src="https://latex.codecogs.com/png.latex?(1%20+%20%5Cphi%20M)"> is the crucial feature: on re-exposure, pre-existing memory B cells dramatically amplify plasma-cell production, with <img src="https://latex.codecogs.com/png.latex?%5Cphi_L%20%3E%20%5Cphi_S"> reflecting the observation that memory preferentially replenishes the long-lived pool during recall responses <span class="citation" data-cites="victora2012">(1)</span>.</p>
+<p><strong>Equation 4.</strong> Memory cells accumulate proportional to SLPC production (fraction <img src="https://latex.codecogs.com/png.latex?%5Cvarepsilon">) and decay very slowly (<img src="https://latex.codecogs.com/png.latex?%5Cdelta_M%20%5Cll%20%5Cdelta_S">).</p>
+<p><strong>Equation 5.</strong> Antibody is secreted by both plasma-cell populations and cleared at rate <img src="https://latex.codecogs.com/png.latex?%5Cdelta_%7B%5Ctext%7BAb%7D%7D">.</p>
+<p>This structure is motivated by early modelling work on immune memory <span class="citation" data-cites="perelson2002 antia2005">(4,5)</span> and is consistent with the two-population interpretation of biphasic antibody waning — a fast initial drop driven by SLPC loss, followed by a slow plateau maintained by LLPCs — demonstrated empirically in <span class="citation" data-cites="amanna2007">(3)</span>.</p>
+<hr>
+</section>
+<section id="implementation" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Implementation</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ODE system</span></span>
+<span id="cb1-2">withinhost_vax <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(t, state, parms) {</span>
+<span id="cb1-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">with</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.list</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(state, parms)), {</span>
+<span id="cb1-4">    dA  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>delta_A  <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> A</span>
+<span id="cb1-5">    dS  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> kS <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> A <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> phi_S <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> M) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta_S  <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S</span>
+<span id="cb1-6">    dL  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> kL <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> A <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> phi_L <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> M) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta_L  <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> L</span>
+<span id="cb1-7">    dM  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> eps <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S                   <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta_M  <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> M</span>
+<span id="cb1-8">    dAb <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> rS <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> rL <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> L           <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta_Ab <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> Ab</span>
+<span id="cb1-9">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(dA, dS, dL, dM, dAb))</span>
+<span id="cb1-10">  })</span>
+<span id="cb1-11">}</span>
+<span id="cb1-12"></span>
+<span id="cb1-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Parameter values</span></span>
+<span id="cb1-14">parms <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb1-15">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delta_A  =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.30</span>,   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># antigen half-life  ~2.3 days</span></span>
+<span id="cb1-16">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delta_S  =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>,   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># SLPC half-life     ~4.6 days</span></span>
+<span id="cb1-17">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delta_L  =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.003</span>,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># LLPC half-life     ~231 days</span></span>
+<span id="cb1-18">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delta_M  =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.004</span>,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># memory half-life   ~173 days</span></span>
+<span id="cb1-19">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delta_Ab =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.018</span>,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># antibody half-life ~39 days</span></span>
+<span id="cb1-20">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">kS       =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.0</span>,    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># SLPC stimulation rate</span></span>
+<span id="cb1-21">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">kL       =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>,    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># LLPC stimulation rate</span></span>
+<span id="cb1-22">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">rS       =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.0</span>,    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># antibody secretion: SLPC</span></span>
+<span id="cb1-23">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">rL       =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.0</span>,    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># antibody secretion: LLPC</span></span>
+<span id="cb1-24">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">eps      =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>,   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># memory generation efficiency</span></span>
+<span id="cb1-25">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">phi_S    =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.0</span>,    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># recall boost factor: SLPC</span></span>
+<span id="cb1-26">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">phi_L    =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8.0</span>     <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># recall boost factor: LLPC</span></span>
+<span id="cb1-27">)</span>
+<span id="cb1-28"></span>
+<span id="cb1-29">state0 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">A =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">S =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">L =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">M =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Ab =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb1-30">times  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">360</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>)</span></code></pre></div></div>
+</details>
+</div>
+<p>The parameters are chosen to reproduce qualitative features of mRNA vaccine immunogenicity data: a first-dose antibody peak around day 14–21, a substantially higher second-dose peak, and waning to roughly 20–30% of peak by month 6 — consistent with published BNT162b2 immunogenicity studies <span class="citation" data-cites="goel2021 khoury2021">(6,7)</span>. Units are arbitrary (a.u.); the shapes and ratios are what matter at this stage.</p>
+<hr>
+</section>
+<section id="single-dose-dynamics" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Single-dose dynamics</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">out1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.data.frame</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ode</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> state0, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">times =</span> times,</span>
+<span id="cb2-2">                           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">func =</span> withinhost_vax, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">parms =</span> parms))</span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Facet labels</span></span>
+<span id="cb2-5">var_labels <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb2-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">A   =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antigen (A)"</span>,</span>
+<span id="cb2-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">S   =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Short-lived PCs (S)"</span>,</span>
+<span id="cb2-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">L   =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Long-lived PCs (L)"</span>,</span>
+<span id="cb2-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">M   =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Memory B cells (M)"</span>,</span>
+<span id="cb2-10">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Ab  =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antibody titre (Ab)"</span></span>
+<span id="cb2-11">)</span>
+<span id="cb2-12"></span>
+<span id="cb2-13">out1_long <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> out1 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb2-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pivot_longer</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>time, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">names_to =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"var"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values_to =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"value"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb2-15">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">var =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(var, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">names</span>(var_labels),</span>
+<span id="cb2-16">                      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">labels =</span> var_labels))</span>
+<span id="cb2-17"></span>
+<span id="cb2-18">pal <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb2-19">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antigen (A)"</span>          <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#888888"</span>,</span>
+<span id="cb2-20">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Short-lived PCs (S)"</span>  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>,</span>
+<span id="cb2-21">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Long-lived PCs (L)"</span>   <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>,</span>
+<span id="cb2-22">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Memory B cells (M)"</span>   <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#4DAF4A"</span>,</span>
+<span id="cb2-23">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antibody titre (Ab)"</span>  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#984EA3"</span></span>
+<span id="cb2-24">)</span>
+<span id="cb2-25"></span>
+<span id="cb2-26"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(out1_long, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> time, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> value, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> var)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-28">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>var, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">scales =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"free_y"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ncol =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-29">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_colour_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> pal, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">guide =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"none"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-30">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Days post-vaccination"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Concentration (a.u.)"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-31">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">strip.background =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">element_blank</span>(),</span>
+<span id="cb2-32">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">strip.text =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">element_text</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">face =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bold"</span>))</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_within_host/index_files/figure-html/immune-cascade-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Immune cascade after a single vaccine dose. Antigen (A) decays within a week, driving a transient short-lived plasma cell (S) peak at day ~5. Long-lived plasma cells (L) and memory B cells (M) accumulate more slowly and persist. Antibody titre (Ab) mirrors the combined secretion from S and L, rising to a peak around day 18 before entering a slow decline sustained by L.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The cascade has a clear temporal hierarchy:</p>
+<ul>
+<li><strong>Days 1–7</strong>: Antigen drives a burst of SLPC production. Antibody begins to rise.</li>
+<li><strong>Days 7–21</strong>: SLPCs decline as antigen clears. LLPCs and memory B cells continue accumulating. Antibody peaks.</li>
+<li><strong>Days 21+</strong>: SLPC contribution to antibody fades; the titre is increasingly sustained by the small but persistent LLPC pool. Waning slows markedly once LLPCs dominate.</li>
+</ul>
+<p>This biphasic waning — a fast initial drop followed by a slow plateau — is the characteristic fingerprint of a two-population plasma cell response. Vaccines that generate large LLPC pools (live-attenuated, mRNA with strong adjuvanticity) show much slower long-term waning than those that elicit primarily SLPCs.</p>
+<hr>
+</section>
+<section id="prime-boost-dynamics" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Prime-boost dynamics</h1>
+<p>Most modern vaccines use a prime-boost schedule: a second dose is given weeks after the first, by which time memory B cells have accumulated enough to mount a dramatically amplified recall response. We model this by adding a second antigen dose (<img src="https://latex.codecogs.com/png.latex?A%20%5Cmathrel%7B+%7D=%201">) at day 21.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">dose2_event <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb3-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">var    =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"A"</span>,</span>
+<span id="cb3-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">time   =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>,</span>
+<span id="cb3-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">value  =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb3-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"add"</span></span>
+<span id="cb3-6">)</span>
+<span id="cb3-7"></span>
+<span id="cb3-8">out2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.data.frame</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ode</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> state0, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">times =</span> times,</span>
+<span id="cb3-9">                           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">func =</span> withinhost_vax, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">parms =</span> parms,</span>
+<span id="cb3-10">                           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">events =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> dose2_event)))</span>
+<span id="cb3-11"></span>
+<span id="cb3-12">df_compare <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(</span>
+<span id="cb3-13">  out1 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">schedule =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Single dose (day 0)"</span>),</span>
+<span id="cb3-14">  out2 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">schedule =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Prime-boost (day 0 + day 21)"</span>)</span>
+<span id="cb3-15">) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(time, Ab, schedule)</span>
+<span id="cb3-16"></span>
+<span id="cb3-17"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df_compare, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> time, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> Ab, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> schedule, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> schedule)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-18">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_vline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xintercept =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dotted"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey50"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-19">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-20">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_log10</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">labels =</span> scales<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">label_number</span>()) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-21">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_colour_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Single dose (day 0)"</span>          <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#888888"</span>,</span>
+<span id="cb3-22">                                  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Prime-boost (day 0 + day 21)"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_linetype_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Single dose (day 0)"</span>          <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dashed"</span>,</span>
+<span id="cb3-24">                                    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Prime-boost (day 0 + day 21)"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"solid"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-25">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Days post-first dose"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antibody titre (a.u., log scale)"</span>,</span>
+<span id="cb3-26">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_within_host/index_files/figure-html/prime-boost-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Antibody kinetics: single dose (dashed) vs.&nbsp;prime-boost at day 21 (solid). The second dose finds a primed immune system — memory B cells (M) amplify both SLPC and LLPC production, producing a peak titre ~8–10-fold higher than dose 1 and substantially slower long-term waning. The vertical dotted line marks the day-21 boost.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The memory amplification captured by the <img src="https://latex.codecogs.com/png.latex?(1%20+%20%5Cphi%20M)"> terms explains three features of prime-boost immunogenicity universally seen in clinical data <span class="citation" data-cites="goel2021">(6)</span>:</p>
+<ol type="1">
+<li>The second-dose peak is substantially higher (here ~8-fold), driven by massive SLPC expansion.</li>
+<li>The plateau after dose 2 is higher (more LLPCs generated during recall), so titres remain above the single-dose level even at 12 months.</li>
+<li>The response is faster — the antibody rises within days of the boost, not weeks, because memory cells differentiate into plasma cells without needing to transit through a full germinal-centre reaction.</li>
+</ol>
+<hr>
+</section>
+<section id="what-controls-waning" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> What controls waning?</h1>
+<p>Two parameters dominate long-term antibody decay: <img src="https://latex.codecogs.com/png.latex?%5Cdelta_L"> (LLPC clearance) and <img src="https://latex.codecogs.com/png.latex?k_L%20/%20k_S"> (how much of the stimulatory signal goes to the long-lived vs short-lived pool). The figure below sweeps <img src="https://latex.codecogs.com/png.latex?%5Cdelta_L"> across a range that spans what has been measured in humans — from fast-waning responses (e.g., SARS-CoV-2 in naive individuals) to long-lived ones (e.g., measles, yellow fever) <span class="citation" data-cites="amanna2007">(3)</span>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">delta_L_vals <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.020</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.008</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.003</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.001</span>)</span>
+<span id="cb4-2">llpc_labels  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb4-3">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"0.020"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LLPC t½ = 35 d"</span>,</span>
+<span id="cb4-4">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"0.008"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LLPC t½ = 87 d"</span>,</span>
+<span id="cb4-5">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"0.003"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LLPC t½ = 231 d"</span>,</span>
+<span id="cb4-6">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"0.001"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LLPC t½ = 693 d"</span></span>
+<span id="cb4-7">)</span>
+<span id="cb4-8">pal_waning <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb4-9">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LLPC t½ = 35 d"</span>  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#D7191C"</span>,</span>
+<span id="cb4-10">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LLPC t½ = 87 d"</span>  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#FDAE61"</span>,</span>
+<span id="cb4-11">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LLPC t½ = 231 d"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>,</span>
+<span id="cb4-12">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LLPC t½ = 693 d"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#1A9641"</span></span>
+<span id="cb4-13">)</span>
+<span id="cb4-14"></span>
+<span id="cb4-15">res_list <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(delta_L_vals, <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(dL) {</span>
+<span id="cb4-16">  p2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> parms; p2[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"delta_L"</span>] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> dL</span>
+<span id="cb4-17">  out <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.data.frame</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ode</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> state0, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">times =</span> times,</span>
+<span id="cb4-18">                            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">func =</span> withinhost_vax, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">parms =</span> p2,</span>
+<span id="cb4-19">                            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">events =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> dose2_event)))</span>
+<span id="cb4-20">  out<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>delta_L_label <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> llpc_labels[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.character</span>(dL)]</span>
+<span id="cb4-21">  out</span>
+<span id="cb4-22">})</span>
+<span id="cb4-23"></span>
+<span id="cb4-24">df_wane <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(res_list) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb4-25">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delta_L_label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(delta_L_label, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> llpc_labels))</span>
+<span id="cb4-26"></span>
+<span id="cb4-27"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df_wane, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> time, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> Ab, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> delta_L_label)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-28">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"rect"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xmin =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xmax =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">360</span>,</span>
+<span id="cb4-29">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymin =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymax =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey50"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-30">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">350</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">38</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"threshold"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>,</span>
+<span id="cb4-31">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey40"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-32">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.85</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-33">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_log10</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-34">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_colour_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> pal_waning) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-35">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Days post-first dose"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antibody titre (a.u., log scale)"</span>,</span>
+<span id="cb4-36">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-37">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_within_host/index_files/figure-html/waning-sensitivity-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Sensitivity of long-term antibody waning to LLPC clearance rate δ_L (prime-boost schedule). With a short LLPC half-life (~35 days, red), titres drop to near zero by month 6 — no persistent immunity. With a long half-life (~693 days, blue), titres remain high a year post-vaccination. The grey band marks a hypothetical protective threshold. Most mRNA vaccines fall in the intermediate range.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The sensitivity analysis reveals a practical implication for trial design. A vaccine that generates primarily SLPCs might show excellent 28-day titres in a Phase 1 study but provide negligible protection by month 6. Conversely, a vaccine that elicits a large LLPC pool will show slower early kinetics but durable long-term protection. These two vaccines are nearly indistinguishable from peak-titre data alone. Identifying which compartment is dominant — and estimating <img src="https://latex.codecogs.com/png.latex?%5Cdelta_L"> per individual — is exactly what a within-host digital twin must do from limited longitudinal data.</p>
+<hr>
+</section>
+<section id="parameters-and-their-biological-interpretation" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Parameters and their biological interpretation</h1>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Value</th>
+<th>Biological meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdelta_A%20=%200.30"> d<img src="https://latex.codecogs.com/png.latex?%5E%7B-1%7D"></td>
+<td>LLPC t½ ~2 d</td>
+<td>Antigen cleared within ~1 week</td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdelta_S%20=%200.15"> d<img src="https://latex.codecogs.com/png.latex?%5E%7B-1%7D"></td>
+<td>SLPC t½ ~5 d</td>
+<td>Short-lived plasma cells die quickly</td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdelta_L%20=%200.003"> d<img src="https://latex.codecogs.com/png.latex?%5E%7B-1%7D"></td>
+<td>LLPC t½ ~230 d</td>
+<td>Bone-marrow plasma cells are long-lived</td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdelta_M%20=%200.004"> d<img src="https://latex.codecogs.com/png.latex?%5E%7B-1%7D"></td>
+<td>Memory t½ ~170 d</td>
+<td>Memory cells persist for years to decades</td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cdelta_%7B%5Ctext%7BAb%7D%7D%20=%200.018"> d<img src="https://latex.codecogs.com/png.latex?%5E%7B-1%7D"></td>
+<td>Ab t½ ~39 d</td>
+<td>IgG turnover in serum</td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?k_L%20/%20k_S%20=%200.1"></td>
+<td>—</td>
+<td>10% of stimulation goes to LLPC pool</td>
+</tr>
+<tr class="odd">
+<td><img src="https://latex.codecogs.com/png.latex?%5Cphi_L%20%3E%20%5Cphi_S"></td>
+<td>8 vs 3</td>
+<td>Memory preferentially replenishes LLPCs on recall</td>
+</tr>
+<tr class="even">
+<td><img src="https://latex.codecogs.com/png.latex?r_L%20%3E%20r_S"></td>
+<td>5 vs 2</td>
+<td>LLPCs secrete more antibody per cell per unit time</td>
+</tr>
+</tbody>
+</table>
+<p>Antibody half-life values are broadly consistent with IgG catabolism data across vaccine antigens in <span class="citation" data-cites="amanna2007">(3)</span>. SLPC half-life is consistent with short-lived plasma cell lifespans measured <em>ex vivo</em>. LLPC half-life spans the observed range from fast-waning SARS-CoV-2 responses to longer-lived measles-vaccine-induced immunity.</p>
+<hr>
+</section>
+<section id="limitations-and-what-comes-next" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Limitations and what comes next</h1>
+<p>This model captures the broad strokes of humoral vaccine immunology but omits several biologically important processes:</p>
+<ul>
+<li><strong>CD4+ and CD8+ T cells.</strong> T-cell help is modelled implicitly through the antigen-driven stimulation terms. Vaccines with poor T-cell immunogenicity would need this made explicit.</li>
+<li><strong>Antigen-specific B-cell precursor frequency.</strong> The initial B-cell pool size varies among individuals and affects peak response; this heterogeneity is not represented.</li>
+<li><strong>Innate signals and adjuvants.</strong> Different adjuvants (AS01, MF59, alum, lipid nanoparticle) change the kinetics of dendritic-cell activation and germinal-centre seeding, effectively altering <img src="https://latex.codecogs.com/png.latex?k_S">, <img src="https://latex.codecogs.com/png.latex?k_L">, and the timing parameters. The model could be extended with an innate-activation compartment.</li>
+<li><strong>Waning from bone-marrow niche competition.</strong> Long-lived plasma cell survival depends on occupancy of specialised bone-marrow niches; the model treats <img src="https://latex.codecogs.com/png.latex?%5Cdelta_L"> as constant, ignoring this density-dependence.</li>
+</ul>
+<p>Despite these simplifications, the two-population plasma-cell model is the standard starting point in quantitative vaccine pharmacology <span class="citation" data-cites="dasti2025 tarning2023">(8,9)</span>. It has enough structure to be calibrated to individual patient data (longitudinal antibody measurements) and enough flexibility to represent the spectrum from fast-waning to durable immunity.</p>
+<p><strong>Post 2</strong> will take the antibody trajectory from this model and ask: <em>at what titre does a given level of antibody actually protect from infection?</em> That question — the correlate of protection — is the second building block of the digital twin.</p>
+<hr>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-victora2012" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Victora GD, Nussenzweig MC. Germinal centers. Annual Review of Immunology. 2012;30:429–57. doi:<a href="https://doi.org/10.1146/annurev-immunol-020711-075032">10.1146/annurev-immunol-020711-075032</a></div>
+</div>
+<div id="ref-slifka1998" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Slifka MK, Antia R, Whitmire JK, Ahmed R. Humoral immunity due to long-lived plasma cells. Immunity. 1998;8(3):363–72. doi:<a href="https://doi.org/10.1016/S1074-7613(00)80541-5">10.1016/S1074-7613(00)80541-5</a></div>
+</div>
+<div id="ref-amanna2007" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Amanna IJ, Carlson NE, Slifka MK. Duration of humoral immunity to common viral and vaccine antigens. New England Journal of Medicine. 2007;357(19):1903–15. doi:<a href="https://doi.org/10.1056/NEJMoa066092">10.1056/NEJMoa066092</a></div>
+</div>
+<div id="ref-perelson2002" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Perelson AS. Modelling viral and immune system dynamics. Nature Reviews Immunology. 2002;2(1):28–36. doi:<a href="https://doi.org/10.1038/nri700">10.1038/nri700</a></div>
+</div>
+<div id="ref-antia2005" class="csl-entry">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Antia R, Ganusov VV, Ahmed R. The role of models in understanding <span>CD8+</span> <span>T</span>-cell memory. Nature Reviews Immunology. 2005;5(2):101–11. doi:<a href="https://doi.org/10.1038/nri1550">10.1038/nri1550</a></div>
+</div>
+<div id="ref-goel2021" class="csl-entry">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline"><span class="nocase">Goel RR, Painter MM, Apostolidis SA, Mathew D, Meng W, Rosenfeld AM, et al.</span> <span class="nocase">mRNA</span> vaccines induce durable immune memory to <span>SARS-CoV-2</span> and variants of concern. Science. 2021;374(6572):abm0829. doi:<a href="https://doi.org/10.1126/science.abm0829">10.1126/science.abm0829</a></div>
+</div>
+<div id="ref-khoury2021" class="csl-entry">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline"><span class="nocase">Khoury DS, Cromer D, Reynaldi A, Schlub TE, Wheatley AK, Juno JA, et al.</span> Neutralizing antibody levels are highly predictive of immune protection from symptomatic <span>SARS-CoV-2</span> infection. Nature Medicine. 2021;27(7):1205–11. doi:<a href="https://doi.org/10.1038/s41591-021-01377-8">10.1038/s41591-021-01377-8</a></div>
+</div>
+<div id="ref-dasti2025" class="csl-entry">
+<div class="csl-left-margin">8. </div><div class="csl-right-inline"><span class="nocase">Dasti A et al.</span> A multiscale quantitative systems pharmacology model for the development and optimization of <span class="nocase">mRNA</span> vaccines. CPT: Pharmacometrics &amp; Systems Pharmacology. 2025. doi:<a href="https://doi.org/10.1002/psp4.70041">10.1002/psp4.70041</a></div>
+</div>
+<div id="ref-tarning2023" class="csl-entry">
+<div class="csl-left-margin">9. </div><div class="csl-right-inline"><span class="nocase">Tarning J et al.</span> A quantitative clinical pharmacology-based framework for model-informed vaccine development. Journal of Pharmaceutical Sciences. 2023. doi:<a href="https://doi.org/10.1016/j.xphs.2023.10.006">10.1016/j.xphs.2023.10.006</a></div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.5.3 (2026-03-11 ucrt)
+Platform: x86_64-w64-mingw32/x64
+Running under: Windows 11 x64 (build 26200)
+
+Matrix products: default
+  LAPACK version 3.12.1
+
+locale:
+[1] LC_COLLATE=English_United States.utf8 
+[2] LC_CTYPE=English_United States.utf8   
+[3] LC_MONETARY=English_United States.utf8
+[4] LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.utf8    
+
+time zone: Asia/Seoul
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] patchwork_1.3.2 tidyr_1.3.2     dplyr_1.2.0     ggplot2_4.0.2  
+[5] deSolve_1.42   
+
+loaded via a namespace (and not attached):
+ [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+ [5] xfun_0.57          otel_0.2.0         purrr_1.2.1        generics_0.1.4    
+ [9] S7_0.2.1           jsonlite_2.0.0     labeling_0.4.3     glue_1.8.0        
+[13] htmltools_0.5.9    scales_1.4.0       rmarkdown_2.31     grid_4.5.3        
+[17] tibble_3.3.1       evaluate_1.0.5     fastmap_1.2.0      yaml_2.3.12       
+[21] lifecycle_1.0.5    compiler_4.5.3     RColorBrewer_1.1-3 pkgconfig_2.0.3   
+[25] htmlwidgets_1.6.4  farver_2.1.2       digest_0.6.39      R6_2.6.1          
+[29] tidyselect_1.2.1   pillar_1.11.1      magrittr_2.0.4     withr_3.0.2       
+[33] tools_4.5.3        gtable_0.3.6      </code></pre>
+</div>
+</div>
+
+
+<!-- -->
+
+</section>
+
+ ]]></description>
+  <category>digital twin</category>
+  <category>vaccine</category>
+  <category>immunology</category>
+  <category>ODE</category>
+  <category>R</category>
+  <guid>https://www.jonghoonk.com/blog/posts/digital_twin_within_host/</guid>
+  <pubDate>Tue, 21 Apr 2026 15:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Digital Twins in Clinical Trials</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
@@ -37283,222 +38504,6 @@ font-style: inherit;">print</span>(mse)</span></code></pre></div></div>
  ]]></description>
   <guid>https://www.jonghoonk.com/blog/posts/regularization/</guid>
   <pubDate>Sat, 01 Feb 2025 15:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Understanding correlation, covariation, and least squares regression</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/correlation/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<section id="introduction" class="level2">
-<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
-<p>Understanding relationships between variables is a fundamental aspect of statistical analysis. Three key concepts in this domain are <strong>correlation</strong>, <strong>covariation</strong>, and <strong>least squares regression</strong>. In this post, we will explore how these concepts interrelate and use <strong>R</strong> for demonstration.</p>
-</section>
-<section id="covariance" class="level2">
-<h2 class="anchored" data-anchor-id="covariance">Covariance</h2>
-<p>Covariance measures how two variables move together. The covariance between two variables <img src="https://latex.codecogs.com/png.latex?X"> and <img src="https://latex.codecogs.com/png.latex?Y"> is given by:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BCov%7D(X,%20Y)%20=%20%5Cfrac%7B1%7D%7Bn%7D%20%5Csum_%7Bi=1%7D%5E%7Bn%7D%20(X_i%20-%20%5Cbar%7BX%7D)(Y_i%20-%20%5Cbar%7BY%7D)%0A"></p>
-<p>where: - <img src="https://latex.codecogs.com/png.latex?X_i,%20Y_i"> are individual observations, - <img src="https://latex.codecogs.com/png.latex?%5Cbar%7BX%7D,%20%5Cbar%7BY%7D"> are the means of <img src="https://latex.codecogs.com/png.latex?X"> and <img src="https://latex.codecogs.com/png.latex?Y">.</p>
-<p>A positive covariance indicates that as <img src="https://latex.codecogs.com/png.latex?X"> increases, <img src="https://latex.codecogs.com/png.latex?Y"> tends to increase. A negative covariance suggests an inverse relationship.</p>
-<section id="r-code-example" class="level3">
-<h3 class="anchored" data-anchor-id="r-code-example">R code example</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Generate sample data</span></span>
-<span id="cb1-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">123</span>)</span>
-<span id="cb1-3">x <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rnorm</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>)</span>
-<span id="cb1-4">y <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> x <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rnorm</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>)</span>
-<span id="cb1-5"></span>
-<span id="cb1-6"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Compute covariance</span></span>
-<span id="cb1-7">cov_xy <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cov</span>(x, y)</span>
-<span id="cb1-8"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">print</span>(cov_xy)</span></code></pre></div></div>
-</section>
-</section>
-<section id="correlation" class="level2">
-<h2 class="anchored" data-anchor-id="correlation">Correlation</h2>
-<p>Correlation standardizes covariance by dividing it by the product of standard deviations of <img src="https://latex.codecogs.com/png.latex?X"> and <img src="https://latex.codecogs.com/png.latex?Y">. The Pearson correlation coefficient is given by:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Crho_%7BX,Y%7D%20=%20%5Cfrac%7B1%7D%7Bn%7D%20%5Csum_%7Bi=1%7D%5E%7Bn%7D%20%5Cleft(%5Cfrac%7BX_i%20-%20%5Cbar%7BX%7D%7D%7Bs_X%7D%5Cright)%20%5Cleft(%5Cfrac%7BY_i%20-%20%5Cbar%7BY%7D%7D%7Bs_Y%7D%5Cright)%20=%20%5Cfrac%7B%5Ctext%7BCov%7D(X,%20Y)%7D%7Bs_X%20s_Y%7D%0A"> where <img src="https://latex.codecogs.com/png.latex?s_X"> and <img src="https://latex.codecogs.com/png.latex?s_Y"> are standard deviations of <img src="https://latex.codecogs.com/png.latex?X"> and <img src="https://latex.codecogs.com/png.latex?Y">. The correlation coefficient ranges from -1 to 1: - <strong>+1</strong>: Perfect positive correlation - <strong>-1</strong>: Perfect negative correlation - <strong>0</strong>: No linear relationship</p>
-<section id="r-code-example-1" class="level3">
-<h3 class="anchored" data-anchor-id="r-code-example-1">R Code Example</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Compute correlation</span></span>
-<span id="cb2-2">cor_xy <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cor</span>(x, y)</span>
-<span id="cb2-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">print</span>(cor_xy)</span></code></pre></div></div>
-</section>
-</section>
-<section id="least-squares-regression" class="level2">
-<h2 class="anchored" data-anchor-id="least-squares-regression">Least squares regression</h2>
-<p>Least squares regression models the relationship between <img src="https://latex.codecogs.com/png.latex?X"> and <img src="https://latex.codecogs.com/png.latex?Y"> by fitting a line that minimizes the sum of squared residuals:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0AY%20=%20%5Cbeta_0%20+%20%5Cbeta_1%20X%20+%20%5Cepsilon%0A"></p>
-<p>where: - <img src="https://latex.codecogs.com/png.latex?%5Cbeta_0"> (intercept) and <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1"> (slope) are estimated using:</p>
-<p>The equation for the <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1"> can be derived by minimizing the error sum of squares (SSE) <img src="https://latex.codecogs.com/png.latex?%0ASSE%20=%20%5Csum_%7Bi=1%7D%5E%7Bn%7D%20(Y_i%20-%20(%5Cbeta_0%20+%20%5Cbeta_1%20X_i))%5E2%0A"> , which in turn can be solved using the following equation. <img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7B%5Cpartial%7D%7B%5Cpartial%20%5Cbeta_1%7D%20%5Csum_%7Bi=1%7D%5E%7Bn%7D%20(Y_i%20-%20%5Cbeta_0%20-%20%5Cbeta_1%20X_i)%5E2%20=%200%0A"></p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbeta_1%20=%20%5Cfrac%7B%5Ctext%7BCov%7D(X,%20Y)%7D%7B%5Ctext%7BVar%7D(X)%7D%0A"></p>
-<p>The intuition behind this formula is as follows. Covariance <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BCov%7D(X,Y)"> measures how <img src="https://latex.codecogs.com/png.latex?X"> and <img src="https://latex.codecogs.com/png.latex?Y"> vary together. Variance <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BVar%7D(X)"> measures how spread out <img src="https://latex.codecogs.com/png.latex?X"> is.<br>
-The ratio <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Ctext%7BCov%7D(X,Y)%7D%7B%5Ctext%7BVar%7D(X)%7D"> tells us the change in <img src="https://latex.codecogs.com/png.latex?Y"> for a one-unit change in <img src="https://latex.codecogs.com/png.latex?X">. This makes sense because we are essentially scaling the covariance by the variability of <img src="https://latex.codecogs.com/png.latex?X">–ensuring that our slope correctly reflects how much <img src="https://latex.codecogs.com/png.latex?Y"> changes per unit of <img src="https://latex.codecogs.com/png.latex?X">.</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbeta_0%20=%20%5Cbar%7BY%7D%20-%20%5Cbeta_1%20%5Cbar%7BX%7D%0A"></p>
-<ul>
-<li><img src="https://latex.codecogs.com/png.latex?%5Cepsilon"> represents the residual error.</li>
-</ul>
-<section id="r-code-example-2" class="level3">
-<h3 class="anchored" data-anchor-id="r-code-example-2">R code Example</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Fit a linear model</span></span>
-<span id="cb3-2">model <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">lm</span>(y <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> x)</span>
-<span id="cb3-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">summary</span>(model)</span>
-<span id="cb3-4"></span>
-<span id="cb3-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Plot regression</span></span>
-<span id="cb3-6"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot</span>(x, y, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">main =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Least Squares Regression"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xlab =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"X"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylab =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Y"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pch =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">19</span>)</span>
-<span id="cb3-7"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">abline</span>(model, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"red"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">lwd =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)</span></code></pre></div></div>
-</section>
-</section>
-<section id="relationship-between-concepts" class="level2">
-<h2 class="anchored" data-anchor-id="relationship-between-concepts">Relationship between concepts</h2>
-<ol type="1">
-<li><strong>Covariation quantifies the direction and strength of a linear relationship</strong> but does not standardize it.</li>
-<li><strong>Correlation standardizes covariance</strong> to provide a measure that is independent of the units of <img src="https://latex.codecogs.com/png.latex?X"> and <img src="https://latex.codecogs.com/png.latex?Y">.</li>
-<li><strong>Least squares regression uses covariance to estimate the slope (<img src="https://latex.codecogs.com/png.latex?%5Cbeta_1">)</strong> and define the best-fit line.</li>
-</ol>
-<section id="summary-table" class="level3">
-<h3 class="anchored" data-anchor-id="summary-table">Summary Table</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 46%">
-<col style="width: 27%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Concept</th>
-<th>Definition &amp; Formula</th>
-<th>Interpretation</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Covariation</td>
-<td><img src="https://latex.codecogs.com/png.latex?%5Ctext%7BCov%7D(X,%20Y)%20=%20%5Cfrac%7B1%7D%7Bn%7D%20%5Csum%20(X_i%20-%20%5Cbar%7BX%7D)(Y_i%20-%20%5Cbar%7BY%7D)"></td>
-<td>Measures the direction of relationship but not the scale.</td>
-</tr>
-<tr class="even">
-<td>Correlation</td>
-<td><img src="https://latex.codecogs.com/png.latex?%5Crho_%7BX,Y%7D%20=%20%5Cfrac%7B%5Ctext%7BCov%7D(X,%20Y)%7D%7Bs_X%20s_Y%7D"></td>
-<td>Standardized measure of association between -1 and 1.</td>
-</tr>
-<tr class="odd">
-<td>Regression</td>
-<td><img src="https://latex.codecogs.com/png.latex?Y%20=%20%5Cbeta_0%20+%20%5Cbeta_1%20X%20+%20%5Cepsilon"></td>
-<td>Uses covariance to estimate <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1"> and predict <img src="https://latex.codecogs.com/png.latex?Y">.</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="conclusion" class="level2">
-<h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
-<p>Understanding <strong>covariance, correlation, and regression</strong> allows for deeper insights into data relationships. Covariance provides directionality, correlation offers a unit-free measure of strength, and regression predicts outcomes. By applying these techniques in <strong>R</strong>, we can uncover meaningful patterns in data!</p>
-
-
-</section>
-
- ]]></description>
-  <guid>https://www.jonghoonk.com/blog/posts/correlation/</guid>
-  <pubDate>Wed, 29 Jan 2025 15:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>

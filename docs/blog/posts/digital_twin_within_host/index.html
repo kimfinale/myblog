@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-04-22">
+
+<title>Within-Host Dynamics of Vaccine-Induced Immunity – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-953e13259b406e3222ebc3917f29fddf.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#why-start-here" id="toc-why-start-here" class="nav-link active" data-scroll-target="#why-start-here"><span class="header-section-number">1</span> Why start here?</a></li>
+  <li><a href="#the-biology-in-brief" id="toc-the-biology-in-brief" class="nav-link" data-scroll-target="#the-biology-in-brief"><span class="header-section-number">2</span> The biology in brief</a></li>
+  <li><a href="#the-ode-model" id="toc-the-ode-model" class="nav-link" data-scroll-target="#the-ode-model"><span class="header-section-number">3</span> The ODE model</a></li>
+  <li><a href="#implementation" id="toc-implementation" class="nav-link" data-scroll-target="#implementation"><span class="header-section-number">4</span> Implementation</a></li>
+  <li><a href="#single-dose-dynamics" id="toc-single-dose-dynamics" class="nav-link" data-scroll-target="#single-dose-dynamics"><span class="header-section-number">5</span> Single-dose dynamics</a></li>
+  <li><a href="#prime-boost-dynamics" id="toc-prime-boost-dynamics" class="nav-link" data-scroll-target="#prime-boost-dynamics"><span class="header-section-number">6</span> Prime-boost dynamics</a></li>
+  <li><a href="#what-controls-waning" id="toc-what-controls-waning" class="nav-link" data-scroll-target="#what-controls-waning"><span class="header-section-number">7</span> What controls waning?</a></li>
+  <li><a href="#parameters-and-their-biological-interpretation" id="toc-parameters-and-their-biological-interpretation" class="nav-link" data-scroll-target="#parameters-and-their-biological-interpretation"><span class="header-section-number">8</span> Parameters and their biological interpretation</a></li>
+  <li><a href="#limitations-and-what-comes-next" id="toc-limitations-and-what-comes-next" class="nav-link" data-scroll-target="#limitations-and-what-comes-next"><span class="header-section-number">9</span> Limitations and what comes next</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Within-Host Dynamics of Vaccine-Induced Immunity</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+<p class="subtitle lead">An ODE model of antibody production and waning — Post 1 in the Digital Twins for Vaccine Trials series</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">digital twin</div>
+    <div class="quarto-category">vaccine</div>
+    <div class="quarto-category">immunology</div>
+    <div class="quarto-category">ODE</div>
+    <div class="quarto-category">R</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 22, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="why-start-here" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Why start here?</h1>
+<p>The <a href="../../../blog/posts/digital_twin_clinical_trial/index.html">previous post</a> introduced digital twins for clinical trials at a high level. A vaccine digital twin is, at its core, a model that takes one patient’s characteristics as input and predicts how their immune system will respond to a given vaccine regimen. Before we can build that model, we need to understand what it needs to represent.</p>
+<p>The answer is antibody kinetics: the rise and fall of serum IgG following vaccination. Almost every vaccine endpoint — neutralisation titre, correlate of protection, waning immunity, need for boosters — is downstream of this single quantity. Mechanistic models of antibody kinetics are therefore the foundational building block for everything that follows in this series.</p>
+<p>This post derives a minimal but biologically grounded ODE model, implements it in R, and shows what it can (and cannot) capture. Posts 2 onward build directly on this foundation.</p>
+<hr>
+</section>
+<section id="the-biology-in-brief" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> The biology in brief</h1>
+<p>When a vaccine antigen enters the body, a cascade of events unfolds over days to months <span class="citation" data-cites="victora2012">(<a href="#ref-victora2012" role="doc-biblioref">1</a>)</span>:</p>
+<ol type="1">
+<li><strong>Innate activation.</strong> Dendritic cells at the injection site capture antigen and migrate to draining lymph nodes, presenting peptide fragments on MHC molecules.</li>
+<li><strong>B-cell activation and germinal centre reaction.</strong> Antigen-specific naive B cells recognise the antigen, receive T-cell help, and enter germinal centres — specialised microstructures in the lymph node where rapid proliferation, somatic hypermutation, and affinity maturation occur.</li>
+<li><strong>Plasma cell differentiation.</strong> Germinal-centre B cells differentiate into plasma cells — antibody factories. <em>Short-lived plasma cells</em> (SLPCs) emerge within days and produce a rapid burst of antibody before dying in 1–2 weeks. <em>Long-lived plasma cells</em> (LLPCs) migrate to bone-marrow niches and can survive for decades, secreting antibody constitutively <span class="citation" data-cites="slifka1998 amanna2007">(<a href="#ref-slifka1998" role="doc-biblioref">2</a>,<a href="#ref-amanna2007" role="doc-biblioref">3</a>)</span>.</li>
+<li><strong>Memory B-cell formation.</strong> A fraction of germinal-centre B cells exit as memory cells rather than plasma cells. These are quiescent but respond much faster to a second antigen encounter.</li>
+<li><strong>Antibody titre dynamics.</strong> Serum IgG rises as plasma cells secrete antibody, peaks 2–4 weeks post-vaccination, then wanes. The rate of waning reflects the ratio of SLPCs to LLPCs: SLPC-dominated responses wane quickly; LLPC-dominated responses produce persistent titres.</li>
+</ol>
+<p>A landmark study by Amanna et al. <span class="citation" data-cites="amanna2007">(<a href="#ref-amanna2007" role="doc-biblioref">3</a>)</span> measured antibody half-lives for 10 antigens in a 26-year longitudinal cohort. Half-lives ranged from 11 years (tetanus) to 50 years (vaccinia). The extraordinary persistence seen with the best vaccines is attributed almost entirely to LLPCs settled in bone-marrow niches — a finding that changed how we think about what a good vaccine needs to do.</p>
+<hr>
+</section>
+<section id="the-ode-model" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> The ODE model</h1>
+<p>We model five compartments:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Symbol</th>
+<th>Interpretation</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(A(t)\)</span></td>
+<td>Vaccine antigen depot</td>
+<td>a.u.</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(S(t)\)</span></td>
+<td>Short-lived plasma cells</td>
+<td>a.u.</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(L(t)\)</span></td>
+<td>Long-lived plasma cells</td>
+<td>a.u.</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(M(t)\)</span></td>
+<td>Memory B cells</td>
+<td>a.u.</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\text{Ab}(t)\)</span></td>
+<td>Serum antibody titre</td>
+<td>a.u.</td>
+</tr>
+</tbody>
+</table>
+<p>The equations are:</p>
+<p><span class="math display">\[
+\frac{dA}{dt} = -\delta_A A \tag{1}
+\]</span></p>
+<p><span class="math display">\[
+\frac{dS}{dt} = k_S\, A\,(1 + \phi_S M) - \delta_S S \tag{2}
+\]</span></p>
+<p><span class="math display">\[
+\frac{dL}{dt} = k_L\, A\,(1 + \phi_L M) - \delta_L L \tag{3}
+\]</span></p>
+<p><span class="math display">\[
+\frac{dM}{dt} = \varepsilon S - \delta_M M \tag{4}
+\]</span></p>
+<p><span class="math display">\[
+\frac{d\text{Ab}}{dt} = r_S S + r_L L - \delta_{\text{Ab}}\,\text{Ab} \tag{5}
+\]</span></p>
+<p><strong>Equation 1.</strong> The antigen depot decays at rate <span class="math inline">\(\delta_A\)</span>. This captures both in-vivo clearance of the antigen and the finite duration over which the immune system receives stimulation.</p>
+<p><strong>Equations 2–3.</strong> Both plasma-cell populations are stimulated proportionally to antigen availability <span class="math inline">\(A\)</span>. The memory-recall term <span class="math inline">\((1 + \phi M)\)</span> is the crucial feature: on re-exposure, pre-existing memory B cells dramatically amplify plasma-cell production, with <span class="math inline">\(\phi_L &gt; \phi_S\)</span> reflecting the observation that memory preferentially replenishes the long-lived pool during recall responses <span class="citation" data-cites="victora2012">(<a href="#ref-victora2012" role="doc-biblioref">1</a>)</span>.</p>
+<p><strong>Equation 4.</strong> Memory cells accumulate proportional to SLPC production (fraction <span class="math inline">\(\varepsilon\)</span>) and decay very slowly (<span class="math inline">\(\delta_M \ll \delta_S\)</span>).</p>
+<p><strong>Equation 5.</strong> Antibody is secreted by both plasma-cell populations and cleared at rate <span class="math inline">\(\delta_{\text{Ab}}\)</span>.</p>
+<p>This structure is motivated by early modelling work on immune memory <span class="citation" data-cites="perelson2002 antia2005">(<a href="#ref-perelson2002" role="doc-biblioref">4</a>,<a href="#ref-antia2005" role="doc-biblioref">5</a>)</span> and is consistent with the two-population interpretation of biphasic antibody waning — a fast initial drop driven by SLPC loss, followed by a slow plateau maintained by LLPCs — demonstrated empirically in <span class="citation" data-cites="amanna2007">(<a href="#ref-amanna2007" role="doc-biblioref">3</a>)</span>.</p>
+<hr>
+</section>
+<section id="implementation" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Implementation</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ODE system</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>withinhost_vax <span class="ot">&lt;-</span> <span class="cf">function</span>(t, state, parms) {</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">with</span>(<span class="fu">as.list</span>(<span class="fu">c</span>(state, parms)), {</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    dA  <span class="ot">&lt;-</span> <span class="sc">-</span>delta_A  <span class="sc">*</span> A</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    dS  <span class="ot">&lt;-</span> kS <span class="sc">*</span> A <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">+</span> phi_S <span class="sc">*</span> M) <span class="sc">-</span> delta_S  <span class="sc">*</span> S</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    dL  <span class="ot">&lt;-</span> kL <span class="sc">*</span> A <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">+</span> phi_L <span class="sc">*</span> M) <span class="sc">-</span> delta_L  <span class="sc">*</span> L</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    dM  <span class="ot">&lt;-</span> eps <span class="sc">*</span> S                   <span class="sc">-</span> delta_M  <span class="sc">*</span> M</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    dAb <span class="ot">&lt;-</span> rS <span class="sc">*</span> S <span class="sc">+</span> rL <span class="sc">*</span> L           <span class="sc">-</span> delta_Ab <span class="sc">*</span> Ab</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="fu">c</span>(dA, dS, dL, dM, dAb))</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameter values</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>parms <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_A  =</span> <span class="fl">0.30</span>,   <span class="co"># antigen half-life  ~2.3 days</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_S  =</span> <span class="fl">0.15</span>,   <span class="co"># SLPC half-life     ~4.6 days</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_L  =</span> <span class="fl">0.003</span>,  <span class="co"># LLPC half-life     ~231 days</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_M  =</span> <span class="fl">0.004</span>,  <span class="co"># memory half-life   ~173 days</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_Ab =</span> <span class="fl">0.018</span>,  <span class="co"># antibody half-life ~39 days</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">kS       =</span> <span class="fl">5.0</span>,    <span class="co"># SLPC stimulation rate</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">kL       =</span> <span class="fl">0.5</span>,    <span class="co"># LLPC stimulation rate</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">rS       =</span> <span class="fl">2.0</span>,    <span class="co"># antibody secretion: SLPC</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">rL       =</span> <span class="fl">5.0</span>,    <span class="co"># antibody secretion: LLPC</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">eps      =</span> <span class="fl">0.05</span>,   <span class="co"># memory generation efficiency</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">phi_S    =</span> <span class="fl">3.0</span>,    <span class="co"># recall boost factor: SLPC</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">phi_L    =</span> <span class="fl">8.0</span>     <span class="co"># recall boost factor: LLPC</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>state0 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">A =</span> <span class="dv">1</span>, <span class="at">S =</span> <span class="dv">0</span>, <span class="at">L =</span> <span class="dv">0</span>, <span class="at">M =</span> <span class="dv">0</span>, <span class="at">Ab =</span> <span class="dv">0</span>)</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>times  <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">360</span>, <span class="at">by =</span> <span class="fl">0.5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>The parameters are chosen to reproduce qualitative features of mRNA vaccine immunogenicity data: a first-dose antibody peak around day 14–21, a substantially higher second-dose peak, and waning to roughly 20–30% of peak by month 6 — consistent with published BNT162b2 immunogenicity studies <span class="citation" data-cites="goel2021 khoury2021">(<a href="#ref-goel2021" role="doc-biblioref">6</a>,<a href="#ref-khoury2021" role="doc-biblioref">7</a>)</span>. Units are arbitrary (a.u.); the shapes and ratios are what matter at this stage.</p>
+<hr>
+</section>
+<section id="single-dose-dynamics" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Single-dose dynamics</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>out1 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">ode</span>(<span class="at">y =</span> state0, <span class="at">times =</span> times,</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                           <span class="at">func =</span> withinhost_vax, <span class="at">parms =</span> parms))</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Facet labels</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>var_labels <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">A   =</span> <span class="st">"Antigen (A)"</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">S   =</span> <span class="st">"Short-lived PCs (S)"</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">L   =</span> <span class="st">"Long-lived PCs (L)"</span>,</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">M   =</span> <span class="st">"Memory B cells (M)"</span>,</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">Ab  =</span> <span class="st">"Antibody titre (Ab)"</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>out1_long <span class="ot">&lt;-</span> out1 <span class="sc">|&gt;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>time, <span class="at">names_to =</span> <span class="st">"var"</span>, <span class="at">values_to =</span> <span class="st">"value"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">var =</span> <span class="fu">factor</span>(var, <span class="at">levels =</span> <span class="fu">names</span>(var_labels),</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>                      <span class="at">labels =</span> var_labels))</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>pal <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Antigen (A)"</span>          <span class="ot">=</span> <span class="st">"#888888"</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Short-lived PCs (S)"</span>  <span class="ot">=</span> <span class="st">"#E87722"</span>,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Long-lived PCs (L)"</span>   <span class="ot">=</span> <span class="st">"#3B6EA8"</span>,</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Memory B cells (M)"</span>   <span class="ot">=</span> <span class="st">"#4DAF4A"</span>,</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Antibody titre (Ab)"</span>  <span class="ot">=</span> <span class="st">"#984EA3"</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(out1_long, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> value, <span class="at">colour =</span> var)) <span class="sc">+</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>var, <span class="at">scales =</span> <span class="st">"free_y"</span>, <span class="at">ncol =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> pal, <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-vaccination"</span>, <span class="at">y =</span> <span class="st">"Concentration (a.u.)"</span>) <span class="sc">+</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">strip.background =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>        <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/immune-cascade-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Immune cascade after a single vaccine dose. Antigen (A) decays within a week, driving a transient short-lived plasma cell (S) peak at day ~5. Long-lived plasma cells (L) and memory B cells (M) accumulate more slowly and persist. Antibody titre (Ab) mirrors the combined secretion from S and L, rising to a peak around day 18 before entering a slow decline sustained by L.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The cascade has a clear temporal hierarchy:</p>
+<ul>
+<li><strong>Days 1–7</strong>: Antigen drives a burst of SLPC production. Antibody begins to rise.</li>
+<li><strong>Days 7–21</strong>: SLPCs decline as antigen clears. LLPCs and memory B cells continue accumulating. Antibody peaks.</li>
+<li><strong>Days 21+</strong>: SLPC contribution to antibody fades; the titre is increasingly sustained by the small but persistent LLPC pool. Waning slows markedly once LLPCs dominate.</li>
+</ul>
+<p>This biphasic waning — a fast initial drop followed by a slow plateau — is the characteristic fingerprint of a two-population plasma cell response. Vaccines that generate large LLPC pools (live-attenuated, mRNA with strong adjuvanticity) show much slower long-term waning than those that elicit primarily SLPCs.</p>
+<hr>
+</section>
+<section id="prime-boost-dynamics" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Prime-boost dynamics</h1>
+<p>Most modern vaccines use a prime-boost schedule: a second dose is given weeks after the first, by which time memory B cells have accumulated enough to mount a dramatically amplified recall response. We model this by adding a second antigen dose (<span class="math inline">\(A \mathrel{+}= 1\)</span>) at day 21.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>dose2_event <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">var    =</span> <span class="st">"A"</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">time   =</span> <span class="dv">21</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">value  =</span> <span class="dv">1</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"add"</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>out2 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">ode</span>(<span class="at">y =</span> state0, <span class="at">times =</span> times,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>                           <span class="at">func =</span> withinhost_vax, <span class="at">parms =</span> parms,</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>                           <span class="at">events =</span> <span class="fu">list</span>(<span class="at">data =</span> dose2_event)))</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>df_compare <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  out1 <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">schedule =</span> <span class="st">"Single dose (day 0)"</span>),</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  out2 <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">schedule =</span> <span class="st">"Prime-boost (day 0 + day 21)"</span>)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span> <span class="fu">select</span>(time, Ab, schedule)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_compare, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> Ab, <span class="at">colour =</span> schedule, <span class="at">linetype =</span> schedule)) <span class="sc">+</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">21</span>, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">colour =</span> <span class="st">"grey50"</span>, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>()) <span class="sc">+</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Single dose (day 0)"</span>          <span class="ot">=</span> <span class="st">"#888888"</span>,</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"Prime-boost (day 0 + day 21)"</span> <span class="ot">=</span> <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Single dose (day 0)"</span>          <span class="ot">=</span> <span class="st">"dashed"</span>,</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>                                    <span class="st">"Prime-boost (day 0 + day 21)"</span> <span class="ot">=</span> <span class="st">"solid"</span>)) <span class="sc">+</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-first dose"</span>, <span class="at">y =</span> <span class="st">"Antibody titre (a.u., log scale)"</span>,</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>       <span class="at">colour =</span> <span class="cn">NULL</span>, <span class="at">linetype =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/prime-boost-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Antibody kinetics: single dose (dashed) vs.&nbsp;prime-boost at day 21 (solid). The second dose finds a primed immune system — memory B cells (M) amplify both SLPC and LLPC production, producing a peak titre ~8–10-fold higher than dose 1 and substantially slower long-term waning. The vertical dotted line marks the day-21 boost.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The memory amplification captured by the <span class="math inline">\((1 + \phi M)\)</span> terms explains three features of prime-boost immunogenicity universally seen in clinical data <span class="citation" data-cites="goel2021">(<a href="#ref-goel2021" role="doc-biblioref">6</a>)</span>:</p>
+<ol type="1">
+<li>The second-dose peak is substantially higher (here ~8-fold), driven by massive SLPC expansion.</li>
+<li>The plateau after dose 2 is higher (more LLPCs generated during recall), so titres remain above the single-dose level even at 12 months.</li>
+<li>The response is faster — the antibody rises within days of the boost, not weeks, because memory cells differentiate into plasma cells without needing to transit through a full germinal-centre reaction.</li>
+</ol>
+<hr>
+</section>
+<section id="what-controls-waning" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> What controls waning?</h1>
+<p>Two parameters dominate long-term antibody decay: <span class="math inline">\(\delta_L\)</span> (LLPC clearance) and <span class="math inline">\(k_L / k_S\)</span> (how much of the stimulatory signal goes to the long-lived vs short-lived pool). The figure below sweeps <span class="math inline">\(\delta_L\)</span> across a range that spans what has been measured in humans — from fast-waning responses (e.g., SARS-CoV-2 in naive individuals) to long-lived ones (e.g., measles, yellow fever) <span class="citation" data-cites="amanna2007">(<a href="#ref-amanna2007" role="doc-biblioref">3</a>)</span>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>delta_L_vals <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.020</span>, <span class="fl">0.008</span>, <span class="fl">0.003</span>, <span class="fl">0.001</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>llpc_labels  <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"0.020"</span> <span class="ot">=</span> <span class="st">"LLPC t½ = 35 d"</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"0.008"</span> <span class="ot">=</span> <span class="st">"LLPC t½ = 87 d"</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"0.003"</span> <span class="ot">=</span> <span class="st">"LLPC t½ = 231 d"</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"0.001"</span> <span class="ot">=</span> <span class="st">"LLPC t½ = 693 d"</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>pal_waning <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LLPC t½ = 35 d"</span>  <span class="ot">=</span> <span class="st">"#D7191C"</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LLPC t½ = 87 d"</span>  <span class="ot">=</span> <span class="st">"#FDAE61"</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LLPC t½ = 231 d"</span> <span class="ot">=</span> <span class="st">"#3B6EA8"</span>,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LLPC t½ = 693 d"</span> <span class="ot">=</span> <span class="st">"#1A9641"</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>res_list <span class="ot">&lt;-</span> <span class="fu">lapply</span>(delta_L_vals, <span class="cf">function</span>(dL) {</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  p2 <span class="ot">&lt;-</span> parms; p2[<span class="st">"delta_L"</span>] <span class="ot">&lt;-</span> dL</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">ode</span>(<span class="at">y =</span> state0, <span class="at">times =</span> times,</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>                            <span class="at">func =</span> withinhost_vax, <span class="at">parms =</span> p2,</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>                            <span class="at">events =</span> <span class="fu">list</span>(<span class="at">data =</span> dose2_event)))</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  out<span class="sc">$</span>delta_L_label <span class="ot">&lt;-</span> llpc_labels[<span class="fu">as.character</span>(dL)]</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>  out</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>df_wane <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(res_list) <span class="sc">|&gt;</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">delta_L_label =</span> <span class="fu">factor</span>(delta_L_label, <span class="at">levels =</span> llpc_labels))</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_wane, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> Ab, <span class="at">colour =</span> delta_L_label)) <span class="sc">+</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"rect"</span>, <span class="at">xmin =</span> <span class="dv">0</span>, <span class="at">xmax =</span> <span class="dv">360</span>,</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>           <span class="at">ymin =</span> <span class="dv">20</span>, <span class="at">ymax =</span> <span class="dv">50</span>, <span class="at">alpha =</span> <span class="fl">0.15</span>, <span class="at">fill =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">350</span>, <span class="at">y =</span> <span class="dv">38</span>, <span class="at">label =</span> <span class="st">"threshold"</span>, <span class="at">size =</span> <span class="dv">3</span>,</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>           <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">colour =</span> <span class="st">"grey40"</span>) <span class="sc">+</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.85</span>) <span class="sc">+</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> pal_waning) <span class="sc">+</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-first dose"</span>, <span class="at">y =</span> <span class="st">"Antibody titre (a.u., log scale)"</span>,</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>       <span class="at">colour =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/waning-sensitivity-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Sensitivity of long-term antibody waning to LLPC clearance rate δ_L (prime-boost schedule). With a short LLPC half-life (~35 days, red), titres drop to near zero by month 6 — no persistent immunity. With a long half-life (~693 days, blue), titres remain high a year post-vaccination. The grey band marks a hypothetical protective threshold. Most mRNA vaccines fall in the intermediate range.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The sensitivity analysis reveals a practical implication for trial design. A vaccine that generates primarily SLPCs might show excellent 28-day titres in a Phase 1 study but provide negligible protection by month 6. Conversely, a vaccine that elicits a large LLPC pool will show slower early kinetics but durable long-term protection. These two vaccines are nearly indistinguishable from peak-titre data alone. Identifying which compartment is dominant — and estimating <span class="math inline">\(\delta_L\)</span> per individual — is exactly what a within-host digital twin must do from limited longitudinal data.</p>
+<hr>
+</section>
+<section id="parameters-and-their-biological-interpretation" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Parameters and their biological interpretation</h1>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Value</th>
+<th>Biological meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(\delta_A = 0.30\)</span> d<span class="math inline">\(^{-1}\)</span></td>
+<td>LLPC t½ ~2 d</td>
+<td>Antigen cleared within ~1 week</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(\delta_S = 0.15\)</span> d<span class="math inline">\(^{-1}\)</span></td>
+<td>SLPC t½ ~5 d</td>
+<td>Short-lived plasma cells die quickly</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\delta_L = 0.003\)</span> d<span class="math inline">\(^{-1}\)</span></td>
+<td>LLPC t½ ~230 d</td>
+<td>Bone-marrow plasma cells are long-lived</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(\delta_M = 0.004\)</span> d<span class="math inline">\(^{-1}\)</span></td>
+<td>Memory t½ ~170 d</td>
+<td>Memory cells persist for years to decades</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\delta_{\text{Ab}} = 0.018\)</span> d<span class="math inline">\(^{-1}\)</span></td>
+<td>Ab t½ ~39 d</td>
+<td>IgG turnover in serum</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(k_L / k_S = 0.1\)</span></td>
+<td>—</td>
+<td>10% of stimulation goes to LLPC pool</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\phi_L &gt; \phi_S\)</span></td>
+<td>8 vs 3</td>
+<td>Memory preferentially replenishes LLPCs on recall</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(r_L &gt; r_S\)</span></td>
+<td>5 vs 2</td>
+<td>LLPCs secrete more antibody per cell per unit time</td>
+</tr>
+</tbody>
+</table>
+<p>Antibody half-life values are broadly consistent with IgG catabolism data across vaccine antigens in <span class="citation" data-cites="amanna2007">(<a href="#ref-amanna2007" role="doc-biblioref">3</a>)</span>. SLPC half-life is consistent with short-lived plasma cell lifespans measured <em>ex vivo</em>. LLPC half-life spans the observed range from fast-waning SARS-CoV-2 responses to longer-lived measles-vaccine-induced immunity.</p>
+<hr>
+</section>
+<section id="limitations-and-what-comes-next" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Limitations and what comes next</h1>
+<p>This model captures the broad strokes of humoral vaccine immunology but omits several biologically important processes:</p>
+<ul>
+<li><strong>CD4+ and CD8+ T cells.</strong> T-cell help is modelled implicitly through the antigen-driven stimulation terms. Vaccines with poor T-cell immunogenicity would need this made explicit.</li>
+<li><strong>Antigen-specific B-cell precursor frequency.</strong> The initial B-cell pool size varies among individuals and affects peak response; this heterogeneity is not represented.</li>
+<li><strong>Innate signals and adjuvants.</strong> Different adjuvants (AS01, MF59, alum, lipid nanoparticle) change the kinetics of dendritic-cell activation and germinal-centre seeding, effectively altering <span class="math inline">\(k_S\)</span>, <span class="math inline">\(k_L\)</span>, and the timing parameters. The model could be extended with an innate-activation compartment.</li>
+<li><strong>Waning from bone-marrow niche competition.</strong> Long-lived plasma cell survival depends on occupancy of specialised bone-marrow niches; the model treats <span class="math inline">\(\delta_L\)</span> as constant, ignoring this density-dependence.</li>
+</ul>
+<p>Despite these simplifications, the two-population plasma-cell model is the standard starting point in quantitative vaccine pharmacology <span class="citation" data-cites="dasti2025 tarning2023">(<a href="#ref-dasti2025" role="doc-biblioref">8</a>,<a href="#ref-tarning2023" role="doc-biblioref">9</a>)</span>. It has enough structure to be calibrated to individual patient data (longitudinal antibody measurements) and enough flexibility to represent the spectrum from fast-waning to durable immunity.</p>
+<p><strong>Post 2</strong> will take the antibody trajectory from this model and ask: <em>at what titre does a given level of antibody actually protect from infection?</em> That question — the correlate of protection — is the second building block of the digital twin.</p>
+<hr>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-victora2012" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Victora GD, Nussenzweig MC. Germinal centers. Annual Review of Immunology. 2012;30:429–57. doi:<a href="https://doi.org/10.1146/annurev-immunol-020711-075032">10.1146/annurev-immunol-020711-075032</a></div>
+</div>
+<div id="ref-slifka1998" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Slifka MK, Antia R, Whitmire JK, Ahmed R. Humoral immunity due to long-lived plasma cells. Immunity. 1998;8(3):363–72. doi:<a href="https://doi.org/10.1016/S1074-7613(00)80541-5">10.1016/S1074-7613(00)80541-5</a></div>
+</div>
+<div id="ref-amanna2007" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Amanna IJ, Carlson NE, Slifka MK. Duration of humoral immunity to common viral and vaccine antigens. New England Journal of Medicine. 2007;357(19):1903–15. doi:<a href="https://doi.org/10.1056/NEJMoa066092">10.1056/NEJMoa066092</a></div>
+</div>
+<div id="ref-perelson2002" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Perelson AS. Modelling viral and immune system dynamics. Nature Reviews Immunology. 2002;2(1):28–36. doi:<a href="https://doi.org/10.1038/nri700">10.1038/nri700</a></div>
+</div>
+<div id="ref-antia2005" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Antia R, Ganusov VV, Ahmed R. The role of models in understanding <span>CD8+</span> <span>T</span>-cell memory. Nature Reviews Immunology. 2005;5(2):101–11. doi:<a href="https://doi.org/10.1038/nri1550">10.1038/nri1550</a></div>
+</div>
+<div id="ref-goel2021" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline"><span class="nocase">Goel RR, Painter MM, Apostolidis SA, Mathew D, Meng W, Rosenfeld AM, et al.</span> <span class="nocase">mRNA</span> vaccines induce durable immune memory to <span>SARS-CoV-2</span> and variants of concern. Science. 2021;374(6572):abm0829. doi:<a href="https://doi.org/10.1126/science.abm0829">10.1126/science.abm0829</a></div>
+</div>
+<div id="ref-khoury2021" class="csl-entry" role="listitem">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline"><span class="nocase">Khoury DS, Cromer D, Reynaldi A, Schlub TE, Wheatley AK, Juno JA, et al.</span> Neutralizing antibody levels are highly predictive of immune protection from symptomatic <span>SARS-CoV-2</span> infection. Nature Medicine. 2021;27(7):1205–11. doi:<a href="https://doi.org/10.1038/s41591-021-01377-8">10.1038/s41591-021-01377-8</a></div>
+</div>
+<div id="ref-dasti2025" class="csl-entry" role="listitem">
+<div class="csl-left-margin">8. </div><div class="csl-right-inline"><span class="nocase">Dasti A et al.</span> A multiscale quantitative systems pharmacology model for the development and optimization of <span class="nocase">mRNA</span> vaccines. CPT: Pharmacometrics &amp; Systems Pharmacology. 2025. doi:<a href="https://doi.org/10.1002/psp4.70041">10.1002/psp4.70041</a></div>
+</div>
+<div id="ref-tarning2023" class="csl-entry" role="listitem">
+<div class="csl-left-margin">9. </div><div class="csl-right-inline"><span class="nocase">Tarning J et al.</span> A quantitative clinical pharmacology-based framework for model-informed vaccine development. Journal of Pharmaceutical Sciences. 2023. doi:<a href="https://doi.org/10.1016/j.xphs.2023.10.006">10.1016/j.xphs.2023.10.006</a></div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.5.3 (2026-03-11 ucrt)
+Platform: x86_64-w64-mingw32/x64
+Running under: Windows 11 x64 (build 26200)
+
+Matrix products: default
+  LAPACK version 3.12.1
+
+locale:
+[1] LC_COLLATE=English_United States.utf8 
+[2] LC_CTYPE=English_United States.utf8   
+[3] LC_MONETARY=English_United States.utf8
+[4] LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.utf8    
+
+time zone: Asia/Seoul
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] patchwork_1.3.2 tidyr_1.3.2     dplyr_1.2.0     ggplot2_4.0.2  
+[5] deSolve_1.42   
+
+loaded via a namespace (and not attached):
+ [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+ [5] xfun_0.57          otel_0.2.0         purrr_1.2.1        generics_0.1.4    
+ [9] S7_0.2.1           jsonlite_2.0.0     labeling_0.4.3     glue_1.8.0        
+[13] htmltools_0.5.9    scales_1.4.0       rmarkdown_2.31     grid_4.5.3        
+[17] tibble_3.3.1       evaluate_1.0.5     fastmap_1.2.0      yaml_2.3.12       
+[21] lifecycle_1.0.5    compiler_4.5.3     RColorBrewer_1.1-3 pkgconfig_2.0.3   
+[25] htmlwidgets_1.6.4  farver_2.1.2       digest_0.6.39      R6_2.6.1          
+[29] tidyselect_1.2.1   pillar_1.11.1      magrittr_2.0.4     withr_3.0.2       
+[33] tools_4.5.3        gtable_0.3.6      </code></pre>
+</div>
+</div>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Within-Host Dynamics of Vaccine-Induced Immunity"</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "An ODE model of antibody production and waning — Post 1 in the Digital Twins for Vaccine Trials series"</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Jong-Hoon Kim"</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-04-22"</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> [digital twin, vaccine, immunology, ODE, R]</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="an">bibliography:</span><span class="co"> references.bib</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="an">csl:</span><span class="co"> https://www.zotero.org/styles/vancouver</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="co">    number-sections: true</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-width: 7</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-height: 4.5</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-align: center</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="an">knitr:</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="co">  opts_chunk:</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="co">    message: false</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="co">    warning: false</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="co">    fig.retina: 2</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="in">```{r setup, include=FALSE}</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(deSolve)</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_set</span>(<span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>))</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="fu"># Why start here?</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>The <span class="co">[</span><span class="ot">previous post</span><span class="co">](../digital_twin_clinical_trial/index.qmd)</span> introduced digital twins for clinical trials at a high level. A vaccine digital twin is, at its core, a model that takes one patient's characteristics as input and predicts how their immune system will respond to a given vaccine regimen. Before we can build that model, we need to understand what it needs to represent.</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>The answer is antibody kinetics: the rise and fall of serum IgG following vaccination. Almost every vaccine endpoint — neutralisation titre, correlate of protection, waning immunity, need for boosters — is downstream of this single quantity. Mechanistic models of antibody kinetics are therefore the foundational building block for everything that follows in this series.</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>This post derives a minimal but biologically grounded ODE model, implements it in R, and shows what it can (and cannot) capture. Posts 2 onward build directly on this foundation.</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a><span class="fu"># The biology in brief</span></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>When a vaccine antigen enters the body, a cascade of events unfolds over days to months <span class="co">[</span><span class="ot">@victora2012</span><span class="co">]</span>:</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Innate activation.** Dendritic cells at the injection site capture antigen and migrate to draining lymph nodes, presenting peptide fragments on MHC molecules.</span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**B-cell activation and germinal centre reaction.** Antigen-specific naive B cells recognise the antigen, receive T-cell help, and enter germinal centres — specialised microstructures in the lymph node where rapid proliferation, somatic hypermutation, and affinity maturation occur.</span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Plasma cell differentiation.** Germinal-centre B cells differentiate into plasma cells — antibody factories. *Short-lived plasma cells* (SLPCs) emerge within days and produce a rapid burst of antibody before dying in 1–2 weeks. *Long-lived plasma cells* (LLPCs) migrate to bone-marrow niches and can survive for decades, secreting antibody constitutively <span class="co">[</span><span class="ot">@slifka1998; @amanna2007</span><span class="co">]</span>.</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Memory B-cell formation.** A fraction of germinal-centre B cells exit as memory cells rather than plasma cells. These are quiescent but respond much faster to a second antigen encounter.</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Antibody titre dynamics.** Serum IgG rises as plasma cells secrete antibody, peaks 2–4 weeks post-vaccination, then wanes. The rate of waning reflects the ratio of SLPCs to LLPCs: SLPC-dominated responses wane quickly; LLPC-dominated responses produce persistent titres.</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>A landmark study by Amanna et al. <span class="co">[</span><span class="ot">@amanna2007</span><span class="co">]</span> measured antibody half-lives for 10 antigens in a 26-year longitudinal cohort. Half-lives ranged from 11 years (tetanus) to 50 years (vaccinia). The extraordinary persistence seen with the best vaccines is attributed almost entirely to LLPCs settled in bone-marrow niches — a finding that changed how we think about what a good vaccine needs to do.</span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a><span class="fu"># The ODE model</span></span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>We model five compartments:</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Symbol <span class="pp">|</span> Interpretation <span class="pp">|</span> Unit <span class="pp">|</span></span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $A(t)$ <span class="pp">|</span> Vaccine antigen depot <span class="pp">|</span> a.u. <span class="pp">|</span></span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $S(t)$ <span class="pp">|</span> Short-lived plasma cells <span class="pp">|</span> a.u. <span class="pp">|</span></span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $L(t)$ <span class="pp">|</span> Long-lived plasma cells <span class="pp">|</span> a.u. <span class="pp">|</span></span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $M(t)$ <span class="pp">|</span> Memory B cells <span class="pp">|</span> a.u. <span class="pp">|</span></span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\text{Ab}(t)$ <span class="pp">|</span> Serum antibody titre <span class="pp">|</span> a.u. <span class="pp">|</span></span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a>The equations are:</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a>\frac{dA}{dt} = -\delta_A A \tag{1}</span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a>\frac{dS}{dt} = k_S\, A\,(1 + \phi_S M) - \delta_S S \tag{2}</span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a>\frac{dL}{dt} = k_L\, A\,(1 + \phi_L M) - \delta_L L \tag{3}</span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>\frac{dM}{dt} = \varepsilon S - \delta_M M \tag{4}</span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>\frac{d\text{Ab}}{dt} = r_S S + r_L L - \delta_{\text{Ab}}\,\text{Ab} \tag{5}</span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a>**Equation 1.** The antigen depot decays at rate $\delta_A$. This captures both in-vivo clearance of the antigen and the finite duration over which the immune system receives stimulation.</span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>**Equations 2–3.** Both plasma-cell populations are stimulated proportionally to antigen availability $A$. The memory-recall term $(1 + \phi M)$ is the crucial feature: on re-exposure, pre-existing memory B cells dramatically amplify plasma-cell production, with $\phi_L &gt; \phi_S$ reflecting the observation that memory preferentially replenishes the long-lived pool during recall responses <span class="co">[</span><span class="ot">@victora2012</span><span class="co">]</span>.</span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a>**Equation 4.** Memory cells accumulate proportional to SLPC production (fraction $\varepsilon$) and decay very slowly ($\delta_M \ll \delta_S$).</span>
+<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a>**Equation 5.** Antibody is secreted by both plasma-cell populations and cleared at rate $\delta_{\text{Ab}}$.</span>
+<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a>This structure is motivated by early modelling work on immune memory <span class="co">[</span><span class="ot">@perelson2002; @antia2005</span><span class="co">]</span> and is consistent with the two-population interpretation of biphasic antibody waning — a fast initial drop driven by SLPC loss, followed by a slow plateau maintained by LLPCs — demonstrated empirically in <span class="co">[</span><span class="ot">@amanna2007</span><span class="co">]</span>.</span>
+<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a><span class="fu"># Implementation</span></span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a><span class="in">```{r model-definition}</span></span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a><span class="co"># ODE system</span></span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a>withinhost_vax <span class="ot">&lt;-</span> <span class="cf">function</span>(t, state, parms) {</span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a>  <span class="fu">with</span>(<span class="fu">as.list</span>(<span class="fu">c</span>(state, parms)), {</span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a>    dA  <span class="ot">&lt;-</span> <span class="sc">-</span>delta_A  <span class="sc">*</span> A</span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a>    dS  <span class="ot">&lt;-</span> kS <span class="sc">*</span> A <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">+</span> phi_S <span class="sc">*</span> M) <span class="sc">-</span> delta_S  <span class="sc">*</span> S</span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>    dL  <span class="ot">&lt;-</span> kL <span class="sc">*</span> A <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">+</span> phi_L <span class="sc">*</span> M) <span class="sc">-</span> delta_L  <span class="sc">*</span> L</span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>    dM  <span class="ot">&lt;-</span> eps <span class="sc">*</span> S                   <span class="sc">-</span> delta_M  <span class="sc">*</span> M</span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a>    dAb <span class="ot">&lt;-</span> rS <span class="sc">*</span> S <span class="sc">+</span> rL <span class="sc">*</span> L           <span class="sc">-</span> delta_Ab <span class="sc">*</span> Ab</span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="fu">c</span>(dA, dS, dL, dM, dAb))</span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameter values</span></span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a>parms <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_A  =</span> <span class="fl">0.30</span>,   <span class="co"># antigen half-life  ~2.3 days</span></span>
+<span id="cb6-123"><a href="#cb6-123" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_S  =</span> <span class="fl">0.15</span>,   <span class="co"># SLPC half-life     ~4.6 days</span></span>
+<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_L  =</span> <span class="fl">0.003</span>,  <span class="co"># LLPC half-life     ~231 days</span></span>
+<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_M  =</span> <span class="fl">0.004</span>,  <span class="co"># memory half-life   ~173 days</span></span>
+<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta_Ab =</span> <span class="fl">0.018</span>,  <span class="co"># antibody half-life ~39 days</span></span>
+<span id="cb6-127"><a href="#cb6-127" aria-hidden="true" tabindex="-1"></a>  <span class="at">kS       =</span> <span class="fl">5.0</span>,    <span class="co"># SLPC stimulation rate</span></span>
+<span id="cb6-128"><a href="#cb6-128" aria-hidden="true" tabindex="-1"></a>  <span class="at">kL       =</span> <span class="fl">0.5</span>,    <span class="co"># LLPC stimulation rate</span></span>
+<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a>  <span class="at">rS       =</span> <span class="fl">2.0</span>,    <span class="co"># antibody secretion: SLPC</span></span>
+<span id="cb6-130"><a href="#cb6-130" aria-hidden="true" tabindex="-1"></a>  <span class="at">rL       =</span> <span class="fl">5.0</span>,    <span class="co"># antibody secretion: LLPC</span></span>
+<span id="cb6-131"><a href="#cb6-131" aria-hidden="true" tabindex="-1"></a>  <span class="at">eps      =</span> <span class="fl">0.05</span>,   <span class="co"># memory generation efficiency</span></span>
+<span id="cb6-132"><a href="#cb6-132" aria-hidden="true" tabindex="-1"></a>  <span class="at">phi_S    =</span> <span class="fl">3.0</span>,    <span class="co"># recall boost factor: SLPC</span></span>
+<span id="cb6-133"><a href="#cb6-133" aria-hidden="true" tabindex="-1"></a>  <span class="at">phi_L    =</span> <span class="fl">8.0</span>     <span class="co"># recall boost factor: LLPC</span></span>
+<span id="cb6-134"><a href="#cb6-134" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-135"><a href="#cb6-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-136"><a href="#cb6-136" aria-hidden="true" tabindex="-1"></a>state0 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">A =</span> <span class="dv">1</span>, <span class="at">S =</span> <span class="dv">0</span>, <span class="at">L =</span> <span class="dv">0</span>, <span class="at">M =</span> <span class="dv">0</span>, <span class="at">Ab =</span> <span class="dv">0</span>)</span>
+<span id="cb6-137"><a href="#cb6-137" aria-hidden="true" tabindex="-1"></a>times  <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">360</span>, <span class="at">by =</span> <span class="fl">0.5</span>)</span>
+<span id="cb6-138"><a href="#cb6-138" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-139"><a href="#cb6-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-140"><a href="#cb6-140" aria-hidden="true" tabindex="-1"></a>The parameters are chosen to reproduce qualitative features of mRNA vaccine immunogenicity data: a first-dose antibody peak around day 14–21, a substantially higher second-dose peak, and waning to roughly 20–30% of peak by month 6 — consistent with published BNT162b2 immunogenicity studies <span class="co">[</span><span class="ot">@goel2021; @khoury2021</span><span class="co">]</span>. Units are arbitrary (a.u.); the shapes and ratios are what matter at this stage.</span>
+<span id="cb6-141"><a href="#cb6-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-142"><a href="#cb6-142" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-143"><a href="#cb6-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-144"><a href="#cb6-144" aria-hidden="true" tabindex="-1"></a><span class="fu"># Single-dose dynamics</span></span>
+<span id="cb6-145"><a href="#cb6-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-146"><a href="#cb6-146" aria-hidden="true" tabindex="-1"></a><span class="in">```{r immune-cascade, fig.cap="Immune cascade after a single vaccine dose. Antigen (A) decays within a week, driving a transient short-lived plasma cell (S) peak at day ~5. Long-lived plasma cells (L) and memory B cells (M) accumulate more slowly and persist. Antibody titre (Ab) mirrors the combined secretion from S and L, rising to a peak around day 18 before entering a slow decline sustained by L."}</span></span>
+<span id="cb6-147"><a href="#cb6-147" aria-hidden="true" tabindex="-1"></a>out1 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">ode</span>(<span class="at">y =</span> state0, <span class="at">times =</span> times,</span>
+<span id="cb6-148"><a href="#cb6-148" aria-hidden="true" tabindex="-1"></a>                           <span class="at">func =</span> withinhost_vax, <span class="at">parms =</span> parms))</span>
+<span id="cb6-149"><a href="#cb6-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-150"><a href="#cb6-150" aria-hidden="true" tabindex="-1"></a><span class="co"># Facet labels</span></span>
+<span id="cb6-151"><a href="#cb6-151" aria-hidden="true" tabindex="-1"></a>var_labels <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb6-152"><a href="#cb6-152" aria-hidden="true" tabindex="-1"></a>  <span class="at">A   =</span> <span class="st">"Antigen (A)"</span>,</span>
+<span id="cb6-153"><a href="#cb6-153" aria-hidden="true" tabindex="-1"></a>  <span class="at">S   =</span> <span class="st">"Short-lived PCs (S)"</span>,</span>
+<span id="cb6-154"><a href="#cb6-154" aria-hidden="true" tabindex="-1"></a>  <span class="at">L   =</span> <span class="st">"Long-lived PCs (L)"</span>,</span>
+<span id="cb6-155"><a href="#cb6-155" aria-hidden="true" tabindex="-1"></a>  <span class="at">M   =</span> <span class="st">"Memory B cells (M)"</span>,</span>
+<span id="cb6-156"><a href="#cb6-156" aria-hidden="true" tabindex="-1"></a>  <span class="at">Ab  =</span> <span class="st">"Antibody titre (Ab)"</span></span>
+<span id="cb6-157"><a href="#cb6-157" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-158"><a href="#cb6-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-159"><a href="#cb6-159" aria-hidden="true" tabindex="-1"></a>out1_long <span class="ot">&lt;-</span> out1 <span class="sc">|&gt;</span></span>
+<span id="cb6-160"><a href="#cb6-160" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>time, <span class="at">names_to =</span> <span class="st">"var"</span>, <span class="at">values_to =</span> <span class="st">"value"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb6-161"><a href="#cb6-161" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">var =</span> <span class="fu">factor</span>(var, <span class="at">levels =</span> <span class="fu">names</span>(var_labels),</span>
+<span id="cb6-162"><a href="#cb6-162" aria-hidden="true" tabindex="-1"></a>                      <span class="at">labels =</span> var_labels))</span>
+<span id="cb6-163"><a href="#cb6-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-164"><a href="#cb6-164" aria-hidden="true" tabindex="-1"></a>pal <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb6-165"><a href="#cb6-165" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Antigen (A)"</span>          <span class="ot">=</span> <span class="st">"#888888"</span>,</span>
+<span id="cb6-166"><a href="#cb6-166" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Short-lived PCs (S)"</span>  <span class="ot">=</span> <span class="st">"#E87722"</span>,</span>
+<span id="cb6-167"><a href="#cb6-167" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Long-lived PCs (L)"</span>   <span class="ot">=</span> <span class="st">"#3B6EA8"</span>,</span>
+<span id="cb6-168"><a href="#cb6-168" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Memory B cells (M)"</span>   <span class="ot">=</span> <span class="st">"#4DAF4A"</span>,</span>
+<span id="cb6-169"><a href="#cb6-169" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Antibody titre (Ab)"</span>  <span class="ot">=</span> <span class="st">"#984EA3"</span></span>
+<span id="cb6-170"><a href="#cb6-170" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-171"><a href="#cb6-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-172"><a href="#cb6-172" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(out1_long, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> value, <span class="at">colour =</span> var)) <span class="sc">+</span></span>
+<span id="cb6-173"><a href="#cb6-173" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb6-174"><a href="#cb6-174" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>var, <span class="at">scales =</span> <span class="st">"free_y"</span>, <span class="at">ncol =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb6-175"><a href="#cb6-175" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> pal, <span class="at">guide =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb6-176"><a href="#cb6-176" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-vaccination"</span>, <span class="at">y =</span> <span class="st">"Concentration (a.u.)"</span>) <span class="sc">+</span></span>
+<span id="cb6-177"><a href="#cb6-177" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">strip.background =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb6-178"><a href="#cb6-178" aria-hidden="true" tabindex="-1"></a>        <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>))</span>
+<span id="cb6-179"><a href="#cb6-179" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-180"><a href="#cb6-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-181"><a href="#cb6-181" aria-hidden="true" tabindex="-1"></a>The cascade has a clear temporal hierarchy:</span>
+<span id="cb6-182"><a href="#cb6-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-183"><a href="#cb6-183" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Days 1–7**: Antigen drives a burst of SLPC production. Antibody begins to rise.</span>
+<span id="cb6-184"><a href="#cb6-184" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Days 7–21**: SLPCs decline as antigen clears. LLPCs and memory B cells continue accumulating. Antibody peaks.</span>
+<span id="cb6-185"><a href="#cb6-185" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Days 21+**: SLPC contribution to antibody fades; the titre is increasingly sustained by the small but persistent LLPC pool. Waning slows markedly once LLPCs dominate.</span>
+<span id="cb6-186"><a href="#cb6-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-187"><a href="#cb6-187" aria-hidden="true" tabindex="-1"></a>This biphasic waning — a fast initial drop followed by a slow plateau — is the characteristic fingerprint of a two-population plasma cell response. Vaccines that generate large LLPC pools (live-attenuated, mRNA with strong adjuvanticity) show much slower long-term waning than those that elicit primarily SLPCs.</span>
+<span id="cb6-188"><a href="#cb6-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-189"><a href="#cb6-189" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-190"><a href="#cb6-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-191"><a href="#cb6-191" aria-hidden="true" tabindex="-1"></a><span class="fu"># Prime-boost dynamics</span></span>
+<span id="cb6-192"><a href="#cb6-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-193"><a href="#cb6-193" aria-hidden="true" tabindex="-1"></a>Most modern vaccines use a prime-boost schedule: a second dose is given weeks after the first, by which time memory B cells have accumulated enough to mount a dramatically amplified recall response. We model this by adding a second antigen dose ($A \mathrel{+}= 1$) at day 21.</span>
+<span id="cb6-194"><a href="#cb6-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-195"><a href="#cb6-195" aria-hidden="true" tabindex="-1"></a><span class="in">```{r prime-boost, fig.cap="Antibody kinetics: single dose (dashed) vs. prime-boost at day 21 (solid). The second dose finds a primed immune system — memory B cells (M) amplify both SLPC and LLPC production, producing a peak titre ~8–10-fold higher than dose 1 and substantially slower long-term waning. The vertical dotted line marks the day-21 boost."}</span></span>
+<span id="cb6-196"><a href="#cb6-196" aria-hidden="true" tabindex="-1"></a>dose2_event <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb6-197"><a href="#cb6-197" aria-hidden="true" tabindex="-1"></a>  <span class="at">var    =</span> <span class="st">"A"</span>,</span>
+<span id="cb6-198"><a href="#cb6-198" aria-hidden="true" tabindex="-1"></a>  <span class="at">time   =</span> <span class="dv">21</span>,</span>
+<span id="cb6-199"><a href="#cb6-199" aria-hidden="true" tabindex="-1"></a>  <span class="at">value  =</span> <span class="dv">1</span>,</span>
+<span id="cb6-200"><a href="#cb6-200" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"add"</span></span>
+<span id="cb6-201"><a href="#cb6-201" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-202"><a href="#cb6-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-203"><a href="#cb6-203" aria-hidden="true" tabindex="-1"></a>out2 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">ode</span>(<span class="at">y =</span> state0, <span class="at">times =</span> times,</span>
+<span id="cb6-204"><a href="#cb6-204" aria-hidden="true" tabindex="-1"></a>                           <span class="at">func =</span> withinhost_vax, <span class="at">parms =</span> parms,</span>
+<span id="cb6-205"><a href="#cb6-205" aria-hidden="true" tabindex="-1"></a>                           <span class="at">events =</span> <span class="fu">list</span>(<span class="at">data =</span> dose2_event)))</span>
+<span id="cb6-206"><a href="#cb6-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-207"><a href="#cb6-207" aria-hidden="true" tabindex="-1"></a>df_compare <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb6-208"><a href="#cb6-208" aria-hidden="true" tabindex="-1"></a>  out1 <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">schedule =</span> <span class="st">"Single dose (day 0)"</span>),</span>
+<span id="cb6-209"><a href="#cb6-209" aria-hidden="true" tabindex="-1"></a>  out2 <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">schedule =</span> <span class="st">"Prime-boost (day 0 + day 21)"</span>)</span>
+<span id="cb6-210"><a href="#cb6-210" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span> <span class="fu">select</span>(time, Ab, schedule)</span>
+<span id="cb6-211"><a href="#cb6-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-212"><a href="#cb6-212" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_compare, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> Ab, <span class="at">colour =</span> schedule, <span class="at">linetype =</span> schedule)) <span class="sc">+</span></span>
+<span id="cb6-213"><a href="#cb6-213" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">21</span>, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">colour =</span> <span class="st">"grey50"</span>, <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb6-214"><a href="#cb6-214" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb6-215"><a href="#cb6-215" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>()) <span class="sc">+</span></span>
+<span id="cb6-216"><a href="#cb6-216" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Single dose (day 0)"</span>          <span class="ot">=</span> <span class="st">"#888888"</span>,</span>
+<span id="cb6-217"><a href="#cb6-217" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"Prime-boost (day 0 + day 21)"</span> <span class="ot">=</span> <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb6-218"><a href="#cb6-218" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Single dose (day 0)"</span>          <span class="ot">=</span> <span class="st">"dashed"</span>,</span>
+<span id="cb6-219"><a href="#cb6-219" aria-hidden="true" tabindex="-1"></a>                                    <span class="st">"Prime-boost (day 0 + day 21)"</span> <span class="ot">=</span> <span class="st">"solid"</span>)) <span class="sc">+</span></span>
+<span id="cb6-220"><a href="#cb6-220" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-first dose"</span>, <span class="at">y =</span> <span class="st">"Antibody titre (a.u., log scale)"</span>,</span>
+<span id="cb6-221"><a href="#cb6-221" aria-hidden="true" tabindex="-1"></a>       <span class="at">colour =</span> <span class="cn">NULL</span>, <span class="at">linetype =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb6-222"><a href="#cb6-222" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span>
+<span id="cb6-223"><a href="#cb6-223" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-224"><a href="#cb6-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-225"><a href="#cb6-225" aria-hidden="true" tabindex="-1"></a>The memory amplification captured by the $(1 + \phi M)$ terms explains three features of prime-boost immunogenicity universally seen in clinical data <span class="co">[</span><span class="ot">@goel2021</span><span class="co">]</span>:</span>
+<span id="cb6-226"><a href="#cb6-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-227"><a href="#cb6-227" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>The second-dose peak is substantially higher (here ~8-fold), driven by massive SLPC expansion.</span>
+<span id="cb6-228"><a href="#cb6-228" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>The plateau after dose 2 is higher (more LLPCs generated during recall), so titres remain above the single-dose level even at 12 months.</span>
+<span id="cb6-229"><a href="#cb6-229" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>The response is faster — the antibody rises within days of the boost, not weeks, because memory cells differentiate into plasma cells without needing to transit through a full germinal-centre reaction.</span>
+<span id="cb6-230"><a href="#cb6-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-231"><a href="#cb6-231" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-232"><a href="#cb6-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-233"><a href="#cb6-233" aria-hidden="true" tabindex="-1"></a><span class="fu"># What controls waning?</span></span>
+<span id="cb6-234"><a href="#cb6-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-235"><a href="#cb6-235" aria-hidden="true" tabindex="-1"></a>Two parameters dominate long-term antibody decay: $\delta_L$ (LLPC clearance) and $k_L / k_S$ (how much of the stimulatory signal goes to the long-lived vs short-lived pool). The figure below sweeps $\delta_L$ across a range that spans what has been measured in humans — from fast-waning responses (e.g., SARS-CoV-2 in naive individuals) to long-lived ones (e.g., measles, yellow fever) <span class="co">[</span><span class="ot">@amanna2007</span><span class="co">]</span>.</span>
+<span id="cb6-236"><a href="#cb6-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-237"><a href="#cb6-237" aria-hidden="true" tabindex="-1"></a><span class="in">```{r waning-sensitivity, fig.cap="Sensitivity of long-term antibody waning to LLPC clearance rate δ_L (prime-boost schedule). With a short LLPC half-life (~35 days, red), titres drop to near zero by month 6 — no persistent immunity. With a long half-life (~693 days, blue), titres remain high a year post-vaccination. The grey band marks a hypothetical protective threshold. Most mRNA vaccines fall in the intermediate range."}</span></span>
+<span id="cb6-238"><a href="#cb6-238" aria-hidden="true" tabindex="-1"></a>delta_L_vals <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.020</span>, <span class="fl">0.008</span>, <span class="fl">0.003</span>, <span class="fl">0.001</span>)</span>
+<span id="cb6-239"><a href="#cb6-239" aria-hidden="true" tabindex="-1"></a>llpc_labels  <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb6-240"><a href="#cb6-240" aria-hidden="true" tabindex="-1"></a>  <span class="st">"0.020"</span> <span class="ot">=</span> <span class="st">"LLPC t½ = 35 d"</span>,</span>
+<span id="cb6-241"><a href="#cb6-241" aria-hidden="true" tabindex="-1"></a>  <span class="st">"0.008"</span> <span class="ot">=</span> <span class="st">"LLPC t½ = 87 d"</span>,</span>
+<span id="cb6-242"><a href="#cb6-242" aria-hidden="true" tabindex="-1"></a>  <span class="st">"0.003"</span> <span class="ot">=</span> <span class="st">"LLPC t½ = 231 d"</span>,</span>
+<span id="cb6-243"><a href="#cb6-243" aria-hidden="true" tabindex="-1"></a>  <span class="st">"0.001"</span> <span class="ot">=</span> <span class="st">"LLPC t½ = 693 d"</span></span>
+<span id="cb6-244"><a href="#cb6-244" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-245"><a href="#cb6-245" aria-hidden="true" tabindex="-1"></a>pal_waning <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb6-246"><a href="#cb6-246" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LLPC t½ = 35 d"</span>  <span class="ot">=</span> <span class="st">"#D7191C"</span>,</span>
+<span id="cb6-247"><a href="#cb6-247" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LLPC t½ = 87 d"</span>  <span class="ot">=</span> <span class="st">"#FDAE61"</span>,</span>
+<span id="cb6-248"><a href="#cb6-248" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LLPC t½ = 231 d"</span> <span class="ot">=</span> <span class="st">"#3B6EA8"</span>,</span>
+<span id="cb6-249"><a href="#cb6-249" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LLPC t½ = 693 d"</span> <span class="ot">=</span> <span class="st">"#1A9641"</span></span>
+<span id="cb6-250"><a href="#cb6-250" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-251"><a href="#cb6-251" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-252"><a href="#cb6-252" aria-hidden="true" tabindex="-1"></a>res_list <span class="ot">&lt;-</span> <span class="fu">lapply</span>(delta_L_vals, <span class="cf">function</span>(dL) {</span>
+<span id="cb6-253"><a href="#cb6-253" aria-hidden="true" tabindex="-1"></a>  p2 <span class="ot">&lt;-</span> parms; p2[<span class="st">"delta_L"</span>] <span class="ot">&lt;-</span> dL</span>
+<span id="cb6-254"><a href="#cb6-254" aria-hidden="true" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">ode</span>(<span class="at">y =</span> state0, <span class="at">times =</span> times,</span>
+<span id="cb6-255"><a href="#cb6-255" aria-hidden="true" tabindex="-1"></a>                            <span class="at">func =</span> withinhost_vax, <span class="at">parms =</span> p2,</span>
+<span id="cb6-256"><a href="#cb6-256" aria-hidden="true" tabindex="-1"></a>                            <span class="at">events =</span> <span class="fu">list</span>(<span class="at">data =</span> dose2_event)))</span>
+<span id="cb6-257"><a href="#cb6-257" aria-hidden="true" tabindex="-1"></a>  out<span class="sc">$</span>delta_L_label <span class="ot">&lt;-</span> llpc_labels[<span class="fu">as.character</span>(dL)]</span>
+<span id="cb6-258"><a href="#cb6-258" aria-hidden="true" tabindex="-1"></a>  out</span>
+<span id="cb6-259"><a href="#cb6-259" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb6-260"><a href="#cb6-260" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-261"><a href="#cb6-261" aria-hidden="true" tabindex="-1"></a>df_wane <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(res_list) <span class="sc">|&gt;</span></span>
+<span id="cb6-262"><a href="#cb6-262" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">delta_L_label =</span> <span class="fu">factor</span>(delta_L_label, <span class="at">levels =</span> llpc_labels))</span>
+<span id="cb6-263"><a href="#cb6-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-264"><a href="#cb6-264" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_wane, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> Ab, <span class="at">colour =</span> delta_L_label)) <span class="sc">+</span></span>
+<span id="cb6-265"><a href="#cb6-265" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"rect"</span>, <span class="at">xmin =</span> <span class="dv">0</span>, <span class="at">xmax =</span> <span class="dv">360</span>,</span>
+<span id="cb6-266"><a href="#cb6-266" aria-hidden="true" tabindex="-1"></a>           <span class="at">ymin =</span> <span class="dv">20</span>, <span class="at">ymax =</span> <span class="dv">50</span>, <span class="at">alpha =</span> <span class="fl">0.15</span>, <span class="at">fill =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb6-267"><a href="#cb6-267" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">350</span>, <span class="at">y =</span> <span class="dv">38</span>, <span class="at">label =</span> <span class="st">"threshold"</span>, <span class="at">size =</span> <span class="dv">3</span>,</span>
+<span id="cb6-268"><a href="#cb6-268" aria-hidden="true" tabindex="-1"></a>           <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">colour =</span> <span class="st">"grey40"</span>) <span class="sc">+</span></span>
+<span id="cb6-269"><a href="#cb6-269" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.85</span>) <span class="sc">+</span></span>
+<span id="cb6-270"><a href="#cb6-270" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb6-271"><a href="#cb6-271" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> pal_waning) <span class="sc">+</span></span>
+<span id="cb6-272"><a href="#cb6-272" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-first dose"</span>, <span class="at">y =</span> <span class="st">"Antibody titre (a.u., log scale)"</span>,</span>
+<span id="cb6-273"><a href="#cb6-273" aria-hidden="true" tabindex="-1"></a>       <span class="at">colour =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb6-274"><a href="#cb6-274" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span>
+<span id="cb6-275"><a href="#cb6-275" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-276"><a href="#cb6-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-277"><a href="#cb6-277" aria-hidden="true" tabindex="-1"></a>The sensitivity analysis reveals a practical implication for trial design. A vaccine that generates primarily SLPCs might show excellent 28-day titres in a Phase 1 study but provide negligible protection by month 6. Conversely, a vaccine that elicits a large LLPC pool will show slower early kinetics but durable long-term protection. These two vaccines are nearly indistinguishable from peak-titre data alone. Identifying which compartment is dominant — and estimating $\delta_L$ per individual — is exactly what a within-host digital twin must do from limited longitudinal data.</span>
+<span id="cb6-278"><a href="#cb6-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-279"><a href="#cb6-279" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-280"><a href="#cb6-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-281"><a href="#cb6-281" aria-hidden="true" tabindex="-1"></a><span class="fu"># Parameters and their biological interpretation</span></span>
+<span id="cb6-282"><a href="#cb6-282" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-283"><a href="#cb6-283" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Parameter <span class="pp">|</span> Value <span class="pp">|</span> Biological meaning <span class="pp">|</span></span>
+<span id="cb6-284"><a href="#cb6-284" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb6-285"><a href="#cb6-285" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\delta_A = 0.30$ d$^{-1}$ <span class="pp">|</span> LLPC t½ ~2 d <span class="pp">|</span> Antigen cleared within ~1 week <span class="pp">|</span></span>
+<span id="cb6-286"><a href="#cb6-286" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\delta_S = 0.15$ d$^{-1}$ <span class="pp">|</span> SLPC t½ ~5 d <span class="pp">|</span> Short-lived plasma cells die quickly <span class="pp">|</span></span>
+<span id="cb6-287"><a href="#cb6-287" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\delta_L = 0.003$ d$^{-1}$ <span class="pp">|</span> LLPC t½ ~230 d <span class="pp">|</span> Bone-marrow plasma cells are long-lived <span class="pp">|</span></span>
+<span id="cb6-288"><a href="#cb6-288" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\delta_M = 0.004$ d$^{-1}$ <span class="pp">|</span> Memory t½ ~170 d <span class="pp">|</span> Memory cells persist for years to decades <span class="pp">|</span></span>
+<span id="cb6-289"><a href="#cb6-289" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\delta_{\text{Ab}} = 0.018$ d$^{-1}$ <span class="pp">|</span> Ab t½ ~39 d <span class="pp">|</span> IgG turnover in serum <span class="pp">|</span></span>
+<span id="cb6-290"><a href="#cb6-290" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $k_L / k_S = 0.1$ <span class="pp">|</span> — <span class="pp">|</span> 10% of stimulation goes to LLPC pool <span class="pp">|</span></span>
+<span id="cb6-291"><a href="#cb6-291" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $\phi_L &gt; \phi_S$ <span class="pp">|</span> 8 vs 3 <span class="pp">|</span> Memory preferentially replenishes LLPCs on recall <span class="pp">|</span></span>
+<span id="cb6-292"><a href="#cb6-292" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> $r_L &gt; r_S$ <span class="pp">|</span> 5 vs 2 <span class="pp">|</span> LLPCs secrete more antibody per cell per unit time <span class="pp">|</span></span>
+<span id="cb6-293"><a href="#cb6-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-294"><a href="#cb6-294" aria-hidden="true" tabindex="-1"></a>Antibody half-life values are broadly consistent with IgG catabolism data across vaccine antigens in <span class="co">[</span><span class="ot">@amanna2007</span><span class="co">]</span>. SLPC half-life is consistent with short-lived plasma cell lifespans measured *ex vivo*. LLPC half-life spans the observed range from fast-waning SARS-CoV-2 responses to longer-lived measles-vaccine-induced immunity.</span>
+<span id="cb6-295"><a href="#cb6-295" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-296"><a href="#cb6-296" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-297"><a href="#cb6-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-298"><a href="#cb6-298" aria-hidden="true" tabindex="-1"></a><span class="fu"># Limitations and what comes next</span></span>
+<span id="cb6-299"><a href="#cb6-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-300"><a href="#cb6-300" aria-hidden="true" tabindex="-1"></a>This model captures the broad strokes of humoral vaccine immunology but omits several biologically important processes:</span>
+<span id="cb6-301"><a href="#cb6-301" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-302"><a href="#cb6-302" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**CD4+ and CD8+ T cells.** T-cell help is modelled implicitly through the antigen-driven stimulation terms. Vaccines with poor T-cell immunogenicity would need this made explicit.</span>
+<span id="cb6-303"><a href="#cb6-303" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Antigen-specific B-cell precursor frequency.** The initial B-cell pool size varies among individuals and affects peak response; this heterogeneity is not represented.</span>
+<span id="cb6-304"><a href="#cb6-304" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Innate signals and adjuvants.** Different adjuvants (AS01, MF59, alum, lipid nanoparticle) change the kinetics of dendritic-cell activation and germinal-centre seeding, effectively altering $k_S$, $k_L$, and the timing parameters. The model could be extended with an innate-activation compartment.</span>
+<span id="cb6-305"><a href="#cb6-305" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Waning from bone-marrow niche competition.** Long-lived plasma cell survival depends on occupancy of specialised bone-marrow niches; the model treats $\delta_L$ as constant, ignoring this density-dependence.</span>
+<span id="cb6-306"><a href="#cb6-306" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-307"><a href="#cb6-307" aria-hidden="true" tabindex="-1"></a>Despite these simplifications, the two-population plasma-cell model is the standard starting point in quantitative vaccine pharmacology <span class="co">[</span><span class="ot">@dasti2025; @tarning2023</span><span class="co">]</span>. It has enough structure to be calibrated to individual patient data (longitudinal antibody measurements) and enough flexibility to represent the spectrum from fast-waning to durable immunity.</span>
+<span id="cb6-308"><a href="#cb6-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-309"><a href="#cb6-309" aria-hidden="true" tabindex="-1"></a>**Post 2** will take the antibody trajectory from this model and ask: *at what titre does a given level of antibody actually protect from infection?* That question — the correlate of protection — is the second building block of the digital twin.</span>
+<span id="cb6-310"><a href="#cb6-310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-311"><a href="#cb6-311" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-312"><a href="#cb6-312" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-313"><a href="#cb6-313" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {.unnumbered}</span></span>
+<span id="cb6-314"><a href="#cb6-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-315"><a href="#cb6-315" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb6-316"><a href="#cb6-316" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb6-317"><a href="#cb6-317" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-318"><a href="#cb6-318" aria-hidden="true" tabindex="-1"></a><span class="in">```{r session-info, echo=FALSE}</span></span>
+<span id="cb6-319"><a href="#cb6-319" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
+<span id="cb6-320"><a href="#cb6-320" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
