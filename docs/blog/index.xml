@@ -10,7 +10,830 @@
 <atom:link href="https://www.jonghoonk.com/blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Disease modeling for public health</description>
 <generator>quarto-1.9.36</generator>
-<lastBuildDate>Sun, 19 Apr 2026 15:00:00 GMT</lastBuildDate>
+<lastBuildDate>Mon, 20 Apr 2026 15:00:00 GMT</lastBuildDate>
+<item>
+  <title>Digital Twins in Clinical Trials</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/digital_twin_clinical_trial/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="what-is-a-digital-twin" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> What is a digital twin?</h1>
+<p>The term <em>digital twin</em> was coined by Michael Grieves around 2002 in a manufacturing context: a real artefact, a virtual replica that mirrors it, and a bidirectional data connection keeping the two in sync <span class="citation" data-cites="grieves2017">(1)</span>. In aerospace and civil engineering the idea is now mature — you build a digital twin of a turbine blade or a bridge, run it under load in simulation, and intervene on the physical object only when the model flags a problem.</p>
+<p>Medicine arrived at the concept via a different route. As electronic health records, multi-omics assays, and wearable sensors began generating continuous streams of data about individual patients, it became conceivable to build a <em>patient-level</em> model rather than a population-average one: a computational instance calibrated to one person’s physiology that could be queried, perturbed, and iterated faster than any wet-lab experiment. Clinical decision support, drug dosing, and oncology treatment planning were early targets <span class="citation" data-cites="bjornsson2020 stahlberg2022">(2,3)</span>.</p>
+<p>Clinical trials entered the picture when researchers realised that a well-validated patient model could play the role of a <em>counterfactual control</em>: what would have happened to this patient had they received placebo? If that counterfactual is reliable enough, it can supplement — or in limited circumstances replace — a randomised control arm. The potential benefits are compelling:</p>
+<ul>
+<li><strong>Smaller trials</strong>: fewer participants needed when the control response is already known from simulation.</li>
+<li><strong>Greater equity</strong>: patients who would otherwise receive only placebo may instead receive active treatment.</li>
+<li><strong>Personalised outcomes</strong>: population-average efficacy estimates give way to individual trajectory predictions.</li>
+<li><strong>Faster iteration</strong>: many candidate regimens are eliminated in silico before any needle is lifted.</li>
+</ul>
+<p>This post reviews how digital twins are being built for infectious-disease vaccine trials, what the underlying modelling machinery looks like, and where the major unresolved challenges lie.</p>
+<hr>
+</section>
+<section id="the-modelling-stack" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> The modelling stack</h1>
+<p>A clinical-trial digital twin is rarely one model. It is a <em>stack</em> of coupled models operating at different biological scales <span class="citation" data-cites="subramanian2020">(4)</span>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Scale</th>
+<th>Examples</th>
+<th>Key state variables</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Molecular</td>
+<td>Receptor binding, antigen processing</td>
+<td>Antibody titres, antigen load</td>
+</tr>
+<tr class="even">
+<td>Cellular</td>
+<td>T-cell, B-cell, innate cell dynamics</td>
+<td>Cell counts, activation states</td>
+</tr>
+<tr class="odd">
+<td>Tissue / organ</td>
+<td>Lymph node germinal centre, lung epithelium</td>
+<td>Local cytokine concentrations</td>
+</tr>
+<tr class="even">
+<td>Individual</td>
+<td>Systemic immune kinetics, PK/PD</td>
+<td>Viral load, IgG, temperature</td>
+</tr>
+<tr class="odd">
+<td>Population</td>
+<td>Epidemic transmission</td>
+<td>S, E, I, R compartments</td>
+</tr>
+</tbody>
+</table>
+<p>For vaccine trials, the most consequential scales are the <em>individual</em> and the <em>population</em>. Individualisation distinguishes a digital twin from a conventional pharmacometric model; population coupling connects immune responses to clinical endpoints (does this person get infected? are they hospitalised?).</p>
+<hr>
+</section>
+<section id="immune-digital-twins" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Immune digital twins</h1>
+<section id="quantitative-systems-pharmacology" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="quantitative-systems-pharmacology"><span class="header-section-number">3.1</span> Quantitative systems pharmacology</h2>
+<p>Quantitative systems pharmacology (QSP) sits at the individual scale and is currently the dominant modelling framework for immune digital twins in pharma <span class="citation" data-cites="tarning2023">(5)</span>. A QSP model is a large ODE system encoding, mechanistically, how a vaccine depot is processed by dendritic cells, how antigen-specific B cells expand in germinal centres, how antibody titres rise and wane, and how cross-reactivity bridges strain variants.</p>
+<p>For mRNA vaccines, the model must also capture mRNA clearance, spike protein expression kinetics, and toll-like receptor-mediated innate activation at the injection site. Dasti et al. <span class="citation" data-cites="dasti2025">(6)</span> built a multiscale QSP model for Pfizer and Moderna vaccines, calibrating dendritic-cell recruitment, monocyte activation, and antibody kinetics against clinical immunogenicity data. The result is a <em>virtual patient cohort</em>: a distribution of parameter sets, each plausible biologically, that spans the observed inter-individual variability in antibody response.</p>
+</section>
+<section id="the-uiss-platform-for-covid-19-vaccines" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="the-uiss-platform-for-covid-19-vaccines"><span class="header-section-number">3.2</span> The UISS platform for COVID-19 vaccines</h2>
+<p>One of the first published in-silico vaccine trials for a novel pathogen used the Universal Immune System Simulator (UISS), an agent-based model that tracks individual immune cells, antigens, and cytokines on a spatial grid <span class="citation" data-cites="kutovyi2020">(7)</span>. The COVID-19 application simulated three candidate vaccine strategies — different antigen doses and prime-boost schedules — and ranked them by predicted neutralising-antibody titre. The simulations were completed before any Phase 1 data were available, providing hypothesis-ranked predictions that were later tested experimentally.</p>
+<p>UISS represents one extreme of the modelling spectrum: computationally expensive, mechanistically granular, but hard to calibrate to individual patients. QSP models occupy the other extreme: ODE-based, fast to run, but aggregating cellular processes into lumped rate constants. Hybrid approaches that embed reduced-order immune modules inside epidemic transmission models are an active research frontier <span class="citation" data-cites="hartmann2024">(8)</span>.</p>
+<hr>
+</section>
+</section>
+<section id="synthetic-control-arms" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Synthetic control arms</h1>
+<section id="the-idea" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="the-idea"><span class="header-section-number">4.1</span> The idea</h2>
+<p>A <em>synthetic control arm</em> (SCA) is a statistical construction: a set of simulated or historically matched patients who stand in for the placebo group in a single-arm trial. The digital-twin framing is strongest when the counterfactual is generated by a calibrated mechanistic model rather than a propensity-score-matched historical cohort, but both use cases appear in the regulatory literature.</p>
+<p>The appeal is clearest in settings where a placebo arm is ethically difficult (pandemic vaccines with high attack rates), practically impossible (rare diseases, paediatric populations), or commercially unattractive (sponsors prefer all active-arm data). Landig et al. <span class="citation" data-cites="landig2025">(9)</span> review how digital twins could address precisely these challenges in paediatric infectious-disease trials.</p>
+</section>
+<section id="regulatory-position" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="regulatory-position"><span class="header-section-number">4.2</span> Regulatory position</h2>
+<p>The FDA’s Model-Informed Drug Development (MIDD) program actively encourages submission of modelling evidence alongside clinical data, and has issued paired-meeting guidance for sponsors wanting to use quantitative models in regulatory submissions <span class="citation" data-cites="fda2020midd">(10)</span>. The EMA qualified PROCOVA — a prognostic-covariate adjustment method that uses a digital-twin-derived prognostic score to reduce variance in primary endpoints — giving European sponsors a concrete, accepted implementation path <span class="citation" data-cites="janssen2025">(11)</span>. ICH M15, released in draft in November 2024, provides the first international harmonised guidance on model-informed drug development.</p>
+<p>Synthetic control arms do not yet replace randomised placebo groups in pivotal trials for most indications. The evidentiary bar is a <em>validated predictive model</em>: the sponsor must demonstrate, typically using held-out historical data, that the model’s counterfactual trajectories match what actually happened to control patients. The challenge is especially sharp for novel pathogens where no historical controls exist.</p>
+<hr>
+</section>
+</section>
+<section id="vaccine-trials-for-infectious-diseases" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Vaccine trials for infectious diseases</h1>
+<section id="covid-19" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="covid-19"><span class="header-section-number">5.1</span> COVID-19</h2>
+<p>The COVID-19 pandemic stress-tested the entire paradigm. Vaccine trials of unprecedented speed (under a year from sequence to efficacy readout) relied heavily on existing correlates-of-protection models. Bhatnagar et al. <span class="citation" data-cites="bhatnagar2022">(12)</span> describe how generative AI accelerated the construction of in-silico trial arms, compressing what would have been multi-year simulation programmes into months.</p>
+<p>Independently, mechanistic models of SARS-CoV-2 within-host dynamics <span class="citation" data-cites="meehan2020">(13)</span> were coupled to trial simulation frameworks to predict vaccine efficacy across age strata and variant scenarios. The key question these models addressed — <em>what neutralising-antibody titre predicts protection?</em> — remains central to all COVID-19 booster policy.</p>
+</section>
+<section id="influenza" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="influenza"><span class="header-section-number">5.2</span> Influenza</h2>
+<p>Influenza presents a different challenge: annual antigenic drift means the vaccine must be updated each season, and efficacy varies enormously depending on how well the vaccine strain matches the circulating strain. Digital twins for influenza trials need to represent <em>strain-specific</em> immune memory — accounting for the imprinting effect of childhood infections, cross-reactive responses, and waning from prior vaccination <span class="citation" data-cites="hartmann2024">(8)</span>.</p>
+<p>A physics-informed neural network approach <span class="citation" data-cites="raissi2019">(14)</span> could, in principle, embed a reduced SEIR-type transmission model inside an individual-patient simulator, jointly calibrating epidemic parameters and individual immune parameters from longitudinal cohort data. This kind of <em>universal differential equation</em> framework <span class="citation" data-cites="rackauckas2020">(15)</span> is gaining traction as the methodological bridge between mechanistic models and machine-learning flexibility.</p>
+</section>
+<section id="wearable-sensors-as-real-time-digital-twin-inputs" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="wearable-sensors-as-real-time-digital-twin-inputs"><span class="header-section-number">5.3</span> Wearable sensors as real-time digital-twin inputs</h2>
+<p>Grieff et al. <span class="citation" data-cites="grieff2025">(16)</span> demonstrated a particularly direct implementation of the digital-twin concept for vaccine trials: a wearable torso patch records continuous physiological signals (heart rate variability, skin temperature, respiratory rate) in 88 participants receiving 104 vaccine doses across different products. A machine-learning similarity model constructs each participant’s <em>individualised physiological baseline</em> — effectively a personalised digital twin of their resting physiology — and expresses post-vaccination deviation against that twin. The resulting personalised inflammatory biomarker correlated significantly with serum CRP and IFN-γ, markers of vaccine-induced reactogenicity that normally require blood draws. This is real-time digital-twin feedback at human scale.</p>
+<hr>
+</section>
+</section>
+<section id="a-minimal-illustration-sir-with-vaccine-efficacy" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> A minimal illustration: SIR with vaccine efficacy</h1>
+<p>To ground the ideas concretely, consider the simplest possible coupling between an individual immune response and a population-level trial endpoint. Suppose the vaccine produces a neutralising-antibody titre <img src="https://latex.codecogs.com/png.latex?T"> in individual <img src="https://latex.codecogs.com/png.latex?i">, drawn from a log-normal distribution calibrated from immunogenicity data. Protection from infection is a sigmoidal function of titre:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BVE%7D_i%20=%20%5Cfrac%7BT_i%5Ek%7D%7BT_i%5Ek%20+%20%5Ctext%7BEC%7D_%7B50%7D%5Ek%7D%0A"></p>
+<p>where <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BEC%7D_%7B50%7D"> is the titre at 50% protection and <img src="https://latex.codecogs.com/png.latex?k"> is a Hill coefficient. We can propagate this through a two-arm SIR model (vaccinated arm with heterogeneous VE, placebo arm) to simulate an attack-rate trial.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">42</span>)</span>
+<span id="cb1-2">n <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2000</span></span>
+<span id="cb1-3"></span>
+<span id="cb1-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Titre distribution (log-normal)</span></span>
+<span id="cb1-5">mu_log <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>)</span>
+<span id="cb1-6">sigma_log <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.8</span></span>
+<span id="cb1-7">Ti <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rlnorm</span>(n, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">meanlog =</span> mu_log, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sdlog =</span> sigma_log)</span>
+<span id="cb1-8"></span>
+<span id="cb1-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Hill model for VE</span></span>
+<span id="cb1-10">EC50 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">80</span>; k <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb1-11">VEi <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> Ti<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (Ti<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> EC50<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k)</span>
+<span id="cb1-12"></span>
+<span id="cb1-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># SIR for each arm</span></span>
+<span id="cb1-14">sir_attack <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(R0, VE_vec, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">N =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">I0 =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">dt =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">tmax =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>) {</span>
+<span id="cb1-15">  n_ind <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(VE_vec)</span>
+<span id="cb1-16">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Mean VE for the arm</span></span>
+<span id="cb1-17">  mean_beta_reduction <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> VE_vec)</span>
+<span id="cb1-18">  S <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> N <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> I0; I <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> I0; R <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span></span>
+<span id="cb1-19">  gamma <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span></span>
+<span id="cb1-20">  beta0 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> R0 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> gamma <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> N</span>
+<span id="cb1-21">  beta  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> beta0 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> mean_beta_reduction</span>
+<span id="cb1-22">  t <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span></span>
+<span id="cb1-23">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">while</span> (I <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;&amp;</span> t <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> tmax) {</span>
+<span id="cb1-24">    dS <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>beta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb1-25">    dI <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span>  beta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> gamma <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb1-26">    dR <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span>  gamma <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb1-27">    S <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> S <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> dS <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> dt</span>
+<span id="cb1-28">    I <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> I <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> dI <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> dt</span>
+<span id="cb1-29">    R <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> R <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> dR <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> dt</span>
+<span id="cb1-30">    t <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> t <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> dt</span>
+<span id="cb1-31">  }</span>
+<span id="cb1-32">  R <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> N  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># attack rate</span></span>
+<span id="cb1-33">}</span>
+<span id="cb1-34"></span>
+<span id="cb1-35"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Bootstrap trial simulations</span></span>
+<span id="cb1-36">n_trials <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">500</span></span>
+<span id="cb1-37">R0 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span></span>
+<span id="cb1-38"></span>
+<span id="cb1-39"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Vaccinated arm: random subset of virtual patients</span></span>
+<span id="cb1-40">vacc_ar <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">replicate</span>(n_trials, {</span>
+<span id="cb1-41">  idx <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sample</span>(n, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">replace =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>)</span>
+<span id="cb1-42">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sir_attack</span>(R0, VEi[idx])</span>
+<span id="cb1-43">})</span>
+<span id="cb1-44"></span>
+<span id="cb1-45"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Placebo arm: VE = 0</span></span>
+<span id="cb1-46">placebo_ar <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">replicate</span>(n_trials, {</span>
+<span id="cb1-47">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sir_attack</span>(R0, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>))</span>
+<span id="cb1-48">})</span>
+<span id="cb1-49"></span>
+<span id="cb1-50">df_plot <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(</span>
+<span id="cb1-51">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">arm =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Vaccine"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">attack_rate =</span> vacc_ar),</span>
+<span id="cb1-52">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">arm =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Placebo"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">attack_rate =</span> placebo_ar)</span>
+<span id="cb1-53">)</span>
+<span id="cb1-54"></span>
+<span id="cb1-55"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df_plot, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> attack_rate, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> arm, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> arm)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-56">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_density</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.35</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.7</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-57">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_fill_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values  =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Vaccine"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Placebo"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-58">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_colour_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Vaccine"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Placebo"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-59">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(</span>
+<span id="cb1-60">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Attack rate"</span>,</span>
+<span id="cb1-61">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Density"</span>,</span>
+<span id="cb1-62">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span></span>
+<span id="cb1-63">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-64">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-65">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_clinical_trial/index_files/figure-html/sir-dt-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Simulated vaccine trial: attack-rate distributions under heterogeneous individual-level VE (Hill model). The vaccine arm (orange) shows substantially fewer infections than placebo (blue) but with considerable individual variability — the sort of prediction a digital twin generates before a trial is run.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">df_ve <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">titre =</span> Ti, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">VE =</span> VEi)</span>
+<span id="cb2-2"></span>
+<span id="cb2-3">p1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df_ve, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> titre)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_histogram</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bins =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">60</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_x_log10</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antibody titre (AU/mL, log scale)"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Count"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb2-8"></span>
+<span id="cb2-9">p2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df_ve, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> VE)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_histogram</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bins =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Individual VE"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Count"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb2-13"></span>
+<span id="cb2-14">p1 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> p2</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_clinical_trial/index_files/figure-html/ve-distribution-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Distribution of individual vaccine efficacy (VE) arising from log-normal antibody titre variability and a Hill protection model (EC50 = 80, k = 2). Even a vaccine with mean VE ~ 0.85 leaves a long left tail of poorly protected individuals — exactly the heterogeneity a digital twin must capture to inform trial design.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The simulation illustrates three features that make digital twins useful for trial design:</p>
+<ol type="1">
+<li><strong>Heterogeneity</strong>: even a good vaccine leaves a tail of poorly protected individuals. Conventional trial design based on mean VE obscures this.</li>
+<li><strong>Counterfactual control</strong>: once the vaccine arm’s VE distribution is estimated from immunogenicity data, the placebo attack-rate distribution can be simulated without actually randomising patients to placebo.</li>
+<li><strong>Sensitivity analysis</strong>: changing <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BEC%7D_%7B50%7D">, <img src="https://latex.codecogs.com/png.latex?k">, or the titre distribution immediately produces a new attack-rate prediction — useful for go/no-go decisions early in development.</li>
+</ol>
+<hr>
+</section>
+<section id="challenges-and-limitations" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Challenges and limitations</h1>
+<section id="model-validation" class="level2" data-number="7.1">
+<h2 data-number="7.1" class="anchored" data-anchor-id="model-validation"><span class="header-section-number">7.1</span> Model validation</h2>
+<p>A digital twin’s predictions are only as trustworthy as its calibration data. For established vaccines with decades of immunogenicity and efficacy data (inactivated influenza, yellow fever 17D), calibration is tractable. For novel antigens against emerging pathogens, the twin must be built and used before most of the data it needs exist — a fundamental bootstrap problem. Prospective validation on held-out cohorts and pre-specified decision criteria are essential <span class="citation" data-cites="bai2024virtualpatients">(17)</span>.</p>
+</section>
+<section id="individual-vs-population-parameters" class="level2" data-number="7.2">
+<h2 data-number="7.2" class="anchored" data-anchor-id="individual-vs-population-parameters"><span class="header-section-number">7.2</span> Individual vs population parameters</h2>
+<p>QSP models routinely have hundreds of parameters. The number of identifiable parameter combinations from typical Phase 1 immunogenicity data (n = 30–60, a handful of antibody timepoints) is far smaller. Virtual patient cohorts are often generated by Latin hypercube sampling of plausible parameter ranges <span class="citation" data-cites="hartmann2024">(8)</span>, but the realism of the resulting distribution depends entirely on the quality of prior biological knowledge used to define those ranges.</p>
+</section>
+<section id="regulatory-acceptance" class="level2" data-number="7.3">
+<h2 data-number="7.3" class="anchored" data-anchor-id="regulatory-acceptance"><span class="header-section-number">7.3</span> Regulatory acceptance</h2>
+<p>Despite FDA and EMA progress, no pivotal vaccine trial has yet received primary approval on the basis of a synthetic control arm alone. The regulatory framework treats modelling evidence as supportive — capable of reducing sample size or justifying extrapolation — rather than as a primary evidentiary source. Janssen et al. <span class="citation" data-cites="janssen2025">(11)</span> lay out a roadmap for trials that explicitly pre-register their digital-twin components alongside conventional statistical analysis plans.</p>
+</section>
+<section id="equity-and-bias" class="level2" data-number="7.4">
+<h2 data-number="7.4" class="anchored" data-anchor-id="equity-and-bias"><span class="header-section-number">7.4</span> Equity and bias</h2>
+<p>Virtual patient cohorts built from historically skewed clinical databases may underrepresent populations that were already underrepresented in the underlying data — amplifying, rather than correcting, health equity gaps. Landig et al. <span class="citation" data-cites="landig2025">(9)</span> identify this as an especially acute concern for paediatric trials, where the data scarcity that motivates digital twins also limits their calibration.</p>
+</section>
+<section id="immune-waning-and-long-horizon-prediction" class="level2" data-number="7.5">
+<h2 data-number="7.5" class="anchored" data-anchor-id="immune-waning-and-long-horizon-prediction"><span class="header-section-number">7.5</span> Immune waning and long-horizon prediction</h2>
+<p>Most immune digital twins are validated against short-term endpoints (peak antibody titre at 28 days). Long-horizon predictions — what is this person’s protection 18 months after a third dose? — involve waning kinetics that are poorly characterised and likely depend on mechanisms (memory B-cell maintenance, T-follicular helper cell longevity) not represented in current ODE-based models.</p>
+<hr>
+</section>
+</section>
+<section id="outlook" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Outlook</h1>
+<p>The convergence of three trends suggests digital twins will become structural components of vaccine development over the next decade:</p>
+<ol type="1">
+<li><p><strong>Richer individual-level data.</strong> Continuous wearable monitoring <span class="citation" data-cites="grieff2025">(16)</span>, single-cell immune profiling, and multi-omic biobanks are steadily providing the calibration data that digital twins need. The gap between what models can represent and what data can constrain is narrowing.</p></li>
+<li><p><strong>Physics-informed machine learning.</strong> Methods that embed known biology (ODE constraints, mass-balance equations) into neural architectures <span class="citation" data-cites="raissi2019 rackauckas2020">(14,15)</span> allow flexible individual-level fitting without sacrificing mechanistic interpretability. This is the direction the field is moving for complex multi-scale problems.</p></li>
+<li><p><strong>Regulatory confidence-building.</strong> The ICH M15 harmonisation, EMA PROCOVA qualification, and FDA MIDD program are creating precedents that sponsors can cite. As successful examples accumulate, the bar for using digital-twin evidence in regulatory submissions will lower.</p></li>
+</ol>
+<p>For infectious-disease vaccine trials specifically, the most tractable near-term application is <strong>adaptive trial design</strong>: a digital twin informs interim decisions (dose, schedule, subgroup enrichment) rather than replacing the trial’s placebo arm. This requires only that the model is predictive within the trial — a much weaker requirement than the full counterfactual use case — and it preserves randomisation, which regulators still regard as the gold standard for causal inference.</p>
+<p>The more ambitious goal — a fully <em>in silico</em> Phase 2 proof-of-concept for a novel antigen, with a synthetic control arm accepted by regulators as the primary comparison — remains 5–10 years away for most vaccine platforms. It will require pathogen-specific immune models of demonstrated external validity, open data-sharing infrastructure, and a generation of regulators and trial statisticians trained in model assessment. Each of those prerequisites is in active development.</p>
+<hr>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-grieves2017" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Grieves M, Vickers J. Digital twin: Mitigating unpredictable, undesirable emergent behavior in complex systems. Transdisciplinary Perspectives on Complex Systems. 2017;85–113. doi:<a href="https://doi.org/10.1007/978-3-319-38756-7_4">10.1007/978-3-319-38756-7_4</a></div>
+</div>
+<div id="ref-bjornsson2020" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline"><span class="nocase">Björnsson B, Borrebaeck C, Elander N, et al.</span> Digital twins to personalize medicine. Genome Medicine. 2020;12(1):4. doi:<a href="https://doi.org/10.1186/s13073-019-0701-3">10.1186/s13073-019-0701-3</a></div>
+</div>
+<div id="ref-stahlberg2022" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline"><span class="nocase">Stahlberg EA, Bhatt DL, et al.</span> Exploring approaches for predictive cancer patient digital twins: Opportunities for collaboration and research. Frontiers in Digital Health. 2022;4:1–16. doi:<a href="https://doi.org/10.3389/fdgth.2022.896875">10.3389/fdgth.2022.896875</a></div>
+</div>
+<div id="ref-subramanian2020" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Subramanian HK, Hailesilassie B, Lima AC, Bhattacharya S. Multiscale digital twins for the computer simulation of biophysical systems: <span>A</span> perspective. Applied Sciences. 2020;10(16):5489. doi:<a href="https://doi.org/10.3390/app10165489">10.3390/app10165489</a></div>
+</div>
+<div id="ref-tarning2023" class="csl-entry">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline"><span class="nocase">Tarning J et al.</span> A quantitative clinical pharmacology-based framework for model-informed vaccine development. Journal of Pharmaceutical Sciences. 2023. doi:<a href="https://doi.org/10.1016/j.xphs.2023.10.006">10.1016/j.xphs.2023.10.006</a></div>
+</div>
+<div id="ref-dasti2025" class="csl-entry">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline"><span class="nocase">Dasti A et al.</span> A multiscale quantitative systems pharmacology model for the development and optimization of <span class="nocase">mRNA</span> vaccines. CPT: Pharmacometrics &amp; Systems Pharmacology. 2025. doi:<a href="https://doi.org/10.1002/psp4.70041">10.1002/psp4.70041</a></div>
+</div>
+<div id="ref-kutovyi2020" class="csl-entry">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline"><span class="nocase">Kutovyi Y, Sansone E, Porro D, et al.</span> In silico trial to test <span>COVID-19</span> candidate vaccines: A case study with <span>UISS</span> platform. BMC Bioinformatics. 2020;21(1):527. doi:<a href="https://doi.org/10.1186/s12859-020-03872-0">10.1186/s12859-020-03872-0</a></div>
+</div>
+<div id="ref-hartmann2024" class="csl-entry">
+<div class="csl-left-margin">8. </div><div class="csl-right-inline"><span class="nocase">Hartmann N et al.</span> Immune digital twins for complex human pathologies: Applications, limitations, and challenges. npj Systems Biology and Applications. 2024;10:141. doi:<a href="https://doi.org/10.1038/s41540-024-00450-5">10.1038/s41540-024-00450-5</a></div>
+</div>
+<div id="ref-landig2025" class="csl-entry">
+<div class="csl-left-margin">9. </div><div class="csl-right-inline"><span class="nocase">Minnoye L et al.</span> Digital twins, synthetic patient data, and in-silico trials: Can they empower paediatric clinical trials? The Lancet Digital Health. 2025. doi:<a href="https://doi.org/10.1016/S2589-7500(25)00007-X">10.1016/S2589-7500(25)00007-X</a></div>
+</div>
+<div id="ref-fda2020midd" class="csl-entry">
+<div class="csl-left-margin">10. </div><div class="csl-right-inline">U.S. Food and Drug Administration. Model-informed drug development: Paired meeting program for new drugs and biological products [Internet]. Guidance for Industry; 2020. Available from: <a href="https://www.fda.gov/media/133986/download">https://www.fda.gov/media/133986/download</a></div>
+</div>
+<div id="ref-janssen2025" class="csl-entry">
+<div class="csl-left-margin">11. </div><div class="csl-right-inline"><span class="nocase">Janssen A et al.</span> Enhancing randomized clinical trials with digital twins. npj Systems Biology and Applications. 2025;11:1. doi:<a href="https://doi.org/10.1038/s41540-025-00592-0">10.1038/s41540-025-00592-0</a></div>
+</div>
+<div id="ref-bhatnagar2022" class="csl-entry">
+<div class="csl-left-margin">12. </div><div class="csl-right-inline"><span class="nocase">Bhatnagar V et al.</span> Generative artificial intelligence empowers digital twins in drug discovery and clinical trials. Expert Opinion on Drug Discovery. 2023;18(12):1345–60. doi:<a href="https://doi.org/10.1080/17460441.2023.2273839">10.1080/17460441.2023.2273839</a></div>
+</div>
+<div id="ref-meehan2020" class="csl-entry">
+<div class="csl-left-margin">13. </div><div class="csl-right-inline"><span class="nocase">Meehan MT et al.</span> Modelling insights into the <span>COVID-19</span> pandemic. Paediatric Respiratory Reviews. 2020;35:64–9. doi:<a href="https://doi.org/10.1016/j.prrv.2020.06.014">10.1016/j.prrv.2020.06.014</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry">
+<div class="csl-left-margin">14. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: <span>A</span> deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+<div id="ref-rackauckas2020" class="csl-entry">
+<div class="csl-left-margin">15. </div><div class="csl-right-inline"><span class="nocase">Rackauckas C et al.</span> Universal differential equations for scientific machine learning. arXiv [Internet]. 2020. Available from: <a href="https://arxiv.org/abs/2001.04385">https://arxiv.org/abs/2001.04385</a></div>
+</div>
+<div id="ref-grieff2025" class="csl-entry">
+<div class="csl-left-margin">16. </div><div class="csl-right-inline"><span class="nocase">Grieff A et al.</span> Development of a personalized digital biomarker of vaccine-associated reactogenicity using wearable sensors and digital twin technology. Communications Medicine. 2025;5:1. doi:<a href="https://doi.org/10.1038/s43856-025-00840-8">10.1038/s43856-025-00840-8</a></div>
+</div>
+<div id="ref-bai2024virtualpatients" class="csl-entry">
+<div class="csl-left-margin">17. </div><div class="csl-right-inline"><span class="nocase">Bai J et al.</span> Virtual patients in clinical trials for drug development: A narrative review. Clinical Pharmacology &amp; Therapeutics. 2025. doi:<a href="https://doi.org/10.1002/cpt.3574">10.1002/cpt.3574</a></div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.5.3 (2026-03-11 ucrt)
+Platform: x86_64-w64-mingw32/x64
+Running under: Windows 11 x64 (build 26200)
+
+Matrix products: default
+  LAPACK version 3.12.1
+
+locale:
+[1] LC_COLLATE=English_United States.utf8 
+[2] LC_CTYPE=English_United States.utf8   
+[3] LC_MONETARY=English_United States.utf8
+[4] LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.utf8    
+
+time zone: Asia/Seoul
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] patchwork_1.3.2 tidyr_1.3.2     dplyr_1.2.0     ggplot2_4.0.2  
+[5] deSolve_1.42   
+
+loaded via a namespace (and not attached):
+ [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+ [5] xfun_0.57          otel_0.2.0         purrr_1.2.1        generics_0.1.4    
+ [9] S7_0.2.1           jsonlite_2.0.0     labeling_0.4.3     glue_1.8.0        
+[13] htmltools_0.5.9    scales_1.4.0       rmarkdown_2.31     grid_4.5.3        
+[17] tibble_3.3.1       evaluate_1.0.5     fastmap_1.2.0      yaml_2.3.12       
+[21] lifecycle_1.0.5    compiler_4.5.3     RColorBrewer_1.1-3 pkgconfig_2.0.3   
+[25] htmlwidgets_1.6.4  farver_2.1.2       digest_0.6.39      R6_2.6.1          
+[29] tidyselect_1.2.1   pillar_1.11.1      magrittr_2.0.4     withr_3.0.2       
+[33] tools_4.5.3        gtable_0.3.6      </code></pre>
+</div>
+</div>
+
+
+<!-- -->
+
+</section>
+
+ ]]></description>
+  <category>digital twin</category>
+  <category>clinical trial</category>
+  <category>vaccine</category>
+  <category>infectious disease</category>
+  <category>R</category>
+  <guid>https://www.jonghoonk.com/blog/posts/digital_twin_clinical_trial/</guid>
+  <pubDate>Mon, 20 Apr 2026 15:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Understanding Automatic Differentiation</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
@@ -36676,1021 +37499,6 @@ font-style: inherit;">2</span>)</span></code></pre></div></div>
  ]]></description>
   <guid>https://www.jonghoonk.com/blog/posts/correlation/</guid>
   <pubDate>Wed, 29 Jan 2025 15:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Distribution Matching Methods: From Theory to Practice</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/distribution_matching/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Load required packages</span></span>
-<span id="cb1-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(MASS)</span>
-<span id="cb1-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(ks)</span>
-<span id="cb1-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(ggplot2)</span>
-<span id="cb1-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(patchwork)</span>
-<span id="cb1-6"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(tidyr)</span>
-<span id="cb1-7"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(dplyr)</span></code></pre></div></div>
-</div>
-<section id="introduction" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> Introduction</h1>
-<p>When working with data from different sources or distributions, we often need to transform one distribution to match another. In this post, we’ll explore various methods for distribution matching, implement them in R, and discuss their strengths and limitations.</p>
-</section>
-<section id="distribution-matching-methods" class="level1" data-number="2">
-<h1 data-number="2"><span class="header-section-number">2</span> Distribution Matching Methods</h1>
-<section id="quantile-matching" class="level2" data-number="2.1">
-<h2 data-number="2.1" class="anchored" data-anchor-id="quantile-matching"><span class="header-section-number">2.1</span> Quantile Matching</h2>
-<p>Quantile matching transforms data by mapping corresponding quantiles between distributions. It’s a non-parametric approach that preserves the rank order of the original data.</p>
-<div class="cell">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">quantile_match <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(A, B) {</span>
-<span id="cb2-2">  probs <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length.out =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(A))</span>
-<span id="cb2-3">  sorted_A <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sort</span>(A)</span>
-<span id="cb2-4">  </span>
-<span id="cb2-5">  B_transformed <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">approx</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> probs,</span>
-<span id="cb2-6">                         <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> sorted_A,</span>
-<span id="cb2-7">                         <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xout =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rank</span>(B)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(B) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>),</span>
-<span id="cb2-8">                         <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"linear"</span>)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>y</span>
-<span id="cb2-9">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(B_transformed)</span>
-<span id="cb2-10">}</span></code></pre></div></div>
-</details>
-</div>
-</section>
-<section id="box-cox-transformation" class="level2" data-number="2.2">
-<h2 data-number="2.2" class="anchored" data-anchor-id="box-cox-transformation"><span class="header-section-number">2.2</span> Box-Cox Transformation</h2>
-<p>The Box-Cox transformation is particularly useful when you want to transform data to approximate normality before matching moments.</p>
-<div class="cell">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">boxcox_match <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(A, B) {</span>
-<span id="cb3-2">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Find optimal lambda for both distributions</span></span>
-<span id="cb3-3">  bc_A <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">boxcox</span>(A <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">plotit =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">FALSE</span>)</span>
-<span id="cb3-4">  lambda_A <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> bc_A<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>x[<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">which.max</span>(bc_A<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>y)]</span>
-<span id="cb3-5">  </span>
-<span id="cb3-6">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Transform to normality</span></span>
-<span id="cb3-7">  transform_boxcox <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(x, lambda) {</span>
-<span id="cb3-8">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">abs</span>(lambda) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1e-4</span>) {</span>
-<span id="cb3-9">      <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">log</span>(x)</span>
-<span id="cb3-10">    } <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">else</span> {</span>
-<span id="cb3-11">      (x<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span>lambda <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> lambda</span>
-<span id="cb3-12">    }</span>
-<span id="cb3-13">  }</span>
-<span id="cb3-14">  </span>
-<span id="cb3-15">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Transform both samples</span></span>
-<span id="cb3-16">  A_transformed <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">transform_boxcox</span>(A, lambda_A)</span>
-<span id="cb3-17">  B_transformed <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">transform_boxcox</span>(B, lambda_A)  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Use same lambda</span></span>
-<span id="cb3-18">  </span>
-<span id="cb3-19">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Match moments</span></span>
-<span id="cb3-20">  B_standardized <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> (B_transformed <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(B_transformed)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sd</span>(B_transformed)</span>
-<span id="cb3-21">  B_matched <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> B_standardized <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sd</span>(A_transformed) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(A_transformed)</span>
-<span id="cb3-22">  </span>
-<span id="cb3-23">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Inverse transform</span></span>
-<span id="cb3-24">  inverse_boxcox <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(x, lambda) {</span>
-<span id="cb3-25">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">abs</span>(lambda) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1e-4</span>) {</span>
-<span id="cb3-26">      <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">exp</span>(x)</span>
-<span id="cb3-27">    } <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">else</span> {</span>
-<span id="cb3-28">      (lambda <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> x <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span>lambda)</span>
-<span id="cb3-29">    }</span>
-<span id="cb3-30">  }</span>
-<span id="cb3-31">  </span>
-<span id="cb3-32">  B_final <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">inverse_boxcox</span>(B_matched, lambda_A)</span>
-<span id="cb3-33">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(B_final)</span>
-<span id="cb3-34">}</span></code></pre></div></div>
-</details>
-</div>
-</section>
-<section id="kernel-density-based-transformation" class="level2" data-number="2.3">
-<h2 data-number="2.3" class="anchored" data-anchor-id="kernel-density-based-transformation"><span class="header-section-number">2.3</span> Kernel Density-Based Transformation</h2>
-<p>This method uses kernel density estimation to transform the distributions.</p>
-<div class="cell">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">kernel_density_match <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(A, B, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">bw =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"nrd0"</span>) {</span>
-<span id="cb4-2">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Estimate densities</span></span>
-<span id="cb4-3">  density_A <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kde</span>(A, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">h =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">bw.nrd0</span>(A))</span>
-<span id="cb4-4">  density_B <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kde</span>(B, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">h =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">bw.nrd0</span>(B))</span>
-<span id="cb4-5">  </span>
-<span id="cb4-6">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Calculate CDFs using numerical integration</span></span>
-<span id="cb4-7">  cdf_A <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(x) {</span>
-<span id="cb4-8">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(x, <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(xi) {</span>
-<span id="cb4-9">      <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pnorm</span>(xi, A, density_A<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>h))</span>
-<span id="cb4-10">    })</span>
-<span id="cb4-11">  }</span>
-<span id="cb4-12">  </span>
-<span id="cb4-13">  cdf_B <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(x) {</span>
-<span id="cb4-14">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(x, <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(xi) {</span>
-<span id="cb4-15">      <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pnorm</span>(xi, B, density_B<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>h))</span>
-<span id="cb4-16">    })</span>
-<span id="cb4-17">  }</span>
-<span id="cb4-18">  </span>
-<span id="cb4-19">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Transform B to match A's distribution</span></span>
-<span id="cb4-20">  B_probs <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cdf_B</span>(B)</span>
-<span id="cb4-21">  </span>
-<span id="cb4-22">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Create quantile function for A using interpolation</span></span>
-<span id="cb4-23">  A_sorted <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sort</span>(A)</span>
-<span id="cb4-24">  A_probs <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cdf_A</span>(A_sorted)</span>
-<span id="cb4-25">  </span>
-<span id="cb4-26">  B_transformed <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">approx</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> A_probs,</span>
-<span id="cb4-27">                         <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> A_sorted,</span>
-<span id="cb4-28">                         <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xout =</span> B_probs,</span>
-<span id="cb4-29">                         <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">yleft =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">min</span>(A),</span>
-<span id="cb4-30">                         <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">yright =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">max</span>(A))<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>y</span>
-<span id="cb4-31">  </span>
-<span id="cb4-32">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(B_transformed)</span>
-<span id="cb4-33">}</span></code></pre></div></div>
-</details>
-</div>
-</section>
-<section id="moment-matching" class="level2" data-number="2.4">
-<h2 data-number="2.4" class="anchored" data-anchor-id="moment-matching"><span class="header-section-number">2.4</span> Moment Matching</h2>
-<p>A simpler approach that focuses on matching the first two moments of the distributions.</p>
-<div class="cell">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">moment_match <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(A, B) {</span>
-<span id="cb5-2">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Standardize B</span></span>
-<span id="cb5-3">  B_std <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> (B <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(B)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sd</span>(B)</span>
-<span id="cb5-4">  </span>
-<span id="cb5-5">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Transform to match A's moments</span></span>
-<span id="cb5-6">  B_transformed <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> B_std <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sd</span>(A) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(A)</span>
-<span id="cb5-7">  </span>
-<span id="cb5-8">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(B_transformed)</span>
-<span id="cb5-9">}</span></code></pre></div></div>
-</details>
-</div>
-</section>
-</section>
-<section id="comparing-the-methods" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> Comparing the Methods</h1>
-<p>Let’s generate some sample data and compare all methods:</p>
-<div class="cell">
-<details open="" class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Set seed for reproducibility</span></span>
-<span id="cb6-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">123</span>)</span>
-<span id="cb6-3"></span>
-<span id="cb6-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Generate sample data</span></span>
-<span id="cb6-5">A <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rnorm</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1000</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Normal distribution</span></span>
-<span id="cb6-6">B <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rexp</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1000</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">rate =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.1</span>)          <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Exponential distribution</span></span>
-<span id="cb6-7"></span>
-<span id="cb6-8"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Apply all transformations</span></span>
-<span id="cb6-9">B_quantile <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">quantile_match</span>(A, B)</span>
-<span id="cb6-10">B_boxcox <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">boxcox_match</span>(A, B)</span>
-<span id="cb6-11">B_kernel <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kernel_density_match</span>(A, B)</span>
-<span id="cb6-12">B_moment <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">moment_match</span>(A, B)</span></code></pre></div></div>
-</details>
-</div>
-<section id="visual-comparison" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="visual-comparison"><span class="header-section-number">3.1</span> Visual Comparison</h2>
-<p>Let’s create a more elegant visualization using ggplot2:</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Create a data frame for plotting</span></span>
-<span id="cb7-2">df <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data.frame</span>(</span>
-<span id="cb7-3">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Original_A =</span> A,</span>
-<span id="cb7-4">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Original_B =</span> B,</span>
-<span id="cb7-5">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Quantile =</span> B_quantile,</span>
-<span id="cb7-6">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">BoxCox =</span> B_boxcox,</span>
-<span id="cb7-7">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Kernel =</span> B_kernel,</span>
-<span id="cb7-8">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Moment =</span> B_moment</span>
-<span id="cb7-9">)</span>
-<span id="cb7-10"></span>
-<span id="cb7-11"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Convert to long format</span></span>
-<span id="cb7-12">df_long <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pivot_longer</span>(df, </span>
-<span id="cb7-13">                       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cols =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">everything</span>(),</span>
-<span id="cb7-14">                       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">names_to =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Method"</span>,</span>
-<span id="cb7-15">                       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">values_to =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Value"</span>)</span>
-<span id="cb7-16"></span>
-<span id="cb7-17"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Create the plot</span></span>
-<span id="cb7-18"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(df_long, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> Value, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">fill =</span> Method)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb7-19">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_density</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb7-20">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span>Method, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">scales =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"free_y"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ncol =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb7-21">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_minimal</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb7-22">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Value"</span>,</span>
-<span id="cb7-23">       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Density"</span>,</span>
-<span id="cb7-24">       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Comparison of Distribution Matching Methods"</span>,</span>
-<span id="cb7-25">       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">subtitle =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Original A (target) vs Original B and transformed distributions"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb7-26">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"none"</span>)</span></code></pre></div></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/distribution_matching/index_files/figure-html/visualization-1.png" class="img-fluid figure-img" width="960"></p>
-<figcaption>Comparison of Distribution Matching Methods</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="numerical-comparison" class="level2" data-number="3.2">
-<h2 data-number="3.2" class="anchored" data-anchor-id="numerical-comparison"><span class="header-section-number">3.2</span> Numerical Comparison</h2>
-<p>Let’s compare some summary statistics:</p>
-<div class="cell" data-tbl-cap="Summary Statistics Comparison">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Function to calculate summary statistics</span></span>
-<span id="cb8-2">get_stats <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(x) {</span>
-<span id="cb8-3">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Mean =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(x),</span>
-<span id="cb8-4">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">SD =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sd</span>(x),</span>
-<span id="cb8-5">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Median =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">median</span>(x),</span>
-<span id="cb8-6">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Skewness =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>((x <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(x))<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sd</span>(x)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>,</span>
-<span id="cb8-7">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Kurtosis =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>((x <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(x))<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sd</span>(x)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>)</span>
-<span id="cb8-8">}</span>
-<span id="cb8-9"></span>
-<span id="cb8-10"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Calculate statistics for all distributions</span></span>
-<span id="cb8-11">stats_df <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data.frame</span>(</span>
-<span id="cb8-12">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Original_A =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_stats</span>(A),</span>
-<span id="cb8-13">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Original_B =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_stats</span>(B),</span>
-<span id="cb8-14">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Quantile =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_stats</span>(B_quantile),</span>
-<span id="cb8-15">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">BoxCox =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_stats</span>(B_boxcox),</span>
-<span id="cb8-16">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Kernel =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_stats</span>(B_kernel),</span>
-<span id="cb8-17">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Moment =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_stats</span>(B_moment)</span>
-<span id="cb8-18">)</span>
-<span id="cb8-19"></span>
-<span id="cb8-20"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Display the results</span></span>
-<span id="cb8-21">knitr<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kable</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">round</span>(stats_df, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>))</span></code></pre></div></div>
-<div class="cell-output-display">
-<table class="caption-top table table-sm table-striped small">
-<caption>Summary Statistics Comparison</caption>
-<thead>
-<tr class="header">
-<th style="text-align: left;"></th>
-<th style="text-align: right;">Original_A</th>
-<th style="text-align: right;">Original_B</th>
-<th style="text-align: right;">Quantile</th>
-<th style="text-align: right;">BoxCox</th>
-<th style="text-align: right;">Kernel</th>
-<th style="text-align: right;">Moment</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">Mean</td>
-<td style="text-align: right;">10.032</td>
-<td style="text-align: right;">9.837</td>
-<td style="text-align: right;">10.031</td>
-<td style="text-align: right;">10.031</td>
-<td style="text-align: right;">10.093</td>
-<td style="text-align: right;">10.032</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">SD</td>
-<td style="text-align: right;">1.983</td>
-<td style="text-align: right;">9.720</td>
-<td style="text-align: right;">1.967</td>
-<td style="text-align: right;">2.011</td>
-<td style="text-align: right;">1.872</td>
-<td style="text-align: right;">1.983</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Median</td>
-<td style="text-align: right;">10.018</td>
-<td style="text-align: right;">6.684</td>
-<td style="text-align: right;">10.018</td>
-<td style="text-align: right;">9.424</td>
-<td style="text-align: right;">9.989</td>
-<td style="text-align: right;">9.389</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Skewness</td>
-<td style="text-align: right;">0.065</td>
-<td style="text-align: right;">1.686</td>
-<td style="text-align: right;">0.057</td>
-<td style="text-align: right;">1.532</td>
-<td style="text-align: right;">0.444</td>
-<td style="text-align: right;">1.686</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Kurtosis</td>
-<td style="text-align: right;">2.920</td>
-<td style="text-align: right;">6.075</td>
-<td style="text-align: right;">2.842</td>
-<td style="text-align: right;">5.459</td>
-<td style="text-align: right;">2.736</td>
-<td style="text-align: right;">6.075</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</section>
-</section>
-<section id="method-selection-guide" class="level1" data-number="4">
-<h1 data-number="4"><span class="header-section-number">4</span> Method Selection Guide</h1>
-<p>Each method has its strengths and appropriate use cases:</p>
-<section id="quantile-matching-1" class="level2" data-number="4.1">
-<h2 data-number="4.1" class="anchored" data-anchor-id="quantile-matching-1"><span class="header-section-number">4.1</span> Quantile Matching</h2>
-<ul>
-<li><strong>Pros</strong>: Preserves rank order, works with any distribution</li>
-<li><strong>Cons</strong>: May not extrapolate well</li>
-<li><strong>Best for</strong>: General-purpose distribution matching</li>
-</ul>
-</section>
-<section id="box-cox-transformation-1" class="level2" data-number="4.2">
-<h2 data-number="4.2" class="anchored" data-anchor-id="box-cox-transformation-1"><span class="header-section-number">4.2</span> Box-Cox Transformation</h2>
-<ul>
-<li><strong>Pros</strong>: Works well for skewed data, preserves relationships</li>
-<li><strong>Cons</strong>: Requires positive data, assumes underlying normality</li>
-<li><strong>Best for</strong>: Right-skewed positive data</li>
-</ul>
-</section>
-<section id="kernel-density-based" class="level2" data-number="4.3">
-<h2 data-number="4.3" class="anchored" data-anchor-id="kernel-density-based"><span class="header-section-number">4.3</span> Kernel Density-Based</h2>
-<ul>
-<li><strong>Pros</strong>: Highly flexible, handles multimodal distributions</li>
-<li><strong>Cons</strong>: Computationally intensive, sensitive to bandwidth selection</li>
-<li><strong>Best for</strong>: Complex, multimodal distributions</li>
-</ul>
-</section>
-<section id="moment-matching-1" class="level2" data-number="4.4">
-<h2 data-number="4.4" class="anchored" data-anchor-id="moment-matching-1"><span class="header-section-number">4.4</span> Moment Matching</h2>
-<ul>
-<li><strong>Pros</strong>: Simple, fast, preserves linear relationships</li>
-<li><strong>Cons</strong>: Only matches first two moments, assumes similar shapes</li>
-<li><strong>Best for</strong>: Nearly normal distributions or quick approximations</li>
-</ul>
-</section>
-</section>
-<section id="performance-comparison" class="level1" data-number="5">
-<h1 data-number="5"><span class="header-section-number">5</span> Performance Comparison</h1>
-<p>Let’s compare the computational performance of these methods:</p>
-<div class="cell" data-hash="index_cache/html/performance_127a6a95bd68cc1ff47ab3193ac9d115">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(microbenchmark)</span>
-<span id="cb9-2"></span>
-<span id="cb9-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Benchmark the methods</span></span>
-<span id="cb9-4">bench <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">microbenchmark</span>(</span>
-<span id="cb9-5">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Quantile =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">quantile_match</span>(A, B),</span>
-<span id="cb9-6">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">BoxCox =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">boxcox_match</span>(A, B),</span>
-<span id="cb9-7">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Kernel =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kernel_density_match</span>(A, B),</span>
-<span id="cb9-8">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Moment =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">moment_match</span>(A, B),</span>
-<span id="cb9-9">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">times =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span></span>
-<span id="cb9-10">)</span>
-<span id="cb9-11"></span>
-<span id="cb9-12"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Plot results</span></span>
-<span id="cb9-13"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autoplot</span>(bench) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb9-14">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_minimal</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb9-15">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Performance Comparison"</span>,</span>
-<span id="cb9-16">       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">subtitle =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Time taken by each method (lower is better)"</span>)</span></code></pre></div></div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/distribution_matching/index_files/figure-html/performance-1.png" class="img-fluid figure-img" width="768"></p>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="conclusion" class="level1" data-number="6">
-<h1 data-number="6"><span class="header-section-number">6</span> Conclusion</h1>
-<p>While quantile matching is often the default choice for distribution matching, having multiple approaches in your toolkit allows you to handle various scenarios more effectively. The choice of method should depend on:</p>
-<ol type="1">
-<li>Your data characteristics</li>
-<li>Computational resources</li>
-<li>Preservation requirements</li>
-<li>Desired properties of the transformed distribution</li>
-</ol>
-<p>Always validate your transformations through both visual inspection and numerical summaries to ensure the transformed distribution meets your requirements.</p>
-</section>
-<section id="references" class="level1" data-number="7">
-<h1 data-number="7"><span class="header-section-number">7</span> References</h1>
-<ul>
-<li>Box, G. E. P., &amp; Cox, D. R. (1964). An analysis of transformations. Journal of the Royal Statistical Society: Series B (Methodological), 26(2), 211-243.</li>
-<li>Silverman, B. W. (1986). Density estimation for statistics and data analysis. CRC press.</li>
-<li>Bolstad, B. M., Irizarry, R. A., Åstrand, M., &amp; Speed, T. P. (2003). A comparison of normalization methods for high density oligonucleotide array data based on variance and bias. Bioinformatics, 19(2), 185-193.</li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <guid>https://www.jonghoonk.com/blog/posts/distribution_matching/</guid>
-  <pubDate>Wed, 30 Oct 2024 15:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
