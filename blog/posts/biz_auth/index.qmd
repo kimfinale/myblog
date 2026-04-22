@@ -1,0 +1,211 @@
+---
+title: "Securing Your API with JWT Authentication and Role-Based Access"
+subtitle: "Multi-tenant SaaS requires per-client tokens, role enforcement, and key revocation. JWT + OAuth2 is the industry standard. Skill 17 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, security, authentication, JWT, FastAPI, R]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Why authentication is non-negotiable
+
+Your epidemic model API is live. Without authentication, anyone who discovers the URL can call `/simulate` without limit, read your clients' outbreak data, and flood the server with requests. More practically: every enterprise client will ask "how do we authenticate?" before signing a contract.
+
+**JWT (JSON Web Token)** [@jones2015] is the standard token format for API authentication. It encodes identity and permissions as a digitally signed JSON object. Combined with **OAuth2** [@hardt2012], it supports delegated access: a health department can issue tokens to their own staff without giving out your master API key.
+
+## How JWT works
+
+```
+Client                           Server
+──────                           ──────
+POST /auth/token                 Verify username + password
+{username, password}    ──►      Create JWT:
+                                   header.payload.signature
+                        ◄──      {"access_token": "eyJ...", "expires_in": 3600}
+
+GET /simulate           ──►      Decode JWT
+Authorization: Bearer eyJ...     Verify signature
+                                 Check expiry
+                                 Extract tenant_id, role
+                        ◄──      Return result (or 401)
+```
+
+The server never stores the token. The JWT's digital signature means the server can verify it was issued by them — without a database lookup on every request.
+
+## JWT structure
+
+A JWT has three parts separated by dots: `header.payload.signature`
+
+```json
+// Header (base64-encoded)
+{"alg": "HS256", "typ": "JWT"}
+
+// Payload (base64-encoded, NOT encrypted — visible to anyone)
+{
+  "sub": "dept_a_user",
+  "tenant_id": "district_health_dept_a",
+  "role": "analyst",
+  "exp": 1735689600
+}
+
+// Signature (HMAC-SHA256 of header + payload using secret key)
+HMAC-SHA256(base64(header) + "." + base64(payload), SECRET_KEY)
+```
+
+**Important**: the payload is visible but tamper-proof. Never put passwords or sensitive data in it.
+
+## FastAPI implementation
+
+```python
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+import bcrypt
+
+SECRET_KEY = "your-256-bit-secret"   # from environment variable
+ALGORITHM  = "HS256"
+TOKEN_TTL_MINUTES = 60
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+
+def create_token(sub: str, tenant_id: str, role: str) -> str:
+    payload = {
+        "sub":       sub,
+        "tenant_id": tenant_id,
+        "role":      role,
+        "exp":       datetime.utcnow() + timedelta(minutes=TOKEN_TTL_MINUTES)
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_token(token: str = Depends(oauth2_scheme)) -> dict:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("sub") is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def require_role(required_role: str):
+    def checker(payload: dict = Depends(verify_token)):
+        if payload.get("role") != required_role and \
+           payload.get("role") != "admin":
+            raise HTTPException(status_code=403,
+                                detail=f"Role '{required_role}' required")
+        return payload
+    return checker
+
+app = FastAPI()
+
+@app.post("/auth/token")
+def get_token(form: OAuth2PasswordRequestForm = Depends()):
+    user = lookup_user(form.username)   # query your users table
+    if not user or not bcrypt.checkpw(form.password.encode(),
+                                       user["password_hash"].encode()):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_token(user["username"], user["tenant_id"], user["role"])
+    return {"access_token": token, "token_type": "bearer"}
+
+@app.post("/simulate")
+def simulate(req: SimulateRequest,
+             user: dict = Depends(verify_token)):
+    # user["tenant_id"] is now available for RLS (Skill 11)
+    return run_model(req, tenant_id=user["tenant_id"])
+
+@app.delete("/admin/users/{user_id}")
+def delete_user(user_id: str,
+                admin: dict = Depends(require_role("admin"))):
+    # Only admins reach here
+    return delete_user_record(user_id)
+```
+
+## Roles and permissions in R
+
+The R SDK verifies the token and extracts roles:
+
+```{r}
+#| label: jwt-demo
+
+# Illustrate JWT payload structure in R (no encoding library needed)
+# A real JWT payload is base64url-encoded JSON — we show it decoded.
+
+jwt_payload <- list(
+  sub       = "alice",
+  tenant_id = "district_health_dept_a",
+  role      = "analyst",
+  iat       = as.integer(Sys.time()),
+  exp       = as.integer(Sys.time()) + 3600L
+)
+
+cat("JWT payload (decoded):\n")
+cat("  sub      :", jwt_payload$sub,       "\n")
+cat("  tenant_id:", jwt_payload$tenant_id, "\n")
+cat("  role     :", jwt_payload$role,      "\n")
+cat("  issued   :", format(as.POSIXct(jwt_payload$iat), "%Y-%m-%d %H:%M:%S"), "\n")
+cat("  expires  :", format(as.POSIXct(jwt_payload$exp), "%Y-%m-%d %H:%M:%S"), "\n")
+
+# Verify the token has not expired
+is_valid <- jwt_payload$exp > as.integer(Sys.time())
+cat("\nToken valid:", is_valid, "\n")
+cat("Note: the payload is base64url-encoded but NOT encrypted;",
+    "never put passwords or PHI in it.\n")
+```
+
+```{r}
+#| label: role-matrix
+#| fig-cap: "Role-permission matrix for a digital twin API. Each cell shows whether the role can perform the action. Analyst can query but not admin; Admin can do everything."
+
+library(ggplot2)
+
+roles   <- c("Read-only", "Analyst", "Manager", "Admin")
+actions <- c("View forecasts", "Run simulations", "Export data",
+             "Upload observations", "Manage users", "Billing access")
+
+perms <- matrix(c(
+  TRUE,  FALSE, FALSE, FALSE, FALSE, FALSE,
+  TRUE,  TRUE,  TRUE,  FALSE, FALSE, FALSE,
+  TRUE,  TRUE,  TRUE,  TRUE,  FALSE, FALSE,
+  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE
+), nrow = 4, byrow = TRUE)
+
+df_perm <- expand.grid(role = roles, action = actions)
+df_perm$allowed <- as.vector(perms)
+
+ggplot(df_perm, aes(x = factor(action, levels = rev(actions)),
+                    y = factor(role, levels = roles),
+                    fill = allowed)) +
+  geom_tile(colour = "white", linewidth = 0.5) +
+  geom_text(aes(label = ifelse(allowed, "✓", "✗")),
+            size = 5, colour = "white") +
+  scale_fill_manual(values = c("FALSE" = "firebrick",
+                                "TRUE"  = "steelblue"),
+                    guide = "none") +
+  scale_x_discrete(name = NULL) +
+  scale_y_discrete(name = NULL) +
+  labs(title = "Role-based access control matrix") +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+## Token refresh and revocation
+
+Access tokens should be short-lived (1 hour). Issue a **refresh token** (long-lived, stored in a database) so clients can get new access tokens without re-entering a password.
+
+To revoke a compromised token: store a **denylist** in Redis. The `verify_token` function checks the token's `jti` (unique ID) against the denylist before accepting it.
+
+## References
+
+::: {#refs}
+:::

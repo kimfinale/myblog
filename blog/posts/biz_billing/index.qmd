@@ -1,0 +1,195 @@
+---
+title: "Usage-Based Billing: Metering API Calls and Compute"
+subtitle: "You cannot charge fairly by simulation run without first measuring what each client consumes. Metering infrastructure, pricing models, and Stripe integration. Skill 19 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, billing, pricing, Stripe, SaaS, R]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Why metering matters
+
+You sign a contract with a health department for $2,000/month. A year in, you realise one client is running 5× more EnKF jobs than any other — and consuming 60% of your compute budget. Without usage data you cannot renegotiate, cannot offer volume tiers, and cannot identify your most profitable clients.
+
+**Usage metering** is the instrumentation layer that makes fair, data-driven pricing possible [@stripe2011]. It is also the foundation for the common SaaS pricing models: per-seat, per-API-call, or compute-hour billing.
+
+## Pricing model options
+
+```{r}
+#| label: pricing-models
+#| fig-cap: "Three SaaS pricing models and their revenue predictability vs. usage alignment trade-offs. Flat subscriptions are easiest to sell; usage-based aligns incentives best; hybrid is most common in practice."
+
+library(ggplot2)
+
+models <- data.frame(
+  model       = c("Flat subscription\n$2k/month",
+                  "Pure usage-based\n$0.10/EnKF run",
+                  "Hybrid\n$500 base +\n$0.05/run"),
+  predictability = c(5, 1, 3),
+  alignment      = c(1, 5, 4)
+)
+
+ggplot(models, aes(x = predictability, y = alignment, label = model)) +
+  geom_point(size = 5, colour = "steelblue") +
+  geom_text(vjust = -0.9, size = 3.5) +
+  scale_x_continuous(name = "Revenue predictability (seller)", limits = c(0, 6)) +
+  scale_y_continuous(name = "Usage alignment (buyer)",         limits = c(0, 6)) +
+  geom_vline(xintercept = 3, linetype = "dashed", colour = "grey60") +
+  geom_hline(yintercept = 3, linetype = "dashed", colour = "grey60") +
+  annotate("text", x = 4.5, y = 5.5, label = "Best for\nboth (rare)",
+           size = 3, colour = "grey50") +
+  labs(title = "Pricing model trade-offs") +
+  theme_minimal(base_size = 13)
+```
+
+## Building the metering layer
+
+Every API call and simulation job should emit a usage event to the database (from Skill 12, TimescaleDB):
+
+```python
+# middleware.py — FastAPI middleware that logs every request
+from fastapi import Request
+import time
+
+async def metering_middleware(request: Request, call_next):
+    start   = time.time()
+    response = await call_next(request)
+    duration_ms = round((time.time() - start) * 1000)
+
+    # Write usage event (async, non-blocking)
+    await write_usage_event(
+        tenant_id   = request.state.tenant_id,   # set by auth middleware
+        event_type  = "api_call",
+        endpoint    = request.url.path,
+        duration_ms = duration_ms,
+        status_code = response.status_code
+    )
+    return response
+```
+
+For EnKF jobs, record compute units:
+
+```python
+@celery_app.task
+def run_enkf_task(obs, location_id, n_ens, tenant_id):
+    start = time.time()
+    result = run_enkf(obs, n_ens)
+    compute_seconds = time.time() - start
+
+    # Compute units = particles × steps × time
+    compute_units = n_ens * len(obs) * compute_seconds / 1000
+
+    write_usage_event(
+        tenant_id     = tenant_id,
+        event_type    = "enkf_run",
+        compute_units = compute_units,
+        n_particles   = n_ens,
+        n_steps       = len(obs)
+    )
+    return result
+```
+
+## Monthly billing calculation in R
+
+```{r}
+#| label: billing-calc
+
+set.seed(42)
+
+# Simulate one month of usage events across three tenants
+n_events <- 200
+usage <- data.frame(
+  tenant_id    = sample(c("dept_a","dept_b","dept_c"), n_events, replace=TRUE,
+                         prob = c(0.5, 0.3, 0.2)),
+  event_type   = sample(c("api_call","enkf_run","report_gen"), n_events,
+                         replace=TRUE, prob=c(0.7, 0.2, 0.1)),
+  compute_units = NA_real_
+)
+usage$compute_units[usage$event_type == "api_call"]   <- runif(sum(usage$event_type == "api_call"), 0.001, 0.01)
+usage$compute_units[usage$event_type == "enkf_run"]   <- runif(sum(usage$event_type == "enkf_run"), 1, 10)
+usage$compute_units[usage$event_type == "report_gen"] <- runif(sum(usage$event_type == "report_gen"), 0.1, 0.5)
+
+# Pricing: $500 base + $0.05 per compute unit
+BASE_FEE         <- 500
+PRICE_PER_UNIT   <- 0.05
+
+billing <- aggregate(compute_units ~ tenant_id, data = usage, sum)
+billing$base_fee       <- BASE_FEE
+billing$usage_charge   <- round(billing$compute_units * PRICE_PER_UNIT, 2)
+billing$total          <- billing$base_fee + billing$usage_charge
+billing$compute_units  <- round(billing$compute_units, 1)
+
+knitr::kable(billing[, c("tenant_id","compute_units","base_fee",
+                           "usage_charge","total")],
+             col.names = c("Tenant","Compute units","Base ($)","Usage ($)","Total ($)"),
+             caption = "Monthly invoice — hybrid pricing model")
+```
+
+```{r}
+#| label: usage-breakdown
+#| fig-cap: "Compute unit consumption by tenant and event type. dept_a dominates because it runs more EnKF jobs — the higher-cost event type. This data justifies tier differentiation."
+
+library(ggplot2)
+library(dplyr)
+
+usage_summary <- usage |>
+  group_by(tenant_id, event_type) |>
+  summarise(total_cu = sum(compute_units, na.rm=TRUE), .groups="drop")
+
+ggplot(usage_summary, aes(x = tenant_id, y = total_cu, fill = event_type)) +
+  geom_col(position = "stack", width = 0.6) +
+  scale_fill_manual(values = c(api_call   = "steelblue",
+                                enkf_run   = "firebrick",
+                                report_gen = "darkorange"),
+                    name = "Event type") +
+  labs(x = "Tenant", y = "Compute units",
+       title = "Monthly compute consumption by tenant and type") +
+  theme_minimal(base_size = 13)
+```
+
+## Stripe integration
+
+Stripe [@stripe2011] handles the payment side. For usage-based billing, use Stripe's Metered Billing:
+
+```python
+import stripe
+stripe.api_key = os.environ["STRIPE_SECRET_KEY"]
+
+# At billing period end, report usage to Stripe
+def report_usage_to_stripe(tenant_id: str, compute_units: float):
+    subscription_item_id = get_stripe_sub_item(tenant_id)
+    stripe.SubscriptionItem.create_usage_record(
+        subscription_item_id,
+        quantity  = round(compute_units * 1000),   # Stripe uses integers
+        timestamp = int(time.time()),
+        action    = "increment"
+    )
+```
+
+Stripe invoices the customer automatically at the end of the billing cycle and handles payment retries, failed payments, and dunning.
+
+## Tiers: a practical starting point
+
+| Tier | Price | Included | Overage |
+|------|-------|----------|---------|
+| Starter | $500/mo | 100 compute units | $0.10/unit |
+| Professional | $1,500/mo | 500 units | $0.05/unit |
+| Enterprise | $4,000/mo | 2,000 units | $0.03/unit |
+
+Track which tier each tenant is on and apply the correct overage rate automatically.
+
+## References
+
+::: {#refs}
+:::

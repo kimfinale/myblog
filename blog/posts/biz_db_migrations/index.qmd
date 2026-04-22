@@ -1,0 +1,202 @@
+---
+title: "Database Schema Migrations for Production TimescaleDB"
+subtitle: "Your schema will evolve. Alembic and disciplined migration scripts make schema changes safe, reviewable, and reversible. Skill 18 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, database, migrations, Alembic, PostgreSQL, DevOps]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## The schema evolution problem
+
+Your digital twin has been running in production for two months. You want to add a `severity_level` column to the `model_states` table — a field that did not exist when the schema was designed. How do you:
+
+1. Add the column to the production database without downtime?
+2. Ensure your staging environment matches production?
+3. Roll back if something goes wrong?
+4. Communicate the change to teammates who run their own local databases?
+
+Manual `ALTER TABLE` statements run in the console answer question 1 but fail questions 2–4. **Database migrations** [@alembic2010; @humble2010] are versioned, executable scripts that transform the schema from state A to state B — and, critically, back again.
+
+## Alembic: the Python migration tool
+
+Alembic is the standard migration library for SQLAlchemy-based Python projects (FastAPI, Django). It generates migration scripts that:
+
+- Track the current database revision
+- Apply pending migrations in order
+- Reverse them on rollback
+
+```bash
+# Initialise Alembic in your project
+alembic init migrations
+
+# Auto-generate a migration from model changes
+alembic revision --autogenerate -m "add severity level to model states"
+
+# Apply all pending migrations
+alembic upgrade head
+
+# Roll back one step
+alembic downgrade -1
+
+# Show current revision
+alembic current
+```
+
+## A migration script
+
+Alembic generates this file; you review and edit it:
+
+```python
+# migrations/versions/a1b2c3_add_severity_level.py
+"""add severity level to model states
+
+Revision ID: a1b2c3d4e5f6
+Revises: 9f8e7d6c5b4a
+Create Date: 2024-04-15 09:00:00
+"""
+from alembic import op
+import sqlalchemy as sa
+
+def upgrade():
+    """Add severity_level column with default NULL."""
+    op.add_column(
+        "model_states",
+        sa.Column("severity_level", sa.String(16), nullable=True)
+    )
+    # Backfill existing rows with a computed value
+    op.execute("""
+        UPDATE model_states
+        SET    severity_level = CASE
+                   WHEN I_median > 1000 THEN 'high'
+                   WHEN I_median > 200  THEN 'medium'
+                   ELSE 'low'
+               END
+    """)
+    # Now make NOT NULL after backfill
+    op.alter_column("model_states", "severity_level", nullable=False)
+
+def downgrade():
+    """Remove the column — data is lost."""
+    op.drop_column("model_states", "severity_level")
+```
+
+## Migration safety rules
+
+```{r}
+#| label: migration-rules
+
+library(ggplot2)
+
+rules <- data.frame(
+  Rule = c(
+    "Always write a downgrade() function",
+    "Backfill before adding NOT NULL constraints",
+    "Never rename a column (add new + copy + drop old)",
+    "Test on a copy of prod data before applying",
+    "Apply migrations before deploying new code",
+    "Store migration scripts in version control",
+    "Never edit a migration that has been applied to prod"
+  ),
+  Category = c("Rollback","Safety","Compatibility",
+               "Testing","Deployment","Process","Integrity"),
+  Risk = c("High","High","High","Medium","High","Medium","Critical")
+)
+
+knitr::kable(rules[, c("Rule","Category","Risk")],
+             caption = "Database migration safety rules")
+```
+
+## Simulating migration state tracking in R
+
+```{r}
+#| label: migration-tracker
+#| fig-cap: "Migration history: each revision builds on the previous one, forming a linear chain. Alembic tracks which revision each environment is on. When dev is ahead of prod, the next deployment applies the gap."
+
+# Simulate migration history
+set.seed(1)
+migrations <- data.frame(
+  revision    = paste0("rev_", seq_len(8)),
+  description = c("initial schema",
+                  "add observations table",
+                  "add model_states table",
+                  "add hypertables",
+                  "add forecasts table",
+                  "add tenant_id columns",
+                  "add severity_level",
+                  "add usage_events table"),
+  applied_dev  = c(rep(TRUE, 8)),
+  applied_prod = c(rep(TRUE, 6), FALSE, FALSE),
+  applied_date = seq(as.Date("2024-01-01"), by = "week", length.out = 8)
+)
+
+migrations$colour <- ifelse(migrations$applied_prod, "steelblue", "firebrick")
+
+ggplot(migrations, aes(x = seq_len(nrow(migrations)),
+                        y = 1, fill = applied_prod)) +
+  geom_tile(colour = "white", linewidth = 1, height = 0.6) +
+  geom_text(aes(label = gsub("_", "\n", description)),
+            size = 2.5, colour = "white") +
+  scale_fill_manual(values = c("TRUE"  = "steelblue",
+                                "FALSE" = "firebrick"),
+                    labels  = c("TRUE" = "Applied to prod",
+                                "FALSE" = "Pending"),
+                    name = NULL) +
+  scale_x_continuous(name = "Migration sequence", breaks = 1:8) +
+  labs(y = NULL, title = "Migration state: prod is 2 revisions behind dev") +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "top")
+```
+
+## Zero-downtime migrations
+
+For tables with millions of rows (TimescaleDB hypertables), a naive `ADD COLUMN NOT NULL` locks the table and causes downtime. The safe sequence:
+
+```sql
+-- Step 1 (deploy immediately, no lock): add nullable column with default
+ALTER TABLE model_states
+  ADD COLUMN severity_level TEXT DEFAULT NULL;
+
+-- Step 2 (background job, hours): backfill existing rows in small batches
+UPDATE model_states
+  SET severity_level = 'medium'
+  WHERE severity_level IS NULL
+  LIMIT 10000;  -- repeat until done
+
+-- Step 3 (deploy next version): add NOT NULL constraint after all rows are filled
+ALTER TABLE model_states
+  ALTER COLUMN severity_level SET NOT NULL;
+```
+
+Each step is a separate migration file. The deployment is spread across multiple releases — each release is safe independently.
+
+## The CI/CD integration
+
+Add migration tests to your GitHub Actions workflow:
+
+```yaml
+- name: Run database migrations
+  run: |
+    alembic upgrade head
+    python -m pytest tests/test_migrations.py
+```
+
+The test file verifies that the schema matches the SQLAlchemy models after migration, catching drift before it reaches production.
+
+## References
+
+::: {#refs}
+:::

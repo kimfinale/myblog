@@ -1,0 +1,179 @@
+---
+title: "HIPAA-Aware Architecture Patterns for Health Data on AWS"
+subtitle: "Any US health department client will ask about HIPAA. Design for compliance from the start — the right AWS services, the right configurations, the right documentation. Skill 20 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, HIPAA, compliance, AWS, security, health data]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## HIPAA and your business
+
+The Health Insurance Portability and Accountability Act [@hipaa1996] governs Protected Health Information (PHI) in the United States. If your digital twin processes surveillance data that could identify individual patients — hospital admissions by age/sex/zip code, for example — you are likely handling PHI.
+
+HIPAA compliance is not a product feature; it is a prerequisite for US government health contracts. A health department procurement team will ask three questions:
+
+1. Do you have a Business Associate Agreement (BAA)?
+2. Which AWS services do you use, and do they cover PHI under the BAA?
+3. How do you enforce minimum necessary access?
+
+Answering yes, accurately, to all three unlocks contracts that competitors without HIPAA posture cannot win.
+
+## What HIPAA requires technically
+
+The HIPAA Security Rule [@nist800] specifies three safeguard categories:
+
+**Administrative**: who is authorised, what training they have, what your incident response plan is.
+
+**Physical**: where your servers are, who can access them (less relevant for cloud deployments — AWS handles this under the BAA).
+
+**Technical**: encryption at rest and in transit, access controls, audit logs, automatic session timeout.
+
+The technical safeguards map directly to AWS service configurations.
+
+## HIPAA-eligible AWS services
+
+Not all AWS services are covered under the BAA. The key ones for your digital twin stack:
+
+```{r}
+#| label: hipaa-services
+#| echo: false
+
+df <- data.frame(
+  Service = c("EC2", "RDS (PostgreSQL)", "S3", "Secrets Manager",
+              "CloudWatch Logs", "VPC", "IAM", "KMS", "ELB/ALB",
+              "Lambda"),
+  HIPAA_Eligible = c("Yes","Yes","Yes","Yes",
+                     "Yes","Yes","Yes","Yes","Yes","Yes"),
+  Use_in_DT = c("API + EnKF server", "TimescaleDB",
+                "Data lake / backups", "Credentials",
+                "Audit logs", "Network isolation",
+                "Access control", "Encryption keys",
+                "HTTPS termination", "Scheduled jobs"),
+  Encryption_Default = c("No (add EBS encryption)","Yes","Yes","Yes",
+                          "Yes","N/A","N/A","N/A","Yes","N/A")
+)
+
+knitr::kable(df, caption = "Key AWS services: HIPAA eligibility and digital twin use")
+```
+
+Enable encryption at rest explicitly for EC2 EBS volumes — it is not on by default.
+
+## Architecture checklist
+
+```{r}
+#| label: arch-checklist
+#| fig-cap: "HIPAA-compliant digital twin architecture. PHI never leaves the private subnet; all external access flows through the ALB and is authenticated. Audit logs capture every access event."
+
+library(ggplot2)
+
+# Architecture diagram as a text figure
+df_nodes <- data.frame(
+  x     = c(1,   3,   3,   5,   5,   7),
+  y     = c(3,   5,   1,   5,   1,   3),
+  label = c("Internet\n(HTTPS only)",
+            "ALB\n(TLS termination)",
+            "CloudWatch\nLogs",
+            "EC2\n(API + EnKF)\nPrivate subnet",
+            "RDS\nTimescaleDB\nPrivate subnet",
+            "S3\n(Parquet lake)\nEncrypted"),
+  colour = c("grey60","steelblue","orange","steelblue","steelblue","darkgreen")
+)
+
+df_edges <- data.frame(
+  x    = c(1.3, 3.3, 4.3, 3.3),
+  xend = c(2.7, 4.7, 4.7, 4.7),
+  y    = c(3,   5,   5,   1),
+  yend = c(5,   5,   1,   1)
+)
+
+ggplot() +
+  geom_segment(data = df_edges,
+               aes(x=x, xend=xend, y=y, yend=yend),
+               arrow = arrow(length=unit(0.2,"cm")),
+               colour = "grey50", linewidth = 0.8) +
+  geom_label(data = df_nodes, aes(x=x, y=y, label=label, fill=colour),
+             colour = "white", size = 3, label.size = 0, fontface = "bold") +
+  scale_fill_identity() +
+  xlim(0.5, 7.5) + ylim(0, 6) +
+  labs(title = "HIPAA-compliant digital twin architecture") +
+  theme_void(base_size = 13)
+```
+
+## The 10 technical controls
+
+```{r}
+#| label: controls
+#| echo: false
+
+controls <- data.frame(
+  Control = c(
+    "Encryption in transit (TLS 1.2+)",
+    "Encryption at rest (AES-256)",
+    "Network isolation (VPC, no public DB)",
+    "Minimum privilege IAM roles",
+    "Multi-factor authentication for console",
+    "Audit logging (CloudTrail + CloudWatch)",
+    "Automatic session timeout (15 min idle)",
+    "Database access logging",
+    "Backup with 7-year retention",
+    "Incident response plan documented"
+  ),
+  AWS_Mechanism = c(
+    "ALB + ACM certificate",
+    "RDS encryption, S3 SSE-KMS, EBS encryption",
+    "Private subnets, security groups",
+    "IAM roles with least-privilege policies",
+    "AWS IAM Identity Center",
+    "CloudTrail data events, VPC flow logs",
+    "Cognito/application-level enforcement",
+    "PostgreSQL pg_audit extension",
+    "RDS automated backups + S3 lifecycle",
+    "Written policy document + tested procedure"
+  ),
+  Priority = c(rep("Required", 6), rep("Required", 4))
+)
+
+knitr::kable(controls, caption = "HIPAA technical safeguards mapped to AWS")
+```
+
+## The Business Associate Agreement
+
+Before processing any PHI, sign a **BAA** with AWS — this is a legal agreement where AWS acknowledges their role as your Business Associate and commits to HIPAA-compliant handling of PHI on their infrastructure.
+
+Sign it in the AWS console under Account → Business Associate Addendum. It covers all HIPAA-eligible services automatically once signed.
+
+You will also need to sign a BAA with each client — you are their Business Associate when you process their surveillance data. Use a standard template reviewed by a health IT attorney; it is a one-time cost that protects you and signals professionalism.
+
+## Synthetic data for development
+
+Never use real patient data in development or testing. Generate **synthetic surveillance data** that has the same statistical properties as real data but cannot be traced to individuals. The simulation code from throughout this series is already doing this — use the same approach for test fixtures.
+
+This practice — using synthetic data in non-production environments — is explicitly recommended by NIST 800-53 [@nist800] and eliminates most PHI risk from your development workflow.
+
+## Beyond the checklist
+
+HIPAA compliance is not a one-time audit — it is ongoing. Key practices after go-live:
+
+- **Annual security review**: re-run the checklist and update documentation
+- **Penetration testing**: hire an external firm to test your API annually
+- **Employee training**: anyone who touches production data needs annual HIPAA training
+- **Breach response**: you have 60 days to notify HHS of a breach affecting 500+ individuals
+
+A compliance posture that is documented, tested, and maintained is worth far more to a health department procurement team than a checkbox in a sales deck.
+
+## References
+
+::: {#refs}
+:::
