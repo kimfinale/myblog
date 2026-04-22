@@ -24,7 +24,7 @@
 <section id="from-time-to-space-time" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="from-time-to-space-time"><span class="header-section-number">1</span> From time to space-time</h2>
 <p>The previous posts in this series worked with compartmental <strong>ODEs</strong> — dynamics in time alone. Real epidemics have spatial structure: disease spreads outward from index cases, population density varies across a region, and interventions can be geographically targeted.</p>
-<p>The natural continuous-space extension is a <strong>reaction-diffusion system</strong> — a PDE that combines local transmission (reaction) with spatial movement of infectious individuals (diffusion) <span class="citation" data-cites="murray2003">(1)</span>. Fitting such a PDE from sparse spatiotemporal observations is exactly the problem that spatiotemporal PINNs are designed for.</p>
+<p>The natural continuous-space extension is a <strong>reaction-diffusion system</strong> — a PDE that combines local transmission (reaction) with spatial movement of infectious individuals (diffusion) <span class="citation" data-cites="murray2003 noble1974">(1,2)</span>. Fitting such a PDE from sparse spatiotemporal observations is exactly the problem that spatiotemporal PINNs are designed for.</p>
 <p>This post shows:</p>
 <ol type="1">
 <li>The <strong>1-D reaction-diffusion SIR</strong> PDE and its finite-difference (FD) reference solution.</li>
@@ -53,7 +53,7 @@ font-style: inherit;">pip</span> install torch scipy matplotlib numpy</span></co
 </section>
 <section id="the-reaction-diffusion-sir-model" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="the-reaction-diffusion-sir-model"><span class="header-section-number">2</span> The reaction-diffusion SIR model</h2>
-<p>Adding spatial diffusion to the SIR equations in fraction form gives a system of PDEs on <img src="https://latex.codecogs.com/png.latex?x%20%5Cin%20%5B0,%20L%5D">, <img src="https://latex.codecogs.com/png.latex?t%20%5Cin%20%5B0,%20T%5D">:</p>
+<p>Adding spatial diffusion to the SIR equations <span class="citation" data-cites="kermack1927 hethcote2000">(3,4)</span> in fraction form gives a system of PDEs on <img src="https://latex.codecogs.com/png.latex?x%20%5Cin%20%5B0,%20L%5D">, <img src="https://latex.codecogs.com/png.latex?t%20%5Cin%20%5B0,%20T%5D">:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7B%5Cpartial%20s%7D%7B%5Cpartial%20t%7D%20=%20D%5C,%5Cfrac%7B%5Cpartial%5E2%20s%7D%7B%5Cpartial%20x%5E2%7D%20-%20%5Cbeta%5C,s%5C,i%0A"></p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7B%5Cpartial%20i%7D%7B%5Cpartial%20t%7D%20=%20D%5C,%5Cfrac%7B%5Cpartial%5E2%20i%7D%7B%5Cpartial%20x%5E2%7D%20+%20%5Cbeta%5C,s%5C,i%20-%20%5Cgamma%5C,i%0A"></p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7B%5Cpartial%20r%7D%7B%5Cpartial%20t%7D%20=%20D%5C,%5Cfrac%7B%5Cpartial%5E2%20r%7D%7B%5Cpartial%20x%5E2%7D%20+%20%5Cgamma%5C,i%0A"></p>
@@ -62,13 +62,13 @@ font-style: inherit;">pip</span> install torch scipy matplotlib numpy</span></co
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7B%5Cpartial%20s%7D%7B%5Cpartial%20x%7D%5Cbigg%7C_%7Bx=0,L%7D%20=%20%5Cfrac%7B%5Cpartial%20i%7D%7B%5Cpartial%20x%7D%5Cbigg%7C_%7Bx=0,L%7D%20=%200%0A"></p>
 <p><strong>Initial condition</strong> — a localised outbreak at the centre:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0Ai(x,%200)%20=%20i_0%20%5Cexp%5C!%5Cleft(-%5Cfrac%7B(x%20-%20L/2)%5E2%7D%7B2%5Cell%5E2%7D%5Cright),%20%5Cqquad%20s(x,%200)%20=%201%20-%20i(x,%200)%0A"></p>
-<p>The resulting dynamics are a <strong>travelling wave</strong> of infection propagating outward from the source <span class="citation" data-cites="murray2003">(1)</span>. The wave speed is approximately <img src="https://latex.codecogs.com/png.latex?c_w%20%5Capprox%202%5Csqrt%7BD(%5Cbeta%20-%20%5Cgamma)%7D"> — depending on both diffusion and the net growth rate <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20-%20%5Cgamma">.</p>
+<p>The resulting dynamics are a <strong>travelling wave</strong> of infection propagating outward from the source <span class="citation" data-cites="murray2003b">(5)</span>. The wave speed is approximately <img src="https://latex.codecogs.com/png.latex?c_w%20%5Capprox%202%5Csqrt%7BD(%5Cbeta%20-%20%5Cgamma)%7D"> — a result analogous to Fisher’s travelling wave <span class="citation" data-cites="fisher1937 murray2003b">(5,6)</span>, depending on both diffusion and the net growth rate <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20-%20%5Cgamma">.</p>
 <hr>
 </section>
 <section id="finite-difference-reference-solution" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="finite-difference-reference-solution"><span class="header-section-number">3</span> Finite-difference reference solution</h2>
 <p>Before training the PINN, we generate a high-accuracy reference solution using explicit finite differences for validation.</p>
-<div id="a885e8ff" class="cell" data-execution_count="1">
+<div id="85609eae" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
@@ -288,7 +288,7 @@ font-style: inherit;"> L units"</span>)</span></code></pre></div></div>
 Expected wave travel in 20.0 days: 3.10 L units</code></pre>
 </div>
 </div>
-<div id="68528632" class="cell" data-execution_count="2">
+<div id="1b25a132" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
@@ -734,7 +734,7 @@ font-style: inherit;">20</span>)</span>
 <span id="cb4-54">)</span></code></pre></div></div>
 </details>
 </div>
-<div id="fdd4768b" class="cell" data-execution_count="3">
+<div id="7daebed7" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
@@ -916,12 +916,13 @@ font-style: inherit;">;</span>  plt.show()</span></code></pre></div></div>
 </section>
 <section id="spatiotemporal-pinn" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="spatiotemporal-pinn"><span class="header-section-number">4</span> Spatiotemporal PINN</h2>
+<p>The spatiotemporal PINN extends the framework of Raissi et al. <span class="citation" data-cites="raissi2019">(7)</span> from ODEs to PDEs, following the same collocation-point approach used in subsurface flow <span class="citation" data-cites="tartakovsky2020">(8)</span> and other PDE inverse problems.</p>
 <section id="architecture" class="level3" data-number="4.1">
 <h3 data-number="4.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">4.1</span> Architecture</h3>
 <p>The network maps normalised coordinates <img src="https://latex.codecogs.com/png.latex?(%5Ctilde%20x,%20%5Ctilde%20t)%20=%20(x/L,%5C;%20t/T_%7B%5Cmax%7D)%20%5Cin%20%5B0,1%5D%5E2"> to compartment fractions:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A(%5Chat%20s,%5C,%20%5Chat%20i,%5C,%20%5Chat%20r)%20=%20%5Csigma%5C!%5Cleft(%5Ctext%7BNN%7D_%5Ctheta(%5Ctilde%20x,%5C,%20%5Ctilde%20t)%5Cright)%20%5Cin%20(0,1)%5E3%0A"></p>
 <p>The physical parameters <img src="https://latex.codecogs.com/png.latex?D">, <img src="https://latex.codecogs.com/png.latex?%5Cbeta">, <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> are learnable log-scalars alongside the network weights.</p>
-<div id="24be9689" class="cell" data-execution_count="4">
+<div id="03c82e0b" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
@@ -1096,7 +1097,7 @@ font-style: inherit;">self</span>.log_gamma)</span></code></pre></div></div>
 <li>First-order time derivative: one <code>autograd.grad</code> call w.r.t. <img src="https://latex.codecogs.com/png.latex?t">.</li>
 <li>Second-order spatial derivative: two nested <code>autograd.grad</code> calls w.r.t. <img src="https://latex.codecogs.com/png.latex?x">.</li>
 </ul>
-<div id="4e372bce" class="cell" data-execution_count="5">
+<div id="36e154cb" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="kw" style="color: #003B4F;
@@ -1363,7 +1364,7 @@ Note
 <section id="neumann-boundary-conditions" class="level3" data-number="5.2">
 <h3 data-number="5.2" class="anchored" data-anchor-id="neumann-boundary-conditions"><span class="header-section-number">5.2</span> Neumann boundary conditions</h3>
 <p>Zero-flux BCs (<img src="https://latex.codecogs.com/png.latex?%5Cpartial%20s/%5Cpartial%20x%20=%20%5Cpartial%20i/%5Cpartial%20x%20=%200"> at <img src="https://latex.codecogs.com/png.latex?x%20=%200"> and <img src="https://latex.codecogs.com/png.latex?x%20=%201">) are enforced as an additional loss:</p>
-<div id="c367fc9d" class="cell" data-execution_count="6">
+<div id="9f7c90db" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="kw" style="color: #003B4F;
@@ -1575,7 +1576,7 @@ font-style: inherit;">2</span>).mean()</span></code></pre></div></div>
 <li><strong>Boundary conditions</strong> at <img src="https://latex.codecogs.com/png.latex?x%20=%200"> and <img src="https://latex.codecogs.com/png.latex?x%20=%201"> on random time points.</li>
 <li><strong>Sparse observations</strong> of <img src="https://latex.codecogs.com/png.latex?I(x,t)"> from the FD reference at <img src="https://latex.codecogs.com/png.latex?t%20%5Cin%20%5C%7B5,%2010,%2015,%2020%5C%7D">, sampled at 20 random spatial locations each.</li>
 </ul>
-<div id="8d555ec7" class="cell" data-execution_count="7">
+<div id="c8b100f2" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
@@ -1759,7 +1760,7 @@ IC points: 101</code></pre>
 </section>
 <section id="training" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="training"><span class="header-section-number">7</span> Training</h2>
-<div id="3f4789ec" class="cell" data-execution_count="8">
+<div id="5332873c" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1">model <span class="op" style="color: #5E5E5E;
@@ -2058,7 +2059,7 @@ Recovered γ:    0.0318  (true: 0.1)</code></pre>
 <h2 data-number="8" class="anchored" data-anchor-id="results"><span class="header-section-number">8</span> Results</h2>
 <section id="spatial-profiles-pinn-vs.-fd" class="level3" data-number="8.1">
 <h3 data-number="8.1" class="anchored" data-anchor-id="spatial-profiles-pinn-vs.-fd"><span class="header-section-number">8.1</span> Spatial profiles: PINN vs.&nbsp;FD</h3>
-<div id="9d629ac5" class="cell" data-execution_count="9">
+<div id="48ca9da1" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1">t_snaps_eval <span class="op" style="color: #5E5E5E;
@@ -2280,7 +2281,7 @@ font-style: inherit;">;</span>  plt.show()</span></code></pre></div></div>
 </section>
 <section id="space-time-heatmaps" class="level3" data-number="8.2">
 <h3 data-number="8.2" class="anchored" data-anchor-id="space-time-heatmaps"><span class="header-section-number">8.2</span> Space-time heatmaps</h3>
-<div id="95958cab" class="cell" data-execution_count="10">
+<div id="2fe554e2" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1">Nx_plot, Nt_plot <span class="op" style="color: #5E5E5E;
@@ -2712,8 +2713,29 @@ Note
 <div id="ref-murray2003" class="csl-entry">
 <div class="csl-left-margin">1. </div><div class="csl-right-inline">Murray JD. Mathematical biology <span>I</span>: An introduction. 3rd ed. New York: Springer; 2003. doi:<a href="https://doi.org/10.1007/b98868">10.1007/b98868</a></div>
 </div>
+<div id="ref-noble1974" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Noble JV. Geographic and temporal development of plagues. Nature. 1974;250:726–9. doi:<a href="https://doi.org/10.1038/250726a0">10.1038/250726a0</a></div>
 </div>
-<div id="14c6e43e" class="cell" data-execution_count="11">
+<div id="ref-kermack1927" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Kermack WO, McKendrick AG. A contribution to the mathematical theory of epidemics. Proceedings of the Royal Society of London Series A. 1927;115(772):700–21. doi:<a href="https://doi.org/10.1098/rspa.1927.0118">10.1098/rspa.1927.0118</a></div>
+</div>
+<div id="ref-hethcote2000" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Hethcote HW. The mathematics of infectious diseases. SIAM Review. 2000;42(4):599–653. doi:<a href="https://doi.org/10.1137/S0036144500371907">10.1137/S0036144500371907</a></div>
+</div>
+<div id="ref-murray2003b" class="csl-entry">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Murray JD. Mathematical biology <span>II</span>: Spatial models and biomedical applications. 3rd ed. New York: Springer; 2003. doi:<a href="https://doi.org/10.1007/b98869">10.1007/b98869</a></div>
+</div>
+<div id="ref-fisher1937" class="csl-entry">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Fisher RA. The wave of advance of advantageous genes. Annals of Eugenics. 1937;7(4):355–69. doi:<a href="https://doi.org/10.1111/j.1469-1809.1937.tb02153.x">10.1111/j.1469-1809.1937.tb02153.x</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+<div id="ref-tartakovsky2020" class="csl-entry">
+<div class="csl-left-margin">8. </div><div class="csl-right-inline">Tartakovsky AM, Marrero CO, Perdikaris P, Tartakovsky GD, Barajas-Solano D. Physics-informed deep neural networks for learning parameters and constitutive relationships in subsurface flow problems. Water Resources Research. 2020;56(5):e2019WR026731. doi:<a href="https://doi.org/10.1029/2019WR026731">10.1029/2019WR026731</a></div>
+</div>
+</div>
+<div id="1fcf2df8" class="cell" data-execution_count="11">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu
@@ -2747,7 +2769,7 @@ matplotlib 3.10.8</code></pre>
 <section id="two-paradigms-for-learning-dynamics" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="two-paradigms-for-learning-dynamics"><span class="header-section-number">1</span> Two paradigms for learning dynamics</h2>
 <p>The previous posts in this series trained a network to map time directly to compartment values, penalising ODE violations through the physics loss. There is a fundamentally different approach: <strong>solve the ODE in the forward pass</strong>, using the neural network as the right-hand side.</p>
-<p>This shift, introduced as <strong>Neural Ordinary Differential Equations</strong> by Chen et al. <span class="citation" data-cites="chen2018">(1)</span>, leads to three methods with different inductive biases:</p>
+<p>This shift, introduced as <strong>Neural Ordinary Differential Equations</strong> by Chen et al. <span class="citation" data-cites="chen2018">(1)</span>, leads to three methods with different inductive biases (compare with <span class="citation" data-cites="raissi2019">(2)</span> for the PINN formulation):</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 20%">
@@ -2833,7 +2855,7 @@ font-style: inherit;">pip</span> install torch scipy matplotlib numpy</span></co
 </section>
 <section id="euler-ode-solver-in-pytorch" class="level3" data-number="2.3">
 <h3 data-number="2.3" class="anchored" data-anchor-id="euler-ode-solver-in-pytorch"><span class="header-section-number">2.3</span> Euler ODE solver in PyTorch</h3>
-<div id="19e988e8" class="cell" data-execution_count="1">
+<div id="21bf2e4d" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
@@ -2960,7 +2982,7 @@ background-color: null;
 font-style: inherit;"># orange — Universal DE</span></span></code></pre></div></div>
 </details>
 </div>
-<div id="5a72164e" class="cell" data-execution_count="2">
+<div id="c9020c6d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="kw" style="color: #003B4F;
@@ -3053,7 +3075,7 @@ font-style: inherit;"># (T, state_dim)</span></span></code></pre></div></div>
 </section>
 <section id="ground-truth" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="ground-truth"><span class="header-section-number">3</span> Ground truth</h2>
-<div id="7197d58b" class="cell" data-execution_count="3">
+<div id="33de5260" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
@@ -3659,7 +3681,7 @@ font-style: inherit;">;</span>  plt.show()</span></code></pre></div></div>
 <section id="architecture" class="level3" data-number="4.1">
 <h3 data-number="4.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">4.1</span> Architecture</h3>
 <p>The Neural ODE replaces the SIR right-hand side entirely with a feedforward network <img src="https://latex.codecogs.com/png.latex?f_%5Ctheta(%5Cmathbf%7By%7D,%20t)">, with no mechanistic assumptions.</p>
-<div id="de03e12a" class="cell" data-execution_count="4">
+<div id="8896fa9c" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
@@ -3942,13 +3964,13 @@ font-style: inherit;">"Neural ODE"</span>)</span></code></pre></div></div>
 <h2 data-number="5" class="anchored" data-anchor-id="universal-differential-equations"><span class="header-section-number">5</span> Universal Differential Equations</h2>
 <section id="idea" class="level3" data-number="5.1">
 <h3 data-number="5.1" class="anchored" data-anchor-id="idea"><span class="header-section-number">5.1</span> Idea</h3>
-<p>A Universal Differential Equation <span class="citation" data-cites="rackauckas2020">(2)</span> retains known mechanistic terms and adds a neural network for unknown or missing dynamics:</p>
+<p>A Universal Differential Equation <span class="citation" data-cites="rackauckas2020">(3)</span> retains known mechanistic terms and adds a neural network for unknown or missing dynamics:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7Bd%5Cmathbf%7By%7D%7D%7Bdt%7D%20=%20%5Cunderbrace%7Bg(%5Cmathbf%7By%7D,%5C,%20t;%5C,%5Ctheta_%5Ctext%7Bmech%7D)%7D_%7B%5Ctext%7Bknown%20physics%7D%7D%0A%20%20+%20%5Cunderbrace%7Bf_%5Cphi(%5Cmathbf%7By%7D,%5C,%20t)%7D_%7B%5Ctext%7Bunknown%20correction%7D%7D%0A"></p>
 <p>Here we apply UDEs to the <strong>SEIR scenario</strong>: the SIR skeleton is known, but the time-varying NPI and latent incubation period are absorbed by the neural correction <img src="https://latex.codecogs.com/png.latex?f_%5Cphi">.</p>
 </section>
 <section id="architecture-1" class="level3" data-number="5.2">
 <h3 data-number="5.2" class="anchored" data-anchor-id="architecture-1"><span class="header-section-number">5.2</span> Architecture</h3>
-<div id="69ca9b9e" class="cell" data-execution_count="5">
+<div id="331c25e3" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="kw" style="color: #003B4F;
@@ -4333,7 +4355,7 @@ Note
 <section id="extrapolation-comparison" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="extrapolation-comparison"><span class="header-section-number">6</span> Extrapolation comparison</h2>
 <p>The key advantage of physics-constrained models is generalisation beyond the training window. Below we train each model on <img src="https://latex.codecogs.com/png.latex?%5B0,%20T_%5Ctext%7Btrain%7D%5D"> only and evaluate extrapolation on the full horizon.</p>
-<div id="e536140a" class="cell" data-execution_count="6">
+<div id="b089961d" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
@@ -4782,7 +4804,7 @@ font-style: inherit;">── PINN on SIR ──"</span>)</span>
 PINN β: 0.231  γ: 0.070  R₀: 3.29</code></pre>
 </div>
 </div>
-<div id="245c3a45" class="cell" data-execution_count="7">
+<div id="bccf41e0" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><span class="co" style="color: #5E5E5E;
@@ -5060,7 +5082,7 @@ font-style: inherit;">;</span>  plt.show()</span></code></pre></div></div>
 </div>
 </div>
 </div>
-<div id="f3143631" class="cell" data-execution_count="8">
+<div id="9a9e93f7" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="co" style="color: #5E5E5E;
@@ -5250,17 +5272,38 @@ Important
 </table>
 <hr>
 </section>
-<section id="references" class="level2" data-number="8">
-<h2 data-number="8" class="anchored" data-anchor-id="references"><span class="header-section-number">8</span> References</h2>
+<section id="extensions" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="extensions"><span class="header-section-number">8</span> Extensions</h2>
+<p><strong>Latent Neural ODEs for irregular time series</strong> — <span class="citation" data-cites="rubanova2019">(4)</span> extend the Neural ODE framework to an encoder-decoder architecture: a recurrent encoder reads irregularly spaced observations and maps them to a latent initial state; a Neural ODE decoder then generates the latent trajectory forward in time. This is the natural fit for clinical surveillance data with irregular reporting intervals and missing measurements.</p>
+<p><strong>Production-quality ODE solvers</strong> — The Euler integrator used here is pedagogically transparent but accumulates error over long horizons. The <code>torchdiffeq</code> library <span class="citation" data-cites="chen2018">(1)</span> provides Runge-Kutta and Dormand-Prince (adaptive step-size) solvers that are fully differentiable and memory-efficient via the adjoint method — a drop-in replacement in the <code>forward</code> pass.</p>
+<p><strong>Graph Neural ODEs for spatial networks</strong> — Replace the MLP right-hand side with a graph neural network: each node is a geographic unit, edge weights encode mobility flows, and the ODE evolves the entire network state simultaneously. This extends the SIR Neural ODE to metapopulation epidemic models on commuter or air-travel networks.</p>
+<p><strong>Real-data application</strong> — Dandekar and Barbastathis <span class="citation" data-cites="dandekar2020">(5)</span> applied a UDE-like approach to COVID-19 province-level case counts, learning a quarantine-strength function alongside the SIR skeleton. The approach recovered interpretable intervention signals consistent with known lockdown dates — demonstrating that the partial-physics architecture generalises from simulated to noisy real-world data.</p>
+<p><strong>Comprehensive reference</strong> — Kidger <span class="citation" data-cites="kidger2022">(6)</span> provides a unified treatment of all neural differential equation variants — ODEs, stochastic DEs, and controlled DEs — including the adjoint method, theoretical existence results, and training pathologies. Recommended for readers moving beyond the tutorial level.</p>
+<hr>
+</section>
+<section id="references" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="references"><span class="header-section-number">9</span> References</h2>
 <div id="refs" class="references csl-bib-body">
 <div id="ref-chen2018" class="csl-entry">
 <div class="csl-left-margin">1. </div><div class="csl-right-inline">Chen RTQ, Rubanova Y, Bettencourt J, Duvenaud D. Neural ordinary differential equations. In: Advances in neural information processing systems [Internet]. 2018. Available from: <a href="https://arxiv.org/abs/1806.07366">https://arxiv.org/abs/1806.07366</a></div>
 </div>
+<div id="ref-raissi2019" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
 <div id="ref-rackauckas2020" class="csl-entry">
-<div class="csl-left-margin">2. </div><div class="csl-right-inline">Rackauckas C, Ma Y, Martensen J, Warner C, Zubov K, Supekar R, et al. Universal differential equations for scientific machine learning [Internet]. 2020. Available from: <a href="https://arxiv.org/abs/2001.04385">https://arxiv.org/abs/2001.04385</a></div>
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Rackauckas C, Ma Y, Martensen J, Warner C, Zubov K, Supekar R, et al. Universal differential equations for scientific machine learning [Internet]. 2020. Available from: <a href="https://arxiv.org/abs/2001.04385">https://arxiv.org/abs/2001.04385</a></div>
+</div>
+<div id="ref-rubanova2019" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Rubanova Y, Chen RTQ, Duvenaud D. Latent ordinary differential equations for irregularly-sampled time series. In: Advances in neural information processing systems [Internet]. 2019. Available from: <a href="https://arxiv.org/abs/1907.03907">https://arxiv.org/abs/1907.03907</a></div>
+</div>
+<div id="ref-dandekar2020" class="csl-entry">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Dandekar R, Barbastathis G. Quantifying the effect of quarantine control in <span>COVID-19</span> infectious spread using machine learning. EBioMedicine. 2020;55:102875. doi:<a href="https://doi.org/10.1016/j.ebiom.2020.102875">10.1016/j.ebiom.2020.102875</a></div>
+</div>
+<div id="ref-kidger2022" class="csl-entry">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Kidger P. On neural differential equations [Internet]. 2022. Available from: <a href="https://arxiv.org/abs/2202.02435">https://arxiv.org/abs/2202.02435</a></div>
 </div>
 </div>
-<div id="e46b79b0" class="cell" data-execution_count="9">
+<div id="6d653504" class="cell" data-execution_count="9">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu
@@ -5294,8 +5337,8 @@ matplotlib 3.10.8</code></pre>
 <section id="beyond-sir-exposed-compartment-and-changing-transmission" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="beyond-sir-exposed-compartment-and-changing-transmission"><span class="header-section-number">1</span> Beyond SIR: exposed compartment and changing transmission</h2>
 <p>The <a href="https://www.jonghoonk.com/blog/posts/pinn_sir/">SIR PINN tutorial</a> recovered a constant transmission rate <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> from noisy prevalence data. Real outbreaks are messier in two important ways.</p>
-<p><strong>The SEIR model</strong> adds an <em>Exposed</em> compartment between infection and onset of infectiousness — representing the latent period during which a host carries the pathogen but cannot yet transmit it. This is essential for diseases such as COVID-19 or influenza, where the incubation period (5–7 days) is a key determinant of epidemic velocity <span class="citation" data-cites="hethcote2000 kermack1927">(1,2)</span>.</p>
-<p><strong>Time-varying <img src="https://latex.codecogs.com/png.latex?%5Cbeta(t)"></strong> captures the reality that governments impose non-pharmaceutical interventions (NPIs) mid-epidemic: stay-at-home orders, school closures, and mask mandates all suppress contact rates. A PINN trained with a scalar <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> parameter cannot represent this behaviour; it will average the pre- and post-NPI rates and fit neither regime well.</p>
+<p><strong>The SEIR model</strong> adds an <em>Exposed</em> compartment between infection and onset of infectiousness — representing the latent period during which a host carries the pathogen but cannot yet transmit it. This is essential for diseases such as COVID-19 or influenza, where the incubation period — estimated at 5–6 days for SARS-CoV-2 <span class="citation" data-cites="lauer2020">(1)</span> — is a key determinant of epidemic velocity <span class="citation" data-cites="hethcote2000 kermack1927">(2,3)</span>.</p>
+<p><strong>Time-varying <img src="https://latex.codecogs.com/png.latex?%5Cbeta(t)"></strong> captures the reality that governments impose non-pharmaceutical interventions (NPIs) mid-epidemic: stay-at-home orders, school closures, and mask mandates all suppress contact rates. Statistical analyses of COVID-19 case series have quantified these drops at 50–80% <span class="citation" data-cites="flaxman2020 li2020">(4,5)</span>. A PINN trained with a scalar <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> parameter cannot represent this behaviour; it will average the pre- and post-NPI rates and fit neither regime well.</p>
 <p>This post shows how to extend the PINN to:</p>
 <ol type="1">
 <li>The <strong>SEIR model</strong> — four compartments, latent period <img src="https://latex.codecogs.com/png.latex?%5Csigma%5E%7B-1%7D">.</li>
@@ -5361,7 +5404,7 @@ font-style: inherit;">pip</span> install torch scipy matplotlib numpy</span></co
 </section>
 <section id="simulate-ground-truth-and-observations" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="simulate-ground-truth-and-observations"><span class="header-section-number">3</span> Simulate ground truth and observations</h2>
-<div id="34841eb3" class="cell" data-execution_count="1">
+<div id="56798e73" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
@@ -5921,6 +5964,7 @@ Peak I:        7.9% on day 70</code></pre>
 </section>
 <section id="pinn-architecture" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="pinn-architecture"><span class="header-section-number">4</span> PINN architecture</h2>
+<p>The architecture follows the PINN framework of Raissi et al. <span class="citation" data-cites="raissi2019">(6)</span>, extended here to handle a time-varying parameter sub-network.</p>
 <section id="state-network" class="level3" data-number="4.1">
 <h3 data-number="4.1" class="anchored" data-anchor-id="state-network"><span class="header-section-number">4.1</span> State network</h3>
 <p>A five-layer MLP maps scaled time <img src="https://latex.codecogs.com/png.latex?t_s%20=%20t%20/%20T_%7B%5Cmax%7D%20%5Cin%20%5B0,1%5D"> to four compartment fractions via sigmoid activations:</p>
@@ -5961,7 +6005,7 @@ Peak I:        7.9% on day 70</code></pre>
 </tr>
 </tbody>
 </table>
-<div id="6e5e4210" class="cell" data-execution_count="2">
+<div id="e2bd701d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
@@ -6210,7 +6254,7 @@ font-style: inherit;">self</span>.log_gamma)</span></code></pre></div></div>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathcal%7BL%7D_%5Ctext%7Bphysics%7D%20=%20%5Cfrac%7B1%7D%7BM%7D%5Csum_m%0A%20%20%5Cleft%5B%5Cbigl(%5Cdot%20s%20+%20%5Chat%5Cbeta%5C,%5Chat%20s%5C,%5Chat%20i%5Cbigr)%5E2%0A%20%20+%20%5Cbigl(%5Cdot%20e%20-%20%5Chat%5Cbeta%5C,%5Chat%20s%5C,%5Chat%20i%20+%20%5Csigma%5Chat%20e%5Cbigr)%5E2%0A%20%20+%20%5Cbigl(%5Cdot%20i%20-%20%5Csigma%5Chat%20e%20+%20%5Cgamma%5Chat%20i%5Cbigr)%5E2%0A%20%20+%20%5Cbigl(%5Cdot%20r%20-%20%5Cgamma%5Chat%20i%5Cbigr)%5E2%5Cright%5D%0A"></p>
 <p>where overdots denote <img src="https://latex.codecogs.com/png.latex?d/dt"> computed via <strong>automatic differentiation</strong>.</p>
 <p><strong>IC loss</strong> — squared deviation from known initial conditions at <img src="https://latex.codecogs.com/png.latex?t%20=%200">.</p>
-<div id="daaa404c" class="cell" data-execution_count="3">
+<div id="f661055f" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
@@ -6470,7 +6514,7 @@ Note
 </section>
 <section id="training" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="training"><span class="header-section-number">6</span> Training</h2>
-<div id="dc4ecf6f" class="cell" data-execution_count="4">
+<div id="98599bcf" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
@@ -6795,7 +6839,7 @@ Recovered γ (β(t)):    0.0158  (true: 0.1)</code></pre>
 <h2 data-number="7" class="anchored" data-anchor-id="results"><span class="header-section-number">7</span> Results</h2>
 <section id="prevalence-and-recovered-βt" class="level3" data-number="7.1">
 <h3 data-number="7.1" class="anchored" data-anchor-id="prevalence-and-recovered-βt"><span class="header-section-number">7.1</span> Prevalence and recovered β(t)</h3>
-<div id="fe6b883d" class="cell" data-execution_count="5">
+<div id="5676534c" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1">t_plot <span class="op" style="color: #5E5E5E;
@@ -7112,7 +7156,7 @@ font-style: inherit;">;</span>  plt.show()</span></code></pre></div></div>
 </section>
 <section id="reconstructed-seir-trajectories" class="level3" data-number="7.2">
 <h3 data-number="7.2" class="anchored" data-anchor-id="reconstructed-seir-trajectories"><span class="header-section-number">7.2</span> Reconstructed SEIR trajectories</h3>
-<div id="f20d105c" class="cell" data-execution_count="6">
+<div id="8cff9b70" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1">fig, axes <span class="op" style="color: #5E5E5E;
@@ -7289,7 +7333,7 @@ font-style: inherit;">;</span>  plt.show()</span></code></pre></div></div>
 <section id="physics-loss-as-a-regulariser-for-βt" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="physics-loss-as-a-regulariser-for-βt"><span class="header-section-number">8</span> Physics loss as a regulariser for β(t)</h2>
 <p>Without the physics constraint, the <img src="https://latex.codecogs.com/png.latex?%5Cbeta(t)"> network has enough capacity to fit the noisy <img src="https://latex.codecogs.com/png.latex?I"> observations directly — but the recovered <img src="https://latex.codecogs.com/png.latex?%5Cbeta(t)"> becomes erratic and biologically meaningless.</p>
-<div id="efd40027" class="cell" data-execution_count="7">
+<div id="33e9e2a4" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">lam_p_values <span class="op" style="color: #5E5E5E;
@@ -7618,19 +7662,35 @@ Important
 <p><strong>Identifiability</strong>: with only <img src="https://latex.codecogs.com/png.latex?I(t)"> observed, <img src="https://latex.codecogs.com/png.latex?%5Csigma"> and <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> are not jointly identifiable from <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> unless additional constraints are applied. Fixing <img src="https://latex.codecogs.com/png.latex?%5Csigma"> from natural history data (as done here) is a standard practice.</p>
 <p><strong>Multiple waves</strong>: a single <img src="https://latex.codecogs.com/png.latex?%5Cbeta(t)"> network can represent multiple NPI episodes by simply training on a longer time series — the physics loss prevents erratic behaviour between the periods.</p>
 <p><strong>Bayesian β(t)</strong>: combining the <a href="https://www.jonghoonk.com/blog/posts/bayesian_pinn_sir/">Bayesian PINN</a> with a β(t) network gives posterior credible intervals over the entire transmission curve — directly useful for policy decisions under uncertainty.</p>
+<p><strong>Real-data application</strong>: Dandekar and Barbastathis <span class="citation" data-cites="dandekar2020">(7)</span> applied a similar approach to COVID-19 province-level case counts, learning a quarantine-strength parameter as a function of time via a neural augmentation of the SIR model — demonstrating that the PINN framework scales to real surveillance data and recovers interpretable intervention effects.</p>
 <hr>
 </section>
 <section id="references" class="level2" data-number="11">
 <h2 data-number="11" class="anchored" data-anchor-id="references"><span class="header-section-number">11</span> References</h2>
 <div id="refs" class="references csl-bib-body">
+<div id="ref-lauer2020" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Lauer SA, Grantz KH, Bi Q, Jones FK, Zheng Q, Meredith HR, et al. The incubation period of coronavirus disease 2019 (<span>COVID-19</span>) from publicly reported confirmed cases: Estimation and application. Annals of Internal Medicine. 2020;172(9):577–82. doi:<a href="https://doi.org/10.7326/M20-0504">10.7326/M20-0504</a></div>
+</div>
 <div id="ref-hethcote2000" class="csl-entry">
-<div class="csl-left-margin">1. </div><div class="csl-right-inline">Hethcote HW. The mathematics of infectious diseases. SIAM Review. 2000;42(4):599–653. doi:<a href="https://doi.org/10.1137/S0036144500371907">10.1137/S0036144500371907</a></div>
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Hethcote HW. The mathematics of infectious diseases. SIAM Review. 2000;42(4):599–653. doi:<a href="https://doi.org/10.1137/S0036144500371907">10.1137/S0036144500371907</a></div>
 </div>
 <div id="ref-kermack1927" class="csl-entry">
-<div class="csl-left-margin">2. </div><div class="csl-right-inline">Kermack WO, McKendrick AG. A contribution to the mathematical theory of epidemics. Proceedings of the Royal Society of London Series A. 1927;115(772):700–21. doi:<a href="https://doi.org/10.1098/rspa.1927.0118">10.1098/rspa.1927.0118</a></div>
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Kermack WO, McKendrick AG. A contribution to the mathematical theory of epidemics. Proceedings of the Royal Society of London Series A. 1927;115(772):700–21. doi:<a href="https://doi.org/10.1098/rspa.1927.0118">10.1098/rspa.1927.0118</a></div>
+</div>
+<div id="ref-flaxman2020" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><span class="nocase">Flaxman S, Mishra S, Gandy A, Unwin HJT, Coupland H, Mellan TA, et al.</span> Estimating the effects of non-pharmaceutical interventions on <span>COVID-19</span> in <span>Europe</span>. Nature. 2020;584:257–61. doi:<a href="https://doi.org/10.1038/s41586-020-2405-7">10.1038/s41586-020-2405-7</a></div>
+</div>
+<div id="ref-li2020" class="csl-entry">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline"><span class="nocase">Li Q, Guan X, Wu P, Wang X, Zhou L, Tong Y, et al.</span> Early transmission dynamics in <span>Wuhan, China</span>, of novel coronavirus–infected pneumonia. New England Journal of Medicine. 2020;382(13):1199–207. doi:<a href="https://doi.org/10.1056/NEJMoa2001316">10.1056/NEJMoa2001316</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+<div id="ref-dandekar2020" class="csl-entry">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline">Dandekar R, Barbastathis G. Quantifying the effect of quarantine control in <span>COVID-19</span> infectious spread using machine learning. EBioMedicine. 2020;55:102875. doi:<a href="https://doi.org/10.1016/j.ebiom.2020.102875">10.1016/j.ebiom.2020.102875</a></div>
 </div>
 </div>
-<div id="e6d22188" class="cell" data-execution_count="8">
+<div id="4177914c" class="cell" data-execution_count="8">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu
