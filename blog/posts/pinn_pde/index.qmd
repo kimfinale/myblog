@@ -1,0 +1,637 @@
+---
+title: "Spatiotemporal PINNs: Disease Spread as a Reaction-Diffusion System"
+subtitle: "Extending physics-informed networks from ODEs to PDEs with second spatial derivatives via autograd"
+author: "Jong-Hoon Kim"
+date: "2026-04-25"
+categories: [PINN, PDE, epidemiology, Python, deep learning]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+execute:
+  echo: true
+  warning: false
+  message: false
+  fig-width: 7
+  fig-height: 4
+editor_options:
+  chunk_output_type: console
+---
+
+## From time to space-time
+
+The previous posts in this series worked with compartmental **ODEs** — dynamics in time alone.
+Real epidemics have spatial structure: disease spreads outward from index cases, population density varies across a region, and interventions can be geographically targeted.
+
+The natural continuous-space extension is a **reaction-diffusion system** — a PDE that combines local transmission (reaction) with spatial movement of infectious individuals (diffusion) [@murray2003].
+Fitting such a PDE from sparse spatiotemporal observations is exactly the problem that spatiotemporal PINNs are designed for.
+
+This post shows:
+
+1. The **1-D reaction-diffusion SIR** PDE and its finite-difference (FD) reference solution.
+2. A **spatiotemporal PINN** with $(x, t)$ inputs — the network learns the full field $(s, i, r)(x, t)$.
+3. How **second spatial derivatives** are computed via two nested `autograd.grad` calls.
+4. **Neumann boundary conditions** (zero-flux) enforced as an additional loss term.
+
+::: {.callout-tip}
+**What you need**
+
+```bash
+pip install torch scipy matplotlib numpy
+```
+
+Tested with `torch 2.11`, `scipy 1.17`, `Python 3.11`.
+Training takes ~5–10 min on CPU with the settings below.
+:::
+
+---
+
+## The reaction-diffusion SIR model
+
+Adding spatial diffusion to the SIR equations in fraction form gives a system of PDEs on $x \in [0, L]$, $t \in [0, T]$:
+
+$$
+\frac{\partial s}{\partial t} = D\,\frac{\partial^2 s}{\partial x^2} - \beta\,s\,i
+$$
+
+$$
+\frac{\partial i}{\partial t} = D\,\frac{\partial^2 i}{\partial x^2} + \beta\,s\,i - \gamma\,i
+$$
+
+$$
+\frac{\partial r}{\partial t} = D\,\frac{\partial^2 r}{\partial x^2} + \gamma\,i
+$$
+
+The **diffusion coefficient** $D$ controls how rapidly infectious individuals spread spatially; $\beta$ and $\gamma$ retain their epidemiological interpretation.
+
+**Boundary conditions** — zero-flux (Neumann) at both ends, preventing population leaving the domain:
+
+$$
+\frac{\partial s}{\partial x}\bigg|_{x=0,L} = \frac{\partial i}{\partial x}\bigg|_{x=0,L} = 0
+$$
+
+**Initial condition** — a localised outbreak at the centre:
+
+$$
+i(x, 0) = i_0 \exp\!\left(-\frac{(x - L/2)^2}{2\ell^2}\right), \qquad s(x, 0) = 1 - i(x, 0)
+$$
+
+The resulting dynamics are a **travelling wave** of infection propagating outward from the source [@murray2003].
+The wave speed is approximately $c_w \approx 2\sqrt{D(\beta - \gamma)}$ — depending on both diffusion and the net growth rate $\beta - \gamma$.
+
+---
+
+## Finite-difference reference solution
+
+Before training the PINN, we generate a high-accuracy reference solution using explicit finite differences for validation.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import torch
+import torch.nn as nn
+
+torch.manual_seed(42);  np.random.seed(42)
+
+plt.rcParams.update({
+    "figure.dpi": 130,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+    "font.size": 8,
+    "axes.titlesize": 8,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "legend.fontsize": 7,
+})
+
+C_S, C_I, C_R = "#2196F3", "#F44336", "#4CAF50"
+C_PINN        = "#9C27B0"
+
+# ── Simulation parameters ──────────────────────────────────────────────────────
+L        = 1.0     # spatial domain [0, L]
+T_end    = 20.0    # time horizon (days)
+D_true   = 0.02    # diffusion coefficient
+beta_t   = 0.40    # transmission rate
+gamma_t  = 0.10    # recovery rate
+I0_amp   = 0.05    # initial peak prevalence
+I0_width = 0.04    # spatial width of initial outbreak (variance)
+
+print(f"Estimated wave speed: {2*np.sqrt(D_true*(beta_t-gamma_t)):.4f} L/day")
+print(f"Expected wave travel in {T_end} days: "
+      f"{2*np.sqrt(D_true*(beta_t-gamma_t))*T_end:.2f} L units")
+```
+
+```{python}
+def fd_sir_1d(L=1.0, T=20.0, Nx=101, Nt=10_000,
+              beta=0.40, gamma=0.10, D=0.02,
+              I0_amp=0.05, I0_width=0.04,
+              save_times=(0, 5, 10, 15, 20)):
+    """
+    Explicit finite-difference solution of the 1D reaction-diffusion SIR.
+    Neumann (zero-flux) BCs enforced via ghost-point extrapolation.
+    Stability criterion: D * dt / dx^2 < 0.5.
+    """
+    dx  = L / (Nx - 1)
+    dt  = T / Nt
+    x   = np.linspace(0, L, Nx)
+
+    # Stability check
+    cfl = D * dt / dx**2
+    assert cfl < 0.5, f"CFL = {cfl:.3f} >= 0.5, solver unstable — reduce dt or D"
+
+    # Initial conditions
+    I0 = I0_amp * np.exp(-(x - L/2)**2 / (2 * I0_width**2))
+    S0 = 1 - I0
+    R0 = np.zeros(Nx)
+    S, I, R = S0.copy(), I0.copy(), R0.copy()
+
+    def laplacian(u):
+        """Zero-flux Laplacian via ghost-point BCs."""
+        lap      = np.zeros(Nx)
+        lap[1:-1] = (u[:-2] - 2*u[1:-1] + u[2:]) / dx**2
+        lap[0]    = 2 * (u[1]   - u[0])   / dx**2   # mirror BC
+        lap[-1]   = 2 * (u[-2]  - u[-1])  / dx**2
+        return lap
+
+    snaps = {0: (S.copy(), I.copy(), R.copy())}
+
+    for n in range(Nt):
+        dS = D * laplacian(S) - beta * S * I
+        dI = D * laplacian(I) + beta * S * I - gamma * I
+        dR = D * laplacian(R) + gamma * I
+        S  = np.clip(S + dt * dS, 0, 1)
+        I  = np.clip(I + dt * dI, 0, 1)
+        R  = np.clip(R + dt * dR, 0, 1)
+        t_now = (n + 1) * dt
+        for ts in save_times[1:]:
+            if abs(t_now - ts) < dt / 2 and ts not in snaps:
+                snaps[ts] = (S.copy(), I.copy(), R.copy())
+
+    return x, snaps
+
+
+x_fd, snaps_fd = fd_sir_1d(
+    L=L, T=T_end, Nx=101, Nt=10_000,
+    beta=beta_t, gamma=gamma_t, D=D_true,
+    I0_amp=I0_amp, I0_width=I0_width,
+    save_times=(0, 5, 10, 15, 20)
+)
+```
+
+```{python}
+# ── Visualise the FD reference solution ───────────────────────────────────────
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+t_snaps = sorted(snaps_fd.keys())
+colors_t = plt.cm.viridis(np.linspace(0, 1, len(t_snaps)))
+
+ax = axes[0]
+for ts, col in zip(t_snaps, colors_t):
+    ax.plot(x_fd, snaps_fd[ts][1], color=col, lw=1.8, label=f"t = {ts}")
+ax.set(xlabel="Space x", ylabel="Fraction infectious i(x,t)",
+       title="I(x,t) — reference FD solution")
+ax.legend()
+
+# Space-time heatmap of I(x, t)
+ax = axes[1]
+# Build a dense grid by interpolation
+all_I = np.array([snaps_fd[ts][1] for ts in t_snaps])
+im = ax.imshow(all_I, aspect="auto", cmap="Reds",
+               origin="lower", extent=[0, L, 0, T_end],
+               vmin=0, vmax=I0_amp * 1.1)
+ax.set(xlabel="Space x", ylabel="Day t",
+       title="Heatmap I(x,t) — FD reference")
+plt.colorbar(im, ax=ax, label="I fraction")
+
+plt.tight_layout();  plt.show()
+```
+
+The infection wave originates at the centre ($x = 0.5$) and propagates outward, reaching the boundaries by $t \approx 15$–$20$ days.
+
+---
+
+## Spatiotemporal PINN
+
+### Architecture
+
+The network maps normalised coordinates $(\tilde x, \tilde t) = (x/L,\; t/T_{\max}) \in [0,1]^2$ to compartment fractions:
+
+$$
+(\hat s,\, \hat i,\, \hat r) = \sigma\!\left(\text{NN}_\theta(\tilde x,\, \tilde t)\right) \in (0,1)^3
+$$
+
+The physical parameters $D$, $\beta$, $\gamma$ are learnable log-scalars alongside the network weights.
+
+```{python}
+class SpatiotemporalPINN(nn.Module):
+    """
+    PINN for 1D reaction-diffusion SIR.
+
+    Input  : (x, t) normalised to [0, 1]^2
+    Output : (s, i, r) fractions via sigmoid
+    Learnable physics parameters: log_D, log_beta, log_gamma.
+    """
+    def __init__(self, hidden=64, n_layers=5):
+        super().__init__()
+        layers = [nn.Linear(2, hidden), nn.Tanh()]
+        for _ in range(n_layers - 2):
+            layers += [nn.Linear(hidden, hidden), nn.Tanh()]
+        layers.append(nn.Linear(hidden, 3))
+        self.net      = nn.Sequential(*layers)
+        self.log_D    = nn.Parameter(torch.log(torch.tensor(D_true)))
+        self.log_beta = nn.Parameter(torch.log(torch.tensor(beta_t)))
+        self.log_gamma= nn.Parameter(torch.log(torch.tensor(gamma_t)))
+
+    def forward(self, x_s, t_s):
+        """x_s, t_s: (B,) normalised coordinates. Returns (B, 3) fractions."""
+        inp = torch.stack([x_s, t_s], dim=1)
+        return torch.sigmoid(self.net(inp))
+
+    @property
+    def D(self):     return torch.exp(self.log_D)
+    @property
+    def beta(self):  return torch.exp(self.log_beta)
+    @property
+    def gamma(self): return torch.exp(self.log_gamma)
+```
+
+---
+
+## Loss functions
+
+### PDE physics loss
+
+The physics loss evaluates the reaction-diffusion PDE residuals at $M$ random collocation points $\{(x_m, t_m)\}$ sampled uniformly in $(0,1)^2$:
+
+$$
+\mathcal{L}_\text{PDE} = \frac{1}{M}\sum_m
+\Bigl[\underbrace{\bigl(\partial_t \hat s - D\,\partial_{xx}\hat s + \beta\,\hat s\,\hat i\bigr)^2}_{\text{S residual}}
++ \underbrace{\bigl(\partial_t \hat i - D\,\partial_{xx}\hat i - \beta\,\hat s\,\hat i + \gamma\,\hat i\bigr)^2}_{\text{I residual}}
++ \underbrace{\bigl(\partial_t \hat r - D\,\partial_{xx}\hat r - \gamma\,\hat i\bigr)^2}_{\text{R residual}}\Bigr]
+$$
+
+Both $\partial_t$ and $\partial_{xx}$ are computed via **automatic differentiation**:
+
+- First-order time derivative: one `autograd.grad` call w.r.t. $t$.
+- Second-order spatial derivative: two nested `autograd.grad` calls w.r.t. $x$.
+
+```{python}
+def pde_loss(model, x_col, t_col):
+    """
+    PDE residuals via autograd: ∂/∂t uses one grad; ∂²/∂x² uses two nested grads.
+    x_col, t_col: (B,) — normalised to [0, 1].
+    """
+    x = x_col.detach().clone().requires_grad_(True)  # (B,)
+    t = t_col.detach().clone().requires_grad_(True)  # (B,)
+
+    y   = model(x, t)                                # (B, 3)
+    s, i, r = y[:, 0], y[:, 1], y[:, 2]
+    ones = torch.ones_like(x)
+
+    # ── Time derivatives (one autograd pass) ──────────────────────────────────
+    ds_dt = torch.autograd.grad(s, t, ones, create_graph=True, retain_graph=True)[0]
+    di_dt = torch.autograd.grad(i, t, ones, create_graph=True, retain_graph=True)[0]
+    dr_dt = torch.autograd.grad(r, t, ones, create_graph=True, retain_graph=True)[0]
+
+    # ── Spatial second derivatives (two nested autograd passes) ───────────────
+    ds_dx  = torch.autograd.grad(s, x, ones, create_graph=True, retain_graph=True)[0]
+    di_dx  = torch.autograd.grad(i, x, ones, create_graph=True, retain_graph=True)[0]
+    dr_dx  = torch.autograd.grad(r, x, ones, create_graph=True, retain_graph=True)[0]
+
+    d2s_dx2 = torch.autograd.grad(ds_dx, x, ones, create_graph=True, retain_graph=True)[0]
+    d2i_dx2 = torch.autograd.grad(di_dx, x, ones, create_graph=True, retain_graph=True)[0]
+    d2r_dx2 = torch.autograd.grad(dr_dx, x, ones, create_graph=True)[0]
+
+    D_    = model.D
+    beta_ = model.beta
+    gam_  = model.gamma
+
+    res_s = ds_dt - D_ * d2s_dx2 + beta_ * s * i
+    res_i = di_dt - D_ * d2i_dx2 - beta_ * s * i + gam_ * i
+    res_r = dr_dt - D_ * d2r_dx2 - gam_ * i
+
+    return (res_s**2 + res_i**2 + res_r**2).mean()
+```
+
+::: {.callout-note}
+**Why two nested `autograd.grad` calls?**
+
+The diffusion term $D\,\partial^2 u / \partial x^2$ requires the second derivative of the network output w.r.t. $x$.
+The first call `autograd.grad(s, x, ..., create_graph=True)` returns $\partial s / \partial x$ and keeps the computation graph intact.
+The second call `autograd.grad(ds_dx, x, ...)` then differentiates this first derivative w.r.t. $x$ again, yielding $\partial^2 s / \partial x^2$.
+
+Both calls require `create_graph=True` because we need second-order gradients to flow back through the physics loss to the network weights during `L.backward()`.
+:::
+
+### Neumann boundary conditions
+
+Zero-flux BCs ($\partial s/\partial x = \partial i/\partial x = 0$ at $x = 0$ and $x = 1$) are enforced as an additional loss:
+
+```{python}
+def bc_loss(model, t_bc):
+    """
+    Zero-flux Neumann BCs at x = 0 and x = 1.
+    t_bc: (B,) normalised time points at the boundary.
+    """
+    ones = torch.ones_like(t_bc)
+
+    # ── x = 0 boundary ────────────────────────────────────────────────────────
+    x0 = torch.zeros_like(t_bc).requires_grad_(True)
+    y0 = model(x0, t_bc)
+    s0, i0 = y0[:, 0], y0[:, 1]
+    ds_dx0 = torch.autograd.grad(s0, x0, ones, create_graph=True, retain_graph=True)[0]
+    di_dx0 = torch.autograd.grad(i0, x0, ones, create_graph=True)[0]
+
+    # ── x = 1 boundary ────────────────────────────────────────────────────────
+    x1 = torch.ones_like(t_bc).requires_grad_(True)
+    y1 = model(x1, t_bc)
+    s1, i1 = y1[:, 0], y1[:, 1]
+    ds_dx1 = torch.autograd.grad(s1, x1, ones, create_graph=True, retain_graph=True)[0]
+    di_dx1 = torch.autograd.grad(i1, x1, ones, create_graph=True)[0]
+
+    return (ds_dx0**2 + di_dx0**2 + ds_dx1**2 + di_dx1**2).mean()
+
+
+def ic_loss(model, x_ic, s_ic, i_ic):
+    """Match initial conditions at t = 0."""
+    t0   = torch.zeros_like(x_ic)
+    pred = model(x_ic, t0)
+    ls   = ((pred[:, 0] - s_ic) ** 2).mean()
+    li   = ((pred[:, 1] - i_ic) ** 2).mean()
+    return ls + li
+
+
+def data_loss(model, x_obs, t_obs, i_obs):
+    """MSE on sparse I(x,t) observations."""
+    pred = model(x_obs, t_obs)
+    return ((pred[:, 1] - i_obs) ** 2).mean()
+```
+
+---
+
+## Training data preparation
+
+The PINN is trained on:
+
+- **PDE physics** at 500 random collocation points in $(0,1)^2$.
+- **Initial conditions** at $t = 0$ on a 101-point spatial grid.
+- **Boundary conditions** at $x = 0$ and $x = 1$ on random time points.
+- **Sparse observations** of $I(x,t)$ from the FD reference at $t \in \{5, 10, 15, 20\}$, sampled at 20 random spatial locations each.
+
+```{python}
+# ── IC tensors ─────────────────────────────────────────────────────────────────
+x_ic_np = x_fd          # shape (101,)
+i_ic_np = snaps_fd[0][1]
+s_ic_np = snaps_fd[0][0]
+x_ic_t  = torch.tensor(x_ic_np / L,   dtype=torch.float32)
+s_ic_t  = torch.tensor(s_ic_np,        dtype=torch.float32)
+i_ic_t  = torch.tensor(i_ic_np,        dtype=torch.float32)
+
+# ── Sparse I(x,t) observations ────────────────────────────────────────────────
+obs_times = [5, 10, 15, 20]
+n_obs_per_t = 20
+
+x_obs_list, t_obs_list, i_obs_list = [], [], []
+for ts in obs_times:
+    idx = np.random.choice(len(x_fd), n_obs_per_t, replace=False)
+    x_obs_list.append(x_fd[idx])
+    t_obs_list.append(np.full(n_obs_per_t, ts))
+    I_clean = snaps_fd[ts][1][idx]
+    i_obs_list.append(I_clean + np.random.normal(0, 0.005, n_obs_per_t))
+
+x_obs_np = np.concatenate(x_obs_list)
+t_obs_np = np.concatenate(t_obs_list)
+i_obs_np = np.clip(np.concatenate(i_obs_list), 0, 1)
+
+x_obs_t = torch.tensor(x_obs_np / L,     dtype=torch.float32)
+t_obs_t = torch.tensor(t_obs_np / T_end, dtype=torch.float32)
+i_obs_t = torch.tensor(i_obs_np,          dtype=torch.float32)
+
+print(f"Observation points: {len(x_obs_t)} total "
+      f"({n_obs_per_t} spatial × {len(obs_times)} time slices)")
+print(f"IC points: {len(x_ic_t)}")
+```
+
+---
+
+## Training
+
+```{python}
+model = SpatiotemporalPINN(hidden=64, n_layers=5)
+
+opt   = torch.optim.Adam(model.parameters(), lr=1e-3)
+sched = torch.optim.lr_scheduler.MultiStepLR(opt, milestones=[1500, 3000], gamma=0.3)
+
+# Loss weights
+lam_pde  = 1.0
+lam_bc   = 5.0
+lam_ic   = 20.0
+lam_data = 5.0
+
+n_col    = 500   # collocation points per epoch
+n_bc_t   = 100   # BC time points per epoch
+
+hist = {"total": [], "pde": [], "data": []}
+
+for ep in range(4_000):
+    opt.zero_grad()
+
+    # Random collocation points in (0,1)^2
+    x_col = torch.rand(n_col)
+    t_col = torch.rand(n_col)
+
+    # Random BC time points
+    t_bc  = torch.rand(n_bc_t)
+
+    Lpde  = pde_loss(model, x_col, t_col)
+    Lbc   = bc_loss(model, t_bc)
+    Lic   = ic_loss(model, x_ic_t, s_ic_t, i_ic_t)
+    Ldata = data_loss(model, x_obs_t, t_obs_t, i_obs_t)
+
+    loss = lam_pde * Lpde + lam_bc * Lbc + lam_ic * Lic + lam_data * Ldata
+    loss.backward()
+    nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    opt.step();  sched.step()
+
+    hist["total"].append(loss.item())
+    hist["pde"].append(Lpde.item())
+    hist["data"].append(Ldata.item())
+
+    if ep % 1000 == 0:
+        print(f"  ep {ep:5d}  total={loss.item():.4f}  "
+              f"pde={Lpde.item():.4f}  data={Ldata.item():.4f}")
+
+print(f"\nRecovered D:    {model.D.item():.4f}  (true: {D_true})")
+print(f"Recovered β:    {model.beta.item():.4f}  (true: {beta_t})")
+print(f"Recovered γ:    {model.gamma.item():.4f}  (true: {gamma_t})")
+```
+
+---
+
+## Results
+
+### Spatial profiles: PINN vs. FD
+
+```{python}
+t_snaps_eval = [0, 5, 10, 15, 20]
+colors_t     = plt.cm.viridis(np.linspace(0, 1, len(t_snaps_eval)))
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+ax = axes[0]
+with torch.no_grad():
+    for ts, col in zip(t_snaps_eval, colors_t):
+        x_np  = np.linspace(0, L, 200)
+        x_t   = torch.tensor(x_np / L, dtype=torch.float32)
+        t_t   = torch.full_like(x_t, ts / T_end)
+        pred  = model(x_t, t_t).numpy()
+        ax.plot(x_fd, snaps_fd[ts][1], color=col, lw=2, ls="--")
+        ax.plot(x_np, pred[:, 1],      color=col, lw=1.5, label=f"t = {ts}")
+
+ax.set(xlabel="Space x", ylabel="Fraction infectious i(x,t)",
+       title="I(x,t) — dashed: FD reference, solid: PINN")
+ax.legend()
+
+# Training curves
+ax = axes[1]
+ax.semilogy(hist["total"], color=C_PINN,  lw=1.2, alpha=0.8, label="Total")
+ax.semilogy(hist["pde"],   color=C_I,     lw=1.2, alpha=0.8, label="PDE residual")
+ax.semilogy(hist["data"],  color=C_S,     lw=1.2, alpha=0.8, label="Data")
+ax.set(xlabel="Epoch", ylabel="Loss (log scale)", title="Training curves")
+ax.legend()
+
+plt.tight_layout();  plt.show()
+```
+
+### Space-time heatmaps
+
+```{python}
+Nx_plot, Nt_plot = 100, 100
+x_plot_np = np.linspace(0, L,     Nx_plot)
+t_plot_np = np.linspace(0, T_end, Nt_plot)
+XX, TT    = np.meshgrid(x_plot_np, t_plot_np)
+
+x_flat = torch.tensor(XX.ravel() / L,     dtype=torch.float32)
+t_flat = torch.tensor(TT.ravel() / T_end, dtype=torch.float32)
+
+with torch.no_grad():
+    pred_flat = model(x_flat, t_flat).numpy()
+
+I_pinn = pred_flat[:, 1].reshape(Nt_plot, Nx_plot)
+
+# FD reference on the same grid (linear interpolation from snapshots)
+from scipy.interpolate import RegularGridInterpolator
+
+t_snap_arr = np.array(sorted(snaps_fd.keys()), dtype=float)
+I_snap_arr = np.array([snaps_fd[ts][1] for ts in sorted(snaps_fd.keys())])
+
+interp_fd = RegularGridInterpolator(
+    (t_snap_arr, x_fd), I_snap_arr, method="linear", bounds_error=False)
+pts_fd    = np.column_stack([TT.ravel(), XX.ravel()])
+I_fd      = interp_fd(pts_fd).reshape(Nt_plot, Nx_plot)
+
+vmax_val = max(I_pinn.max(), I_fd.max())
+
+fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+
+for ax, data, title in [
+    (axes[0], I_fd,           "FD reference I(x,t)"),
+    (axes[1], I_pinn,         "PINN  I(x,t)"),
+    (axes[2], np.abs(I_pinn - I_fd), "Absolute error |PINN − FD|"),
+]:
+    cm = "Reds" if "error" not in title.lower() else "Blues"
+    im = ax.imshow(data, aspect="auto", cmap=cm, origin="lower",
+                   extent=[0, L, 0, T_end],
+                   vmin=0, vmax=vmax_val if "error" not in title.lower() else None)
+    ax.set(xlabel="Space x", ylabel="Day t", title=title)
+    plt.colorbar(im, ax=ax)
+
+plt.tight_layout();  plt.show()
+
+# Pointwise error statistics
+mae = np.mean(np.abs(I_pinn - I_fd))
+max_err = np.max(np.abs(I_pinn - I_fd))
+print(f"Mean absolute error: {mae:.5f}")
+print(f"Max absolute error:  {max_err:.5f}")
+```
+
+::: {.callout-note}
+**Spatial field recovery vs. parameter identifiability**
+
+The PINN reconstructs the $I(x,t)$ field with low mean absolute error, but the recovered $\beta$ and $\gamma$ may differ from the true values.
+This is expected: in a reaction-diffusion system the three parameters $(D, \beta, \gamma)$ interact — multiple combinations can produce spatially similar infection waves.
+Reliable parameter recovery requires additional constraints such as richer observations (multiple compartments, multiple spatial transects), stronger regularisation toward biologically plausible ranges, or hierarchical Bayesian priors.
+The low field MAE confirms that the PINN has found a physically consistent solution, even if that solution is not the unique inverse-problem answer.
+:::
+
+---
+
+## How spatiotemporal PINNs differ from ODE PINNs
+
+| Feature | ODE PINN (SIR) | PDE PINN (reaction-diffusion) |
+|---|---|---|
+| **Input** | $t \in [0,1]$ (1D) | $(x, t) \in [0,1]^2$ (2D) |
+| **Output** | $(s, i, r)$ (functions of time) | $(s, i, r)(x,t)$ (spatiotemporal field) |
+| **Physics loss** | ODE residuals via `autograd.grad(y, t)` | PDE residuals: `grad(y,t)` + `grad(grad(y,x),x)` |
+| **Boundary conditions** | IC only | IC + Neumann BCs |
+| **Collocation** | 1D line $[0,T]$ | 2D domain $[0,L]\times[0,T]$ |
+| **Extra parameter** | — | Diffusion coefficient $D$ |
+| **Training cost** | $O(\text{depth})$ per epoch | $O(\text{depth})$ but 6–9 `autograd.grad` calls |
+
+The second spatial derivative requires two nested `autograd.grad` calls, making each physics-loss evaluation roughly 3× more expensive per collocation point than an ODE PINN.
+Using 500 collocation points (rather than 300 for the ODE case) still keeps each epoch under 0.1 s on a modern CPU.
+
+---
+
+## Spatial vs. temporal observations
+
+In practice, spatial observations are often even sparser than temporal ones.
+The PINN trained here uses only 80 spatial–temporal data points ($20 \times 4$ time slices) yet reconstructs the full 2D field through the PDE physics.
+This illustrates the core strength of PINNs for spatiotemporal inverse problems: **physics replaces data where data are absent**.
+
+::: {.callout-note}
+**Extensions**
+
+- **2D and 3D domains**: the same architecture handles higher-dimensional spaces by adding inputs; the autograd Laplacian $\nabla^2 u$ requires one gradient per spatial dimension plus the second derivative.
+- **Heterogeneous diffusion**: replace scalar $D$ with a spatially varying $D(x)$, learned as a separate sub-network.
+- **Anisotropic spread**: use a diffusion tensor $\mathbf{D}(x)$ to model road-network or commuter-network-driven transmission.
+- **Multi-species systems**: add a vector compartment (e.g., mosquitoes in malaria) with its own diffusion and reaction terms.
+:::
+
+---
+
+## Series summary
+
+This series covered the foundational PINN toolkit for epidemic and dynamical-systems modelling:
+
+| Post | Key contribution |
+|---|---|
+| [SIR PINN](https://www.jonghoonk.com/blog/posts/pinn_sir/) | Point-estimate parameter recovery from noisy observations; physics as regulariser |
+| [Bayesian PINN](https://www.jonghoonk.com/blog/posts/bayesian_pinn_sir/) | Posterior uncertainty via variational inference; policy-decision framing |
+| [SEIR PINN](https://www.jonghoonk.com/blog/posts/pinn_seir/) | Time-varying $\beta(t)$ sub-network; latent compartments; NPI detection |
+| [Neural ODE & UDE](https://www.jonghoonk.com/blog/posts/pinn_neural_ode/) | ODE solver in forward pass; adjoint method; partial-physics hybrid |
+| **This post** | Reaction-diffusion PDEs; second spatial derivatives; travelling waves |
+
+---
+
+## References
+
+::: {#refs}
+:::
+
+```{python}
+#| echo: false
+import sys, torch, scipy, matplotlib
+print(f"Python     {sys.version.split()[0]}")
+print(f"torch      {torch.__version__}")
+print(f"scipy      {scipy.__version__}")
+print(f"matplotlib {matplotlib.__version__}")
+```

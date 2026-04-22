@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-04-25">
+
+<title>Spatiotemporal PINNs: Disease Spread as a Reaction-Diffusion System – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-953e13259b406e3222ebc3917f29fddf.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#from-time-to-space-time" id="toc-from-time-to-space-time" class="nav-link active" data-scroll-target="#from-time-to-space-time"><span class="header-section-number">1</span> From time to space-time</a></li>
+  <li><a href="#the-reaction-diffusion-sir-model" id="toc-the-reaction-diffusion-sir-model" class="nav-link" data-scroll-target="#the-reaction-diffusion-sir-model"><span class="header-section-number">2</span> The reaction-diffusion SIR model</a></li>
+  <li><a href="#finite-difference-reference-solution" id="toc-finite-difference-reference-solution" class="nav-link" data-scroll-target="#finite-difference-reference-solution"><span class="header-section-number">3</span> Finite-difference reference solution</a></li>
+  <li><a href="#spatiotemporal-pinn" id="toc-spatiotemporal-pinn" class="nav-link" data-scroll-target="#spatiotemporal-pinn"><span class="header-section-number">4</span> Spatiotemporal PINN</a>
+  <ul class="collapse">
+  <li><a href="#architecture" id="toc-architecture" class="nav-link" data-scroll-target="#architecture"><span class="header-section-number">4.1</span> Architecture</a></li>
+  </ul></li>
+  <li><a href="#loss-functions" id="toc-loss-functions" class="nav-link" data-scroll-target="#loss-functions"><span class="header-section-number">5</span> Loss functions</a>
+  <ul class="collapse">
+  <li><a href="#pde-physics-loss" id="toc-pde-physics-loss" class="nav-link" data-scroll-target="#pde-physics-loss"><span class="header-section-number">5.1</span> PDE physics loss</a></li>
+  <li><a href="#neumann-boundary-conditions" id="toc-neumann-boundary-conditions" class="nav-link" data-scroll-target="#neumann-boundary-conditions"><span class="header-section-number">5.2</span> Neumann boundary conditions</a></li>
+  </ul></li>
+  <li><a href="#training-data-preparation" id="toc-training-data-preparation" class="nav-link" data-scroll-target="#training-data-preparation"><span class="header-section-number">6</span> Training data preparation</a></li>
+  <li><a href="#training" id="toc-training" class="nav-link" data-scroll-target="#training"><span class="header-section-number">7</span> Training</a></li>
+  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results"><span class="header-section-number">8</span> Results</a>
+  <ul class="collapse">
+  <li><a href="#spatial-profiles-pinn-vs.-fd" id="toc-spatial-profiles-pinn-vs.-fd" class="nav-link" data-scroll-target="#spatial-profiles-pinn-vs.-fd"><span class="header-section-number">8.1</span> Spatial profiles: PINN vs.&nbsp;FD</a></li>
+  <li><a href="#space-time-heatmaps" id="toc-space-time-heatmaps" class="nav-link" data-scroll-target="#space-time-heatmaps"><span class="header-section-number">8.2</span> Space-time heatmaps</a></li>
+  </ul></li>
+  <li><a href="#how-spatiotemporal-pinns-differ-from-ode-pinns" id="toc-how-spatiotemporal-pinns-differ-from-ode-pinns" class="nav-link" data-scroll-target="#how-spatiotemporal-pinns-differ-from-ode-pinns"><span class="header-section-number">9</span> How spatiotemporal PINNs differ from ODE PINNs</a></li>
+  <li><a href="#spatial-vs.-temporal-observations" id="toc-spatial-vs.-temporal-observations" class="nav-link" data-scroll-target="#spatial-vs.-temporal-observations"><span class="header-section-number">10</span> Spatial vs.&nbsp;temporal observations</a></li>
+  <li><a href="#series-summary" id="toc-series-summary" class="nav-link" data-scroll-target="#series-summary"><span class="header-section-number">11</span> Series summary</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">12</span> References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Spatiotemporal PINNs: Disease Spread as a Reaction-Diffusion System</h1>
+<p class="subtitle lead">Extending physics-informed networks from ODEs to PDEs with second spatial derivatives via autograd</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">PINN</div>
+    <div class="quarto-category">PDE</div>
+    <div class="quarto-category">epidemiology</div>
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">deep learning</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 25, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="from-time-to-space-time" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="from-time-to-space-time"><span class="header-section-number">1</span> From time to space-time</h2>
+<p>The previous posts in this series worked with compartmental <strong>ODEs</strong> — dynamics in time alone. Real epidemics have spatial structure: disease spreads outward from index cases, population density varies across a region, and interventions can be geographically targeted.</p>
+<p>The natural continuous-space extension is a <strong>reaction-diffusion system</strong> — a PDE that combines local transmission (reaction) with spatial movement of infectious individuals (diffusion) <span class="citation" data-cites="murray2003">(<a href="#ref-murray2003" role="doc-biblioref">1</a>)</span>. Fitting such a PDE from sparse spatiotemporal observations is exactly the problem that spatiotemporal PINNs are designed for.</p>
+<p>This post shows:</p>
+<ol type="1">
+<li>The <strong>1-D reaction-diffusion SIR</strong> PDE and its finite-difference (FD) reference solution.</li>
+<li>A <strong>spatiotemporal PINN</strong> with <span class="math inline">\((x, t)\)</span> inputs — the network learns the full field <span class="math inline">\((s, i, r)(x, t)\)</span>.</li>
+<li>How <strong>second spatial derivatives</strong> are computed via two nested <code>autograd.grad</code> calls.</li>
+<li><strong>Neumann boundary conditions</strong> (zero-flux) enforced as an additional loss term.</li>
+</ol>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>What you need</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install torch scipy matplotlib numpy</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Tested with <code>torch 2.11</code>, <code>scipy 1.17</code>, <code>Python 3.11</code>. Training takes ~5–10 min on CPU with the settings below.</p>
+</div>
+</div>
+<hr>
+</section>
+<section id="the-reaction-diffusion-sir-model" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="the-reaction-diffusion-sir-model"><span class="header-section-number">2</span> The reaction-diffusion SIR model</h2>
+<p>Adding spatial diffusion to the SIR equations in fraction form gives a system of PDEs on <span class="math inline">\(x \in [0, L]\)</span>, <span class="math inline">\(t \in [0, T]\)</span>:</p>
+<p><span class="math display">\[
+\frac{\partial s}{\partial t} = D\,\frac{\partial^2 s}{\partial x^2} - \beta\,s\,i
+\]</span></p>
+<p><span class="math display">\[
+\frac{\partial i}{\partial t} = D\,\frac{\partial^2 i}{\partial x^2} + \beta\,s\,i - \gamma\,i
+\]</span></p>
+<p><span class="math display">\[
+\frac{\partial r}{\partial t} = D\,\frac{\partial^2 r}{\partial x^2} + \gamma\,i
+\]</span></p>
+<p>The <strong>diffusion coefficient</strong> <span class="math inline">\(D\)</span> controls how rapidly infectious individuals spread spatially; <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span> retain their epidemiological interpretation.</p>
+<p><strong>Boundary conditions</strong> — zero-flux (Neumann) at both ends, preventing population leaving the domain:</p>
+<p><span class="math display">\[
+\frac{\partial s}{\partial x}\bigg|_{x=0,L} = \frac{\partial i}{\partial x}\bigg|_{x=0,L} = 0
+\]</span></p>
+<p><strong>Initial condition</strong> — a localised outbreak at the centre:</p>
+<p><span class="math display">\[
+i(x, 0) = i_0 \exp\!\left(-\frac{(x - L/2)^2}{2\ell^2}\right), \qquad s(x, 0) = 1 - i(x, 0)
+\]</span></p>
+<p>The resulting dynamics are a <strong>travelling wave</strong> of infection propagating outward from the source <span class="citation" data-cites="murray2003">(<a href="#ref-murray2003" role="doc-biblioref">1</a>)</span>. The wave speed is approximately <span class="math inline">\(c_w \approx 2\sqrt{D(\beta - \gamma)}\)</span> — depending on both diffusion and the net growth rate <span class="math inline">\(\beta - \gamma\)</span>.</p>
+<hr>
+</section>
+<section id="finite-difference-reference-solution" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="finite-difference-reference-solution"><span class="header-section-number">3</span> Finite-difference reference solution</h2>
+<p>Before training the PINN, we generate a high-accuracy reference solution using explicit finite differences for validation.</p>
+<div id="a885e8ff" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.gridspec <span class="im">as</span> gridspec</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch.nn <span class="im">as</span> nn</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">42</span>)<span class="op">;</span>  np.random.seed(<span class="dv">42</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>plt.rcParams.update({</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"figure.dpi"</span>: <span class="dv">130</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.spines.top"</span>: <span class="va">False</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.spines.right"</span>: <span class="va">False</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.grid"</span>: <span class="va">True</span>,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"grid.alpha"</span>: <span class="fl">0.3</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"font.size"</span>: <span class="dv">8</span>,</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.titlesize"</span>: <span class="dv">8</span>,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"axes.labelsize"</span>: <span class="dv">8</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"xtick.labelsize"</span>: <span class="dv">7</span>,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ytick.labelsize"</span>: <span class="dv">7</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"legend.fontsize"</span>: <span class="dv">7</span>,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>C_S, C_I, C_R <span class="op">=</span> <span class="st">"#2196F3"</span>, <span class="st">"#F44336"</span>, <span class="st">"#4CAF50"</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>C_PINN        <span class="op">=</span> <span class="st">"#9C27B0"</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Simulation parameters ──────────────────────────────────────────────────────</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>L        <span class="op">=</span> <span class="fl">1.0</span>     <span class="co"># spatial domain [0, L]</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>T_end    <span class="op">=</span> <span class="fl">20.0</span>    <span class="co"># time horizon (days)</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>D_true   <span class="op">=</span> <span class="fl">0.02</span>    <span class="co"># diffusion coefficient</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>beta_t   <span class="op">=</span> <span class="fl">0.40</span>    <span class="co"># transmission rate</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>gamma_t  <span class="op">=</span> <span class="fl">0.10</span>    <span class="co"># recovery rate</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>I0_amp   <span class="op">=</span> <span class="fl">0.05</span>    <span class="co"># initial peak prevalence</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>I0_width <span class="op">=</span> <span class="fl">0.04</span>    <span class="co"># spatial width of initial outbreak (variance)</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Estimated wave speed: </span><span class="sc">{</span><span class="dv">2</span><span class="op">*</span>np<span class="sc">.</span>sqrt(D_true<span class="op">*</span>(beta_t<span class="op">-</span>gamma_t))<span class="sc">:.4f}</span><span class="ss"> L/day"</span>)</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Expected wave travel in </span><span class="sc">{</span>T_end<span class="sc">}</span><span class="ss"> days: "</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span><span class="dv">2</span><span class="op">*</span>np<span class="sc">.</span>sqrt(D_true<span class="op">*</span>(beta_t<span class="op">-</span>gamma_t))<span class="op">*</span>T_end<span class="sc">:.2f}</span><span class="ss"> L units"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Estimated wave speed: 0.1549 L/day
+Expected wave travel in 20.0 days: 3.10 L units</code></pre>
+</div>
+</div>
+<div id="68528632" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fd_sir_1d(L<span class="op">=</span><span class="fl">1.0</span>, T<span class="op">=</span><span class="fl">20.0</span>, Nx<span class="op">=</span><span class="dv">101</span>, Nt<span class="op">=</span><span class="dv">10_000</span>,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>              beta<span class="op">=</span><span class="fl">0.40</span>, gamma<span class="op">=</span><span class="fl">0.10</span>, D<span class="op">=</span><span class="fl">0.02</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>              I0_amp<span class="op">=</span><span class="fl">0.05</span>, I0_width<span class="op">=</span><span class="fl">0.04</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>              save_times<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">15</span>, <span class="dv">20</span>)):</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Explicit finite-difference solution of the 1D reaction-diffusion SIR.</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Neumann (zero-flux) BCs enforced via ghost-point extrapolation.</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co">    Stability criterion: D * dt / dx^2 &lt; 0.5.</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    dx  <span class="op">=</span> L <span class="op">/</span> (Nx <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    dt  <span class="op">=</span> T <span class="op">/</span> Nt</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    x   <span class="op">=</span> np.linspace(<span class="dv">0</span>, L, Nx)</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Stability check</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    cfl <span class="op">=</span> D <span class="op">*</span> dt <span class="op">/</span> dx<span class="op">**</span><span class="dv">2</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">assert</span> cfl <span class="op">&lt;</span> <span class="fl">0.5</span>, <span class="ss">f"CFL = </span><span class="sc">{</span>cfl<span class="sc">:.3f}</span><span class="ss"> &gt;= 0.5, solver unstable — reduce dt or D"</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Initial conditions</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    I0 <span class="op">=</span> I0_amp <span class="op">*</span> np.exp(<span class="op">-</span>(x <span class="op">-</span> L<span class="op">/</span><span class="dv">2</span>)<span class="op">**</span><span class="dv">2</span> <span class="op">/</span> (<span class="dv">2</span> <span class="op">*</span> I0_width<span class="op">**</span><span class="dv">2</span>))</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    S0 <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> I0</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    R0 <span class="op">=</span> np.zeros(Nx)</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    S, I, R <span class="op">=</span> S0.copy(), I0.copy(), R0.copy()</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> laplacian(u):</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Zero-flux Laplacian via ghost-point BCs."""</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>        lap      <span class="op">=</span> np.zeros(Nx)</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        lap[<span class="dv">1</span>:<span class="op">-</span><span class="dv">1</span>] <span class="op">=</span> (u[:<span class="op">-</span><span class="dv">2</span>] <span class="op">-</span> <span class="dv">2</span><span class="op">*</span>u[<span class="dv">1</span>:<span class="op">-</span><span class="dv">1</span>] <span class="op">+</span> u[<span class="dv">2</span>:]) <span class="op">/</span> dx<span class="op">**</span><span class="dv">2</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        lap[<span class="dv">0</span>]    <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> (u[<span class="dv">1</span>]   <span class="op">-</span> u[<span class="dv">0</span>])   <span class="op">/</span> dx<span class="op">**</span><span class="dv">2</span>   <span class="co"># mirror BC</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>        lap[<span class="op">-</span><span class="dv">1</span>]   <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> (u[<span class="op">-</span><span class="dv">2</span>]  <span class="op">-</span> u[<span class="op">-</span><span class="dv">1</span>])  <span class="op">/</span> dx<span class="op">**</span><span class="dv">2</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> lap</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    snaps <span class="op">=</span> {<span class="dv">0</span>: (S.copy(), I.copy(), R.copy())}</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n <span class="kw">in</span> <span class="bu">range</span>(Nt):</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>        dS <span class="op">=</span> D <span class="op">*</span> laplacian(S) <span class="op">-</span> beta <span class="op">*</span> S <span class="op">*</span> I</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>        dI <span class="op">=</span> D <span class="op">*</span> laplacian(I) <span class="op">+</span> beta <span class="op">*</span> S <span class="op">*</span> I <span class="op">-</span> gamma <span class="op">*</span> I</span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        dR <span class="op">=</span> D <span class="op">*</span> laplacian(R) <span class="op">+</span> gamma <span class="op">*</span> I</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        S  <span class="op">=</span> np.clip(S <span class="op">+</span> dt <span class="op">*</span> dS, <span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>        I  <span class="op">=</span> np.clip(I <span class="op">+</span> dt <span class="op">*</span> dI, <span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>        R  <span class="op">=</span> np.clip(R <span class="op">+</span> dt <span class="op">*</span> dR, <span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>        t_now <span class="op">=</span> (n <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> dt</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> ts <span class="kw">in</span> save_times[<span class="dv">1</span>:]:</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="bu">abs</span>(t_now <span class="op">-</span> ts) <span class="op">&lt;</span> dt <span class="op">/</span> <span class="dv">2</span> <span class="kw">and</span> ts <span class="kw">not</span> <span class="kw">in</span> snaps:</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>                snaps[ts] <span class="op">=</span> (S.copy(), I.copy(), R.copy())</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> x, snaps</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>x_fd, snaps_fd <span class="op">=</span> fd_sir_1d(</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>    L<span class="op">=</span>L, T<span class="op">=</span>T_end, Nx<span class="op">=</span><span class="dv">101</span>, Nt<span class="op">=</span><span class="dv">10_000</span>,</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>    beta<span class="op">=</span>beta_t, gamma<span class="op">=</span>gamma_t, D<span class="op">=</span>D_true,</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>    I0_amp<span class="op">=</span>I0_amp, I0_width<span class="op">=</span>I0_width,</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>    save_times<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">15</span>, <span class="dv">20</span>)</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="fdd4768b" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Visualise the FD reference solution ───────────────────────────────────────</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>t_snaps <span class="op">=</span> <span class="bu">sorted</span>(snaps_fd.keys())</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>colors_t <span class="op">=</span> plt.cm.viridis(np.linspace(<span class="dv">0</span>, <span class="dv">1</span>, <span class="bu">len</span>(t_snaps)))</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">0</span>]</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ts, col <span class="kw">in</span> <span class="bu">zip</span>(t_snaps, colors_t):</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    ax.plot(x_fd, snaps_fd[ts][<span class="dv">1</span>], color<span class="op">=</span>col, lw<span class="op">=</span><span class="fl">1.8</span>, label<span class="op">=</span><span class="ss">f"t = </span><span class="sc">{</span>ts<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Space x"</span>, ylabel<span class="op">=</span><span class="st">"Fraction infectious i(x,t)"</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"I(x,t) — reference FD solution"</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Space-time heatmap of I(x, t)</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">1</span>]</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Build a dense grid by interpolation</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>all_I <span class="op">=</span> np.array([snaps_fd[ts][<span class="dv">1</span>] <span class="cf">for</span> ts <span class="kw">in</span> t_snaps])</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>im <span class="op">=</span> ax.imshow(all_I, aspect<span class="op">=</span><span class="st">"auto"</span>, cmap<span class="op">=</span><span class="st">"Reds"</span>,</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>               origin<span class="op">=</span><span class="st">"lower"</span>, extent<span class="op">=</span>[<span class="dv">0</span>, L, <span class="dv">0</span>, T_end],</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>               vmin<span class="op">=</span><span class="dv">0</span>, vmax<span class="op">=</span>I0_amp <span class="op">*</span> <span class="fl">1.1</span>)</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Space x"</span>, ylabel<span class="op">=</span><span class="st">"Day t"</span>,</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"Heatmap I(x,t) — FD reference"</span>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>plt.colorbar(im, ax<span class="op">=</span>ax, label<span class="op">=</span><span class="st">"I fraction"</span>)</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span>  plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-4-output-1.png" width="1281" height="513" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The infection wave originates at the centre (<span class="math inline">\(x = 0.5\)</span>) and propagates outward, reaching the boundaries by <span class="math inline">\(t \approx 15\)</span>–<span class="math inline">\(20\)</span> days.</p>
+<hr>
+</section>
+<section id="spatiotemporal-pinn" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="spatiotemporal-pinn"><span class="header-section-number">4</span> Spatiotemporal PINN</h2>
+<section id="architecture" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">4.1</span> Architecture</h3>
+<p>The network maps normalised coordinates <span class="math inline">\((\tilde x, \tilde t) = (x/L,\; t/T_{\max}) \in [0,1]^2\)</span> to compartment fractions:</p>
+<p><span class="math display">\[
+(\hat s,\, \hat i,\, \hat r) = \sigma\!\left(\text{NN}_\theta(\tilde x,\, \tilde t)\right) \in (0,1)^3
+\]</span></p>
+<p>The physical parameters <span class="math inline">\(D\)</span>, <span class="math inline">\(\beta\)</span>, <span class="math inline">\(\gamma\)</span> are learnable log-scalars alongside the network weights.</p>
+<div id="24be9689" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SpatiotemporalPINN(nn.Module):</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">    PINN for 1D reaction-diffusion SIR.</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Input  : (x, t) normalised to [0, 1]^2</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">    Output : (s, i, r) fractions via sigmoid</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">    Learnable physics parameters: log_D, log_beta, log_gamma.</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, hidden<span class="op">=</span><span class="dv">64</span>, n_layers<span class="op">=</span><span class="dv">5</span>):</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>()</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        layers <span class="op">=</span> [nn.Linear(<span class="dv">2</span>, hidden), nn.Tanh()]</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(n_layers <span class="op">-</span> <span class="dv">2</span>):</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>            layers <span class="op">+=</span> [nn.Linear(hidden, hidden), nn.Tanh()]</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>        layers.append(nn.Linear(hidden, <span class="dv">3</span>))</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.net      <span class="op">=</span> nn.Sequential(<span class="op">*</span>layers)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.log_D    <span class="op">=</span> nn.Parameter(torch.log(torch.tensor(D_true)))</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.log_beta <span class="op">=</span> nn.Parameter(torch.log(torch.tensor(beta_t)))</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.log_gamma<span class="op">=</span> nn.Parameter(torch.log(torch.tensor(gamma_t)))</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x_s, t_s):</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""x_s, t_s: (B,) normalised coordinates. Returns (B, 3) fractions."""</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>        inp <span class="op">=</span> torch.stack([x_s, t_s], dim<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> torch.sigmoid(<span class="va">self</span>.net(inp))</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> D(<span class="va">self</span>):     <span class="cf">return</span> torch.exp(<span class="va">self</span>.log_D)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> beta(<span class="va">self</span>):  <span class="cf">return</span> torch.exp(<span class="va">self</span>.log_beta)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> gamma(<span class="va">self</span>): <span class="cf">return</span> torch.exp(<span class="va">self</span>.log_gamma)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<hr>
+</section>
+</section>
+<section id="loss-functions" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="loss-functions"><span class="header-section-number">5</span> Loss functions</h2>
+<section id="pde-physics-loss" class="level3" data-number="5.1">
+<h3 data-number="5.1" class="anchored" data-anchor-id="pde-physics-loss"><span class="header-section-number">5.1</span> PDE physics loss</h3>
+<p>The physics loss evaluates the reaction-diffusion PDE residuals at <span class="math inline">\(M\)</span> random collocation points <span class="math inline">\(\{(x_m, t_m)\}\)</span> sampled uniformly in <span class="math inline">\((0,1)^2\)</span>:</p>
+<p><span class="math display">\[
+\mathcal{L}_\text{PDE} = \frac{1}{M}\sum_m
+\Bigl[\underbrace{\bigl(\partial_t \hat s - D\,\partial_{xx}\hat s + \beta\,\hat s\,\hat i\bigr)^2}_{\text{S residual}}
++ \underbrace{\bigl(\partial_t \hat i - D\,\partial_{xx}\hat i - \beta\,\hat s\,\hat i + \gamma\,\hat i\bigr)^2}_{\text{I residual}}
++ \underbrace{\bigl(\partial_t \hat r - D\,\partial_{xx}\hat r - \gamma\,\hat i\bigr)^2}_{\text{R residual}}\Bigr]
+\]</span></p>
+<p>Both <span class="math inline">\(\partial_t\)</span> and <span class="math inline">\(\partial_{xx}\)</span> are computed via <strong>automatic differentiation</strong>:</p>
+<ul>
+<li>First-order time derivative: one <code>autograd.grad</code> call w.r.t. <span class="math inline">\(t\)</span>.</li>
+<li>Second-order spatial derivative: two nested <code>autograd.grad</code> calls w.r.t. <span class="math inline">\(x\)</span>.</li>
+</ul>
+<div id="4e372bce" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> pde_loss(model, x_col, t_col):</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">    PDE residuals via autograd: ∂/∂t uses one grad; ∂²/∂x² uses two nested grads.</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">    x_col, t_col: (B,) — normalised to [0, 1].</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> x_col.detach().clone().requires_grad_(<span class="va">True</span>)  <span class="co"># (B,)</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> t_col.detach().clone().requires_grad_(<span class="va">True</span>)  <span class="co"># (B,)</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    y   <span class="op">=</span> model(x, t)                                <span class="co"># (B, 3)</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    s, i, r <span class="op">=</span> y[:, <span class="dv">0</span>], y[:, <span class="dv">1</span>], y[:, <span class="dv">2</span>]</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    ones <span class="op">=</span> torch.ones_like(x)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ── Time derivatives (one autograd pass) ──────────────────────────────────</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    ds_dt <span class="op">=</span> torch.autograd.grad(s, t, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    di_dt <span class="op">=</span> torch.autograd.grad(i, t, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    dr_dt <span class="op">=</span> torch.autograd.grad(r, t, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ── Spatial second derivatives (two nested autograd passes) ───────────────</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    ds_dx  <span class="op">=</span> torch.autograd.grad(s, x, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    di_dx  <span class="op">=</span> torch.autograd.grad(i, x, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    dr_dx  <span class="op">=</span> torch.autograd.grad(r, x, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    d2s_dx2 <span class="op">=</span> torch.autograd.grad(ds_dx, x, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>    d2i_dx2 <span class="op">=</span> torch.autograd.grad(di_dx, x, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    d2r_dx2 <span class="op">=</span> torch.autograd.grad(dr_dx, x, ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>    D_    <span class="op">=</span> model.D</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    beta_ <span class="op">=</span> model.beta</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    gam_  <span class="op">=</span> model.gamma</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>    res_s <span class="op">=</span> ds_dt <span class="op">-</span> D_ <span class="op">*</span> d2s_dx2 <span class="op">+</span> beta_ <span class="op">*</span> s <span class="op">*</span> i</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>    res_i <span class="op">=</span> di_dt <span class="op">-</span> D_ <span class="op">*</span> d2i_dx2 <span class="op">-</span> beta_ <span class="op">*</span> s <span class="op">*</span> i <span class="op">+</span> gam_ <span class="op">*</span> i</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>    res_r <span class="op">=</span> dr_dt <span class="op">-</span> D_ <span class="op">*</span> d2r_dx2 <span class="op">-</span> gam_ <span class="op">*</span> i</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (res_s<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_i<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> res_r<span class="op">**</span><span class="dv">2</span>).mean()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Why two nested <code>autograd.grad</code> calls?</strong></p>
+<p>The diffusion term <span class="math inline">\(D\,\partial^2 u / \partial x^2\)</span> requires the second derivative of the network output w.r.t. <span class="math inline">\(x\)</span>. The first call <code>autograd.grad(s, x, ..., create_graph=True)</code> returns <span class="math inline">\(\partial s / \partial x\)</span> and keeps the computation graph intact. The second call <code>autograd.grad(ds_dx, x, ...)</code> then differentiates this first derivative w.r.t. <span class="math inline">\(x\)</span> again, yielding <span class="math inline">\(\partial^2 s / \partial x^2\)</span>.</p>
+<p>Both calls require <code>create_graph=True</code> because we need second-order gradients to flow back through the physics loss to the network weights during <code>L.backward()</code>.</p>
+</div>
+</div>
+</section>
+<section id="neumann-boundary-conditions" class="level3" data-number="5.2">
+<h3 data-number="5.2" class="anchored" data-anchor-id="neumann-boundary-conditions"><span class="header-section-number">5.2</span> Neumann boundary conditions</h3>
+<p>Zero-flux BCs (<span class="math inline">\(\partial s/\partial x = \partial i/\partial x = 0\)</span> at <span class="math inline">\(x = 0\)</span> and <span class="math inline">\(x = 1\)</span>) are enforced as an additional loss:</p>
+<div id="c367fc9d" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> bc_loss(model, t_bc):</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co">    Zero-flux Neumann BCs at x = 0 and x = 1.</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">    t_bc: (B,) normalised time points at the boundary.</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    ones <span class="op">=</span> torch.ones_like(t_bc)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ── x = 0 boundary ────────────────────────────────────────────────────────</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    x0 <span class="op">=</span> torch.zeros_like(t_bc).requires_grad_(<span class="va">True</span>)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    y0 <span class="op">=</span> model(x0, t_bc)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    s0, i0 <span class="op">=</span> y0[:, <span class="dv">0</span>], y0[:, <span class="dv">1</span>]</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    ds_dx0 <span class="op">=</span> torch.autograd.grad(s0, x0, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    di_dx0 <span class="op">=</span> torch.autograd.grad(i0, x0, ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ── x = 1 boundary ────────────────────────────────────────────────────────</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    x1 <span class="op">=</span> torch.ones_like(t_bc).requires_grad_(<span class="va">True</span>)</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> model(x1, t_bc)</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    s1, i1 <span class="op">=</span> y1[:, <span class="dv">0</span>], y1[:, <span class="dv">1</span>]</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    ds_dx1 <span class="op">=</span> torch.autograd.grad(s1, x1, ones, create_graph<span class="op">=</span><span class="va">True</span>, retain_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    di_dx1 <span class="op">=</span> torch.autograd.grad(i1, x1, ones, create_graph<span class="op">=</span><span class="va">True</span>)[<span class="dv">0</span>]</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (ds_dx0<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> di_dx0<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> ds_dx1<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> di_dx1<span class="op">**</span><span class="dv">2</span>).mean()</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ic_loss(model, x_ic, s_ic, i_ic):</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Match initial conditions at t = 0."""</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    t0   <span class="op">=</span> torch.zeros_like(x_ic)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>    pred <span class="op">=</span> model(x_ic, t0)</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>    ls   <span class="op">=</span> ((pred[:, <span class="dv">0</span>] <span class="op">-</span> s_ic) <span class="op">**</span> <span class="dv">2</span>).mean()</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>    li   <span class="op">=</span> ((pred[:, <span class="dv">1</span>] <span class="op">-</span> i_ic) <span class="op">**</span> <span class="dv">2</span>).mean()</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ls <span class="op">+</span> li</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> data_loss(model, x_obs, t_obs, i_obs):</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""MSE on sparse I(x,t) observations."""</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>    pred <span class="op">=</span> model(x_obs, t_obs)</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ((pred[:, <span class="dv">1</span>] <span class="op">-</span> i_obs) <span class="op">**</span> <span class="dv">2</span>).mean()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<hr>
+</section>
+</section>
+<section id="training-data-preparation" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="training-data-preparation"><span class="header-section-number">6</span> Training data preparation</h2>
+<p>The PINN is trained on:</p>
+<ul>
+<li><strong>PDE physics</strong> at 500 random collocation points in <span class="math inline">\((0,1)^2\)</span>.</li>
+<li><strong>Initial conditions</strong> at <span class="math inline">\(t = 0\)</span> on a 101-point spatial grid.</li>
+<li><strong>Boundary conditions</strong> at <span class="math inline">\(x = 0\)</span> and <span class="math inline">\(x = 1\)</span> on random time points.</li>
+<li><strong>Sparse observations</strong> of <span class="math inline">\(I(x,t)\)</span> from the FD reference at <span class="math inline">\(t \in \{5, 10, 15, 20\}\)</span>, sampled at 20 random spatial locations each.</li>
+</ul>
+<div id="8d555ec7" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── IC tensors ─────────────────────────────────────────────────────────────────</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>x_ic_np <span class="op">=</span> x_fd          <span class="co"># shape (101,)</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>i_ic_np <span class="op">=</span> snaps_fd[<span class="dv">0</span>][<span class="dv">1</span>]</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>s_ic_np <span class="op">=</span> snaps_fd[<span class="dv">0</span>][<span class="dv">0</span>]</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>x_ic_t  <span class="op">=</span> torch.tensor(x_ic_np <span class="op">/</span> L,   dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>s_ic_t  <span class="op">=</span> torch.tensor(s_ic_np,        dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>i_ic_t  <span class="op">=</span> torch.tensor(i_ic_np,        dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Sparse I(x,t) observations ────────────────────────────────────────────────</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>obs_times <span class="op">=</span> [<span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">15</span>, <span class="dv">20</span>]</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>n_obs_per_t <span class="op">=</span> <span class="dv">20</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>x_obs_list, t_obs_list, i_obs_list <span class="op">=</span> [], [], []</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ts <span class="kw">in</span> obs_times:</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> np.random.choice(<span class="bu">len</span>(x_fd), n_obs_per_t, replace<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    x_obs_list.append(x_fd[idx])</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    t_obs_list.append(np.full(n_obs_per_t, ts))</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    I_clean <span class="op">=</span> snaps_fd[ts][<span class="dv">1</span>][idx]</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    i_obs_list.append(I_clean <span class="op">+</span> np.random.normal(<span class="dv">0</span>, <span class="fl">0.005</span>, n_obs_per_t))</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>x_obs_np <span class="op">=</span> np.concatenate(x_obs_list)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>t_obs_np <span class="op">=</span> np.concatenate(t_obs_list)</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>i_obs_np <span class="op">=</span> np.clip(np.concatenate(i_obs_list), <span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>x_obs_t <span class="op">=</span> torch.tensor(x_obs_np <span class="op">/</span> L,     dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>t_obs_t <span class="op">=</span> torch.tensor(t_obs_np <span class="op">/</span> T_end, dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>i_obs_t <span class="op">=</span> torch.tensor(i_obs_np,          dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Observation points: </span><span class="sc">{</span><span class="bu">len</span>(x_obs_t)<span class="sc">}</span><span class="ss"> total "</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"(</span><span class="sc">{</span>n_obs_per_t<span class="sc">}</span><span class="ss"> spatial × </span><span class="sc">{</span><span class="bu">len</span>(obs_times)<span class="sc">}</span><span class="ss"> time slices)"</span>)</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"IC points: </span><span class="sc">{</span><span class="bu">len</span>(x_ic_t)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Observation points: 80 total (20 spatial × 4 time slices)
+IC points: 101</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="training" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="training"><span class="header-section-number">7</span> Training</h2>
+<div id="3f4789ec" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> SpatiotemporalPINN(hidden<span class="op">=</span><span class="dv">64</span>, n_layers<span class="op">=</span><span class="dv">5</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>opt   <span class="op">=</span> torch.optim.Adam(model.parameters(), lr<span class="op">=</span><span class="fl">1e-3</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>sched <span class="op">=</span> torch.optim.lr_scheduler.MultiStepLR(opt, milestones<span class="op">=</span>[<span class="dv">1500</span>, <span class="dv">3000</span>], gamma<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Loss weights</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>lam_pde  <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>lam_bc   <span class="op">=</span> <span class="fl">5.0</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>lam_ic   <span class="op">=</span> <span class="fl">20.0</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>lam_data <span class="op">=</span> <span class="fl">5.0</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>n_col    <span class="op">=</span> <span class="dv">500</span>   <span class="co"># collocation points per epoch</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>n_bc_t   <span class="op">=</span> <span class="dv">100</span>   <span class="co"># BC time points per epoch</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>hist <span class="op">=</span> {<span class="st">"total"</span>: [], <span class="st">"pde"</span>: [], <span class="st">"data"</span>: []}</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ep <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">4_000</span>):</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    opt.zero_grad()</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Random collocation points in (0,1)^2</span></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>    x_col <span class="op">=</span> torch.rand(n_col)</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>    t_col <span class="op">=</span> torch.rand(n_col)</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Random BC time points</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>    t_bc  <span class="op">=</span> torch.rand(n_bc_t)</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>    Lpde  <span class="op">=</span> pde_loss(model, x_col, t_col)</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>    Lbc   <span class="op">=</span> bc_loss(model, t_bc)</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>    Lic   <span class="op">=</span> ic_loss(model, x_ic_t, s_ic_t, i_ic_t)</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>    Ldata <span class="op">=</span> data_loss(model, x_obs_t, t_obs_t, i_obs_t)</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>    loss <span class="op">=</span> lam_pde <span class="op">*</span> Lpde <span class="op">+</span> lam_bc <span class="op">*</span> Lbc <span class="op">+</span> lam_ic <span class="op">*</span> Lic <span class="op">+</span> lam_data <span class="op">*</span> Ldata</span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>    loss.backward()</span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>    nn.utils.clip_grad_norm_(model.parameters(), <span class="fl">1.0</span>)</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>    opt.step()<span class="op">;</span>  sched.step()</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>    hist[<span class="st">"total"</span>].append(loss.item())</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>    hist[<span class="st">"pde"</span>].append(Lpde.item())</span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>    hist[<span class="st">"data"</span>].append(Ldata.item())</span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> ep <span class="op">%</span> <span class="dv">1000</span> <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  ep </span><span class="sc">{</span>ep<span class="sc">:5d}</span><span class="ss">  total=</span><span class="sc">{</span>loss<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">  "</span></span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"pde=</span><span class="sc">{</span>Lpde<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">  data=</span><span class="sc">{</span>Ldata<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Recovered D:    </span><span class="sc">{</span>model<span class="sc">.</span>D<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">  (true: </span><span class="sc">{</span>D_true<span class="sc">}</span><span class="ss">)"</span>)</span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Recovered β:    </span><span class="sc">{</span>model<span class="sc">.</span>beta<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">  (true: </span><span class="sc">{</span>beta_t<span class="sc">}</span><span class="ss">)"</span>)</span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Recovered γ:    </span><span class="sc">{</span>model<span class="sc">.</span>gamma<span class="sc">.</span>item()<span class="sc">:.4f}</span><span class="ss">  (true: </span><span class="sc">{</span>gamma_t<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  ep     0  total=10.1301  pde=0.0146  data=0.1275
+  ep  1000  total=0.0399  pde=0.0213  data=0.0022
+  ep  2000  total=0.0138  pde=0.0043  data=0.0006
+  ep  3000  total=0.0098  pde=0.0017  data=0.0004
+
+Recovered D:    0.0268  (true: 0.02)
+Recovered β:    3.3161  (true: 0.4)
+Recovered γ:    0.0318  (true: 0.1)</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="results" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="results"><span class="header-section-number">8</span> Results</h2>
+<section id="spatial-profiles-pinn-vs.-fd" class="level3" data-number="8.1">
+<h3 data-number="8.1" class="anchored" data-anchor-id="spatial-profiles-pinn-vs.-fd"><span class="header-section-number">8.1</span> Spatial profiles: PINN vs.&nbsp;FD</h3>
+<div id="9d629ac5" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>t_snaps_eval <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">15</span>, <span class="dv">20</span>]</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>colors_t     <span class="op">=</span> plt.cm.viridis(np.linspace(<span class="dv">0</span>, <span class="dv">1</span>, <span class="bu">len</span>(t_snaps_eval)))</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">0</span>]</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> torch.no_grad():</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> ts, col <span class="kw">in</span> <span class="bu">zip</span>(t_snaps_eval, colors_t):</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>        x_np  <span class="op">=</span> np.linspace(<span class="dv">0</span>, L, <span class="dv">200</span>)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>        x_t   <span class="op">=</span> torch.tensor(x_np <span class="op">/</span> L, dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>        t_t   <span class="op">=</span> torch.full_like(x_t, ts <span class="op">/</span> T_end)</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>        pred  <span class="op">=</span> model(x_t, t_t).numpy()</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>        ax.plot(x_fd, snaps_fd[ts][<span class="dv">1</span>], color<span class="op">=</span>col, lw<span class="op">=</span><span class="dv">2</span>, ls<span class="op">=</span><span class="st">"--"</span>)</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>        ax.plot(x_np, pred[:, <span class="dv">1</span>],      color<span class="op">=</span>col, lw<span class="op">=</span><span class="fl">1.5</span>, label<span class="op">=</span><span class="ss">f"t = </span><span class="sc">{</span>ts<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Space x"</span>, ylabel<span class="op">=</span><span class="st">"Fraction infectious i(x,t)"</span>,</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>       title<span class="op">=</span><span class="st">"I(x,t) — dashed: FD reference, solid: PINN"</span>)</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Training curves</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> axes[<span class="dv">1</span>]</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>ax.semilogy(hist[<span class="st">"total"</span>], color<span class="op">=</span>C_PINN,  lw<span class="op">=</span><span class="fl">1.2</span>, alpha<span class="op">=</span><span class="fl">0.8</span>, label<span class="op">=</span><span class="st">"Total"</span>)</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>ax.semilogy(hist[<span class="st">"pde"</span>],   color<span class="op">=</span>C_I,     lw<span class="op">=</span><span class="fl">1.2</span>, alpha<span class="op">=</span><span class="fl">0.8</span>, label<span class="op">=</span><span class="st">"PDE residual"</span>)</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>ax.semilogy(hist[<span class="st">"data"</span>],  color<span class="op">=</span>C_S,     lw<span class="op">=</span><span class="fl">1.2</span>, alpha<span class="op">=</span><span class="fl">0.8</span>, label<span class="op">=</span><span class="st">"Data"</span>)</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Epoch"</span>, ylabel<span class="op">=</span><span class="st">"Loss (log scale)"</span>, title<span class="op">=</span><span class="st">"Training curves"</span>)</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span>  plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-10-output-1.png" width="1294" height="513" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="space-time-heatmaps" class="level3" data-number="8.2">
+<h3 data-number="8.2" class="anchored" data-anchor-id="space-time-heatmaps"><span class="header-section-number">8.2</span> Space-time heatmaps</h3>
+<div id="95958cab" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>Nx_plot, Nt_plot <span class="op">=</span> <span class="dv">100</span>, <span class="dv">100</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>x_plot_np <span class="op">=</span> np.linspace(<span class="dv">0</span>, L,     Nx_plot)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>t_plot_np <span class="op">=</span> np.linspace(<span class="dv">0</span>, T_end, Nt_plot)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>XX, TT    <span class="op">=</span> np.meshgrid(x_plot_np, t_plot_np)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>x_flat <span class="op">=</span> torch.tensor(XX.ravel() <span class="op">/</span> L,     dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>t_flat <span class="op">=</span> torch.tensor(TT.ravel() <span class="op">/</span> T_end, dtype<span class="op">=</span>torch.float32)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> torch.no_grad():</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    pred_flat <span class="op">=</span> model(x_flat, t_flat).numpy()</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>I_pinn <span class="op">=</span> pred_flat[:, <span class="dv">1</span>].reshape(Nt_plot, Nx_plot)</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="co"># FD reference on the same grid (linear interpolation from snapshots)</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.interpolate <span class="im">import</span> RegularGridInterpolator</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>t_snap_arr <span class="op">=</span> np.array(<span class="bu">sorted</span>(snaps_fd.keys()), dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>I_snap_arr <span class="op">=</span> np.array([snaps_fd[ts][<span class="dv">1</span>] <span class="cf">for</span> ts <span class="kw">in</span> <span class="bu">sorted</span>(snaps_fd.keys())])</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>interp_fd <span class="op">=</span> RegularGridInterpolator(</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    (t_snap_arr, x_fd), I_snap_arr, method<span class="op">=</span><span class="st">"linear"</span>, bounds_error<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>pts_fd    <span class="op">=</span> np.column_stack([TT.ravel(), XX.ravel()])</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>I_fd      <span class="op">=</span> interp_fd(pts_fd).reshape(Nt_plot, Nx_plot)</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>vmax_val <span class="op">=</span> <span class="bu">max</span>(I_pinn.<span class="bu">max</span>(), I_fd.<span class="bu">max</span>())</span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, data, title <span class="kw">in</span> [</span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>    (axes[<span class="dv">0</span>], I_fd,           <span class="st">"FD reference I(x,t)"</span>),</span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a>    (axes[<span class="dv">1</span>], I_pinn,         <span class="st">"PINN  I(x,t)"</span>),</span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a>    (axes[<span class="dv">2</span>], np.<span class="bu">abs</span>(I_pinn <span class="op">-</span> I_fd), <span class="st">"Absolute error |PINN − FD|"</span>),</span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a>]:</span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>    cm <span class="op">=</span> <span class="st">"Reds"</span> <span class="cf">if</span> <span class="st">"error"</span> <span class="kw">not</span> <span class="kw">in</span> title.lower() <span class="cf">else</span> <span class="st">"Blues"</span></span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a>    im <span class="op">=</span> ax.imshow(data, aspect<span class="op">=</span><span class="st">"auto"</span>, cmap<span class="op">=</span>cm, origin<span class="op">=</span><span class="st">"lower"</span>,</span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>                   extent<span class="op">=</span>[<span class="dv">0</span>, L, <span class="dv">0</span>, T_end],</span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>                   vmin<span class="op">=</span><span class="dv">0</span>, vmax<span class="op">=</span>vmax_val <span class="cf">if</span> <span class="st">"error"</span> <span class="kw">not</span> <span class="kw">in</span> title.lower() <span class="cf">else</span> <span class="va">None</span>)</span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a>    ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Space x"</span>, ylabel<span class="op">=</span><span class="st">"Day t"</span>, title<span class="op">=</span>title)</span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a>    plt.colorbar(im, ax<span class="op">=</span>ax)</span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()<span class="op">;</span>  plt.show()</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Pointwise error statistics</span></span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>mae <span class="op">=</span> np.mean(np.<span class="bu">abs</span>(I_pinn <span class="op">-</span> I_fd))</span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>max_err <span class="op">=</span> np.<span class="bu">max</span>(np.<span class="bu">abs</span>(I_pinn <span class="op">-</span> I_fd))</span>
+<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mean absolute error: </span><span class="sc">{</span>mae<span class="sc">:.5f}</span><span class="ss">"</span>)</span>
+<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Max absolute error:  </span><span class="sc">{</span>max_err<span class="sc">:.5f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-11-output-1.png" width="1545" height="513" class="figure-img"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Mean absolute error: 0.01395
+Max absolute error:  0.04044</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Spatial field recovery vs.&nbsp;parameter identifiability</strong></p>
+<p>The PINN reconstructs the <span class="math inline">\(I(x,t)\)</span> field with low mean absolute error, but the recovered <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\gamma\)</span> may differ from the true values. This is expected: in a reaction-diffusion system the three parameters <span class="math inline">\((D, \beta, \gamma)\)</span> interact — multiple combinations can produce spatially similar infection waves. Reliable parameter recovery requires additional constraints such as richer observations (multiple compartments, multiple spatial transects), stronger regularisation toward biologically plausible ranges, or hierarchical Bayesian priors. The low field MAE confirms that the PINN has found a physically consistent solution, even if that solution is not the unique inverse-problem answer.</p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="how-spatiotemporal-pinns-differ-from-ode-pinns" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="how-spatiotemporal-pinns-differ-from-ode-pinns"><span class="header-section-number">9</span> How spatiotemporal PINNs differ from ODE PINNs</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>ODE PINN (SIR)</th>
+<th>PDE PINN (reaction-diffusion)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Input</strong></td>
+<td><span class="math inline">\(t \in [0,1]\)</span> (1D)</td>
+<td><span class="math inline">\((x, t) \in [0,1]^2\)</span> (2D)</td>
+</tr>
+<tr class="even">
+<td><strong>Output</strong></td>
+<td><span class="math inline">\((s, i, r)\)</span> (functions of time)</td>
+<td><span class="math inline">\((s, i, r)(x,t)\)</span> (spatiotemporal field)</td>
+</tr>
+<tr class="odd">
+<td><strong>Physics loss</strong></td>
+<td>ODE residuals via <code>autograd.grad(y, t)</code></td>
+<td>PDE residuals: <code>grad(y,t)</code> + <code>grad(grad(y,x),x)</code></td>
+</tr>
+<tr class="even">
+<td><strong>Boundary conditions</strong></td>
+<td>IC only</td>
+<td>IC + Neumann BCs</td>
+</tr>
+<tr class="odd">
+<td><strong>Collocation</strong></td>
+<td>1D line <span class="math inline">\([0,T]\)</span></td>
+<td>2D domain <span class="math inline">\([0,L]\times[0,T]\)</span></td>
+</tr>
+<tr class="even">
+<td><strong>Extra parameter</strong></td>
+<td>—</td>
+<td>Diffusion coefficient <span class="math inline">\(D\)</span></td>
+</tr>
+<tr class="odd">
+<td><strong>Training cost</strong></td>
+<td><span class="math inline">\(O(\text{depth})\)</span> per epoch</td>
+<td><span class="math inline">\(O(\text{depth})\)</span> but 6–9 <code>autograd.grad</code> calls</td>
+</tr>
+</tbody>
+</table>
+<p>The second spatial derivative requires two nested <code>autograd.grad</code> calls, making each physics-loss evaluation roughly 3× more expensive per collocation point than an ODE PINN. Using 500 collocation points (rather than 300 for the ODE case) still keeps each epoch under 0.1 s on a modern CPU.</p>
+<hr>
+</section>
+<section id="spatial-vs.-temporal-observations" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="spatial-vs.-temporal-observations"><span class="header-section-number">10</span> Spatial vs.&nbsp;temporal observations</h2>
+<p>In practice, spatial observations are often even sparser than temporal ones. The PINN trained here uses only 80 spatial–temporal data points (<span class="math inline">\(20 \times 4\)</span> time slices) yet reconstructs the full 2D field through the PDE physics. This illustrates the core strength of PINNs for spatiotemporal inverse problems: <strong>physics replaces data where data are absent</strong>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Extensions</strong></p>
+<ul>
+<li><strong>2D and 3D domains</strong>: the same architecture handles higher-dimensional spaces by adding inputs; the autograd Laplacian <span class="math inline">\(\nabla^2 u\)</span> requires one gradient per spatial dimension plus the second derivative.</li>
+<li><strong>Heterogeneous diffusion</strong>: replace scalar <span class="math inline">\(D\)</span> with a spatially varying <span class="math inline">\(D(x)\)</span>, learned as a separate sub-network.</li>
+<li><strong>Anisotropic spread</strong>: use a diffusion tensor <span class="math inline">\(\mathbf{D}(x)\)</span> to model road-network or commuter-network-driven transmission.</li>
+<li><strong>Multi-species systems</strong>: add a vector compartment (e.g., mosquitoes in malaria) with its own diffusion and reaction terms.</li>
+</ul>
+</div>
+</div>
+<hr>
+</section>
+<section id="series-summary" class="level2" data-number="11">
+<h2 data-number="11" class="anchored" data-anchor-id="series-summary"><span class="header-section-number">11</span> Series summary</h2>
+<p>This series covered the foundational PINN toolkit for epidemic and dynamical-systems modelling:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Post</th>
+<th>Key contribution</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="https://www.jonghoonk.com/blog/posts/pinn_sir/">SIR PINN</a></td>
+<td>Point-estimate parameter recovery from noisy observations; physics as regulariser</td>
+</tr>
+<tr class="even">
+<td><a href="https://www.jonghoonk.com/blog/posts/bayesian_pinn_sir/">Bayesian PINN</a></td>
+<td>Posterior uncertainty via variational inference; policy-decision framing</td>
+</tr>
+<tr class="odd">
+<td><a href="https://www.jonghoonk.com/blog/posts/pinn_seir/">SEIR PINN</a></td>
+<td>Time-varying <span class="math inline">\(\beta(t)\)</span> sub-network; latent compartments; NPI detection</td>
+</tr>
+<tr class="even">
+<td><a href="https://www.jonghoonk.com/blog/posts/pinn_neural_ode/">Neural ODE &amp; UDE</a></td>
+<td>ODE solver in forward pass; adjoint method; partial-physics hybrid</td>
+</tr>
+<tr class="odd">
+<td><strong>This post</strong></td>
+<td>Reaction-diffusion PDEs; second spatial derivatives; travelling waves</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="references" class="level2" data-number="12">
+<h2 data-number="12" class="anchored" data-anchor-id="references"><span class="header-section-number">12</span> References</h2>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-murray2003" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Murray JD. Mathematical biology <span>I</span>: An introduction. 3rd ed. New York: Springer; 2003. doi:<a href="https://doi.org/10.1007/b98868">10.1007/b98868</a></div>
+</div>
+</div>
+<div id="14c6e43e" class="cell" data-execution_count="11">
+<div class="cell-output cell-output-stdout">
+<pre><code>Python     3.12.10
+torch      2.11.0+cpu
+scipy      1.17.1
+matplotlib 3.10.8</code></pre>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

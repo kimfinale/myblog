@@ -1,0 +1,557 @@
+---
+title: "Neural ODEs and Universal Differential Equations"
+subtitle: "ODE solvers in the forward pass: from black-box dynamics to partially-known physics"
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [PINN, Neural ODE, UDE, Python, deep learning]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+execute:
+  echo: true
+  warning: false
+  message: false
+  fig-width: 7
+  fig-height: 4
+editor_options:
+  chunk_output_type: console
+---
+
+## Two paradigms for learning dynamics
+
+The previous posts in this series trained a network to map time directly to compartment values, penalising ODE violations through the physics loss.
+There is a fundamentally different approach: **solve the ODE in the forward pass**, using the neural network as the right-hand side.
+
+This shift, introduced as **Neural Ordinary Differential Equations** by Chen et al. [@chen2018], leads to three methods with different inductive biases:
+
+| Method | Physics used | Forward pass | Extrapolation | Parameters |
+|---|---|---|---|---|
+| **PINN** | Full ODE as loss | Direct t→y mapping | Good | Network weights + θ_mech |
+| **Neural ODE** | None (black box) | Solve dy/dt=f_θ(y,t) | Poor | Network weights only |
+| **Universal DE** | Partial ODE | Solve dy/dt=g_mech+f_φ | Moderate | Both |
+
+The core architectural difference:
+
+- **PINN** — the network *is* the solution $y(t)$; ODE consistency is a soft loss term.
+- **Neural ODE** — the network *is* the right-hand side $\dot y = f_\theta(y,t)$; solutions come from numerical integration.
+- **Universal DE** — the RHS is $\dot y = g_\text{known}(y,t) + f_\phi(y,t)$; known physics and learned terms collaborate.
+
+::: {.callout-tip}
+**What you need**
+
+```bash
+pip install torch scipy matplotlib numpy
+```
+
+Tested with `torch 2.11`, `scipy 1.17`, `Python 3.11`.
+Training three models takes ~10 min on a modern CPU.
+:::
+
+---
+
+## Neural ODE theory
+
+### Continuous-depth networks
+
+Chen et al. [@chen2018] showed that a neural network can define the right-hand side of an ODE:
+
+$$
+\frac{d\mathbf{y}}{dt} = f_\theta(\mathbf{y},\, t), \qquad \mathbf{y}(t_0) = \mathbf{y}_0
+$$
+
+The solution at any time is obtained by a numerical ODE solver called inside the forward pass.
+A scalar loss $\mathcal{L}$ evaluated on the trajectory is then minimised by backpropagating through the solver.
+
+### The adjoint sensitivity method
+
+Naively storing all activations from $N$ solver steps requires $O(N \times \text{depth})$ memory.
+The **adjoint method** [@chen2018] instead solves a reverse-time ODE for the adjoint state:
+
+$$
+\frac{d\mathbf{a}}{dt} = -\mathbf{a}^\top \frac{\partial f_\theta}{\partial \mathbf{y}}, \qquad
+\mathbf{a}(t) = -\frac{\partial \mathcal{L}}{\partial \mathbf{y}(t)}
+$$
+
+and recovers parameter gradients as
+
+$$
+\frac{\partial \mathcal{L}}{\partial \theta} = -\int_{t_1}^{t_0} \mathbf{a}(t)^\top \frac{\partial f_\theta}{\partial \theta}\, dt
+$$
+
+This uses only $O(\text{depth})$ memory — the forward trajectory need not be stored.
+In Python, `torchdiffeq.odeint(func, y0, t, adjoint=True)` implements this directly.
+
+For the pedagogical code below we use **simple Euler integration with backprop through solver steps** — conceptually transparent and sufficient for the short time horizons used here.
+
+### Euler ODE solver in PyTorch
+
+```{python}
+import numpy as np
+from scipy.integrate import odeint as scipy_odeint
+import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+
+torch.manual_seed(42);  np.random.seed(42)
+
+plt.rcParams.update({
+    "figure.dpi": 130,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+    "font.size": 8,
+    "axes.titlesize": 8,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "legend.fontsize": 7,
+})
+
+C_S, C_I, C_R = "#2196F3", "#F44336", "#4CAF50"
+C_OBS, C_PINN = "black", "#9C27B0"
+C_NODE        = "#009688"   # teal — Neural ODE
+C_UDE         = "#FF9800"   # orange — Universal DE
+```
+
+```{python}
+def solve_euler(f, y0, t_eval):
+    """
+    Simple Euler ODE solver: y[k+1] = y[k] + dt * f(y[k], t[k]).
+    Fully differentiable w.r.t. any parameters of f.
+
+    Returns trajectory (len(t_eval), state_dim).
+    Suitable for demonstration; use torchdiffeq.odeint for production.
+    """
+    y    = y0
+    traj = [y.unsqueeze(0)]
+    for k in range(len(t_eval) - 1):
+        dt = float(t_eval[k + 1] - t_eval[k])
+        t  = float(t_eval[k])
+        y  = y + dt * f(y, t)
+        traj.append(y.unsqueeze(0))
+    return torch.cat(traj, dim=0)  # (T, state_dim)
+```
+
+Backpropagation flows automatically through every Euler step.
+For production use or long trajectories, the adjoint solver in `torchdiffeq` [@chen2018] reduces memory from $O(N)$ to $O(1)$ with minimal code changes.
+
+---
+
+## Ground truth
+
+```{python}
+# ── True SIR for Neural ODE / PINN extrapolation experiment ──────────────────
+beta_t    = 0.3
+gamma_t   = 0.1
+T_max     = 60.0
+T_train   = 40.0
+I0_frac   = 1e-3
+
+def sir_rhs_np(y, t):
+    s, i, r = y
+    return [-beta_t*s*i, beta_t*s*i - gamma_t*i, gamma_t*i]
+
+y0_sir  = [1 - I0_frac, I0_frac, 0.0]
+t_full  = np.linspace(0, T_max, 400)
+sol_sir = scipy_odeint(sir_rhs_np, y0_sir, t_full)
+
+# 25 noisy I observations in [0, T_train]
+n_obs   = 25
+t_tr    = t_full[t_full < T_train]
+obs_idx = np.sort(np.random.choice(len(t_tr) - 1, n_obs, replace=False))
+t_obs_np  = t_tr[obs_idx]
+i_noisy   = np.clip(
+    sol_sir[t_full < T_train][obs_idx, 1]
+    + np.random.normal(0, 0.012, n_obs), 0, 1)
+
+# ── SEIR with NPI for UDE experiment ─────────────────────────────────────────
+sigma_t    = 1 / 5.0
+BETA_HIGH2, BETA_LOW2, NPI_DAY2 = 0.35, 0.14, 25.0
+T_seir     = 70.0
+T_seir_tr  = 45.0
+
+def seir_rhs_np(y, t):
+    s, e, i, r = y
+    b = BETA_HIGH2 if t < NPI_DAY2 else BETA_LOW2
+    return [-b*s*i, b*s*i - sigma_t*e, sigma_t*e - gamma_t*i, gamma_t*i]
+
+y0_seir   = [1 - I0_frac, 0.0, I0_frac, 0.0]
+t_seir    = np.linspace(0, T_seir, 500)
+sol_seir  = scipy_odeint(seir_rhs_np, y0_seir, t_seir)
+
+n_obs2    = 25
+t_seir_tr_arr = t_seir[t_seir < T_seir_tr]
+obs_idx2  = np.sort(
+    np.random.choice(len(t_seir_tr_arr) - 1, n_obs2, replace=False))
+t_obs2_np = t_seir_tr_arr[obs_idx2]
+i_noisy2  = np.clip(
+    sol_seir[t_seir < T_seir_tr][obs_idx2, 2]
+    + np.random.normal(0, 0.012, n_obs2), 0, 1)
+
+# ── Tensors ───────────────────────────────────────────────────────────────────
+N_STEPS   = 50   # Euler integration steps (fast; increase for higher accuracy)
+
+t_eval    = torch.linspace(0, T_train, N_STEPS)
+t_eval_f  = torch.linspace(0, T_max,   400)
+t_obs_t   = torch.tensor(t_obs_np,  dtype=torch.float32)
+i_obs_t   = torch.tensor(i_noisy,   dtype=torch.float32)
+obs_t_idx = [int(round(float(t) / T_train * (N_STEPS - 1))) for t in t_obs_np]
+
+t_eval2   = torch.linspace(0, T_seir_tr, N_STEPS)
+t_eval2_f = torch.linspace(0, T_seir,   500)
+t_obs2_t  = torch.tensor(t_obs2_np, dtype=torch.float32)
+i_obs2_t  = torch.tensor(i_noisy2,  dtype=torch.float32)
+obs2_t_idx = [int(round(float(t) / T_seir_tr * (N_STEPS - 1))) for t in t_obs2_np]
+
+fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
+
+ax = axes[0]
+ax.plot(t_full, sol_sir[:, 1], color=C_I, lw=2, label="True I(t) — SIR")
+ax.scatter(t_obs_np, i_noisy, color=C_OBS, s=20, zorder=5, label="Observations")
+ax.axvline(T_train, color="gray", lw=1, ls="--", label="Training cutoff")
+ax.set(xlabel="Day", ylabel="Fraction infectious",
+       title=f"SIR — train [0,{int(T_train)}], extrapolate to [{int(T_max)}]")
+ax.legend()
+
+ax = axes[1]
+ax.plot(t_seir, sol_seir[:, 2], color=C_I, lw=2, label="True I(t) — SEIR")
+ax.scatter(t_obs2_np, i_noisy2, color=C_OBS, s=20, zorder=5, label="Observations")
+ax.axvline(T_seir_tr, color="gray", lw=1, ls="--", label="Training cutoff")
+ax.axvline(NPI_DAY2, color="orange", lw=1, ls=":", alpha=0.7, label=f"NPI day {NPI_DAY2}")
+ax.set(xlabel="Day", ylabel="Fraction infectious",
+       title=f"SEIR — train [0,{int(T_seir_tr)}], extrapolate to [{int(T_seir)}]")
+ax.legend()
+
+plt.tight_layout();  plt.show()
+```
+
+---
+
+## Neural ODE for SIR
+
+### Architecture
+
+The Neural ODE replaces the SIR right-hand side entirely with a feedforward network $f_\theta(\mathbf{y}, t)$, with no mechanistic assumptions.
+
+```{python}
+class NeuralODE(nn.Module):
+    """
+    Black-box Neural ODE: dy/dt = f_θ(y, t).
+    No SIR structure — purely data-driven dynamics.
+    y = (s, i, r);  initial state from learnable log_I0.
+    """
+    def __init__(self, state_dim=3, hidden=64):
+        super().__init__()
+        self.rhs_net = nn.Sequential(
+            nn.Linear(state_dim + 1, hidden), nn.Tanh(),
+            nn.Linear(hidden, hidden),         nn.Tanh(),
+            nn.Linear(hidden, state_dim),
+        )
+        self.log_I0 = nn.Parameter(torch.log(torch.tensor(I0_frac)))
+
+    @property
+    def y0(self):
+        I0 = torch.exp(self.log_I0).clamp(1e-6, 0.5)
+        return torch.stack([1 - I0, I0, torch.zeros(1).squeeze()])
+
+    def rhs(self, y, t):
+        t_s  = torch.full((1,), t / T_max)
+        return self.rhs_net(torch.cat([y, t_s]))
+
+    def forward(self, t_eval):
+        return solve_euler(self.rhs, self.y0, t_eval)  # (T, 3)
+
+
+def train_ode(model, t_eval, obs_idx, i_obs, epochs=2_000, lr=3e-3,
+              label=""):
+    opt   = torch.optim.Adam(model.parameters(), lr=lr)
+    sched = torch.optim.lr_scheduler.MultiStepLR(
+                opt, milestones=[800, 1500], gamma=0.3)
+    hist  = []
+    for ep in range(epochs):
+        opt.zero_grad()
+        traj  = model(t_eval)
+        i_hat = traj[obs_idx, 1]
+        L     = ((i_hat - i_obs) ** 2).mean()
+        L.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        opt.step();  sched.step()
+        hist.append(L.item())
+        if ep % 500 == 0 and label:
+            print(f"  [{label}] ep {ep:5d}  loss={L.item():.5f}")
+    return hist
+
+
+torch.manual_seed(42)
+node_model = NeuralODE()
+print("── Neural ODE on SIR ──")
+hist_node  = train_ode(node_model, t_eval, obs_t_idx, i_obs_t, label="Neural ODE")
+```
+
+---
+
+## Universal Differential Equations
+
+### Idea
+
+A Universal Differential Equation [@rackauckas2020] retains known mechanistic terms and adds a neural network for unknown or missing dynamics:
+
+$$
+\frac{d\mathbf{y}}{dt} = \underbrace{g(\mathbf{y},\, t;\,\theta_\text{mech})}_{\text{known physics}}
+  + \underbrace{f_\phi(\mathbf{y},\, t)}_{\text{unknown correction}}
+$$
+
+Here we apply UDEs to the **SEIR scenario**: the SIR skeleton is known, but the time-varying NPI and latent incubation period are absorbed by the neural correction $f_\phi$.
+
+### Architecture
+
+```{python}
+class UniversalDE(nn.Module):
+    """
+    Universal DE: SIR skeleton + unknown correction f_φ(y, t).
+
+    Known SIR terms:
+        dS/dt = -β S I
+        dI/dt =  β S I - γ I
+        dR/dt =  γ I
+
+    The correction network adds (δS, δI, δR) residuals to capture
+    the latent E compartment dynamics and time-varying NPI effects.
+    """
+    def __init__(self, state_dim=3, hidden=64):
+        super().__init__()
+        self.log_beta  = nn.Parameter(torch.log(torch.tensor(0.30)))
+        self.log_gamma = nn.Parameter(torch.log(torch.tensor(0.10)))
+        self.correction = nn.Sequential(
+            nn.Linear(state_dim + 1, 32), nn.Tanh(),
+            nn.Linear(32, 32),            nn.Tanh(),
+            nn.Linear(32, state_dim),
+        )
+        # Start correction near zero: SIR skeleton dominates at the beginning
+        torch.nn.init.zeros_(self.correction[-1].bias)
+        torch.nn.init.normal_(self.correction[-1].weight, std=0.01)
+        self.log_I0 = nn.Parameter(torch.log(torch.tensor(I0_frac)))
+
+    @property
+    def beta(self):  return torch.exp(self.log_beta)
+    @property
+    def gamma(self): return torch.exp(self.log_gamma)
+
+    @property
+    def y0(self):
+        I0 = torch.exp(self.log_I0).clamp(1e-6, 0.5)
+        return torch.stack([1 - I0, I0, torch.zeros(1).squeeze()])
+
+    def rhs(self, y, t):
+        s = y[0]
+        i = torch.clamp(y[1], min=0.0)  # clamp prevents runaway when correction overshoots
+        b, g = self.beta, self.gamma
+
+        # Known SIR skeleton
+        dy_mech = torch.stack([-b*s*i, b*s*i - g*i, g*i])
+
+        # Unknown correction
+        t_s   = torch.full((1,), t / T_seir)
+        delta = self.correction(torch.cat([y, t_s]))
+
+        return dy_mech + delta
+
+    def forward(self, t_eval):
+        return solve_euler(self.rhs, self.y0, t_eval)  # (T, 3)
+
+
+torch.manual_seed(42)
+ude_model = UniversalDE()
+print("\n── Universal DE on SEIR ──")
+hist_ude  = train_ode(ude_model, t_eval2, obs2_t_idx, i_obs2_t,
+                      label="UDE")
+
+print(f"\nβ recovered (UDE): {ude_model.beta.item():.3f}  "
+      f"(approx. mean true β = {(BETA_HIGH2+BETA_LOW2)/2:.2f})")
+print(f"γ recovered (UDE): {ude_model.gamma.item():.3f}  (true: {gamma_t})")
+```
+
+::: {.callout-note}
+**What the correction network learns**
+
+The SIR skeleton accounts for mean transmission dynamics.
+The correction $f_\phi(y,t)$ captures the remaining discrepancy — including the effect of the unobserved exposed compartment $E$ (which shifts and smooths the infection peak) and the post-NPI transmission reduction.
+This separation keeps $\beta$ and $\gamma$ interpretable while the network fills in the genuinely unknown parts.
+:::
+
+---
+
+## Extrapolation comparison
+
+The key advantage of physics-constrained models is generalisation beyond the training window.
+Below we train each model on $[0, T_\text{train}]$ only and evaluate extrapolation on the full horizon.
+
+```{python}
+# ── PINN trained on the same SIR window ───────────────────────────────────────
+class SimplePINN(nn.Module):
+    def __init__(self, hidden=64, depth=4):
+        super().__init__()
+        layers = [nn.Linear(1, hidden), nn.Tanh()]
+        for _ in range(depth - 1):
+            layers += [nn.Linear(hidden, hidden), nn.Tanh()]
+        layers += [nn.Linear(hidden, 3), nn.Sigmoid()]
+        self.net = nn.Sequential(*layers)
+        self.log_beta_s  = nn.Parameter(torch.tensor(float(np.log(10.0))))
+        self.log_gamma_s = nn.Parameter(torch.tensor(float(np.log(3.0))))
+
+    @property
+    def beta_s(self):  return torch.exp(self.log_beta_s)
+    @property
+    def gamma_s(self): return torch.exp(self.log_gamma_s)
+
+    def forward(self, t_s): return self.net(t_s.view(-1, 1))
+
+
+t_obs_s  = torch.tensor(t_obs_np / T_train, dtype=torch.float32)
+t_col    = torch.linspace(0, 1, 100)
+y0_sir_t = torch.tensor([1 - I0_frac, I0_frac, 0.0], dtype=torch.float32)
+
+
+def train_pinn(model, epochs=5_000):
+    opt   = torch.optim.Adam(model.parameters(), lr=1e-3)
+    sched = torch.optim.lr_scheduler.MultiStepLR(opt, milestones=[2000, 4000], gamma=0.3)
+    for ep in range(epochs):
+        opt.zero_grad()
+        sir  = model(t_obs_s)
+        Ld   = ((sir[:, 1] - i_obs_t) ** 2).mean()
+
+        t = t_col.detach().clone().requires_grad_(True)
+        out = model(t);  S, I, R = out[:, 0], out[:, 1], out[:, 2]
+        ones = torch.ones(len(t))
+        dS = torch.autograd.grad(S, t, ones, create_graph=True, retain_graph=True)[0]
+        dI = torch.autograd.grad(I, t, ones, create_graph=True, retain_graph=True)[0]
+        dR = torch.autograd.grad(R, t, ones, create_graph=True)[0]
+        bs, gs = model.beta_s, model.gamma_s
+        Lp = ((dS+bs*S*I)**2 + (dI-bs*S*I+gs*I)**2 + (dR-gs*I)**2).mean()
+
+        ic0  = model(torch.tensor([0.0]))[0]
+        Lic  = ((ic0 - y0_sir_t) ** 2).mean()
+        L = Ld + 0.3*Lp + 5.0*Lic
+        L.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        opt.step();  sched.step()
+        if ep % 1000 == 0:
+            print(f"  [PINN] ep {ep:5d}  loss={L.item():.5f}")
+
+    bp = model.beta_s.item() / T_train
+    gp = model.gamma_s.item() / T_train
+    print(f"PINN β: {bp:.3f}  γ: {gp:.3f}  R₀: {bp/gp:.2f}")
+
+
+torch.manual_seed(42)
+pinn_model = SimplePINN()
+print("\n── PINN on SIR ──")
+train_pinn(pinn_model)
+```
+
+```{python}
+# ── Predict on full horizon ────────────────────────────────────────────────────
+t_viz_np = t_full
+t_viz_s  = torch.tensor(t_viz_np / T_train, dtype=torch.float32)
+
+with torch.no_grad():
+    pinn_pred  = pinn_model(t_viz_s).numpy()
+    node_traj  = node_model(t_eval_f).numpy()
+    ude_traj   = ude_model(t_eval2_f).numpy()
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+ax = axes[0]
+ax.plot(t_full, sol_sir[:, 1], color=C_I, lw=2, ls="--", alpha=0.6,
+        label="True I(t)")
+ax.scatter(t_obs_np, i_noisy, color=C_OBS, s=20, zorder=5)
+ax.plot(t_viz_np,         pinn_pred[:, 1], color=C_PINN,  lw=2, label="PINN")
+ax.plot(t_eval_f.numpy(), node_traj[:, 1], color=C_NODE, lw=2, label="Neural ODE")
+ax.axvline(T_train, color="gray", lw=1, ls="--", alpha=0.7, label="Train cutoff")
+ax.set(xlabel="Day", ylabel="Fraction infectious",
+       title="SIR extrapolation: PINN vs. Neural ODE")
+ax.legend()
+
+ax = axes[1]
+ax.plot(t_seir, sol_seir[:, 2], color=C_I, lw=2, ls="--", alpha=0.6,
+        label="True I(t) — SEIR")
+ax.scatter(t_obs2_np, i_noisy2, color=C_OBS, s=20, zorder=5)
+ax.plot(t_eval2_f.numpy(), ude_traj[:, 1], color=C_UDE, lw=2, label="UDE")
+ax.axvline(T_seir_tr, color="gray", lw=1, ls="--", alpha=0.7, label="Train cutoff")
+ax.axvline(NPI_DAY2, color="orange", lw=1, ls=":", alpha=0.7,
+           label=f"NPI day {NPI_DAY2}")
+ax.set(xlabel="Day", ylabel="Fraction infectious",
+       title="SEIR extrapolation: Universal DE")
+ax.legend()
+
+plt.tight_layout();  plt.show()
+```
+
+```{python}
+# ── Quantify extrapolation error ───────────────────────────────────────────────
+extra_sir  = t_full >= T_train
+extra_seir = t_seir >= T_seir_tr
+
+I_true_sir   = sol_sir[:, 1]
+I_true_seir2 = sol_seir[:, 2]
+
+pinn_mae = np.mean(np.abs(pinn_pred[:, 1][extra_sir] - I_true_sir[extra_sir]))
+
+node_I_interp = np.interp(t_full, t_eval_f.numpy(), node_traj[:, 1])
+node_mae      = np.mean(np.abs(node_I_interp[extra_sir] - I_true_sir[extra_sir]))
+
+ude_I_interp = np.interp(t_seir, t_eval2_f.numpy(), ude_traj[:, 1])
+ude_mae      = np.mean(np.abs(ude_I_interp[extra_seir] - I_true_seir2[extra_seir]))
+
+print("Extrapolation mean absolute error (I fraction):")
+print(f"  PINN      (SIR)  : {pinn_mae:.5f}")
+print(f"  Neural ODE (SIR) : {node_mae:.5f}")
+print(f"  UDE        (SEIR): {ude_mae:.5f}")
+```
+
+::: {.callout-important}
+**Physics weight controls the extrapolation trade-off**
+
+The physics weight $\lambda_\text{phys}$ in $\mathcal{L} = \mathcal{L}_\text{data} + \lambda_\text{phys}\,\mathcal{L}_\text{phys} + \lambda_\text{IC}\,\mathcal{L}_\text{IC}$ governs whether the PINN recovers accurate mechanistic parameters:
+
+- **Too low** ($\lambda \approx 0.1$): data loss dominates; the network fits training data but may converge to wrong $(\beta, \gamma)$, producing *worse* extrapolation than a Neural ODE.
+- **Balanced** ($\lambda \approx 0.3$–$0.5$): physics constrains the solution; $\beta$ and $\gamma$ recover close to true values and extrapolation improves.
+- **Too high** ($\lambda \approx 1$): physics overwhelms the data; training is slow and prone to stagnation early on.
+
+The UDE (SEIR scenario) shows the clearest benefit: the SIR skeleton captures mean dynamics, and the correction network absorbs the time-varying NPI and exposed compartment — giving strong extrapolation even without tuning $\lambda_\text{phys}$.
+:::
+
+---
+
+## Method comparison
+
+| | PINN | Neural ODE | Universal DE |
+|---|---|---|---|
+| **Core idea** | t→y mapping; physics = loss | dy/dt = f_θ; solve ODE | dy/dt = g_mech + f_θ; solve ODE |
+| **Training** | Autograd physics residuals | Backprop through solver | Backprop through solver |
+| **Memory** | Low (no stored trajectory) | O(N·depth); adjoint → O(depth) | Same as Neural ODE |
+| **Extrapolation** | Good (physics constrains) | Poor (no physics) | Moderate (partial physics) |
+| **Interpretability** | θ_mech explicitly estimated | Black box | θ_mech interpretable; correction implicit |
+| **Best use case** | Known ODE, parameter estimation | Unknown dynamics from rich data | Partially known ODE + unknown forcing |
+
+---
+
+## References
+
+::: {#refs}
+:::
+
+```{python}
+#| echo: false
+import sys, torch, scipy, matplotlib
+print(f"Python     {sys.version.split()[0]}")
+print(f"torch      {torch.__version__}")
+print(f"scipy      {scipy.__version__}")
+print(f"matplotlib {matplotlib.__version__}")
+```
