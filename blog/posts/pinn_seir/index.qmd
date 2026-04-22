@@ -28,9 +28,10 @@ The [SIR PINN tutorial](https://www.jonghoonk.com/blog/posts/pinn_sir/) recovere
 Real outbreaks are messier in two important ways.
 
 **The SEIR model** adds an *Exposed* compartment between infection and onset of infectiousness — representing the latent period during which a host carries the pathogen but cannot yet transmit it.
-This is essential for diseases such as COVID-19 or influenza, where the incubation period (5–7 days) is a key determinant of epidemic velocity [@hethcote2000; @kermack1927].
+This is essential for diseases such as COVID-19 or influenza, where the incubation period — estimated at 5–6 days for SARS-CoV-2 [@lauer2020] — is a key determinant of epidemic velocity [@hethcote2000; @kermack1927].
 
 **Time-varying $\beta(t)$** captures the reality that governments impose non-pharmaceutical interventions (NPIs) mid-epidemic: stay-at-home orders, school closures, and mask mandates all suppress contact rates.
+Statistical analyses of COVID-19 case series have quantified these drops at 50–80% [@flaxman2020; @li2020].
 A PINN trained with a scalar $\beta$ parameter cannot represent this behaviour; it will average the pre- and post-NPI rates and fit neither regime well.
 
 This post shows how to extend the PINN to:
@@ -167,6 +168,8 @@ The exposed compartment $E$ (dotted blue) and both $S$, $R$ are hidden.
 ---
 
 ## PINN architecture
+
+The architecture follows the PINN framework of Raissi et al. [@raissi2019], extended here to handle a time-varying parameter sub-network.
 
 ### State network
 
@@ -529,6 +532,8 @@ Fixing $\sigma$ from natural history data (as done here) is a standard practice.
 **Multiple waves**: a single $\beta(t)$ network can represent multiple NPI episodes by simply training on a longer time series — the physics loss prevents erratic behaviour between the periods.
 
 **Bayesian β(t)**: combining the [Bayesian PINN](https://www.jonghoonk.com/blog/posts/bayesian_pinn_sir/) with a β(t) network gives posterior credible intervals over the entire transmission curve — directly useful for policy decisions under uncertainty.
+
+**Real-data application**: Dandekar and Barbastathis [@dandekar2020] applied a similar approach to COVID-19 province-level case counts, learning a quarantine-strength parameter as a function of time via a neural augmentation of the SIR model — demonstrating that the PINN framework scales to real surveillance data and recovers interpretable intervention effects.
 
 ---
 

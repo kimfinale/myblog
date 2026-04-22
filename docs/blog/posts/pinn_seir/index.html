@@ -455,8 +455,8 @@ window.Quarto = {
 <section id="beyond-sir-exposed-compartment-and-changing-transmission" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="beyond-sir-exposed-compartment-and-changing-transmission"><span class="header-section-number">1</span> Beyond SIR: exposed compartment and changing transmission</h2>
 <p>The <a href="https://www.jonghoonk.com/blog/posts/pinn_sir/">SIR PINN tutorial</a> recovered a constant transmission rate <span class="math inline">\(\beta\)</span> from noisy prevalence data. Real outbreaks are messier in two important ways.</p>
-<p><strong>The SEIR model</strong> adds an <em>Exposed</em> compartment between infection and onset of infectiousness — representing the latent period during which a host carries the pathogen but cannot yet transmit it. This is essential for diseases such as COVID-19 or influenza, where the incubation period (5–7 days) is a key determinant of epidemic velocity <span class="citation" data-cites="hethcote2000 kermack1927">(<a href="#ref-hethcote2000" role="doc-biblioref">1</a>,<a href="#ref-kermack1927" role="doc-biblioref">2</a>)</span>.</p>
-<p><strong>Time-varying <span class="math inline">\(\beta(t)\)</span></strong> captures the reality that governments impose non-pharmaceutical interventions (NPIs) mid-epidemic: stay-at-home orders, school closures, and mask mandates all suppress contact rates. A PINN trained with a scalar <span class="math inline">\(\beta\)</span> parameter cannot represent this behaviour; it will average the pre- and post-NPI rates and fit neither regime well.</p>
+<p><strong>The SEIR model</strong> adds an <em>Exposed</em> compartment between infection and onset of infectiousness — representing the latent period during which a host carries the pathogen but cannot yet transmit it. This is essential for diseases such as COVID-19 or influenza, where the incubation period — estimated at 5–6 days for SARS-CoV-2 <span class="citation" data-cites="lauer2020">(<a href="#ref-lauer2020" role="doc-biblioref">1</a>)</span> — is a key determinant of epidemic velocity <span class="citation" data-cites="hethcote2000 kermack1927">(<a href="#ref-hethcote2000" role="doc-biblioref">2</a>,<a href="#ref-kermack1927" role="doc-biblioref">3</a>)</span>.</p>
+<p><strong>Time-varying <span class="math inline">\(\beta(t)\)</span></strong> captures the reality that governments impose non-pharmaceutical interventions (NPIs) mid-epidemic: stay-at-home orders, school closures, and mask mandates all suppress contact rates. Statistical analyses of COVID-19 case series have quantified these drops at 50–80% <span class="citation" data-cites="flaxman2020 li2020">(<a href="#ref-flaxman2020" role="doc-biblioref">4</a>,<a href="#ref-li2020" role="doc-biblioref">5</a>)</span>. A PINN trained with a scalar <span class="math inline">\(\beta\)</span> parameter cannot represent this behaviour; it will average the pre- and post-NPI rates and fit neither regime well.</p>
 <p>This post shows how to extend the PINN to:</p>
 <ol type="1">
 <li>The <strong>SEIR model</strong> — four compartments, latent period <span class="math inline">\(\sigma^{-1}\)</span>.</li>
@@ -525,7 +525,7 @@ Tip
 </section>
 <section id="simulate-ground-truth-and-observations" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="simulate-ground-truth-and-observations"><span class="header-section-number">3</span> Simulate ground truth and observations</h2>
-<div id="34841eb3" class="cell" data-execution_count="1">
+<div id="56798e73" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -629,6 +629,7 @@ Peak I:        7.9% on day 70</code></pre>
 </section>
 <section id="pinn-architecture" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="pinn-architecture"><span class="header-section-number">4</span> PINN architecture</h2>
+<p>The architecture follows the PINN framework of Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">6</a>)</span>, extended here to handle a time-varying parameter sub-network.</p>
 <section id="state-network" class="level3" data-number="4.1">
 <h3 data-number="4.1" class="anchored" data-anchor-id="state-network"><span class="header-section-number">4.1</span> State network</h3>
 <p>A five-layer MLP maps scaled time <span class="math inline">\(t_s = t / T_{\max} \in [0,1]\)</span> to four compartment fractions via sigmoid activations:</p>
@@ -673,7 +674,7 @@ Peak I:        7.9% on day 70</code></pre>
 </tr>
 </tbody>
 </table>
-<div id="6e5e4210" class="cell" data-execution_count="2">
+<div id="e2bd701d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MLP(nn.Module):</span>
@@ -744,7 +745,7 @@ Peak I:        7.9% on day 70</code></pre>
 \]</span></p>
 <p>where overdots denote <span class="math inline">\(d/dt\)</span> computed via <strong>automatic differentiation</strong>.</p>
 <p><strong>IC loss</strong> — squared deviation from known initial conditions at <span class="math inline">\(t = 0\)</span>.</p>
-<div id="daaa404c" class="cell" data-execution_count="3">
+<div id="f661055f" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> data_loss(model, t_obs_t, i_obs_t):</span>
@@ -804,7 +805,7 @@ Note
 </section>
 <section id="training" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="training"><span class="header-section-number">6</span> Training</h2>
-<div id="dc4ecf6f" class="cell" data-execution_count="4">
+<div id="98599bcf" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Tensors ────────────────────────────────────────────────────────────────────</span></span>
@@ -877,7 +878,7 @@ Recovered γ (β(t)):    0.0158  (true: 0.1)</code></pre>
 <h2 data-number="7" class="anchored" data-anchor-id="results"><span class="header-section-number">7</span> Results</h2>
 <section id="prevalence-and-recovered-βt" class="level3" data-number="7.1">
 <h3 data-number="7.1" class="anchored" data-anchor-id="prevalence-and-recovered-βt"><span class="header-section-number">7.1</span> Prevalence and recovered β(t)</h3>
-<div id="fe6b883d" class="cell" data-execution_count="5">
+<div id="5676534c" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>t_plot <span class="op">=</span> torch.linspace(<span class="dv">0</span>, T_max, <span class="dv">400</span>).unsqueeze(<span class="dv">1</span>)</span>
@@ -935,7 +936,7 @@ Recovered γ (β(t)):    0.0158  (true: 0.1)</code></pre>
 </section>
 <section id="reconstructed-seir-trajectories" class="level3" data-number="7.2">
 <h3 data-number="7.2" class="anchored" data-anchor-id="reconstructed-seir-trajectories"><span class="header-section-number">7.2</span> Reconstructed SEIR trajectories</h3>
-<div id="f20d105c" class="cell" data-execution_count="6">
+<div id="8cff9b70" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">3.5</span>))</span>
@@ -974,7 +975,7 @@ Recovered γ (β(t)):    0.0158  (true: 0.1)</code></pre>
 <section id="physics-loss-as-a-regulariser-for-βt" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="physics-loss-as-a-regulariser-for-βt"><span class="header-section-number">8</span> Physics loss as a regulariser for β(t)</h2>
 <p>Without the physics constraint, the <span class="math inline">\(\beta(t)\)</span> network has enough capacity to fit the noisy <span class="math inline">\(I\)</span> observations directly — but the recovered <span class="math inline">\(\beta(t)\)</span> becomes erratic and biologically meaningless.</p>
-<div id="efd40027" class="cell" data-execution_count="7">
+<div id="33e9e2a4" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>lam_p_values <span class="op">=</span> [<span class="fl">0.0</span>, <span class="fl">0.05</span>, <span class="fl">0.3</span>]</span>
@@ -1088,19 +1089,35 @@ Important
 <p><strong>Identifiability</strong>: with only <span class="math inline">\(I(t)\)</span> observed, <span class="math inline">\(\sigma\)</span> and <span class="math inline">\(\gamma\)</span> are not jointly identifiable from <span class="math inline">\(\beta\)</span> unless additional constraints are applied. Fixing <span class="math inline">\(\sigma\)</span> from natural history data (as done here) is a standard practice.</p>
 <p><strong>Multiple waves</strong>: a single <span class="math inline">\(\beta(t)\)</span> network can represent multiple NPI episodes by simply training on a longer time series — the physics loss prevents erratic behaviour between the periods.</p>
 <p><strong>Bayesian β(t)</strong>: combining the <a href="https://www.jonghoonk.com/blog/posts/bayesian_pinn_sir/">Bayesian PINN</a> with a β(t) network gives posterior credible intervals over the entire transmission curve — directly useful for policy decisions under uncertainty.</p>
+<p><strong>Real-data application</strong>: Dandekar and Barbastathis <span class="citation" data-cites="dandekar2020">(<a href="#ref-dandekar2020" role="doc-biblioref">7</a>)</span> applied a similar approach to COVID-19 province-level case counts, learning a quarantine-strength parameter as a function of time via a neural augmentation of the SIR model — demonstrating that the PINN framework scales to real surveillance data and recovers interpretable intervention effects.</p>
 <hr>
 </section>
 <section id="references" class="level2" data-number="11">
 <h2 data-number="11" class="anchored" data-anchor-id="references"><span class="header-section-number">11</span> References</h2>
 <div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-lauer2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Lauer SA, Grantz KH, Bi Q, Jones FK, Zheng Q, Meredith HR, et al. The incubation period of coronavirus disease 2019 (<span>COVID-19</span>) from publicly reported confirmed cases: Estimation and application. Annals of Internal Medicine. 2020;172(9):577–82. doi:<a href="https://doi.org/10.7326/M20-0504">10.7326/M20-0504</a></div>
+</div>
 <div id="ref-hethcote2000" class="csl-entry" role="listitem">
-<div class="csl-left-margin">1. </div><div class="csl-right-inline">Hethcote HW. The mathematics of infectious diseases. SIAM Review. 2000;42(4):599–653. doi:<a href="https://doi.org/10.1137/S0036144500371907">10.1137/S0036144500371907</a></div>
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Hethcote HW. The mathematics of infectious diseases. SIAM Review. 2000;42(4):599–653. doi:<a href="https://doi.org/10.1137/S0036144500371907">10.1137/S0036144500371907</a></div>
 </div>
 <div id="ref-kermack1927" class="csl-entry" role="listitem">
-<div class="csl-left-margin">2. </div><div class="csl-right-inline">Kermack WO, McKendrick AG. A contribution to the mathematical theory of epidemics. Proceedings of the Royal Society of London Series A. 1927;115(772):700–21. doi:<a href="https://doi.org/10.1098/rspa.1927.0118">10.1098/rspa.1927.0118</a></div>
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Kermack WO, McKendrick AG. A contribution to the mathematical theory of epidemics. Proceedings of the Royal Society of London Series A. 1927;115(772):700–21. doi:<a href="https://doi.org/10.1098/rspa.1927.0118">10.1098/rspa.1927.0118</a></div>
+</div>
+<div id="ref-flaxman2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><span class="nocase">Flaxman S, Mishra S, Gandy A, Unwin HJT, Coupland H, Mellan TA, et al.</span> Estimating the effects of non-pharmaceutical interventions on <span>COVID-19</span> in <span>Europe</span>. Nature. 2020;584:257–61. doi:<a href="https://doi.org/10.1038/s41586-020-2405-7">10.1038/s41586-020-2405-7</a></div>
+</div>
+<div id="ref-li2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline"><span class="nocase">Li Q, Guan X, Wu P, Wang X, Zhou L, Tong Y, et al.</span> Early transmission dynamics in <span>Wuhan, China</span>, of novel coronavirus–infected pneumonia. New England Journal of Medicine. 2020;382(13):1199–207. doi:<a href="https://doi.org/10.1056/NEJMoa2001316">10.1056/NEJMoa2001316</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+<div id="ref-dandekar2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline">Dandekar R, Barbastathis G. Quantifying the effect of quarantine control in <span>COVID-19</span> infectious spread using machine learning. EBioMedicine. 2020;55:102875. doi:<a href="https://doi.org/10.1016/j.ebiom.2020.102875">10.1016/j.ebiom.2020.102875</a></div>
 </div>
 </div>
-<div id="e6d22188" class="cell" data-execution_count="8">
+<div id="4177914c" class="cell" data-execution_count="8">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu
