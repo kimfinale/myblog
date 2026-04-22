@@ -1,0 +1,171 @@
+---
+title: "Secrets Management: Keeping Credentials Out of Your Code"
+subtitle: "Hardcoded passwords are a security vulnerability and a compliance failure. AWS Secrets Manager, environment variables, and secret rotation done right. Skill 15 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, security, secrets management, AWS, DevOps]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Why secrets management is non-negotiable
+
+A developer pushes a database connection string to a public GitHub repository by accident. Within 15 minutes, a bot discovers it and begins exfiltrating patient data. This is not a hypothetical — it happens dozens of times per day across GitHub [@owasp2021].
+
+Any health department client will conduct at minimum a basic security review before signing a contract. "Where are your database passwords stored?" is question one. "In the code" or "in a `.env` file in the repository" ends the conversation.
+
+Proper secrets management is both a security practice and a commercial requirement. It is also straightforward to implement.
+
+## The hierarchy of bad to good
+
+```
+❌ Hardcoded in source code:   password = "secret123"
+❌ In .env committed to git:   DATABASE_URL=postgresql://...
+⚠  In .env not committed:     ok for local dev only
+✓  Environment variable at runtime: -e DB_PASSWORD=...
+✓  AWS Secrets Manager:        retrieved at startup, rotated automatically
+✓  HashiCorp Vault:            enterprise-grade, audited, dynamic secrets
+```
+
+## Environment variables: the baseline
+
+The minimum safe approach: never put secrets in source code. Pass them as environment variables at runtime.
+
+**Docker run:**
+```bash
+docker run -p 8000:8000 \
+  -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
+  -e API_SECRET_KEY="$(openssl rand -hex 32)" \
+  dt-api:latest
+```
+
+**R code that reads them:**
+```r
+db_url  <- Sys.getenv("DATABASE_URL",   unset = stop("DATABASE_URL not set"))
+api_key <- Sys.getenv("API_SECRET_KEY", unset = stop("API_SECRET_KEY not set"))
+```
+
+```{r}
+#| label: env-demo
+
+# Demonstrate safe secret reading pattern in R
+safe_get_env <- function(key, required = TRUE) {
+  val <- Sys.getenv(key, unset = NA_character_)
+  if (is.na(val) || nchar(val) == 0) {
+    if (required) stop(sprintf("Required environment variable '%s' not set.", key))
+    return(NULL)
+  }
+  val
+}
+
+# Show what the pattern produces
+tryCatch(
+  safe_get_env("DATABASE_URL"),   # this env var is not set
+  error = function(e) cat("Error (expected):", conditionMessage(e), "\n")
+)
+
+# Simulate a set variable
+Sys.setenv(DT_API_KEY_TEST = "fake-key-for-demo-only")
+cat("Key found:", nchar(safe_get_env("DT_API_KEY_TEST")), "chars\n")
+Sys.unsetenv("DT_API_KEY_TEST")
+```
+
+## AWS Secrets Manager
+
+For production, AWS Secrets Manager [@aws_sm] stores secrets encrypted at rest, controls access via IAM, and supports automatic rotation.
+
+```bash
+# Store a secret (one-time)
+aws secretsmanager create-secret \
+  --name "dt/prod/db-password" \
+  --description "TimescaleDB password for prod environment" \
+  --secret-string '{"username":"dtuser","password":"S3cur3P@ss"}'
+
+# Retrieve at runtime (in startup script)
+SECRET=$(aws secretsmanager get-secret-value \
+  --secret-id "dt/prod/db-password" \
+  --query SecretString --output text)
+
+DB_USER=$(echo $SECRET | python3 -c "import sys,json; print(json.load(sys.stdin)['username'])")
+DB_PASS=$(echo $SECRET | python3 -c "import sys,json; print(json.load(sys.stdin)['password'])")
+
+export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/dtdb"
+```
+
+**In R:**
+```r
+library(aws.secretsmanager)
+
+get_db_creds <- function(secret_name = "dt/prod/db-password") {
+  raw <- get_secret(secret_name)
+  creds <- jsonlite::fromJSON(raw$SecretString)
+  list(user = creds$username, password = creds$password)
+}
+```
+
+## Automatic rotation
+
+Secrets Manager can rotate the database password automatically every 30–90 days. Set it up once:
+
+```bash
+aws secretsmanager rotate-secret \
+  --secret-id "dt/prod/db-password" \
+  --rotation-rules AutomaticallyAfterDays=30
+```
+
+When rotation fires, Secrets Manager calls a Lambda function that updates the RDS user's password and stores the new value. Your application always calls `get_secret()` at startup — it never needs to know a rotation happened.
+
+## Scanning for leaked secrets
+
+Add `git-secrets` or `gitleaks` as a pre-commit hook to prevent accidental commits:
+
+```bash
+# Install gitleaks
+brew install gitleaks    # or download binary
+
+# Scan the whole repo history
+gitleaks detect --source . --log-opts HEAD
+
+# Add as pre-commit hook
+gitleaks protect --staged
+```
+
+## The secrets audit checklist
+
+```{r}
+#| label: audit-checklist
+#| echo: false
+
+df <- data.frame(
+  Item = c(
+    "No secrets in source code (grep for common patterns)",
+    ".env files in .gitignore",
+    "Secrets passed as environment variables or Secrets Manager",
+    "Different credentials per environment (dev ≠ prod)",
+    "Database users have minimum required permissions",
+    "API keys have expiry dates and can be revoked",
+    "Rotation policy configured for long-lived secrets",
+    "Audit trail: who accessed which secret and when"
+  ),
+  Priority = c("Critical","Critical","Critical","High",
+               "High","High","Medium","Medium")
+)
+knitr::kable(df, caption = "Secrets management audit checklist")
+```
+
+Every item marked "Critical" will be raised in a security review by a health department procurement team. Tick them off before your first enterprise client conversation.
+
+## References
+
+::: {#refs}
+:::

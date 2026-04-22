@@ -1,0 +1,212 @@
+---
+title: "Real-Time Simulation Progress Streaming with WebSockets"
+subtitle: "Long-running EnKF jobs need live feedback. WebSocket push turns a waiting spinner into an informative progress stream. Skill 13 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, WebSockets, real-time, FastAPI, R, API]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## The problem with long-running simulations
+
+A standard HTTP request has a request–response cycle: client asks, server computes, server replies. If the computation takes 30 seconds, the client waits with a blank spinner. If it takes 5 minutes, most HTTP clients time out.
+
+For epidemic simulations — parameter sweeps, scenario ensembles, full Bayesian MCMC — computation time is measured in minutes, not milliseconds. Clients need three things:
+
+1. **Progress indication**: "On iteration 45 of 200"
+2. **Partial results**: display preliminary estimates as they arrive
+3. **Graceful cancellation**: stop the run if the client navigates away
+
+**WebSockets** [@fette2011] solve this. Unlike HTTP, a WebSocket connection stays open after the initial handshake. The server can push messages to the client at any time — progress updates, intermediate results, error notifications.
+
+## WebSocket vs Server-Sent Events
+
+| | WebSocket | Server-Sent Events (SSE) |
+|--|-----------|--------------------------|
+| Direction | Bidirectional | Server → client only |
+| Protocol | ws:// or wss:// | HTTP |
+| Browser support | Excellent | Excellent |
+| Reconnect | Manual | Automatic |
+| **Best for** | Interactive, two-way | Progress streams |
+
+For simulation progress (server → client only), SSE is simpler. For interactive dashboards where the client sends slider updates, WebSocket is needed. We cover WebSocket as it is more general [@fastapi_ws].
+
+## FastAPI WebSocket implementation
+
+```python
+# server.py
+from fastapi import FastAPI, WebSocket
+import asyncio, json
+
+app = FastAPI()
+
+async def run_enkf_with_progress(obs: list, ws: WebSocket):
+    """Run EnKF and send progress updates over WebSocket."""
+    n_steps  = len(obs)
+    beta_est = 0.30
+    I_est    = obs[0] if obs else 10
+
+    for t, y_t in enumerate(obs):
+        # Simulate one EnKF update step
+        await asyncio.sleep(0.05)   # represents real computation
+        innov   = y_t - I_est
+        K       = 0.3
+        I_est   = max(0, I_est + K * innov)
+        beta_est = max(0.05, beta_est + 0.001 * innov / max(y_t, 1))
+
+        # Push progress to client
+        await ws.send_json({
+            "type":     "progress",
+            "step":     t + 1,
+            "total":    n_steps,
+            "pct":      round((t + 1) / n_steps * 100, 1),
+            "I_est":    round(I_est, 1),
+            "beta_est": round(beta_est, 4)
+        })
+
+    # Final result
+    await ws.send_json({
+        "type":     "complete",
+        "I_final":  round(I_est, 1),
+        "beta_final": round(beta_est, 4)
+    })
+
+@app.websocket("/ws/enkf")
+async def enkf_websocket(websocket: WebSocket):
+    await websocket.accept()
+    data = await websocket.receive_json()
+    obs  = data.get("obs", [])
+    await run_enkf_with_progress(obs, websocket)
+    await websocket.close()
+```
+
+## JavaScript client (browser)
+
+```javascript
+// dashboard.js
+const ws = new WebSocket("wss://api.your-domain.com/ws/enkf");
+
+ws.onopen = () => {
+  ws.send(JSON.stringify({ obs: dailyCaseCounts }));
+};
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === "progress") {
+    updateProgressBar(msg.pct);
+    updateChart(msg.step, msg.I_est, msg.beta_est);
+  } else if (msg.type === "complete") {
+    showFinalResult(msg.I_final, msg.beta_final);
+    ws.close();
+  }
+};
+
+ws.onerror = (err) => console.error("WebSocket error:", err);
+```
+
+## Simulating progress streaming in R
+
+We simulate the same progress stream in R to illustrate the message structure and visualise the real-time update pattern:
+
+```{r}
+#| label: progress-simulation
+
+set.seed(42)
+n_steps <- 60
+obs     <- rpois(n_steps, lambda = c(seq(10, 150, length.out = 30),
+                                      seq(150, 30, length.out = 30)))
+
+# Simulate EnKF progress messages
+simulate_progress <- function(obs) {
+  beta_est <- 0.30; I_est <- obs[1]
+  messages <- vector("list", length(obs))
+  for (t in seq_along(obs)) {
+    innov    <- obs[t] - I_est
+    I_est    <- max(0, I_est + 0.3 * innov)
+    beta_est <- max(0.05, min(0.8, beta_est + 0.001 * innov / max(obs[t], 1)))
+    messages[[t]] <- list(
+      step     = t, total = length(obs),
+      pct      = round(t / length(obs) * 100, 1),
+      I_est    = round(I_est, 1),
+      beta_est = round(beta_est, 4)
+    )
+  }
+  do.call(rbind, lapply(messages, as.data.frame))
+}
+
+progress_df <- simulate_progress(obs)
+head(progress_df, 3)
+```
+
+```{r}
+#| label: progress-viz
+#| fig-cap: "Simulated WebSocket progress stream: top panel shows EnKF state estimate updating in real time; bottom panel shows transmission rate β converging. Each row is one WebSocket message pushed to the client."
+
+library(ggplot2)
+library(tidyr)
+
+progress_df$obs <- obs
+
+p_data <- pivot_longer(progress_df[, c("step", "I_est", "obs")],
+                        -step, names_to = "series")
+
+ggplot(p_data, aes(x = step, y = value, colour = series)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = c(I_est = "steelblue", obs = "grey50"),
+                      labels = c(I_est = "EnKF estimate", obs = "Observed"),
+                      name = NULL) +
+  labs(x = "Step (WebSocket message number)", y = "Cases",
+       title = "Real-time progress stream: state estimate vs observations") +
+  theme_minimal(base_size = 13)
+```
+
+## Reconnection and heartbeats
+
+WebSocket connections drop — mobile networks, server restarts, load balancer timeouts. Handle this gracefully:
+
+```python
+# Server: send a heartbeat every 30 seconds to keep the connection alive
+async def run_with_heartbeat(ws: WebSocket):
+    heartbeat_task = asyncio.create_task(send_heartbeat(ws))
+    try:
+        await run_enkf_with_progress(obs, ws)
+    finally:
+        heartbeat_task.cancel()
+
+async def send_heartbeat(ws: WebSocket):
+    while True:
+        await asyncio.sleep(30)
+        await ws.send_json({"type": "heartbeat"})
+```
+
+```javascript
+// Client: reconnect on disconnect
+ws.onclose = () => {
+  console.log("Connection lost, reconnecting in 3s...");
+  setTimeout(() => connectWebSocket(), 3000);
+};
+```
+
+## When to use WebSockets vs polling
+
+Use WebSockets when: computation takes > 10 seconds, you want sub-second latency updates, or you need bidirectional communication.
+
+Use polling (repeated HTTP GET every 5s) when: simplicity matters more than latency, or your infrastructure does not support persistent connections (some serverless platforms).
+
+For epidemic models with 30–120 second run times, WebSockets are the right choice.
+
+## References
+
+::: {#refs}
+:::
