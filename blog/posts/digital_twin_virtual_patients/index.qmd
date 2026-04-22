@@ -3,7 +3,7 @@ title: "Building Virtual Patient Cohorts"
 subtitle: "Latin hypercube sampling, parameter uncertainty, and population variability — Post 3 in the Digital Twins for Vaccine Trials series"
 author: "Jong-Hoon Kim"
 date: "2026-04-22"
-categories: [digital twin, vaccine, virtual patients, Latin hypercube sampling, R]
+categories: [digital twin, vaccine, virtual patients, Latin hypercube sampling, Sobol, quasi-Monte Carlo, R]
 bibliography: references.bib
 csl: https://www.zotero.org/styles/vancouver
 format:
@@ -28,6 +28,7 @@ library(deSolve)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(randtoolbox)
 library(patchwork)
 theme_set(theme_bw(base_size = 12))
 ```
@@ -78,7 +79,7 @@ Suppose the ODE has $p$ parameters and we want to generate $n$ virtual patients.
 
 The result is an $n \times p$ matrix of parameter sets with superior coverage of the marginal distributions compared to random sampling, using the same number of model evaluations [@iman1980].
 
-```{r lhs-demo, fig.cap="Latin hypercube sampling (LHS, orange) vs simple random sampling (SRS, blue) for two parameters, n = 50. LHS guarantees that each row of each parameter's range is occupied exactly once (visible as an even spread along both axes). SRS often leaves gaps in some regions and clusters in others. In high dimensions, this coverage advantage becomes decisive."}
+```{r lhs-demo, fig.cap="Three sampling methods for two parameters, n = 50. Simple random sampling (SRS, blue) leaves visible gaps and clusters. LHS (orange) guarantees that each horizontal band and each vertical band of the unit square is occupied exactly once — excellent marginal coverage, but no joint guarantee. The Sobol low-discrepancy sequence (green) fills the joint space more uniformly: there are no large empty patches anywhere in the square. The difference is subtle at n = 50 but becomes practically significant at small n or in high dimensions.", fig.width=9, fig.height=3.5}
 set.seed(42)
 n_demo <- 50
 
@@ -90,14 +91,21 @@ lhs_2d <- function(n) {
 }
 srs_2d <- function(n) data.frame(p1 = runif(n), p2 = runif(n))
 
-df_lhs <- lhs_2d(n_demo) |> mutate(method = "LHS")
-df_srs <- srs_2d(n_demo) |> mutate(method = "SRS")
-df_cmp <- bind_rows(df_lhs, df_srs)
+df_srs   <- srs_2d(n_demo) |> mutate(method = "SRS (random)")
+df_lhs   <- lhs_2d(n_demo) |> mutate(method = "LHS")
+df_sobol <- as.data.frame(sobol(n_demo, dim = 2, scrambling = 1, seed = 42)) |>
+  setNames(c("p1", "p2")) |>
+  mutate(method = "Sobol (scrambled)")
+
+df_cmp <- bind_rows(df_srs, df_lhs, df_sobol) |>
+  mutate(method = factor(method, levels = c("SRS (random)", "LHS", "Sobol (scrambled)")))
 
 ggplot(df_cmp, aes(x = p1, y = p2, colour = method)) +
-  geom_point(size = 2, alpha = 0.8) +
+  geom_point(size = 2, alpha = 0.85) +
   facet_wrap(~method) +
-  scale_colour_manual(values = c("LHS" = "#E87722", "SRS" = "#3B6EA8"),
+  scale_colour_manual(values = c("SRS (random)"      = "#3B6EA8",
+                                  "LHS"               = "#E87722",
+                                  "Sobol (scrambled)" = "#1A9641"),
                       guide = "none") +
   labs(x = "Parameter 1 (uniform [0,1])",
        y = "Parameter 2 (uniform [0,1])") +
@@ -439,6 +447,193 @@ ggplot(vpc_prot, aes(x = time)) +
   labs(x = "Days post-first dose",
        y = "Fraction of cohort with P(protected) > 50%")
 ```
+
+---
+
+# Does the sampling method matter? LHS vs Sobol sequences
+
+The choice of LHS above invites a natural question: would a theoretically stronger method — **Sobol's low-discrepancy sequence** — produce a meaningfully different virtual patient cohort? This section works through the comparison quantitatively.
+
+## What makes Sobol different
+
+LHS is a *stratified* design: it divides each marginal distribution into $n$ equal strata and samples exactly once from each stratum. This guarantees excellent one-dimensional coverage of every parameter, but the strata are permuted independently across dimensions, leaving the joint coverage to chance. Two parameters that both sample from their first stratum will never be paired unless the permutation happens to align them.
+
+Sobol sequences belong to the class of **quasi-Monte Carlo (QMC)** methods. They are deterministic sequences constructed to minimise *discrepancy* — a measure of how far a finite set of points deviates from perfect uniform coverage of the $[0,1]^p$ hypercube [@niederreiter1992]. Unlike LHS, the Sobol construction enforces regularity in the joint space, not just the marginals. The theoretical convergence rate for integration using Sobol points is $O\!\left((\log n)^p / n\right)$, compared to the Monte Carlo rate of $O(1/\sqrt{n})$.
+
+The practical implication: for the same $n$, Sobol points are more uniformly spread through the full parameter space, which means fewer virtual patients are needed to cover biologically extreme parameter combinations.
+
+## Mean minimum spacing: a joint coverage metric
+
+A concrete way to see the difference is the **mean minimum pairwise distance**: for each point, find its nearest neighbour; average those distances across all points. A higher value means the points are more spread out — better joint coverage. We compute this for $p = 2$ (tractable to visualise) across a range of $n$, averaging over 30 random replicates for LHS and SRS (Sobol is deterministic).
+
+```{r sobol-spacing, fig.cap="Mean minimum pairwise distance as a function of n (p = 2 dimensions), averaged over 30 replicates for LHS and SRS. Sobol (green, deterministic — no replication variance) consistently achieves higher minimum spacing than both competitors, confirming tighter joint coverage. LHS beats SRS but falls short of Sobol. At n = 400, all three have converged enough that differences are small; at n = 20–50, the gap between Sobol and LHS is meaningful."}
+mean_min_dist <- function(mat) {
+  d <- as.matrix(dist(mat))
+  diag(d) <- Inf
+  mean(apply(d, 1, min))
+}
+
+n_vals <- c(10, 20, 50, 100, 200, 400)
+n_rep  <- 30
+
+dist_results <- lapply(n_vals, function(n) {
+  lhs_vals  <- replicate(n_rep, mean_min_dist(lhs_sample(n, 2)))
+  srs_vals  <- replicate(n_rep, mean_min_dist(matrix(runif(n * 2), n, 2)))
+  sobol_val <- mean_min_dist(sobol(n, dim = 2, scrambling = 1, seed = 99))
+  bind_rows(
+    tibble(n = n, method = "LHS",    mmd = lhs_vals),
+    tibble(n = n, method = "SRS",    mmd = srs_vals),
+    tibble(n = n, method = "Sobol",  mmd = sobol_val)
+  )
+})
+
+df_dist <- bind_rows(dist_results)
+
+df_dist_sum <- df_dist |>
+  group_by(n, method) |>
+  summarise(mean = mean(mmd), lo = quantile(mmd, 0.1),
+            hi = quantile(mmd, 0.9), .groups = "drop") |>
+  mutate(method = factor(method, levels = c("SRS", "LHS", "Sobol")))
+
+ggplot(df_dist_sum, aes(x = n, colour = method, fill = method)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, colour = NA) +
+  geom_line(aes(y = mean), linewidth = 0.9) +
+  geom_point(aes(y = mean), size = 2) +
+  scale_colour_manual(values = c("SRS"   = "#3B6EA8",
+                                  "LHS"   = "#E87722",
+                                  "Sobol" = "#1A9641")) +
+  scale_fill_manual(values   = c("SRS"   = "#3B6EA8",
+                                  "LHS"   = "#E87722",
+                                  "Sobol" = "#1A9641")) +
+  labs(x = "Number of points (n)",
+       y = "Mean minimum pairwise distance",
+       colour = NULL, fill = NULL) +
+  theme(legend.position = "top")
+```
+
+Sobol's advantage is clear at small $n$. At $n = 400$ it remains the best, but the gap has narrowed — which anticipates what we will find when we run the full ODE comparison.
+
+## A theoretical caveat: the curse of dimensionality
+
+Sobol's convergence guarantee, $O\!\left((\log n)^p / n\right)$, is only better than Monte Carlo when $n \gg 2^p$. For our problem with $p = 8$ parameters, this threshold is $2^8 = 256$. At $n = 400$ we are barely past it, which means we are operating close to the regime where Sobol's joint coverage advantage is marginal rather than decisive. The lesson: **Sobol has a clear practical edge at small $n$ or low $p$; at $n = 400$, $p = 8$, the advantage is real but small**.
+
+## Generating a Sobol VPC
+
+We now generate a second virtual patient cohort using scrambled Sobol points instead of LHS, applying the exact same log-normal parameter transforms and running the same ODE.
+
+```{r sobol-vpc, cache=TRUE}
+# Scrambled Sobol uniform draws
+sobol_U   <- sobol(n_vp, dim = length(par_names), scrambling = 1, seed = 2024)
+sobol_par_mat <- mapply(lhs_lognormal,
+                         u      = as.data.frame(sobol_U),
+                         median = medians,
+                         gsd    = gsds)
+colnames(sobol_par_mat) <- par_names
+
+# Run ODE for each Sobol patient
+sobol_list <- lapply(seq_len(n_vp), function(i) {
+  parms_i <- c(sobol_par_mat[i, ], fixed_parms)
+  tryCatch({
+    out <- as.data.frame(ode(y = state0, times = times_wh,
+                              func = withinhost_vax, parms = parms_i,
+                              events = list(data = dose2),
+                              method = "lsoda"))
+    out$patient <- i
+    out
+  }, error = function(e) NULL)
+})
+
+sobol_df <- bind_rows(Filter(Negate(is.null), sobol_list))
+
+sobol_peak <- sobol_df |>
+  filter(time == 35) |>
+  select(patient, Ab_peak = Ab)
+
+# Apply the same calibration scale_factor derived from the LHS VPC
+sobol_peak_cal <- sobol_peak |>
+  mutate(Ab_cal = exp(log(Ab_peak) + scale_factor))
+```
+
+## Comparing the two VPCs
+
+```{r sobol-compare, fig.cap="Peak antibody titre distributions from LHS (blue) and Sobol (green) virtual patient cohorts (n = 400 each, both calibrated to the same target GMT). The two histograms are nearly indistinguishable. Summary statistics confirm this: the geometric mean titres differ by less than 1% and the geometric standard deviations are essentially identical."}
+# Summary statistics for both
+summarise_vpc <- function(x_cal, label) {
+  tibble(
+    Method = label,
+    GMT    = exp(mean(log(x_cal))),
+    GSD    = exp(sd(log(x_cal))),
+    P10    = exp(quantile(log(x_cal), 0.10)),
+    P90    = exp(quantile(log(x_cal), 0.90))
+  )
+}
+
+tbl_compare <- bind_rows(
+  summarise_vpc(vpc_peak_cal$Ab_cal,   "LHS"),
+  summarise_vpc(sobol_peak_cal$Ab_cal, "Sobol")
+)
+
+knitr::kable(tbl_compare,
+             digits = c(0, 1, 2, 1, 1),
+             caption = "Summary statistics for the calibrated LHS and Sobol VPCs.")
+
+df_both <- bind_rows(
+  vpc_peak_cal   |> mutate(Sampler = "LHS"),
+  sobol_peak_cal |> mutate(Sampler = "Sobol (scrambled)")
+)
+
+ggplot(df_both, aes(x = Ab_cal, fill = Sampler, colour = Sampler)) +
+  geom_density(alpha = 0.30, linewidth = 0.8) +
+  scale_x_log10(breaks = c(5, 20, 50, 150, 500, 2000),
+                labels  = c("5", "20", "50", "150", "500", "2000")) +
+  scale_fill_manual(values   = c("LHS" = "#3B6EA8",
+                                  "Sobol (scrambled)" = "#1A9641")) +
+  scale_colour_manual(values = c("LHS" = "#3B6EA8",
+                                  "Sobol (scrambled)" = "#1A9641")) +
+  labs(x = "Peak antibody titre at day 35 (AU/mL, log scale)",
+       y = "Density",
+       fill = NULL, colour = NULL) +
+  theme(legend.position = "top")
+```
+
+```{r sobol-qq, fig.cap="Quantile–quantile plot of LHS vs Sobol peak titres (log scale). Points fall almost exactly on the 45° line across the full range of the distribution, including the tails. The two samplers produce virtually identical virtual patient populations at n = 400, p = 8."}
+# Kolmogorov-Smirnov test
+ks_res <- ks.test(log(vpc_peak_cal$Ab_cal), log(sobol_peak_cal$Ab_cal))
+
+# QQ plot
+lhs_q   <- quantile(log(vpc_peak_cal$Ab_cal),   probs = seq(0.01, 0.99, by = 0.01))
+sobol_q <- quantile(log(sobol_peak_cal$Ab_cal), probs = seq(0.01, 0.99, by = 0.01))
+
+df_qq <- tibble(lhs_q = exp(lhs_q), sobol_q = exp(sobol_q))
+
+ggplot(df_qq, aes(x = lhs_q, y = sobol_q)) +
+  geom_abline(slope = 1, intercept = 0, colour = "grey50", linewidth = 0.8) +
+  geom_point(colour = "#1A9641", size = 2, alpha = 0.8) +
+  scale_x_log10() + scale_y_log10() +
+  labs(x = "LHS quantiles (AU/mL)",
+       y = "Sobol quantiles (AU/mL)") +
+  annotate("text", x = Inf, y = -Inf, hjust = 1.1, vjust = -0.5,
+           label = sprintf("KS test: D = %.3f,  p = %.2f",
+                           ks_res$statistic, ks_res$p.value),
+           size = 3.5, colour = "grey30")
+```
+
+The KS test fails to reject the null hypothesis that the two distributions are the same (p = `r round(ks_res$p.value, 2)`), confirming statistically what the QQ plot shows visually.
+
+## The verdict
+
+At $n = 400$ and $p = 8$, **LHS and scrambled Sobol produce essentially identical virtual patient cohorts**. The intuition is correct.
+
+The differences you *would* see are:
+
+| Scenario | LHS | Sobol |
+|---|---|---|
+| $n = 30$, $p = 5$ | Gaps in joint space likely | Notably better coverage |
+| $n = 400$, $p = 8$ | Adequate — as shown above | Marginally better, undetectable |
+| $n = 400$, $p = 20$ | Marginal coverage fine; joint gaps possible | Still limited by curse of dimensionality |
+| Integration of a sharp function | O(1/√n) convergence | Faster but irregular in high $p$ |
+
+For regulatory submissions, LHS remains the field standard and the safer choice for documentation. Sobol (or scrambled Sobol, which also admits variance estimation) is worth switching to when $n < 100$ or when the sensitivity analysis shows the output depends strongly on joint parameter combinations that LHS may miss.
 
 ---
 
