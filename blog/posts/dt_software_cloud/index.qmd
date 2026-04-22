@@ -1,0 +1,308 @@
+---
+title: "Deploying a Digital Twin to the Cloud"
+subtitle: "From a Docker container on your laptop to a production service on AWS — EC2, RDS, load balancers, and the minimal viable deployment. Post 7 in the Building Digital Twin Systems series."
+author: "Jong-Hoon Kim"
+date: "2026-04-23"
+categories: [digital twin, software engineering, AWS, cloud, deployment, DevOps]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Why cloud deployment matters
+
+The Docker container from [Post 3](https://www.jonghoonk.com/blog/posts/dt_software_docker/) runs on your laptop. The TimescaleDB instance from [Post 6](https://www.jonghoonk.com/blog/posts/dt_software_database/) persists data locally. Neither is accessible to a partner organisation in another country, survives a laptop reboot, or scales when ten users hit the API simultaneously.
+
+Cloud computing [@armbrust2010] moves these services onto managed infrastructure: virtual machines, managed databases, load balancers, and container orchestration, all provisioned on demand. For a digital twin product, the cloud provides:
+
+- **Availability** — services run 24/7 without a laptop staying on
+- **Accessibility** — any authorised client can reach the API over HTTPS
+- **Scalability** — add more compute when a surge of requests arrives
+- **Managed infrastructure** — database backups, security patches, and SSL certificates are handled by the provider
+
+This post covers the minimal viable AWS deployment for the digital twin stack built in Posts 1–6. The concepts transfer to Google Cloud Platform and Azure with minor differences in service names.
+
+## The target architecture
+
+```
+Internet
+    │
+    ▼
+Application Load Balancer (HTTPS, port 443)
+    │
+    ├──► EC2 Instance: FastAPI container (port 8000)
+    │                  EnKF runner (cron job)
+    │
+    └──► RDS: PostgreSQL / TimescaleDB (port 5432, private)
+```
+
+All components run in a **Virtual Private Cloud (VPC)** — an isolated network. The database is in a private subnet with no direct internet access; only the EC2 instance can reach it.
+
+## AWS services used
+
+| Service | Purpose | Monthly cost (estimate) |
+|---------|---------|------------------------|
+| **EC2** `t3.small` | Runs containers + EnKF job | ~$15 |
+| **RDS** `db.t3.micro` PostgreSQL | Managed TimescaleDB | ~$15 |
+| **ALB** | HTTPS termination, routing | ~$20 |
+| **ECR** | Container image registry | ~$1 |
+| **Route 53** | DNS for your domain | ~$1 |
+| **ACM** | Free SSL certificate | $0 |
+
+Total: approximately $50/month for a small production deployment. For development and testing, a single EC2 instance running Docker Compose (no ALB, no RDS) costs under $10/month.
+
+## Step 1 — Push your image to ECR
+
+Amazon Elastic Container Registry (ECR) is a private Docker registry. AWS services pull images from ECR without needing Docker Hub credentials.
+
+```bash
+# Create a repository (one-time)
+aws ecr create-repository --repository-name dt-api --region us-east-1
+
+# Authenticate Docker to ECR
+aws ecr get-login-password --region us-east-1 \
+  | docker login --username AWS \
+    --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
+
+# Tag and push the image from Post 3
+docker tag sir-api:0.1.0 \
+  123456789.dkr.ecr.us-east-1.amazonaws.com/dt-api:0.1.0
+
+docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/dt-api:0.1.0
+```
+
+## Step 2 — Provision the database (RDS)
+
+TimescaleDB is not a native RDS engine. The options are:
+
+1. **RDS for PostgreSQL + self-install TimescaleDB extension** — install the extension via `CREATE EXTENSION timescaledb` after connecting. Available in RDS PostgreSQL 14+.
+2. **EC2 with Docker** — run the `timescale/timescaledb` container directly on EC2 with an EBS volume for persistence.
+3. **Timescale Cloud** — fully managed TimescaleDB-as-a-service, ~$30/month for a small instance.
+
+For a minimal viable deployment, option 2 is simplest:
+
+```bash
+# On EC2: pull and run TimescaleDB with persistent storage
+docker volume create pgdata
+
+docker run -d \
+  --name timescaledb \
+  -e POSTGRES_USER=dtuser \
+  -e POSTGRES_PASSWORD=$DB_PASSWORD \
+  -e POSTGRES_DB=dtdb \
+  -p 5432:5432 \
+  -v pgdata:/var/lib/postgresql/data \
+  --restart unless-stopped \
+  timescale/timescaledb:latest-pg16
+```
+
+## Step 3 — Launch EC2 and configure the environment
+
+```bash
+# Launch a t3.small Amazon Linux 2 instance (via AWS Console or CLI)
+aws ec2 run-instances \
+  --image-id ami-0abcdef1234567890 \
+  --instance-type t3.small \
+  --key-name my-keypair \
+  --security-group-ids sg-0123456789abcdef0 \
+  --subnet-id subnet-0123456789abcdef0 \
+  --iam-instance-profile Name=EC2-ECR-ReadOnly
+
+# SSH in and install Docker
+ssh -i my-keypair.pem ec2-user@<public-ip>
+sudo yum update -y
+sudo yum install docker -y
+sudo service docker start
+sudo usermod -aG docker ec2-user
+```
+
+On the instance, store secrets in `/etc/environment` or use **AWS Secrets Manager**:
+
+```bash
+# Store the DB password in Secrets Manager (run once from local machine)
+aws secretsmanager create-secret \
+  --name dt/db-password \
+  --secret-string '{"password":"your-db-password"}'
+
+# Retrieve at runtime (in the startup script)
+DB_PASSWORD=$(aws secretsmanager get-secret-value \
+  --secret-id dt/db-password \
+  --query SecretString --output text | python3 -c \
+  "import sys,json; print(json.load(sys.stdin)['password'])")
+```
+
+## Step 4 — Run the API container
+
+```bash
+# Pull the image from ECR and start the API
+aws ecr get-login-password --region us-east-1 \
+  | docker login --username AWS --password-stdin \
+    123456789.dkr.ecr.us-east-1.amazonaws.com
+
+docker run -d \
+  --name dt-api \
+  -p 8000:8000 \
+  -e DATABASE_URL="postgresql://dtuser:${DB_PASSWORD}@localhost:5432/dtdb" \
+  --restart unless-stopped \
+  123456789.dkr.ecr.us-east-1.amazonaws.com/dt-api:0.1.0
+```
+
+## Step 5 — Schedule the EnKF job
+
+The EnKF runner (Post 4) should execute nightly when new surveillance data arrives. On Linux, cron is the simplest scheduler:
+
+```bash
+# Edit the crontab on EC2
+crontab -e
+
+# Run the EnKF update every night at 2 AM
+0 2 * * * /home/ec2-user/run_enkf.sh >> /var/log/enkf.log 2>&1
+```
+
+`run_enkf.sh`:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Fetch latest case counts from data source
+python3 /app/fetch_observations.py
+
+# Run EnKF in an R container
+docker run --rm \
+  -e DATABASE_URL="postgresql://dtuser:${DB_PASSWORD}@localhost:5432/dtdb" \
+  123456789.dkr.ecr.us-east-1.amazonaws.com/dt-enkf:latest \
+  Rscript /app/run_enkf.R
+
+echo "$(date): EnKF update complete"
+```
+
+For more complex scheduling (retries, notifications, dependencies), **AWS EventBridge** + **Lambda** or **AWS Batch** are better options.
+
+## Step 6 — HTTPS with an Application Load Balancer
+
+The EC2 instance runs HTTP on port 8000. For a production service you need:
+
+1. A domain name (Route 53 or any registrar)
+2. An SSL certificate (AWS Certificate Manager — free for public certificates)
+3. An Application Load Balancer (ALB) to terminate HTTPS and forward to port 8000
+
+```bash
+# Request a certificate (AWS ACM, us-east-1 for ALB)
+aws acm request-certificate \
+  --domain-name api.your-domain.com \
+  --validation-method DNS
+
+# Create a target group pointing to the EC2 instance
+aws elbv2 create-target-group \
+  --name dt-api-tg \
+  --protocol HTTP \
+  --port 8000 \
+  --vpc-id vpc-0123456789abcdef0 \
+  --health-check-path /health
+```
+
+Once the ALB is configured, your API is reachable at `https://api.your-domain.com/simulate`.
+
+## Infrastructure as code with Terraform
+
+Clicking through the AWS Console to create resources does not scale and is hard to reproduce. **Terraform** (or AWS CloudFormation) defines your infrastructure as code — version-controlled, reviewable, reproducible.
+
+A minimal Terraform snippet for the EC2 instance:
+
+```hcl
+# main.tf
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "dt_server" {
+  ami           = "ami-0abcdef1234567890"
+  instance_type = "t3.small"
+  key_name      = var.key_name
+  subnet_id     = var.subnet_id
+
+  tags = {
+    Name    = "dt-server"
+    Project = "digital-twin"
+  }
+
+  user_data = file("startup.sh")
+}
+
+output "public_ip" {
+  value = aws_instance.dt_server.public_ip
+}
+```
+
+```bash
+terraform init
+terraform plan    # preview changes
+terraform apply   # create resources
+terraform destroy # tear down (saves cost)
+```
+
+The `terraform plan` step shows exactly what will be created or changed before anything touches AWS. This is the cloud equivalent of a dry run.
+
+## Deployment checklist
+
+Before going live, verify:
+
+```{r}
+#| label: checklist
+#| echo: false
+
+checks <- data.frame(
+  Category = c(
+    "Security", "Security", "Security", "Security",
+    "Reliability", "Reliability", "Reliability",
+    "Operations", "Operations", "Operations"
+  ),
+  Item = c(
+    "Database in private subnet (no public IP)",
+    "Secrets in Secrets Manager, not in code",
+    "HTTPS enforced (HTTP redirected)",
+    "IAM role with least privilege on EC2",
+    "Health check endpoint returns 200",
+    "Database backups enabled (daily snapshot)",
+    "Auto-restart on container failure (--restart unless-stopped)",
+    "Logs shipped to CloudWatch",
+    "Alerting on EnKF job failure",
+    "Cost budget alert set in AWS Billing"
+  )
+)
+
+knitr::kable(checks, col.names = c("Category", "Item"))
+```
+
+## Putting it all together
+
+After Posts 1–7, the digital twin stack looks like this:
+
+```
+Local development                  Production (AWS)
+─────────────────────────          ──────────────────────────────────
+Post 1: SIR model (R/Python)  ──►  Container image in ECR
+Post 2: FastAPI REST API       ──►  EC2 + Docker (port 8000)
+Post 3: Docker container       ──►  Same image, same behaviour
+Post 4: EnKF runner            ──►  Nightly cron on EC2
+Post 5: GP surrogate           ──►  Embedded in EnKF container
+Post 6: TimescaleDB schema     ──►  TimescaleDB on EC2 (EBS volume)
+Post 7: Cloud deployment       ──►  ALB + HTTPS + Route 53 + ACM
+```
+
+The next and final post in the series ([Post 8](https://www.jonghoonk.com/blog/posts/dt_software_dashboard/)) adds the user-facing layer: a Streamlit dashboard that queries the TimescaleDB and displays real-time model state, forecasts, and scenario comparisons.
+
+## References
+
+::: {#refs}
+:::

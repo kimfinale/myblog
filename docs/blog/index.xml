@@ -5325,6 +5325,680 @@ matplotlib 3.10.8</code></pre>
   <pubDate>Thu, 23 Apr 2026 15:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>Deploying a Digital Twin to the Cloud</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/dt_software_cloud/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="why-cloud-deployment-matters" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="why-cloud-deployment-matters"><span class="header-section-number">1</span> Why cloud deployment matters</h2>
+<p>The Docker container from <a href="https://www.jonghoonk.com/blog/posts/dt_software_docker/">Post 3</a> runs on your laptop. The TimescaleDB instance from <a href="https://www.jonghoonk.com/blog/posts/dt_software_database/">Post 6</a> persists data locally. Neither is accessible to a partner organisation in another country, survives a laptop reboot, or scales when ten users hit the API simultaneously.</p>
+<p>Cloud computing <span class="citation" data-cites="armbrust2010">(1)</span> moves these services onto managed infrastructure: virtual machines, managed databases, load balancers, and container orchestration, all provisioned on demand. For a digital twin product, the cloud provides:</p>
+<ul>
+<li><strong>Availability</strong> — services run 24/7 without a laptop staying on</li>
+<li><strong>Accessibility</strong> — any authorised client can reach the API over HTTPS</li>
+<li><strong>Scalability</strong> — add more compute when a surge of requests arrives</li>
+<li><strong>Managed infrastructure</strong> — database backups, security patches, and SSL certificates are handled by the provider</li>
+</ul>
+<p>This post covers the minimal viable AWS deployment for the digital twin stack built in Posts 1–6. The concepts transfer to Google Cloud Platform and Azure with minor differences in service names.</p>
+</section>
+<section id="the-target-architecture" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="the-target-architecture"><span class="header-section-number">2</span> The target architecture</h2>
+<pre><code>Internet
+    │
+    ▼
+Application Load Balancer (HTTPS, port 443)
+    │
+    ├──► EC2 Instance: FastAPI container (port 8000)
+    │                  EnKF runner (cron job)
+    │
+    └──► RDS: PostgreSQL / TimescaleDB (port 5432, private)</code></pre>
+<p>All components run in a <strong>Virtual Private Cloud (VPC)</strong> — an isolated network. The database is in a private subnet with no direct internet access; only the EC2 instance can reach it.</p>
+</section>
+<section id="aws-services-used" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="aws-services-used"><span class="header-section-number">3</span> AWS services used</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Service</th>
+<th>Purpose</th>
+<th>Monthly cost (estimate)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>EC2</strong> <code>t3.small</code></td>
+<td>Runs containers + EnKF job</td>
+<td>~$15</td>
+</tr>
+<tr class="even">
+<td><strong>RDS</strong> <code>db.t3.micro</code> PostgreSQL</td>
+<td>Managed TimescaleDB</td>
+<td>~$15</td>
+</tr>
+<tr class="odd">
+<td><strong>ALB</strong></td>
+<td>HTTPS termination, routing</td>
+<td>~$20</td>
+</tr>
+<tr class="even">
+<td><strong>ECR</strong></td>
+<td>Container image registry</td>
+<td>~$1</td>
+</tr>
+<tr class="odd">
+<td><strong>Route 53</strong></td>
+<td>DNS for your domain</td>
+<td>~$1</td>
+</tr>
+<tr class="even">
+<td><strong>ACM</strong></td>
+<td>Free SSL certificate</td>
+<td>$0</td>
+</tr>
+</tbody>
+</table>
+<p>Total: approximately $50/month for a small production deployment. For development and testing, a single EC2 instance running Docker Compose (no ALB, no RDS) costs under $10/month.</p>
+</section>
+<section id="step-1-push-your-image-to-ecr" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="step-1-push-your-image-to-ecr"><span class="header-section-number">4</span> Step 1 — Push your image to ECR</h2>
+<p>Amazon Elastic Container Registry (ECR) is a private Docker registry. AWS services pull images from ECR without needing Docker Hub credentials.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Create a repository (one-time)</span></span>
+<span id="cb2-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">aws</span> ecr create-repository <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--repository-name</span> dt-api <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--region</span> us-east-1</span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Authenticate Docker to ECR</span></span>
+<span id="cb2-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">aws</span> ecr get-login-password <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--region</span> us-east-1 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-6">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> login <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--username</span> AWS <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--password-stdin</span> 123456789.dkr.ecr.us-east-1.amazonaws.com</span>
+<span id="cb2-8"></span>
+<span id="cb2-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Tag and push the image from Post 3</span></span>
+<span id="cb2-10"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> tag sir-api:0.1.0 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-11">  123456789.dkr.ecr.us-east-1.amazonaws.com/dt-api:0.1.0</span>
+<span id="cb2-12"></span>
+<span id="cb2-13"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> push 123456789.dkr.ecr.us-east-1.amazonaws.com/dt-api:0.1.0</span></code></pre></div></div>
+</section>
+<section id="step-2-provision-the-database-rds" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="step-2-provision-the-database-rds"><span class="header-section-number">5</span> Step 2 — Provision the database (RDS)</h2>
+<p>TimescaleDB is not a native RDS engine. The options are:</p>
+<ol type="1">
+<li><strong>RDS for PostgreSQL + self-install TimescaleDB extension</strong> — install the extension via <code>CREATE EXTENSION timescaledb</code> after connecting. Available in RDS PostgreSQL 14+.</li>
+<li><strong>EC2 with Docker</strong> — run the <code>timescale/timescaledb</code> container directly on EC2 with an EBS volume for persistence.</li>
+<li><strong>Timescale Cloud</strong> — fully managed TimescaleDB-as-a-service, ~$30/month for a small instance.</li>
+</ol>
+<p>For a minimal viable deployment, option 2 is simplest:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># On EC2: pull and run TimescaleDB with persistent storage</span></span>
+<span id="cb3-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> volume create pgdata</span>
+<span id="cb3-3"></span>
+<span id="cb3-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> run <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb3-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--name</span> timescaledb <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb3-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span> POSTGRES_USER=dtuser <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb3-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span> POSTGRES_PASSWORD=<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$DB_PASSWORD</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb3-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span> POSTGRES_DB=dtdb <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb3-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-p</span> 5432:5432 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb3-10">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-v</span> pgdata:/var/lib/postgresql/data <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb3-11">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--restart</span> unless-stopped <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb3-12">  timescale/timescaledb:latest-pg16</span></code></pre></div></div>
+</section>
+<section id="step-3-launch-ec2-and-configure-the-environment" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="step-3-launch-ec2-and-configure-the-environment"><span class="header-section-number">6</span> Step 3 — Launch EC2 and configure the environment</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Launch a t3.small Amazon Linux 2 instance (via AWS Console or CLI)</span></span>
+<span id="cb4-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">aws</span> ec2 run-instances <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb4-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--image-id</span> ami-0abcdef1234567890 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb4-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--instance-type</span> t3.small <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb4-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--key-name</span> my-keypair <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb4-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--security-group-ids</span> sg-0123456789abcdef0 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb4-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--subnet-id</span> subnet-0123456789abcdef0 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb4-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--iam-instance-profile</span> Name=EC2-ECR-ReadOnly</span>
+<span id="cb4-9"></span>
+<span id="cb4-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># SSH in and install Docker</span></span>
+<span id="cb4-11"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ssh</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-i</span> my-keypair.pem ec2-user@<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>public-ip<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span></span>
+<span id="cb4-12"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> yum update <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-y</span></span>
+<span id="cb4-13"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> yum install docker <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-y</span></span>
+<span id="cb4-14"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> service docker start</span>
+<span id="cb4-15"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sudo</span> usermod <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-aG</span> docker ec2-user</span></code></pre></div></div>
+<p>On the instance, store secrets in <code>/etc/environment</code> or use <strong>AWS Secrets Manager</strong>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Store the DB password in Secrets Manager (run once from local machine)</span></span>
+<span id="cb5-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">aws</span> secretsmanager create-secret <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb5-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--name</span> dt/db-password <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb5-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--secret-string</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'{"password":"your-db-password"}'</span></span>
+<span id="cb5-5"></span>
+<span id="cb5-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Retrieve at runtime (in the startup script)</span></span>
+<span id="cb5-7"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">DB_PASSWORD</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">aws</span> secretsmanager get-secret-value <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb5-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--secret-id</span> dt/db-password <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb5-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--query</span> SecretString <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--output</span> text <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python3</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb5-10">  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"import sys,json; print(json.load(sys.stdin)['password'])"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div></div>
+</section>
+<section id="step-4-run-the-api-container" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="step-4-run-the-api-container"><span class="header-section-number">7</span> Step 4 — Run the API container</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Pull the image from ECR and start the API</span></span>
+<span id="cb6-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">aws</span> ecr get-login-password <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--region</span> us-east-1 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-3">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span> <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> login <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--username</span> AWS <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--password-stdin</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-4">    123456789.dkr.ecr.us-east-1.amazonaws.com</span>
+<span id="cb6-5"></span>
+<span id="cb6-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> run <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-d</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--name</span> dt-api <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-p</span> 8000:8000 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span> DATABASE_URL=<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"postgresql://dtuser:</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${DB_PASSWORD}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">@localhost:5432/dtdb"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-10">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--restart</span> unless-stopped <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb6-11">  123456789.dkr.ecr.us-east-1.amazonaws.com/dt-api:0.1.0</span></code></pre></div></div>
+</section>
+<section id="step-5-schedule-the-enkf-job" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="step-5-schedule-the-enkf-job"><span class="header-section-number">8</span> Step 5 — Schedule the EnKF job</h2>
+<p>The EnKF runner (Post 4) should execute nightly when new surveillance data arrives. On Linux, cron is the simplest scheduler:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Edit the crontab on EC2</span></span>
+<span id="cb7-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">crontab</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span></span>
+<span id="cb7-3"></span>
+<span id="cb7-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Run the EnKF update every night at 2 AM</span></span>
+<span id="cb7-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">0</span> 2 <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">*</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">*</span> <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">*</span> /home/ec2-user/run_enkf.sh <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&gt;</span> /var/log/enkf.log <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;&amp;</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span></code></pre></div></div>
+<p><code>run_enkf.sh</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#!/bin/bash</span></span>
+<span id="cb8-2"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">set</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-euo</span> pipefail</span>
+<span id="cb8-3"></span>
+<span id="cb8-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Fetch latest case counts from data source</span></span>
+<span id="cb8-5"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python3</span> /app/fetch_observations.py</span>
+<span id="cb8-6"></span>
+<span id="cb8-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Run EnKF in an R container</span></span>
+<span id="cb8-8"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">docker</span> run <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--rm</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb8-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span> DATABASE_URL=<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"postgresql://dtuser:</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">${DB_PASSWORD}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">@localhost:5432/dtdb"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb8-10">  123456789.dkr.ecr.us-east-1.amazonaws.com/dt-enkf:latest <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb8-11">  Rscript /app/run_enkf.R</span>
+<span id="cb8-12"></span>
+<span id="cb8-13"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">echo</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">date</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">: EnKF update complete"</span></span></code></pre></div></div>
+<p>For more complex scheduling (retries, notifications, dependencies), <strong>AWS EventBridge</strong> + <strong>Lambda</strong> or <strong>AWS Batch</strong> are better options.</p>
+</section>
+<section id="step-6-https-with-an-application-load-balancer" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="step-6-https-with-an-application-load-balancer"><span class="header-section-number">9</span> Step 6 — HTTPS with an Application Load Balancer</h2>
+<p>The EC2 instance runs HTTP on port 8000. For a production service you need:</p>
+<ol type="1">
+<li>A domain name (Route 53 or any registrar)</li>
+<li>An SSL certificate (AWS Certificate Manager — free for public certificates)</li>
+<li>An Application Load Balancer (ALB) to terminate HTTPS and forward to port 8000</li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Request a certificate (AWS ACM, us-east-1 for ALB)</span></span>
+<span id="cb9-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">aws</span> acm request-certificate <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--domain-name</span> api.your-domain.com <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--validation-method</span> DNS</span>
+<span id="cb9-5"></span>
+<span id="cb9-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Create a target group pointing to the EC2 instance</span></span>
+<span id="cb9-7"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">aws</span> elbv2 create-target-group <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--name</span> dt-api-tg <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--protocol</span> HTTP <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-10">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--port</span> 8000 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-11">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--vpc-id</span> vpc-0123456789abcdef0 <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb9-12">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--health-check-path</span> /health</span></code></pre></div></div>
+<p>Once the ALB is configured, your API is reachable at <code>https://api.your-domain.com/simulate</code>.</p>
+</section>
+<section id="infrastructure-as-code-with-terraform" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="infrastructure-as-code-with-terraform"><span class="header-section-number">10</span> Infrastructure as code with Terraform</h2>
+<p>Clicking through the AWS Console to create resources does not scale and is hard to reproduce. <strong>Terraform</strong> (or AWS CloudFormation) defines your infrastructure as code — version-controlled, reviewable, reproducible.</p>
+<p>A minimal Terraform snippet for the EC2 instance:</p>
+<pre class="hcl"><code># main.tf
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "dt_server" {
+  ami           = "ami-0abcdef1234567890"
+  instance_type = "t3.small"
+  key_name      = var.key_name
+  subnet_id     = var.subnet_id
+
+  tags = {
+    Name    = "dt-server"
+    Project = "digital-twin"
+  }
+
+  user_data = file("startup.sh")
+}
+
+output "public_ip" {
+  value = aws_instance.dt_server.public_ip
+}</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">terraform</span> init</span>
+<span id="cb11-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">terraform</span> plan    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># preview changes</span></span>
+<span id="cb11-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">terraform</span> apply   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># create resources</span></span>
+<span id="cb11-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">terraform</span> destroy <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># tear down (saves cost)</span></span></code></pre></div></div>
+<p>The <code>terraform plan</code> step shows exactly what will be created or changed before anything touches AWS. This is the cloud equivalent of a dry run.</p>
+</section>
+<section id="deployment-checklist" class="level2" data-number="11">
+<h2 data-number="11" class="anchored" data-anchor-id="deployment-checklist"><span class="header-section-number">11</span> Deployment checklist</h2>
+<p>Before going live, verify:</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 83%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Category</th>
+<th style="text-align: left;">Item</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Security</td>
+<td style="text-align: left;">Database in private subnet (no public IP)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Security</td>
+<td style="text-align: left;">Secrets in Secrets Manager, not in code</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Security</td>
+<td style="text-align: left;">HTTPS enforced (HTTP redirected)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Security</td>
+<td style="text-align: left;">IAM role with least privilege on EC2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Reliability</td>
+<td style="text-align: left;">Health check endpoint returns 200</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Reliability</td>
+<td style="text-align: left;">Database backups enabled (daily snapshot)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Reliability</td>
+<td style="text-align: left;">Auto-restart on container failure (–restart unless-stopped)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Operations</td>
+<td style="text-align: left;">Logs shipped to CloudWatch</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Operations</td>
+<td style="text-align: left;">Alerting on EnKF job failure</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Operations</td>
+<td style="text-align: left;">Cost budget alert set in AWS Billing</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="putting-it-all-together" class="level2" data-number="12">
+<h2 data-number="12" class="anchored" data-anchor-id="putting-it-all-together"><span class="header-section-number">12</span> Putting it all together</h2>
+<p>After Posts 1–7, the digital twin stack looks like this:</p>
+<pre><code>Local development                  Production (AWS)
+─────────────────────────          ──────────────────────────────────
+Post 1: SIR model (R/Python)  ──►  Container image in ECR
+Post 2: FastAPI REST API       ──►  EC2 + Docker (port 8000)
+Post 3: Docker container       ──►  Same image, same behaviour
+Post 4: EnKF runner            ──►  Nightly cron on EC2
+Post 5: GP surrogate           ──►  Embedded in EnKF container
+Post 6: TimescaleDB schema     ──►  TimescaleDB on EC2 (EBS volume)
+Post 7: Cloud deployment       ──►  ALB + HTTPS + Route 53 + ACM</code></pre>
+<p>The next and final post in the series (<a href="https://www.jonghoonk.com/blog/posts/dt_software_dashboard/">Post 8</a>) adds the user-facing layer: a Streamlit dashboard that queries the TimescaleDB and displays real-time model state, forecasts, and scenario comparisons.</p>
+</section>
+<section id="references" class="level2" data-number="13">
+<h2 data-number="13" class="anchored" data-anchor-id="references"><span class="header-section-number">13</span> References</h2>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-armbrust2010" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Armbrust M, Fox A, Griffith R, Joseph AD, Katz R, Konwinski A, et al. A view of cloud computing. Communications of the ACM. 2010;53(4):50–8. doi:<a href="https://doi.org/10.1145/1721654.1721672">10.1145/1721654.1721672</a></div>
+</div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>digital twin</category>
+  <category>software engineering</category>
+  <category>AWS</category>
+  <category>cloud</category>
+  <category>deployment</category>
+  <category>DevOps</category>
+  <guid>https://www.jonghoonk.com/blog/posts/dt_software_cloud/</guid>
+  <pubDate>Wed, 22 Apr 2026 15:00:00 GMT</pubDate>
+</item>
+<item>
   <title>Time-Series Data Storage with TimescaleDB</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/dt_software_database/</link>
@@ -33549,1328 +34223,6 @@ cat(sprintf("d2y/dx2 = %.4f\n", as.numeric(d2y_dx2)))</code></pre>
   <category>backpropagation</category>
   <category>Python</category>
   <guid>https://www.jonghoonk.com/blog/posts/autodiff/</guid>
-  <pubDate>Sun, 19 Apr 2026 15:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Minimax: Planning for the Worst-Case Epidemic</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/game_theory_minimax/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<section id="from-nash-to-minimax" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> From Nash to minimax</h1>
-<p><a href="https://www.jonghoonk.com/blog/posts/game_theory_vacc/">The vaccination game</a> was a game between people. Each individual weighed the cost of vaccination against the risk of infection, and the Nash equilibrium emerged from their simultaneous best responses. That framework explains a lot — why voluntary uptake stalls below the herd-immunity threshold, and how large the gap can be.</p>
-<p>But at IVI, and in public-health agencies more generally, the operative decision-maker is usually not a pair of strategic individuals. It is a planner — a ministry of health, a WHO technical advisory group, a vaccine-allocation committee — who must commit to a policy before the epidemic unfolds, under substantial uncertainty about what the epidemic will do. The uncertainty can be <em>parameter</em> uncertainty (<img src="https://latex.codecogs.com/png.latex?R_0">, vaccine efficacy, waning), <em>structural</em> uncertainty (which compartmental model?), or genuinely <em>adversarial</em> (which strain will emerge? where will adherence collapse?).</p>
-<p>A useful frame for this is the <strong>game against Nature</strong>. The planner chooses an action; Nature then reveals the state of the world; the planner absorbs the resulting cost. If the planner is risk-neutral and holds a credible prior over Nature’s moves, she minimizes expected cost — the <strong>Bayes rule</strong>. If she is unwilling to commit to a prior, or if Nature’s move is genuinely adversarial, she minimizes the <em>worst-case</em> cost — the <strong>minimax rule</strong>. This post is about the minimax rule: where it comes from, how to compute it, when it is the right thing to do, and when it is not.</p>
-</section>
-<section id="von-neumann-zero-sum-games-and-the-minimax-theorem" class="level1" data-number="2">
-<h1 data-number="2"><span class="header-section-number">2</span> Von Neumann, zero-sum games, and the minimax theorem</h1>
-<p>Minimax is the oldest result in modern game theory. Von Neumann proved the minimax theorem in 1928 <span class="citation" data-cites="vonneumann1928">(1)</span>, sixteen years before <em>Theory of Games and Economic Behavior</em> and twenty-two years before Nash. Its original setting was the two-player zero-sum game.</p>
-<p>Let two players choose mixed strategies <img src="https://latex.codecogs.com/png.latex?x%20%5Cin%20%5CDelta_n"> and <img src="https://latex.codecogs.com/png.latex?y%20%5Cin%20%5CDelta_m"> over their respective pure strategies, and let <img src="https://latex.codecogs.com/png.latex?A"> be an <img src="https://latex.codecogs.com/png.latex?n%20%5Ctimes%20m"> payoff matrix (Player 1 receives <img src="https://latex.codecogs.com/png.latex?x%5E%5Ctop%20A%20y">; Player 2 receives <img src="https://latex.codecogs.com/png.latex?-x%5E%5Ctop%20A%20y">). Player 1’s <strong>maximin</strong> value is what she can guarantee against any opponent:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cunderline%7Bv%7D%20%5C;=%5C;%20%5Cmax_x%20%5Cmin_y%5C;%20x%5E%5Ctop%20A%20y.%0A"></p>
-<p>Player 2’s <strong>minimax</strong> value is what she can limit her opponent to:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Coverline%7Bv%7D%20%5C;=%5C;%20%5Cmin_y%20%5Cmax_x%5C;%20x%5E%5Ctop%20A%20y.%0A"></p>
-<p>It is always true that <img src="https://latex.codecogs.com/png.latex?%5Cunderline%7Bv%7D%20%5Cle%20%5Coverline%7Bv%7D">. <strong>Von Neumann’s minimax theorem</strong> asserts that for finite zero-sum games played in mixed strategies, equality holds:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cunderline%7Bv%7D%20%5C;=%5C;%20%5Coverline%7Bv%7D%20%5C;=%5C;%20v,%20%5Ctag%7B1%7D%0A"></p>
-<p>and the common value <img src="https://latex.codecogs.com/png.latex?v"> is the <strong>value of the game</strong>. Pure-strategy equilibria can fail to exist — rock–paper–scissors has none — but mixed-strategy equilibria always do. Existence is proved via the separating-hyperplane theorem (equivalently, LP duality); it was the first equilibrium existence result in game theory and a precursor to Nash’s 1950 theorem for general <img src="https://latex.codecogs.com/png.latex?n">-player games <span class="citation" data-cites="nash1950">(2)</span>.</p>
-<p>The key link back to Part 1: <strong>in two-player zero-sum games, Nash equilibrium, minimax, and maximin all coincide</strong>. Outside this class — including the vaccination game, which is non-zero-sum and has externalities — they generally differ.</p>
-<div class="callout callout-style-default callout-tip callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Tip</span>What you need
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">install.packages</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dplyr"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"tidyr"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"ggplot2"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"patchwork"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"truncnorm"</span>))</span></code></pre></div></div>
-<p>Code tested with: R 4.4, <code>ggplot2 3.5</code>, <code>dplyr 1.1</code>.</p>
-</div>
-</div>
-<hr>
-</section>
-<section id="minimax-as-a-decision-rule" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> Minimax as a decision rule</h1>
-<p>Wald <span class="citation" data-cites="wald1950">(3)</span> generalised minimax from game theory to statistical decision theory. Consider a decision-maker choosing action <img src="https://latex.codecogs.com/png.latex?a"> in a space <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BA%7D">, facing an unknown state of nature <img src="https://latex.codecogs.com/png.latex?%5Ctheta%20%5Cin%20%5CTheta">, with loss <img src="https://latex.codecogs.com/png.latex?L(a,%20%5Ctheta)">. Three canonical rules deserve their names:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Rule</th>
-<th>Formula</th>
-<th>When it is the right thing</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>Bayes</strong></td>
-<td><img src="https://latex.codecogs.com/png.latex?a_B%20%5C;=%5C;%20%5Carg%5Cmin_a%20%5Cint%20L(a,%20%5Ctheta)%5C,%20%5Cpi(%5Ctheta)%5C,%20d%5Ctheta"></td>
-<td>We trust the prior <img src="https://latex.codecogs.com/png.latex?%5Cpi"></td>
-</tr>
-<tr class="even">
-<td><strong>Minimax</strong></td>
-<td><img src="https://latex.codecogs.com/png.latex?a_M%20%5C;=%5C;%20%5Carg%5Cmin_a%20%5Csup_%7B%5Ctheta%20%5Cin%20%5CTheta%7D%20L(a,%20%5Ctheta)"></td>
-<td>We do not trust the prior; Nature is (or might as well be) adversarial</td>
-</tr>
-<tr class="odd">
-<td><strong>Minimax regret</strong></td>
-<td><img src="https://latex.codecogs.com/png.latex?a_R%20%5C;=%5C;%20%5Carg%5Cmin_a%20%5Csup_%5Ctheta%20%5Cbig%5C%7B%20L(a,%20%5Ctheta)%20-%20%5Cmin_%7Ba'%7D%20L(a',%20%5Ctheta)%20%5Cbig%5C%7D"></td>
-<td>We want to minimise <em>opportunity loss</em> rather than absolute loss</td>
-</tr>
-</tbody>
-</table>
-<p>Minimax is often criticised as <strong>pessimistic</strong>: it hedges against states of nature that may be vanishingly improbable. For an infectious-disease planner, this can mean hedging against <img src="https://latex.codecogs.com/png.latex?R_0%20=%2015"> in a setting where credible estimates place <img src="https://latex.codecogs.com/png.latex?R_0"> in <img src="https://latex.codecogs.com/png.latex?%5B2,%204%5D">. The remedy is not to abandon minimax but to <strong>restrict the uncertainty set</strong> <img src="https://latex.codecogs.com/png.latex?%5CTheta"> — a device called <strong><img src="https://latex.codecogs.com/png.latex?%5CGamma">-minimax</strong> when <img src="https://latex.codecogs.com/png.latex?%5CGamma"> is a family of priors rather than a set of parameters <span class="citation" data-cites="berger1985">(4)</span>. We return to this at the end.</p>
-<hr>
-</section>
-<section id="the-minimax-vaccination-problem" class="level1" data-number="4">
-<h1 data-number="4"><span class="header-section-number">4</span> The minimax vaccination problem</h1>
-<p>Let us ground the abstraction in a problem close to our work at IVI: a cholera-prone setting where oral cholera vaccine (OCV) must be allocated before outbreak onset, under uncertainty about transmissibility. We will compute the minimax coverage <img src="https://latex.codecogs.com/png.latex?%5Cpi_%7B%5Ctext%7Bmm%7D%7D"> and compare it against two references — a Bayes-optimal coverage <img src="https://latex.codecogs.com/png.latex?%5Cpi_%7BB%7D"> and the Nash coverage <img src="https://latex.codecogs.com/png.latex?%5Cpi%5E*"> from Part 1.</p>
-<section id="setup" class="level2" data-number="4.1">
-<h2 data-number="4.1" class="anchored" data-anchor-id="setup"><span class="header-section-number">4.1</span> Setup</h2>
-<p>Fix an SIR model with a perfect pre-epidemic vaccine, coverage <img src="https://latex.codecogs.com/png.latex?%5Cpi">, and basic reproduction number <img src="https://latex.codecogs.com/png.latex?R_0">. Among the unvaccinated, the attack fraction <img src="https://latex.codecogs.com/png.latex?w"> satisfies the classical final-size relation</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0Aw%20%5C;=%5C;%201%20-%20%5Cexp%5C!%5Cbig(-R_0%5C,(1%20-%20%5Cpi)%5C,w%5Cbig),%20%5Ctag%7B2%7D%0A"></p>
-<p>with <img src="https://latex.codecogs.com/png.latex?w%20=%200"> whenever <img src="https://latex.codecogs.com/png.latex?R_0(1%20-%20%5Cpi)%20%5Cle%201">. The population-level attack rate is <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BAR%7D(%5Cpi,%20R_0)%20=%20(1-%5Cpi)%5C,%20w">. We take the planner’s per-capita loss as</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0AL(%5Cpi,%20R_0)%20%5C;=%5C;%20c_v%20%5Ccdot%20%5Cpi%20%5C;+%5C;%20c_i%20%5Ccdot%20%5Ctext%7BAR%7D(%5Cpi,%20R_0),%20%5Ctag%7B3%7D%0A"></p>
-<p>where <img src="https://latex.codecogs.com/png.latex?c_v"> is the per-dose vaccination cost and <img src="https://latex.codecogs.com/png.latex?c_i"> is the per-case cost (DALYs, economic loss, …). The only uncertainty is over <img src="https://latex.codecogs.com/png.latex?R_0">, which lies in <img src="https://latex.codecogs.com/png.latex?%5BR_%7B%5Cmin%7D,%20R_%7B%5Cmax%7D%5D">.</p>
-</section>
-<section id="implementation" class="level2" data-number="4.2">
-<h2 data-number="4.2" class="anchored" data-anchor-id="implementation"><span class="header-section-number">4.2</span> Implementation</h2>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(dplyr)</span>
-<span id="cb2-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(tidyr)</span>
-<span id="cb2-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(ggplot2)</span>
-<span id="cb2-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(patchwork)</span>
-<span id="cb2-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(truncnorm)</span>
-<span id="cb2-6"></span>
-<span id="cb2-7"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_set</span>(</span>
-<span id="cb2-8">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb2-9">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme</span>(</span>
-<span id="cb2-10">            <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">panel.grid.minor =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">element_blank</span>(),</span>
-<span id="cb2-11">            <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">plot.title       =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">element_text</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">face =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"bold"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>),</span>
-<span id="cb2-12">            <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">legend.position  =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"bottom"</span></span>
-<span id="cb2-13">        )</span>
-<span id="cb2-14">)</span>
-<span id="cb2-15"></span>
-<span id="cb2-16">C_NASH <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#F44336"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># red</span></span>
-<span id="cb2-17">C_SOCIAL <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#2196F3"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># blue</span></span>
-<span id="cb2-18">C_CRIT <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#4CAF50"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># green</span></span>
-<span id="cb2-19">C_MINIMAX <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#FF9800"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># orange</span></span>
-<span id="cb2-20">C_GAP <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#9C27B0"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># purple</span></span></code></pre></div></div>
-</details>
-</div>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Attack rate from the SIR final-size relation (perfect pre-vaccination)</span></span>
-<span id="cb3-2">attack_rate <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(pi, R0) {</span>
-<span id="cb3-3">    Reff <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> R0 <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> pi)</span>
-<span id="cb3-4">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (Reff <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;=</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) {</span>
-<span id="cb3-5">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>)</span>
-<span id="cb3-6">    }</span>
-<span id="cb3-7">    w <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">uniroot</span>(</span>
-<span id="cb3-8">        \(w) w <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">exp</span>(<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>Reff <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> w)),</span>
-<span id="cb3-9">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1e-8</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1e-8</span>)</span>
-<span id="cb3-10">    )<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>root</span>
-<span id="cb3-11">    (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> pi) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> w</span>
-<span id="cb3-12">}</span>
-<span id="cb3-13"></span>
-<span id="cb3-14"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Planner's per-capita loss</span></span>
-<span id="cb3-15">loss <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(pi, R0, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cv =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.10</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ci =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.0</span>) {</span>
-<span id="cb3-16">    cv <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> pi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> ci <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">attack_rate</span>(pi, R0)</span>
-<span id="cb3-17">}</span>
-<span id="cb3-18"></span>
-<span id="cb3-19"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Worst-case loss over R0 in [R_lo, R_hi]</span></span>
-<span id="cb3-20">worst_case <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(pi, R_lo, R_hi, cv, ci) {</span>
-<span id="cb3-21">    R_grid <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(R_lo, R_hi, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">60</span>)</span>
-<span id="cb3-22">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">max</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(R_grid, \(R0) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">loss</span>(pi, R0, cv, ci)))</span>
-<span id="cb3-23">}</span>
-<span id="cb3-24"></span>
-<span id="cb3-25"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Minimax coverage: minimises the worst-case loss</span></span>
-<span id="cb3-26">minimax_pi <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(R_lo, R_hi, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cv =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.10</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ci =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.0</span>) {</span>
-<span id="cb3-27">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">optimize</span>(\(pi) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">worst_case</span>(pi, R_lo, R_hi, cv, ci),</span>
-<span id="cb3-28">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb3-29">    )<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>minimum</span>
-<span id="cb3-30">}</span>
-<span id="cb3-31"></span>
-<span id="cb3-32"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Bayes coverage: minimises expected loss under a truncated-normal prior</span></span>
-<span id="cb3-33">bayes_pi <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(R0_mean, R0_sd, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R_lo =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R_hi =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">20</span>,</span>
-<span id="cb3-34">                     <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cv =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.10</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ci =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.0</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">n =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">500</span>) {</span>
-<span id="cb3-35">    R0_samples <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rtruncnorm</span>(n,</span>
-<span id="cb3-36">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">a =</span> R_lo, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">b =</span> R_hi,</span>
-<span id="cb3-37">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">mean =</span> R0_mean, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">sd =</span> R0_sd</span>
-<span id="cb3-38">    )</span>
-<span id="cb3-39">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">optimize</span>(</span>
-<span id="cb3-40">        \(pi) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(R0_samples, \(R0) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">loss</span>(pi, R0, cv, ci))),</span>
-<span id="cb3-41">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb3-42">    )<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>minimum</span>
-<span id="cb3-43">}</span>
-<span id="cb3-44"></span>
-<span id="cb3-45"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Nash coverage from Part 1 (linear pi_inf)</span></span>
-<span id="cb3-46">nash_coverage <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(R0, q, r) {</span>
-<span id="cb3-47">    pi_c <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> R0</span>
-<span id="cb3-48">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (r <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;=</span> q) {</span>
-<span id="cb3-49">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>)</span>
-<span id="cb3-50">    }</span>
-<span id="cb3-51">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">uniroot</span>(</span>
-<span id="cb3-52">        \(pi) q <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pmax</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> pi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> pi_c) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> r,</span>
-<span id="cb3-53">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, pi_c)</span>
-<span id="cb3-54">    )<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>root</span>
-<span id="cb3-55">}</span></code></pre></div></div>
-</details>
-</div>
-</section>
-<section id="a-worked-example" class="level2" data-number="4.3">
-<h2 data-number="4.3" class="anchored" data-anchor-id="a-worked-example"><span class="header-section-number">4.3</span> A worked example</h2>
-<p>Take the uncertainty set <img src="https://latex.codecogs.com/png.latex?R_0%20%5Cin%20%5B1.5,%206%5D"> — a range spanning published cholera estimates across endemic and outbreak settings. Set <img src="https://latex.codecogs.com/png.latex?c_v%20=%200.10"> and <img src="https://latex.codecogs.com/png.latex?c_i%20=%201"> (a single dose costs 10% of an averted case), and place a Bayesian prior centred at <img src="https://latex.codecogs.com/png.latex?R_0%20=%202.5"> with standard deviation <img src="https://latex.codecogs.com/png.latex?0.8">.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">R_lo <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.5</span></span>
-<span id="cb4-2">R_hi <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">6</span></span>
-<span id="cb4-3">cv <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.10</span></span>
-<span id="cb4-4">ci <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.0</span></span>
-<span id="cb4-5"></span>
-<span id="cb4-6">pi_mm <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">minimax_pi</span>(R_lo, R_hi, cv, ci)</span>
-<span id="cb4-7">pi_B <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">bayes_pi</span>(</span>
-<span id="cb4-8">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R0_mean =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2.5</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R0_sd =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.8</span>,</span>
-<span id="cb4-9">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R_lo =</span> R_lo, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R_hi =</span> R_hi, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cv =</span> cv, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ci =</span> ci</span>
-<span id="cb4-10">)</span>
-<span id="cb4-11">pi_N <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nash_coverage</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R0 =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2.5</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">q =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">r =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.10</span>)</span>
-<span id="cb4-12"></span>
-<span id="cb4-13"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tibble</span>(</span>
-<span id="cb4-14">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">strategy =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(</span>
-<span id="cb4-15">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Nash equilibrium (pi*, from Part 1)"</span>,</span>
-<span id="cb4-16">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Bayes-optimal (pi_B)"</span>,</span>
-<span id="cb4-17">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Minimax (pi_mm)"</span>,</span>
-<span id="cb4-18">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Herd-immunity threshold at R_max"</span></span>
-<span id="cb4-19">    ),</span>
-<span id="cb4-20">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">value =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(pi_N, pi_B, pi_mm, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> R_hi)</span>
-<span id="cb4-21">) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb4-22">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">value =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"%.3f"</span>, value)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb4-23">    knitr<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kable</span>()</span></code></pre></div></div>
-</details>
-<div class="cell-output-display">
-<table class="caption-top table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th style="text-align: left;">strategy</th>
-<th style="text-align: left;">value</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">Nash equilibrium (pi*, from Part 1)</td>
-<td style="text-align: left;">0.480</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Bayes-optimal (pi_B)</td>
-<td style="text-align: left;">0.742</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Minimax (pi_mm)</td>
-<td style="text-align: left;">0.833</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Herd-immunity threshold at R_max</td>
-<td style="text-align: left;">0.833</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<p>The pattern is what the theory anticipates. Voluntary uptake (Nash) is lowest — individuals free-ride on the herd. The Bayes planner does better, pulling coverage upward to internalise the externality. The minimax planner does <em>more</em>, pushing coverage close to the herd-immunity threshold of the worst-case <img src="https://latex.codecogs.com/png.latex?R_0"> in the uncertainty set.</p>
-</section>
-<section id="an-analytical-short-cut" class="level2" data-number="4.4">
-<h2 data-number="4.4" class="anchored" data-anchor-id="an-analytical-short-cut"><span class="header-section-number">4.4</span> An analytical short-cut</h2>
-<p>Because <img src="https://latex.codecogs.com/png.latex?L(%5Cpi,%20R_0)"> is monotone increasing in <img src="https://latex.codecogs.com/png.latex?R_0"> whenever <img src="https://latex.codecogs.com/png.latex?%5Cpi%20%3C%201%20-%201/R_0">, the inner supremum in the minimax problem is attained at <img src="https://latex.codecogs.com/png.latex?R_0%20=%20R_%7B%5Cmax%7D">:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cpi_%7B%5Ctext%7Bmm%7D%7D%20%5C;=%5C;%20%5Carg%5Cmin_%5Cpi%5C,%20L(%5Cpi,%20R_%7B%5Cmax%7D).%20%5Ctag%7B4%7D%0A"></p>
-<p><strong>The minimax planner acts as if <img src="https://latex.codecogs.com/png.latex?R_0"> were pinned at its upper bound and ignores everything else.</strong> This is simultaneously minimax’s strength — it is robust to misspecification of the prior — and its weakness. It can demand expensive hedging against very unlikely scenarios.</p>
-</section>
-<section id="visualising-the-loss-surface" class="level2" data-number="4.5">
-<h2 data-number="4.5" class="anchored" data-anchor-id="visualising-the-loss-surface"><span class="header-section-number">4.5</span> Visualising the loss surface</h2>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">grid <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">expand_grid</span>(</span>
-<span id="cb5-2">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pi =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.95</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">70</span>),</span>
-<span id="cb5-3">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R0 =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(R_lo, R_hi, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">70</span>)</span>
-<span id="cb5-4">) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb5-5">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rowwise</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb5-6">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">L =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">loss</span>(pi, R0, cv, ci)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb5-7">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ungroup</span>()</span>
-<span id="cb5-8"></span>
-<span id="cb5-9"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(grid, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> pi, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> R0, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">fill =</span> L)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-10">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_raster</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-11">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scale_fill_viridis_c</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">option =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"magma"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">direction =</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">name =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Loss"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-12">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_vline</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xintercept =</span> pi_N, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> C_NASH, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.0</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dotted"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-13">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_vline</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xintercept =</span> pi_B, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> C_SOCIAL, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.0</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-14">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_vline</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">xintercept =</span> pi_mm, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> C_MINIMAX, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-15">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> pi_N, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> R_hi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.15</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Nash"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">hjust =</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> C_NASH, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3.2</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-16">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> pi_B, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> R_hi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.45</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Bayes"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">hjust =</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> C_SOCIAL, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3.2</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-17">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> pi_mm, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> R_hi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.75</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Minimax"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">hjust =</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.1</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> C_MINIMAX, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3.2</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-18">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(</span>
-<span id="cb5-19">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Vaccination coverage  "</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> pi),</span>
-<span id="cb5-20">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">expression</span>(R[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]),</span>
-<span id="cb5-21">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Three policies on one loss surface"</span></span>
-<span id="cb5-22">    )</span></code></pre></div></div>
-</details>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/game_theory_minimax/index_files/figure-html/loss-surface-1.png" class="img-fluid figure-img" width="624"></p>
-<figcaption>Planner’s loss as a function of coverage <img src="https://latex.codecogs.com/png.latex?%5Cpi"> and <img src="https://latex.codecogs.com/png.latex?R_0">, with three candidate policies overlaid. The minimax policy is pinned to the worst-case <img src="https://latex.codecogs.com/png.latex?R_0%20=%206">; the Bayes policy responds to the full prior; the Nash coverage ignores the externality entirely.</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="how-the-policies-respond-to-the-width-of-the-uncertainty-set" class="level2" data-number="4.6">
-<h2 data-number="4.6" class="anchored" data-anchor-id="how-the-policies-respond-to-the-width-of-the-uncertainty-set"><span class="header-section-number">4.6</span> How the policies respond to the width of the uncertainty set</h2>
-<p>The most revealing comparison is over the <em>width</em> of the uncertainty set. A Bayesian planner tracks the mean of the prior; a minimax planner tracks its upper bound.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">R0_centre <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2.5</span></span>
-<span id="cb6-2">widths <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.2</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">7</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">30</span>)</span>
-<span id="cb6-3"></span>
-<span id="cb6-4">sweep <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tibble</span>(</span>
-<span id="cb6-5">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">width =</span> widths,</span>
-<span id="cb6-6">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R_lo  =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pmax</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>, R0_centre <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> widths <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>),</span>
-<span id="cb6-7">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R_hi  =</span> R0_centre <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> widths <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span></span>
-<span id="cb6-8">) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb6-9">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rowwise</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb6-10">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(</span>
-<span id="cb6-11">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pi_minimax =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">minimax_pi</span>(R_lo, R_hi, cv, ci),</span>
-<span id="cb6-12">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pi_bayes =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">bayes_pi</span>(</span>
-<span id="cb6-13">            R0_centre, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pmax</span>(widths <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.05</span>),</span>
-<span id="cb6-14">            R_lo, R_hi, cv, ci</span>
-<span id="cb6-15">        )</span>
-<span id="cb6-16">    ) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb6-17">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ungroup</span>()</span>
-<span id="cb6-18"></span>
-<span id="cb6-19"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(sweep, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> width)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-20">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> pi_minimax, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Minimax"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-21">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> pi_bayes, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Bayes"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-22">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scale_colour_manual</span>(</span>
-<span id="cb6-23">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Minimax =</span> C_MINIMAX, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">Bayes =</span> C_SOCIAL),</span>
-<span id="cb6-24">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">name =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span></span>
-<span id="cb6-25">    ) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-26">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(</span>
-<span id="cb6-27">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">expression</span>(R[max] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> R[min]),</span>
-<span id="cb6-28">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Optimal coverage"</span>,</span>
-<span id="cb6-29">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Minimax is increasingly conservative as uncertainty widens"</span></span>
-<span id="cb6-30">    ) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-31">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">coord_cartesian</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylim =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>))</span></code></pre></div></div>
-</details>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/game_theory_minimax/index_files/figure-html/uncertainty-width-1.png" class="img-fluid figure-img" width="624"></p>
-<figcaption>Optimal coverage as a function of the width of the uncertainty set, centred on <img src="https://latex.codecogs.com/png.latex?R_0%20=%202.5">. The minimax policy scales with the upper bound of the set; the Bayes policy is largely driven by the mean.</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<p>When the uncertainty set is narrow the two policies agree. As it widens, the minimax policy pulls sharply upward, tracking the worst plausible <img src="https://latex.codecogs.com/png.latex?R_0">, while the Bayes policy stays close to the prior mean. Which is appropriate depends on how much trust the prior deserves.</p>
-<hr>
-</section>
-</section>
-<section id="hostpathogen-games-two-caveats" class="level1" data-number="5">
-<h1 data-number="5"><span class="header-section-number">5</span> Host–pathogen games: two caveats</h1>
-<p>It is tempting to describe host-pathogen interactions as minimax games: the pathogen “wants” to maximise spread; the host “wants” to minimise it. Some of the formal machinery transfers usefully — ESS analysis uses fixed-point arguments that echo minimax — but the analogy needs two caveats.</p>
-<p><strong>(1) Pathogens do not optimise.</strong> Evolution by natural selection produces strategies that are evolutionarily stable <em>given the current environment</em>, but it does not anticipate or counter-select. A strict minimax frame in which the pathogen chooses the worst case for the host typically over-states what evolution can do.</p>
-<p><strong>(2) The game is rarely zero-sum.</strong> Virulence–transmissibility trade-offs <span class="citation" data-cites="anderson1982 alizon2009">(5,6)</span> show that a more virulent strain can be bad for both pathogen persistence and host welfare — the pathogen’s payoff is not a simple negation of the host’s.</p>
-<p>That said, two minimax-like frames are genuinely useful for pathogen-evolution problems:</p>
-<ul>
-<li><strong>Robust vaccine design.</strong> The planner chooses a vaccine whose efficacy must hold across a set of circulating strains. This is minimax in antigen space, used in seasonal influenza vaccine composition and — increasingly — for typhoid Vi-TCV against potential Vi-negative escape.</li>
-<li><strong>Adversarial simulation.</strong> In outbreak-response planning, we often stress-test policies against a “red team” parameter choice. That is minimax in practice, even when it is not named as such.</li>
-</ul>
-<p>A fuller treatment of evolutionary games awaits Post 4.</p>
-<hr>
-</section>
-<section id="minimax-outside-of-game-theory" class="level1" data-number="6">
-<h1 data-number="6"><span class="header-section-number">6</span> Minimax outside of game theory</h1>
-<p>Minimax has made a second career outside game theory, and three instances are worth knowing if you build models at the interface of epidemiology and machine learning.</p>
-<p><strong>Distributionally robust optimisation (DRO).</strong> Rather than minimise expected loss under a fixed data distribution, one minimises expected loss under the <em>worst-case distribution within a divergence ball</em> around the empirical distribution <span class="citation" data-cites="benTal2009 duchi2021">(7,8)</span>:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%5Ctheta%20%5C;=%5C;%20%5Carg%5Cmin_%5Ctheta%5C;%20%5Csup_%7BQ%5C,:%5C,%20D(Q%5C,%5C%7C%5C,%5Chat%20P)%5C,%20%5Cle%5C,%20%5Crho%7D%5C;%20%5Cmathbb%7BE%7D_Q%5Cbig%5BL(%5Ctheta,%20X)%5Cbig%5D.%20%5Ctag%7B5%7D%0A"></p>
-<p>For fitting disease models to outbreak data, DRO is a principled guard against covariate shift between the training setting and the deployment setting.</p>
-<p><strong>Adversarial training.</strong> A neural-network classifier is trained against worst-case small perturbations of its inputs <span class="citation" data-cites="goodfellow2015">(9)</span>:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmin_%5Ctheta%5C,%20%5Cmathbb%7BE%7D_%7B(x,y)%7D%5C!%5CBig%5B%5C,%20%5Cmax_%7B%5C%7C%5Cdelta%5C%7C%20%5Cle%20%5Cepsilon%7D%5C,%20L%5Cbig(f_%5Ctheta(x%20+%20%5Cdelta),%5C,%20y%5Cbig)%5C,%5CBig%5D.%20%5Ctag%7B6%7D%0A"></p>
-<p>This is a standard ingredient when building diagnostic models that must be robust to slight image-acquisition differences across sites.</p>
-<p><strong>Minimax-weighted PINN training.</strong> A physics-informed neural network fits data loss and PDE-residual loss jointly. Several recent papers recast the balancing of the two loss terms as a minimax problem — the network minimising while a dual variable maximises across collocation points — and find that this stabilises training and improves out-of-distribution generalisation <span class="citation" data-cites="mcclenny2023">(10)</span>. The frame is of direct interest for PINN-based epidemic reconstruction.</p>
-<p>The common thread is that <strong>minimax is what we reach for when we want guarantees in the presence of something we cannot control or cannot model</strong> — an unobserved parameter, a distributional shift, a crafted perturbation, or (in game theory proper) a strategic opponent.</p>
-<hr>
-</section>
-<section id="when-minimax-is-too-pessimistic" class="level1" data-number="7">
-<h1 data-number="7"><span class="header-section-number">7</span> When minimax is too pessimistic</h1>
-<p>Pure minimax has three well-known pathologies, each with a standard remedy.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Pathology</th>
-<th>Remedy</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Hedges against vanishingly improbable states</td>
-<td><strong><img src="https://latex.codecogs.com/png.latex?%5CGamma">-minimax</strong>: optimise over the worst prior in a restricted family <img src="https://latex.codecogs.com/png.latex?%5CGamma"></td>
-</tr>
-<tr class="even">
-<td>Ignores the <em>margin</em> by which other actions are worse in good states</td>
-<td><strong>Minimax regret</strong> <span class="citation" data-cites="savage1951">(11)</span></td>
-</tr>
-<tr class="odd">
-<td>Changes sharply when the uncertainty set is expanded</td>
-<td><strong>Smooth ambiguity</strong> <span class="citation" data-cites="klibanoff2005">(12)</span></td>
-</tr>
-</tbody>
-</table>
-<p>For OCV allocation in particular, minimax <em>regret</em> is often the more defensible frame: <em>how much worse could I be, relative to the best policy in hindsight?</em> It produces less cautious — and more communicable — recommendations than pure minimax.</p>
-<hr>
-</section>
-<section id="what-the-minimax-frame-tells-us" class="level1" data-number="8">
-<h1 data-number="8"><span class="header-section-number">8</span> What the minimax frame tells us</h1>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Question</th>
-<th>Answer</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Does minimax coincide with Nash?</td>
-<td>Only in 2-player zero-sum games.</td>
-</tr>
-<tr class="even">
-<td>Does minimax depend on a prior?</td>
-<td>No — that is its virtue, and its cost.</td>
-</tr>
-<tr class="odd">
-<td>Is the minimax planner “rational”?</td>
-<td>Rational in the Wald sense; often over-cautious in the Bayesian sense.</td>
-</tr>
-<tr class="even">
-<td>When should an epidemiologist reach for it?</td>
-<td>When the uncertainty set is plausibly broad, the consequences of underestimating it are severe, and no credible prior is available.</td>
-</tr>
-<tr class="odd">
-<td>When should an epidemiologist avoid it?</td>
-<td>When expert priors are well-calibrated and decision-relevant.</td>
-</tr>
-<tr class="even">
-<td>What is the operational short-cut?</td>
-<td>For monotone losses, the minimax planner optimises at the worst-case parameter.</td>
-</tr>
-</tbody>
-</table>
-<hr>
-</section>
-<section id="series-roadmap" class="level1" data-number="9">
-<h1 data-number="9"><span class="header-section-number">9</span> Series roadmap</h1>
-<ol type="1">
-<li><strong><a href="https://www.jonghoonk.com/blog/posts/game_theory_vacc/">Foundations.</a></strong> Vaccination game, Nash equilibrium, social optimum, price of anarchy.</li>
-<li><strong>(This post) Minimax and the adversarial planner.</strong> Von Neumann’s theorem, Wald decision theory, worst-case OCV allocation, connections to DRO and PINN robustness.</li>
-<li><strong>Coupled behaviour–disease dynamics.</strong> Replicator and imitation dynamics layered onto SIR models.</li>
-<li><strong>Evolutionary game theory for pathogens.</strong> Virulence–transmissibility trade-offs, ESS analysis, strain replacement under vaccination pressure — with cholera and typhoid as running examples.</li>
-<li><strong>Policy and mechanism design.</strong> Subsidies, mandates, information campaigns, network games, and agentic LLM-driven decision models.</li>
-</ol>
-<hr>
-</section>
-<section id="references" class="level1 unnumbered">
-<h1 class="unnumbered">References</h1>
-<div id="refs" class="references csl-bib-body">
-<div id="ref-vonneumann1928" class="csl-entry">
-<div class="csl-left-margin">1. </div><div class="csl-right-inline">Neumann J von. Zur <span>Theorie</span> der <span>Gesellschaftsspiele</span>. Mathematische Annalen. 1928;100(1):295–320. doi:<a href="https://doi.org/10.1007/BF01448847">10.1007/BF01448847</a></div>
-</div>
-<div id="ref-nash1950" class="csl-entry">
-<div class="csl-left-margin">2. </div><div class="csl-right-inline">Nash JF. Equilibrium points in <img src="https://latex.codecogs.com/png.latex?n">-person games. Proceedings of the National Academy of Sciences. 1950;36(1):48–9. doi:<a href="https://doi.org/10.1073/pnas.36.1.48">10.1073/pnas.36.1.48</a></div>
-</div>
-<div id="ref-wald1950" class="csl-entry">
-<div class="csl-left-margin">3. </div><div class="csl-right-inline">Wald A. Statistical decision functions. New York: John Wiley &amp; Sons; 1950.</div>
-</div>
-<div id="ref-berger1985" class="csl-entry">
-<div class="csl-left-margin">4. </div><div class="csl-right-inline">Berger JO. Statistical decision theory and <span>Bayesian</span> analysis. 2nd ed. New York: Springer; 1985.</div>
-</div>
-<div id="ref-anderson1982" class="csl-entry">
-<div class="csl-left-margin">5. </div><div class="csl-right-inline">Anderson RM, May RM. Coevolution of hosts and parasites. Parasitology. 1982;85(2):411–26. doi:<a href="https://doi.org/10.1017/S0031182000055360">10.1017/S0031182000055360</a></div>
-</div>
-<div id="ref-alizon2009" class="csl-entry">
-<div class="csl-left-margin">6. </div><div class="csl-right-inline">Alizon S, Hurford A, Mideo N, Van Baalen M. Virulence evolution and the trade-off hypothesis: History, current state of affairs and the future. Journal of Evolutionary Biology. 2009;22(2):245–59. doi:<a href="https://doi.org/10.1111/j.1420-9101.2008.01658.x">10.1111/j.1420-9101.2008.01658.x</a></div>
-</div>
-<div id="ref-benTal2009" class="csl-entry">
-<div class="csl-left-margin">7. </div><div class="csl-right-inline">Ben-Tal A, El Ghaoui L, Nemirovski A. Robust optimization. Princeton: Princeton University Press; 2009.</div>
-</div>
-<div id="ref-duchi2021" class="csl-entry">
-<div class="csl-left-margin">8. </div><div class="csl-right-inline">Duchi JC, Namkoong H. Learning models with uniform performance via distributionally robust optimization. Annals of Statistics. 2021;49(3):1378–406. doi:<a href="https://doi.org/10.1214/20-AOS2004">10.1214/20-AOS2004</a></div>
-</div>
-<div id="ref-goodfellow2015" class="csl-entry">
-<div class="csl-left-margin">9. </div><div class="csl-right-inline">Goodfellow IJ, Shlens J, Szegedy C. Explaining and harnessing adversarial examples. In: International conference on learning representations (ICLR) [Internet]. 2015. Available from: <a href="https://arxiv.org/abs/1412.6572">https://arxiv.org/abs/1412.6572</a></div>
-</div>
-<div id="ref-mcclenny2023" class="csl-entry">
-<div class="csl-left-margin">10. </div><div class="csl-right-inline">McClenny LD, Braga-Neto UM. Self-adaptive physics-informed neural networks. Journal of Computational Physics. 2023;474:111722. doi:<a href="https://doi.org/10.1016/j.jcp.2022.111722">10.1016/j.jcp.2022.111722</a></div>
-</div>
-<div id="ref-savage1951" class="csl-entry">
-<div class="csl-left-margin">11. </div><div class="csl-right-inline">Savage LJ. The theory of statistical decision. Journal of the American Statistical Association. 1951;46(253):55–67. doi:<a href="https://doi.org/10.1080/01621459.1951.10500768">10.1080/01621459.1951.10500768</a></div>
-</div>
-<div id="ref-klibanoff2005" class="csl-entry">
-<div class="csl-left-margin">12. </div><div class="csl-right-inline">Klibanoff P, Marinacci M, Mukerji S. A smooth model of decision making under ambiguity. Econometrica. 2005;73(6):1849–92. doi:<a href="https://doi.org/10.1111/j.1468-0262.2005.00640.x">10.1111/j.1468-0262.2005.00640.x</a></div>
-</div>
-</div>
-<div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>R          4.5.3</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>ggplot2    4.0.2
-dplyr      1.2.0
-tidyr      1.3.2
-patchwork  1.3.2
-truncnorm  1.0.9</code></pre>
-</div>
-</div>
-
-
-<!-- -->
-
-</section>
-
- ]]></description>
-  <category>game theory</category>
-  <category>minimax</category>
-  <category>robust decision</category>
-  <category>vaccination</category>
-  <category>cholera</category>
-  <category>R</category>
-  <guid>https://www.jonghoonk.com/blog/posts/game_theory_minimax/</guid>
   <pubDate>Sun, 19 Apr 2026 15:00:00 GMT</pubDate>
 </item>
 </channel>
