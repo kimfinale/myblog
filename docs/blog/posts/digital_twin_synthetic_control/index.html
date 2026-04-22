@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-04-22">
+
+<title>Synthetic Control Arms – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-953e13259b406e3222ebc3917f29fddf.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-randomised-control-arm-problem" id="toc-the-randomised-control-arm-problem" class="nav-link active" data-scroll-target="#the-randomised-control-arm-problem"><span class="header-section-number">1</span> The randomised control arm problem</a></li>
+  <li><a href="#the-logic-of-a-synthetic-control-arm" id="toc-the-logic-of-a-synthetic-control-arm" class="nav-link" data-scroll-target="#the-logic-of-a-synthetic-control-arm"><span class="header-section-number">2</span> The logic of a synthetic control arm</a>
+  <ul class="collapse">
+  <li><a href="#three-sources-of-control-information" id="toc-three-sources-of-control-information" class="nav-link" data-scroll-target="#three-sources-of-control-information"><span class="header-section-number">2.1</span> Three sources of control information</a></li>
+  <li><a href="#what-the-model-must-do" id="toc-what-the-model-must-do" class="nav-link" data-scroll-target="#what-the-model-must-do"><span class="header-section-number">2.2</span> What the model must do</a></li>
+  </ul></li>
+  <li><a href="#building-a-synthetic-control-arm-step-by-step" id="toc-building-a-synthetic-control-arm-step-by-step" class="nav-link" data-scroll-target="#building-a-synthetic-control-arm-step-by-step"><span class="header-section-number">3</span> Building a synthetic control arm step by step</a>
+  <ul class="collapse">
+  <li><a href="#computing-vaccine-efficacy" id="toc-computing-vaccine-efficacy" class="nav-link" data-scroll-target="#computing-vaccine-efficacy"><span class="header-section-number">3.1</span> Computing vaccine efficacy</a></li>
+  </ul></li>
+  <li><a href="#validation-the-critical-step" id="toc-validation-the-critical-step" class="nav-link" data-scroll-target="#validation-the-critical-step"><span class="header-section-number">4</span> Validation: the critical step</a>
+  <ul class="collapse">
+  <li><a href="#setting-up-a-validation-exercise" id="toc-setting-up-a-validation-exercise" class="nav-link" data-scroll-target="#setting-up-a-validation-exercise"><span class="header-section-number">4.1</span> Setting up a validation exercise</a></li>
+  <li><a href="#what-validation-statistics-matter" id="toc-what-validation-statistics-matter" class="nav-link" data-scroll-target="#what-validation-statistics-matter"><span class="header-section-number">4.2</span> What validation statistics matter?</a></li>
+  </ul></li>
+  <li><a href="#bayesian-borrowing-a-statistical-companion-to-the-digital-twin" id="toc-bayesian-borrowing-a-statistical-companion-to-the-digital-twin" class="nav-link" data-scroll-target="#bayesian-borrowing-a-statistical-companion-to-the-digital-twin"><span class="header-section-number">5</span> Bayesian borrowing: a statistical companion to the digital twin</a></li>
+  <li><a href="#the-regulatory-landscape" id="toc-the-regulatory-landscape" class="nav-link" data-scroll-target="#the-regulatory-landscape"><span class="header-section-number">6</span> The regulatory landscape</a>
+  <ul class="collapse">
+  <li><a href="#what-fda-and-ema-have-accepted" id="toc-what-fda-and-ema-have-accepted" class="nav-link" data-scroll-target="#what-fda-and-ema-have-accepted"><span class="header-section-number">6.1</span> What FDA and EMA have accepted</a></li>
+  <li><a href="#what-has-not-been-accepted" id="toc-what-has-not-been-accepted" class="nav-link" data-scroll-target="#what-has-not-been-accepted"><span class="header-section-number">6.2</span> What has not been accepted</a></li>
+  </ul></li>
+  <li><a href="#what-comes-next" id="toc-what-comes-next" class="nav-link" data-scroll-target="#what-comes-next"><span class="header-section-number">7</span> What comes next</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Synthetic Control Arms</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+<p class="subtitle lead">Replacing placebo groups with simulated counterfactuals — Post 4 in the Digital Twins for Vaccine Trials series</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">digital twin</div>
+    <div class="quarto-category">vaccine</div>
+    <div class="quarto-category">synthetic control</div>
+    <div class="quarto-category">clinical trial</div>
+    <div class="quarto-category">Bayesian</div>
+    <div class="quarto-category">R</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 22, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="the-randomised-control-arm-problem" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> The randomised control arm problem</h1>
+<p>Clinical trials use randomisation to ensure that, on average, the treatment and placebo groups are comparable at baseline. This is a powerful guarantee: if subjects are randomly assigned, any difference in outcome at the end of the trial can be attributed to the treatment, not to pre-existing differences between groups.</p>
+<p>But randomisation has costs. Every participant assigned to placebo receives no active treatment — a genuine ethical burden when a vaccine candidate shows promising early efficacy against an ongoing epidemic. Placebo arms also increase sample size requirements, slow enrolment (patients prefer active arms), and raise costs. In rare diseases, paediatric populations, or rapidly evolving pathogens, assembling a matched placebo group may be practically impossible <span class="citation" data-cites="landig2025">(<a href="#ref-landig2025" role="doc-biblioref">1</a>)</span>.</p>
+<p>A <strong>synthetic control arm</strong> (SCA) addresses this by replacing the placebo group with simulated counterfactuals: <em>what would have happened to each vaccinated participant if they had received placebo instead?</em> If the model generating those counterfactuals is reliable — calibrated and externally validated — the sponsor can run a single-arm trial, compare outcomes to the synthetic control, and obtain an efficacy estimate with statistical guarantees.</p>
+<p>This is the most commercially significant application of digital twins in clinical development. It is also the most demanding: a model that generates individual counterfactuals must be validated against real control data from a separate population, and regulators must accept that evidence <span class="citation" data-cites="fda2020midd janssen2025">(<a href="#ref-fda2020midd" role="doc-biblioref">2</a>,<a href="#ref-janssen2025" role="doc-biblioref">3</a>)</span>.</p>
+<hr>
+</section>
+<section id="the-logic-of-a-synthetic-control-arm" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> The logic of a synthetic control arm</h1>
+<section id="three-sources-of-control-information" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="three-sources-of-control-information"><span class="header-section-number">2.1</span> Three sources of control information</h2>
+<p>Regulatory frameworks recognise three ways to bring external information into a trial comparison <span class="citation" data-cites="viele2014">(<a href="#ref-viele2014" role="doc-biblioref">4</a>)</span>:</p>
+<ol type="1">
+<li><p><strong>Propensity-matched historical controls</strong>: find real patients from past studies who resemble the current trial’s participants by age, comorbidity, baseline titre, etc. Match them statistically and use their outcomes as the comparator.</p></li>
+<li><p><strong>Borrowing from historical data</strong> (power prior, commensurate prior): treat historical control data as informative prior information, downweighted by how similar the historical population is to the current trial <span class="citation" data-cites="hobbs2012 neuenschwander2010">(<a href="#ref-hobbs2012" role="doc-biblioref">5</a>,<a href="#ref-neuenschwander2010" role="doc-biblioref">6</a>)</span>.</p></li>
+<li><p><strong>Model-generated synthetic controls</strong>: run a calibrated mechanistic or statistical model for each participant under the counterfactual (no vaccine) scenario and use those generated outcomes as the comparison. This is the digital-twin version.</p></li>
+</ol>
+<p>The digital-twin approach is distinct because the counterfactual is generated by a mechanistic model, not by statistical matching or reweighting. This makes it potentially more robust to unmeasured confounders and more naturally extensible to novel pathogen scenarios — but it requires validating the model as a trustworthy generator of counterfactual outcomes, which is a higher bar.</p>
+</section>
+<section id="what-the-model-must-do" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="what-the-model-must-do"><span class="header-section-number">2.2</span> What the model must do</h2>
+<p>A synthetic control arm model must:</p>
+<ol type="1">
+<li><strong>Accept each participant’s baseline characteristics</strong> (age, prior serostatus, weight, comorbidities) as inputs.</li>
+<li><strong>Predict the distribution of clinical outcomes</strong> (infection, hospitalisation) that participant would have experienced without vaccination, given the epidemic conditions of the trial period.</li>
+<li><strong>Be validated prospectively</strong>: the model’s predicted placebo distribution must have been shown to match observed placebo outcomes in a held-out dataset before the current trial begins.</li>
+</ol>
+<p>Requirement 3 is the crux. Without it, the synthetic arm is no better than an optimistic guess.</p>
+<hr>
+</section>
+</section>
+<section id="building-a-synthetic-control-arm-step-by-step" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Building a synthetic control arm step by step</h1>
+<p>We now build a simplified but complete SCA using the tools from earlier posts. The setup:</p>
+<ul>
+<li><strong>Arm 1 (active)</strong>: 500 vaccinated participants with antibody titres from the virtual patient cohort (Post 3) and protection probabilities from the CoP model (Post 2).</li>
+<li><strong>Arm 2 (synthetic control)</strong>: 500 simulated unvaccinated participants, with the same baseline characteristics, whose infection probability comes from the baseline attack rate in the epidemic context.</li>
+<li><strong>Outcome</strong>: binary infection status during a 6-month follow-up.</li>
+</ul>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>n_arm     <span class="ot">&lt;-</span> <span class="dv">500</span>    <span class="co"># participants per arm</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>attack_rate_0 <span class="ot">&lt;-</span> <span class="fl">0.35</span>  <span class="co"># baseline attack rate in unvaccinated population</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                         <span class="co"># (35% cumulative incidence over 6 months — high-transmission setting)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Titre distribution (calibrated VPC from Post 3)</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>mu_log    <span class="ot">&lt;-</span> <span class="fu">log</span>(<span class="dv">150</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>sigma_log <span class="ot">&lt;-</span> <span class="fl">0.65</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>titre_vp  <span class="ot">&lt;-</span> <span class="fu">rlnorm</span>(n_arm, <span class="at">meanlog =</span> mu_log, <span class="at">sdlog =</span> sigma_log)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># CoP model (Post 2: EC50 = 120, k = 2.2)</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>hill_p <span class="ot">&lt;-</span> <span class="cf">function</span>(T, <span class="at">EC50 =</span> <span class="dv">120</span>, <span class="at">k =</span> <span class="fl">2.2</span>) T<span class="sc">^</span>k <span class="sc">/</span> (T<span class="sc">^</span>k <span class="sc">+</span> EC50<span class="sc">^</span>k)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>p_protect <span class="ot">&lt;-</span> <span class="fu">hill_p</span>(titre_vp)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Vaccinated arm: infection probability = (1 - P_protect) * attack_rate_0</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>p_inf_vacc    <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> p_protect) <span class="sc">*</span> attack_rate_0</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>infected_vacc <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_arm, <span class="dv">1</span>, p_inf_vacc)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Synthetic control arm: infection probability = attack_rate_0 for all</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>infected_ctrl <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_arm, <span class="dv">1</span>, attack_rate_0)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="computing-vaccine-efficacy" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="computing-vaccine-efficacy"><span class="header-section-number">3.1</span> Computing vaccine efficacy</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>AR_vacc <span class="ot">&lt;-</span> <span class="fu">mean</span>(infected_vacc)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>AR_ctrl <span class="ot">&lt;-</span> <span class="fu">mean</span>(infected_ctrl)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>VE_obs  <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> AR_vacc <span class="sc">/</span> AR_ctrl</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"Attack rate: vaccinated = %.1f%%,  control = %.1f%%</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>            <span class="dv">100</span> <span class="sc">*</span> AR_vacc, <span class="dv">100</span> <span class="sc">*</span> AR_ctrl))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Attack rate: vaccinated = 12.4%,  control = 34.2%</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"Observed VE = %.1f%%</span><span class="sc">\n</span><span class="st">"</span>, <span class="dv">100</span> <span class="sc">*</span> VE_obs))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Observed VE = 63.7%</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># True VE (from model)</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>VE_true <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> <span class="fu">mean</span>(p_inf_vacc) <span class="sc">/</span> attack_rate_0</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"True VE     = %.1f%%</span><span class="sc">\n</span><span class="st">"</span>, <span class="dv">100</span> <span class="sc">*</span> VE_true))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>True VE     = 60.5%</code></pre>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>binom_ci <span class="ot">&lt;-</span> <span class="cf">function</span>(x, n, <span class="at">level =</span> <span class="fl">0.95</span>) {</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  t <span class="ot">&lt;-</span> <span class="fu">binom.test</span>(x, n, <span class="at">conf.level =</span> level)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">lo =</span> t<span class="sc">$</span>conf.int[<span class="dv">1</span>], <span class="at">hi =</span> t<span class="sc">$</span>conf.int[<span class="dv">2</span>])</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>ci_v <span class="ot">&lt;-</span> <span class="fu">binom_ci</span>(<span class="fu">sum</span>(infected_vacc), n_arm)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>ci_c <span class="ot">&lt;-</span> <span class="fu">binom_ci</span>(<span class="fu">sum</span>(infected_ctrl), n_arm)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>df_bar <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">arm   =</span> <span class="fu">c</span>(<span class="st">"Vaccinated"</span>, <span class="st">"Synthetic control"</span>),</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">AR    =</span> <span class="fu">c</span>(AR_vacc, AR_ctrl),</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">lo    =</span> <span class="fu">c</span>(ci_v[<span class="st">"lo"</span>], ci_c[<span class="st">"lo"</span>]),</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">hi    =</span> <span class="fu">c</span>(ci_v[<span class="st">"hi"</span>], ci_c[<span class="st">"hi"</span>])</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">arm =</span> <span class="fu">factor</span>(arm, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Synthetic control"</span>, <span class="st">"Vaccinated"</span>)))</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_bar, <span class="fu">aes</span>(<span class="at">x =</span> arm, <span class="at">y =</span> AR, <span class="at">fill =</span> arm)) <span class="sc">+</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">width =</span> <span class="fl">0.45</span>, <span class="at">show.legend =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_errorbar</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lo, <span class="at">ymax =</span> hi), <span class="at">width =</span> <span class="fl">0.12</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> <span class="fu">tibble</span>(<span class="at">arm =</span> <span class="fu">factor</span>(<span class="st">"Vaccinated"</span>,</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>                                         <span class="at">levels =</span> <span class="fu">levels</span>(df_bar<span class="sc">$</span>arm)),</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>                            <span class="at">AR =</span> <span class="fu">mean</span>(p_inf_vacc)),</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"#1A9641"</span>, <span class="at">shape =</span> <span class="dv">18</span>, <span class="at">size =</span> <span class="dv">5</span>) <span class="sc">+</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Vaccinated"</span> <span class="ot">=</span> <span class="st">"#E87722"</span>,</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>                                <span class="st">"Synthetic control"</span> <span class="ot">=</span> <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(), <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.55</span>)) <span class="sc">+</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Attack rate (6-month cumulative incidence)"</span>) <span class="sc">+</span></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">1</span>, <span class="at">y =</span> <span class="fl">0.53</span>,</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"VE = %.0f%%"</span>, <span class="dv">100</span> <span class="sc">*</span> VE_obs),</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>           <span class="at">size =</span> <span class="fl">4.5</span>, <span class="at">colour =</span> <span class="st">"grey20"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/trial-viz-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Attack rates in the vaccinated arm (orange) and synthetic control arm (blue) from a single simulated trial. Error bars are 95% binomial confidence intervals. The green diamond marks the true VE predicted by the model; the black estimate is the observed trial VE. In this single simulation the observed VE is close to the truth, but sampling variability causes modest differences — exactly what motivates formal power analysis (Post 5).</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="validation-the-critical-step" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Validation: the critical step</h1>
+<p>A synthetic control arm is credible only if the model that generates it has been validated against real control outcomes it did not use for fitting. This is called a <strong>prospective external validation</strong> (or more precisely, a retrospective validation using data held back from calibration).</p>
+<section id="setting-up-a-validation-exercise" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="setting-up-a-validation-exercise"><span class="header-section-number">4.1</span> Setting up a validation exercise</h2>
+<p>We simulate validation as follows:</p>
+<ol type="1">
+<li><strong>Training dataset</strong>: a past trial where both active and placebo arms were observed (n = 300 per arm).</li>
+<li><strong>Validation</strong>: run the synthetic control model on the training trial’s vaccinated arm, predict the placebo attack rate, and compare to the observed placebo attack rate.</li>
+</ol>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>n_val     <span class="ot">&lt;-</span> <span class="dv">200</span>   <span class="co"># validation runs (different epidemic contexts)</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>AR_pred   <span class="ot">&lt;-</span> <span class="fu">numeric</span>(n_val)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>AR_obs    <span class="ot">&lt;-</span> <span class="fu">numeric</span>(n_val)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (v <span class="cf">in</span> <span class="fu">seq_len</span>(n_val)) {</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Each validation scenario: different underlying attack rate</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  ar0_v <span class="ot">&lt;-</span> <span class="fu">rbeta</span>(<span class="dv">1</span>, <span class="at">shape1 =</span> <span class="dv">3</span>, <span class="at">shape2 =</span> <span class="dv">7</span>) <span class="sc">*</span> <span class="fl">0.7</span> <span class="sc">+</span> <span class="fl">0.05</span>  <span class="co"># AR0 ~ 5%–75%</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Observed placebo arm in historical trial (n = 300)</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  AR_obs[v] <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">rbinom</span>(<span class="dv">300</span>, <span class="dv">1</span>, ar0_v))</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Synthetic control arm prediction: use model's predicted attack rates</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  titre_v <span class="ot">&lt;-</span> <span class="fu">rlnorm</span>(<span class="dv">300</span>, mu_log, sigma_log)</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  pp_v    <span class="ot">&lt;-</span> <span class="fu">hill_p</span>(titre_v)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  AR_pred[v] <span class="ot">&lt;-</span> ar0_v  <span class="co"># in a real SCA, this is estimated from the model;</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>                         <span class="co"># here we use the true value to show calibration</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Add noise to represent model imprecision</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  AR_pred[v] <span class="ot">&lt;-</span> AR_pred[v] <span class="sc">*</span> <span class="fu">exp</span>(<span class="fu">rnorm</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="fl">0.08</span>))</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>df_val <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">AR_obs =</span> AR_obs, <span class="at">AR_pred =</span> AR_pred)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_val, <span class="fu">aes</span>(<span class="at">x =</span> AR_obs, <span class="at">y =</span> AR_pred)) <span class="sc">+</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>, <span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">colour =</span> <span class="st">"grey40"</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">colour =</span> <span class="st">"#E87722"</span>,</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> <span class="st">"#E87722"</span>, <span class="at">alpha =</span> <span class="fl">0.15</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(), <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.75</span>)) <span class="sc">+</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(), <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.75</span>)) <span class="sc">+</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Observed placebo attack rate (historical trial)"</span>,</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Predicted synthetic control attack rate"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/validation-sim-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Validation exercise: 500 synthetic trials comparing observed placebo attack rates (x-axis, from the historical trial) versus the model-predicted synthetic control attack rate (y-axis). The diagonal line is perfect agreement. The model predictions scatter symmetrically around the diagonal with no systematic bias — the hallmark of a calibrated synthetic control model. A model that consistently overestimates the control attack rate would make the vaccine look better than it is; systematic underestimation would make it look worse.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="what-validation-statistics-matter" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="what-validation-statistics-matter"><span class="header-section-number">4.2</span> What validation statistics matter?</h2>
+<p>Regulators <span class="citation" data-cites="fda2020midd bai2024virtualpatients">(<a href="#ref-fda2020midd" role="doc-biblioref">2</a>,<a href="#ref-bai2024virtualpatients" role="doc-biblioref">7</a>)</span> typically ask for:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>What it tests</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Calibration</strong>: predicted vs observed attack rate (slope = 1, intercept = 0)</td>
+<td>No systematic bias</td>
+</tr>
+<tr class="even">
+<td><strong>Discrimination</strong>: AUC of predicted probability vs observed infection</td>
+<td>Model ranks individuals correctly</td>
+</tr>
+<tr class="odd">
+<td><strong>Coverage</strong>: % of observations within the model’s prediction interval</td>
+<td>Uncertainty is honest</td>
+</tr>
+<tr class="even">
+<td><strong>Generalisability</strong>: validation in a population different from the calibration set</td>
+<td>Not just overfitting</td>
+</tr>
+</tbody>
+</table>
+<p>Our simulation shows a well-calibrated model (slope ≈ 1, no systematic bias). Real-world validation is harder: attack rates in the historical trial may be confounded by non-pharmaceutical interventions, variant effects, or population-level immunity that the model does not explicitly represent.</p>
+<hr>
+</section>
+</section>
+<section id="bayesian-borrowing-a-statistical-companion-to-the-digital-twin" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Bayesian borrowing: a statistical companion to the digital twin</h1>
+<p>The synthetic control arm is a <em>model-based</em> approach. It is often combined with <strong>Bayesian borrowing</strong> — incorporating historical control data as an informative prior on the placebo response, with the degree of borrowing determined by the statistical consistency between historical and current data <span class="citation" data-cites="neuenschwander2010 viele2014">(<a href="#ref-viele2014" role="doc-biblioref">4</a>,<a href="#ref-neuenschwander2010" role="doc-biblioref">6</a>)</span>.</p>
+<p>The two approaches are complementary: - The digital twin provides a mechanistic, individual-level prediction of what the unvaccinated outcome would have been. - Bayesian borrowing provides a principled statistical framework for weighting that prediction against observed data, with automatic discounting when the historical and current populations are inconsistent (the <em>conflict</em> problem).</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Likelihood: binomial(n_ctrl, AR_ctrl_obs)</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Prior: beta(a, b) parameterised by mean and effective sample size</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Beta parameterisation from mean and ESS</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>beta_from_mean_ess <span class="ot">&lt;-</span> <span class="cf">function</span>(mean, ess) {</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> mean <span class="sc">*</span> ess; b <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> mean) <span class="sc">*</span> ess</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">a =</span> a, <span class="at">b =</span> b)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>n_ctrl_obs <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>k_ctrl_obs <span class="ot">&lt;-</span> <span class="fu">round</span>(n_ctrl_obs <span class="sc">*</span> <span class="fl">0.33</span>)  <span class="co"># observed 33% attack rate in "current" trial</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Three priors</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>prior_flat  <span class="ot">&lt;-</span> <span class="fu">beta_from_mean_ess</span>(<span class="fl">0.35</span>, <span class="dv">2</span>)    <span class="co"># near-flat</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>prior_info  <span class="ot">&lt;-</span> <span class="fu">beta_from_mean_ess</span>(<span class="fl">0.35</span>, <span class="dv">50</span>)   <span class="co"># informative: ESS = 50</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>AR_grid <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.01</span>, <span class="fl">0.70</span>, <span class="at">length.out =</span> <span class="dv">500</span>)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>post_density <span class="ot">&lt;-</span> <span class="cf">function</span>(prior, k, n) {</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  a_post <span class="ot">&lt;-</span> prior[<span class="st">"a"</span>] <span class="sc">+</span> k</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  b_post <span class="ot">&lt;-</span> prior[<span class="st">"b"</span>] <span class="sc">+</span> (n <span class="sc">-</span> k)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dbeta</span>(AR_grid, a_post, b_post)</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>df_post <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">AR =</span> AR_grid, <span class="at">density =</span> <span class="fu">post_density</span>(prior_flat, k_ctrl_obs, n_ctrl_obs),</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>         <span class="at">prior =</span> <span class="st">"Non-informative (ESS = 2)"</span>),</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">AR =</span> AR_grid, <span class="at">density =</span> <span class="fu">post_density</span>(prior_info, k_ctrl_obs, n_ctrl_obs),</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>         <span class="at">prior =</span> <span class="st">"Informative (ESS = 50)"</span>),</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Robust mixture: 80% informative + 20% flat</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">AR =</span> AR_grid,</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>         <span class="at">density =</span> <span class="fl">0.8</span> <span class="sc">*</span> <span class="fu">post_density</span>(prior_info, k_ctrl_obs, n_ctrl_obs) <span class="sc">+</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>                   <span class="fl">0.2</span> <span class="sc">*</span> <span class="fu">post_density</span>(prior_flat, k_ctrl_obs, n_ctrl_obs),</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>         <span class="at">prior =</span> <span class="st">"Robust mixture (80% informative)"</span>)</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_post, <span class="fu">aes</span>(<span class="at">x =</span> AR, <span class="at">y =</span> density, <span class="at">colour =</span> prior, <span class="at">fill =</span> prior)) <span class="sc">+</span></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> attack_rate_0, <span class="at">linetype =</span> <span class="st">"dashed"</span>,</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"#1A9641"</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> attack_rate_0 <span class="sc">+</span> <span class="fl">0.015</span>, <span class="at">y =</span> <span class="dv">25</span>,</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"True AR0"</span>, <span class="at">colour =</span> <span class="st">"#1A9641"</span>, <span class="at">size =</span> <span class="fl">3.5</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>()) <span class="sc">+</span></span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Non-informative (ESS = 2)"</span> <span class="ot">=</span> <span class="st">"grey50"</span>,</span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"Informative (ESS = 50)"</span>    <span class="ot">=</span> <span class="st">"#3B6EA8"</span>,</span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"Robust mixture (80% informative)"</span> <span class="ot">=</span> <span class="st">"#E87722"</span>)) <span class="sc">+</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values  =</span> <span class="fu">c</span>(<span class="st">"Non-informative (ESS = 2)"</span> <span class="ot">=</span> <span class="st">"grey50"</span>,</span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>                                 <span class="st">"Informative (ESS = 50)"</span>    <span class="ot">=</span> <span class="st">"#3B6EA8"</span>,</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>                                 <span class="st">"Robust mixture (80% informative)"</span> <span class="ot">=</span> <span class="st">"#E87722"</span>)) <span class="sc">+</span></span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Control arm attack rate"</span>, <span class="at">y =</span> <span class="st">"Posterior density"</span>,</span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>       <span class="at">colour =</span> <span class="cn">NULL</span>, <span class="at">fill =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>,</span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a>        <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">9</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/bayesian-borrowing-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Bayesian borrowing: posterior distribution of the control attack rate under three priors. The non-informative prior (grey) is dominated by the current trial data. The informative prior (blue) reflects the model’s prediction (AR0 = 35%) with moderate precision. The mixture prior (orange, robust mixture) discounts the informative prior when the data conflict with it. The green dashed line marks the true attack rate.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The informative prior (blue) pulls the posterior towards the model’s prediction and narrows the uncertainty interval — this is the sample-size-saving effect of Bayesian borrowing. The robust mixture (orange) achieves most of that gain while protecting against the prior being badly wrong: if the current data were to show AR0 = 60% instead of 33%, the mixture prior would self-discount.</p>
+<hr>
+</section>
+<section id="the-regulatory-landscape" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> The regulatory landscape</h1>
+<section id="what-fda-and-ema-have-accepted" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="what-fda-and-ema-have-accepted"><span class="header-section-number">6.1</span> What FDA and EMA have accepted</h2>
+<ul>
+<li><p><strong>FDA Model-Informed Drug Development (MIDD)</strong>: the FDA’s 2020 guidance creates a paired-meeting process where sponsors present modelling evidence before a trial begins and receive feedback on whether the model is adequate for the intended regulatory use <span class="citation" data-cites="fda2020midd">(<a href="#ref-fda2020midd" role="doc-biblioref">2</a>)</span>. FDA has accepted Bayesian synthetic control arms in oncology and rare-disease settings; vaccine applications are fewer but growing.</p></li>
+<li><p><strong>EMA PROCOVA qualification</strong>: EMA qualified PROCOVA — which uses a digital-twin-derived prognostic score to reduce variance in primary endpoints — as an acceptable analysis method. This is not a full synthetic control arm, but it uses the digital-twin concept (individual-level model-derived predictions) within a randomised trial to reduce sample size <span class="citation" data-cites="janssen2025">(<a href="#ref-janssen2025" role="doc-biblioref">3</a>)</span>.</p></li>
+<li><p><strong>ICH M15</strong>: the first international harmonised guideline on model-informed drug development (draft 2024) is creating a common language for regulatory submissions that use modelling as evidence.</p></li>
+</ul>
+</section>
+<section id="what-has-not-been-accepted" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="what-has-not-been-accepted"><span class="header-section-number">6.2</span> What has not been accepted</h2>
+<p>No pivotal vaccine trial has yet received primary approval on the basis of a fully synthetic control arm for efficacy. The regulatory position for vaccines is that:</p>
+<blockquote class="blockquote">
+<p>A model-generated synthetic control arm can reduce, but not yet eliminate, the randomised placebo group in a pivotal trial.</p>
+</blockquote>
+<p>The path to full elimination requires: (i) a validated mechanistic model with demonstrated external generalisability, (ii) pre-registration of the synthetic arm methodology alongside the statistical analysis plan, and (iii) at least one precedent case in the same therapeutic area. For infectious-disease vaccines, that precedent does not yet exist, but the COVID-19 accelerations (booster approvals based on immunogenicity rather than efficacy data) have moved the goalposts considerably.</p>
+<hr>
+</section>
+</section>
+<section id="what-comes-next" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> What comes next</h1>
+<p>We now have the full digital-twin pipeline:</p>
+<ol type="1">
+<li>✅ <strong>Post 1</strong>: Within-host ODE → antibody trajectory</li>
+<li>✅ <strong>Post 2</strong>: Correlate of protection → protection probability</li>
+<li>✅ <strong>Post 3</strong>: LHS sampling → virtual patient cohort</li>
+<li>✅ <strong>Post 4</strong> (this post): Synthetic control arm + Bayesian borrowing + validation</li>
+</ol>
+<p><strong>Post 5</strong> uses this entire pipeline to perform a <strong>trial simulation</strong>: running thousands of Monte Carlo trials to compute power, optimise sample size, and design adaptive interim analyses — all before a single participant is enrolled.</p>
+<hr>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-landig2025" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline"><span class="nocase">Landig J et al.</span> Digital twins in paediatric infectious disease trials: Promise and practical constraints. Lancet Infectious Diseases. 2025;25:e50–9. doi:<a href="https://doi.org/10.1016/S1473-3099(24)00500-0">10.1016/S1473-3099(24)00500-0</a></div>
+</div>
+<div id="ref-fda2020midd" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">U.S. Food and Drug Administration. Model-informed drug development: Paired meeting program for <span>FDA</span> and pharmacometric analyses [Internet]. Guidance for Industry; 2020. Available from: <a href="https://www.fda.gov/media/142502/download">https://www.fda.gov/media/142502/download</a></div>
+</div>
+<div id="ref-janssen2025" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline"><span class="nocase">Janssen R et al.</span> A regulatory roadmap for digital-twin-supported vaccine trials. npj Vaccines. 2025;10:54. doi:<a href="https://doi.org/10.1038/s41541-025-01110-z">10.1038/s41541-025-01110-z</a></div>
+</div>
+<div id="ref-viele2014" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><span class="nocase">Viele K, Berry S, Neuenschwander B, Amzal B, Chen F, Enas N, et al.</span> Use of historical control data for assessing treatment effects in clinical trials. Pharmaceutical Statistics. 2014;13:41–54. doi:<a href="https://doi.org/10.1002/pst.1589">10.1002/pst.1589</a></div>
+</div>
+<div id="ref-hobbs2012" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Hobbs BP, Carlin BP, Mandrekar SJ, Sargent DJ. Hierarchical commensurate and power prior models for adaptive incorporation of historical information in clinical trials. Biometrics. 2012;68:438–49. doi:<a href="https://doi.org/10.1111/j.1541-0420.2011.01684.x">10.1111/j.1541-0420.2011.01684.x</a></div>
+</div>
+<div id="ref-neuenschwander2010" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Neuenschwander B, Capkun-Niggli G, Branson M, Spiegelhalter DJ. Summarizing historical information on controls in clinical trials. Clinical Trials. 2010;7:5–18. doi:<a href="https://doi.org/10.1177/1740774509356002">10.1177/1740774509356002</a></div>
+</div>
+<div id="ref-bai2024virtualpatients" class="csl-entry" role="listitem">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline"><span class="nocase">Bai JPF et al.</span> Validation frameworks for virtual patient cohorts in model-informed drug development. Clinical Pharmacology &amp; Therapeutics. 2024;115:1124–35. doi:<a href="https://doi.org/10.1002/cpt.3187">10.1002/cpt.3187</a></div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.5.3 (2026-03-11 ucrt)
+Platform: x86_64-w64-mingw32/x64
+Running under: Windows 11 x64 (build 26200)
+
+Matrix products: default
+  LAPACK version 3.12.1
+
+locale:
+[1] LC_COLLATE=English_United States.utf8 
+[2] LC_CTYPE=English_United States.utf8   
+[3] LC_MONETARY=English_United States.utf8
+[4] LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.utf8    
+
+time zone: Asia/Seoul
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] patchwork_1.3.2 tidyr_1.3.2     dplyr_1.2.0     ggplot2_4.0.2  
+
+loaded via a namespace (and not attached):
+ [1] Matrix_1.7-4       gtable_0.3.6       jsonlite_2.0.0     compiler_4.5.3    
+ [5] tidyselect_1.2.1   splines_4.5.3      scales_1.4.0       yaml_2.3.12       
+ [9] fastmap_1.2.0      lattice_0.22-9     R6_2.6.1           labeling_0.4.3    
+[13] generics_0.1.4     knitr_1.51         htmlwidgets_1.6.4  tibble_3.3.1      
+[17] pillar_1.11.1      RColorBrewer_1.1-3 rlang_1.1.7        xfun_0.57         
+[21] S7_0.2.1           otel_0.2.0         cli_3.6.5          withr_3.0.2       
+[25] magrittr_2.0.4     mgcv_1.9-4         digest_0.6.39      grid_4.5.3        
+[29] nlme_3.1-168       lifecycle_1.0.5    vctrs_0.7.2        evaluate_1.0.5    
+[33] glue_1.8.0         farver_2.1.2       rmarkdown_2.31     purrr_1.2.1       
+[37] tools_4.5.3        pkgconfig_2.0.3    htmltools_0.5.9   </code></pre>
+</div>
+</div>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Synthetic Control Arms"</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "Replacing placebo groups with simulated counterfactuals — Post 4 in the Digital Twins for Vaccine Trials series"</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Jong-Hoon Kim"</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-04-22"</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> [digital twin, vaccine, synthetic control, clinical trial, Bayesian, R]</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="an">bibliography:</span><span class="co"> references.bib</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="an">csl:</span><span class="co"> https://www.zotero.org/styles/vancouver</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="co">    number-sections: true</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-width: 7</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-height: 4.5</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-align: center</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="an">knitr:</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="co">  opts_chunk:</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="co">    message: false</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="co">    warning: false</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="co">    fig.retina: 2</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="in">```{r setup, include=FALSE}</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_set</span>(<span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>))</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2024</span>)</span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a><span class="fu"># The randomised control arm problem</span></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>Clinical trials use randomisation to ensure that, on average, the treatment and placebo groups are comparable at baseline. This is a powerful guarantee: if subjects are randomly assigned, any difference in outcome at the end of the trial can be attributed to the treatment, not to pre-existing differences between groups.</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>But randomisation has costs. Every participant assigned to placebo receives no active treatment — a genuine ethical burden when a vaccine candidate shows promising early efficacy against an ongoing epidemic. Placebo arms also increase sample size requirements, slow enrolment (patients prefer active arms), and raise costs. In rare diseases, paediatric populations, or rapidly evolving pathogens, assembling a matched placebo group may be practically impossible <span class="co">[</span><span class="ot">@landig2025</span><span class="co">]</span>.</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>A **synthetic control arm** (SCA) addresses this by replacing the placebo group with simulated counterfactuals: *what would have happened to each vaccinated participant if they had received placebo instead?* If the model generating those counterfactuals is reliable — calibrated and externally validated — the sponsor can run a single-arm trial, compare outcomes to the synthetic control, and obtain an efficacy estimate with statistical guarantees.</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>This is the most commercially significant application of digital twins in clinical development. It is also the most demanding: a model that generates individual counterfactuals must be validated against real control data from a separate population, and regulators must accept that evidence <span class="co">[</span><span class="ot">@fda2020midd; @janssen2025</span><span class="co">]</span>.</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a><span class="fu"># The logic of a synthetic control arm</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a><span class="fu">## Three sources of control information</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>Regulatory frameworks recognise three ways to bring external information into a trial comparison <span class="co">[</span><span class="ot">@viele2014</span><span class="co">]</span>:</span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Propensity-matched historical controls**: find real patients from past studies who resemble the current trial's participants by age, comorbidity, baseline titre, etc. Match them statistically and use their outcomes as the comparator.</span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Borrowing from historical data** (power prior, commensurate prior): treat historical control data as informative prior information, downweighted by how similar the historical population is to the current trial <span class="co">[</span><span class="ot">@hobbs2012; @neuenschwander2010</span><span class="co">]</span>.</span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Model-generated synthetic controls**: run a calibrated mechanistic or statistical model for each participant under the counterfactual (no vaccine) scenario and use those generated outcomes as the comparison. This is the digital-twin version.</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>The digital-twin approach is distinct because the counterfactual is generated by a mechanistic model, not by statistical matching or reweighting. This makes it potentially more robust to unmeasured confounders and more naturally extensible to novel pathogen scenarios — but it requires validating the model as a trustworthy generator of counterfactual outcomes, which is a higher bar.</span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a><span class="fu">## What the model must do</span></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>A synthetic control arm model must:</span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Accept each participant's baseline characteristics** (age, prior serostatus, weight, comorbidities) as inputs.</span>
+<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Predict the distribution of clinical outcomes** (infection, hospitalisation) that participant would have experienced without vaccination, given the epidemic conditions of the trial period.</span>
+<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Be validated prospectively**: the model's predicted placebo distribution must have been shown to match observed placebo outcomes in a held-out dataset before the current trial begins.</span>
+<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a>Requirement 3 is the crux. Without it, the synthetic arm is no better than an optimistic guess.</span>
+<span id="cb12-70"><a href="#cb12-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-71"><a href="#cb12-71" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-72"><a href="#cb12-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-73"><a href="#cb12-73" aria-hidden="true" tabindex="-1"></a><span class="fu"># Building a synthetic control arm step by step</span></span>
+<span id="cb12-74"><a href="#cb12-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-75"><a href="#cb12-75" aria-hidden="true" tabindex="-1"></a>We now build a simplified but complete SCA using the tools from earlier posts. The setup:</span>
+<span id="cb12-76"><a href="#cb12-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-77"><a href="#cb12-77" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Arm 1 (active)**: 500 vaccinated participants with antibody titres from the virtual patient cohort (Post 3) and protection probabilities from the CoP model (Post 2).</span>
+<span id="cb12-78"><a href="#cb12-78" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Arm 2 (synthetic control)**: 500 simulated unvaccinated participants, with the same baseline characteristics, whose infection probability comes from the baseline attack rate in the epidemic context.</span>
+<span id="cb12-79"><a href="#cb12-79" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Outcome**: binary infection status during a 6-month follow-up.</span>
+<span id="cb12-80"><a href="#cb12-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-81"><a href="#cb12-81" aria-hidden="true" tabindex="-1"></a><span class="in">```{r setup-parameters}</span></span>
+<span id="cb12-82"><a href="#cb12-82" aria-hidden="true" tabindex="-1"></a>n_arm     <span class="ot">&lt;-</span> <span class="dv">500</span>    <span class="co"># participants per arm</span></span>
+<span id="cb12-83"><a href="#cb12-83" aria-hidden="true" tabindex="-1"></a>attack_rate_0 <span class="ot">&lt;-</span> <span class="fl">0.35</span>  <span class="co"># baseline attack rate in unvaccinated population</span></span>
+<span id="cb12-84"><a href="#cb12-84" aria-hidden="true" tabindex="-1"></a>                         <span class="co"># (35% cumulative incidence over 6 months — high-transmission setting)</span></span>
+<span id="cb12-85"><a href="#cb12-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-86"><a href="#cb12-86" aria-hidden="true" tabindex="-1"></a><span class="co"># Titre distribution (calibrated VPC from Post 3)</span></span>
+<span id="cb12-87"><a href="#cb12-87" aria-hidden="true" tabindex="-1"></a>mu_log    <span class="ot">&lt;-</span> <span class="fu">log</span>(<span class="dv">150</span>)</span>
+<span id="cb12-88"><a href="#cb12-88" aria-hidden="true" tabindex="-1"></a>sigma_log <span class="ot">&lt;-</span> <span class="fl">0.65</span></span>
+<span id="cb12-89"><a href="#cb12-89" aria-hidden="true" tabindex="-1"></a>titre_vp  <span class="ot">&lt;-</span> <span class="fu">rlnorm</span>(n_arm, <span class="at">meanlog =</span> mu_log, <span class="at">sdlog =</span> sigma_log)</span>
+<span id="cb12-90"><a href="#cb12-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-91"><a href="#cb12-91" aria-hidden="true" tabindex="-1"></a><span class="co"># CoP model (Post 2: EC50 = 120, k = 2.2)</span></span>
+<span id="cb12-92"><a href="#cb12-92" aria-hidden="true" tabindex="-1"></a>hill_p <span class="ot">&lt;-</span> <span class="cf">function</span>(T, <span class="at">EC50 =</span> <span class="dv">120</span>, <span class="at">k =</span> <span class="fl">2.2</span>) T<span class="sc">^</span>k <span class="sc">/</span> (T<span class="sc">^</span>k <span class="sc">+</span> EC50<span class="sc">^</span>k)</span>
+<span id="cb12-93"><a href="#cb12-93" aria-hidden="true" tabindex="-1"></a>p_protect <span class="ot">&lt;-</span> <span class="fu">hill_p</span>(titre_vp)</span>
+<span id="cb12-94"><a href="#cb12-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-95"><a href="#cb12-95" aria-hidden="true" tabindex="-1"></a><span class="co"># Vaccinated arm: infection probability = (1 - P_protect) * attack_rate_0</span></span>
+<span id="cb12-96"><a href="#cb12-96" aria-hidden="true" tabindex="-1"></a>p_inf_vacc    <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> p_protect) <span class="sc">*</span> attack_rate_0</span>
+<span id="cb12-97"><a href="#cb12-97" aria-hidden="true" tabindex="-1"></a>infected_vacc <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_arm, <span class="dv">1</span>, p_inf_vacc)</span>
+<span id="cb12-98"><a href="#cb12-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-99"><a href="#cb12-99" aria-hidden="true" tabindex="-1"></a><span class="co"># Synthetic control arm: infection probability = attack_rate_0 for all</span></span>
+<span id="cb12-100"><a href="#cb12-100" aria-hidden="true" tabindex="-1"></a>infected_ctrl <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n_arm, <span class="dv">1</span>, attack_rate_0)</span>
+<span id="cb12-101"><a href="#cb12-101" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-102"><a href="#cb12-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-103"><a href="#cb12-103" aria-hidden="true" tabindex="-1"></a><span class="fu">## Computing vaccine efficacy</span></span>
+<span id="cb12-104"><a href="#cb12-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-105"><a href="#cb12-105" aria-hidden="true" tabindex="-1"></a><span class="in">```{r ve-calculation}</span></span>
+<span id="cb12-106"><a href="#cb12-106" aria-hidden="true" tabindex="-1"></a>AR_vacc <span class="ot">&lt;-</span> <span class="fu">mean</span>(infected_vacc)</span>
+<span id="cb12-107"><a href="#cb12-107" aria-hidden="true" tabindex="-1"></a>AR_ctrl <span class="ot">&lt;-</span> <span class="fu">mean</span>(infected_ctrl)</span>
+<span id="cb12-108"><a href="#cb12-108" aria-hidden="true" tabindex="-1"></a>VE_obs  <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> AR_vacc <span class="sc">/</span> AR_ctrl</span>
+<span id="cb12-109"><a href="#cb12-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-110"><a href="#cb12-110" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"Attack rate: vaccinated = %.1f%%,  control = %.1f%%</span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb12-111"><a href="#cb12-111" aria-hidden="true" tabindex="-1"></a>            <span class="dv">100</span> <span class="sc">*</span> AR_vacc, <span class="dv">100</span> <span class="sc">*</span> AR_ctrl))</span>
+<span id="cb12-112"><a href="#cb12-112" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"Observed VE = %.1f%%</span><span class="sc">\n</span><span class="st">"</span>, <span class="dv">100</span> <span class="sc">*</span> VE_obs))</span>
+<span id="cb12-113"><a href="#cb12-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-114"><a href="#cb12-114" aria-hidden="true" tabindex="-1"></a><span class="co"># True VE (from model)</span></span>
+<span id="cb12-115"><a href="#cb12-115" aria-hidden="true" tabindex="-1"></a>VE_true <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> <span class="fu">mean</span>(p_inf_vacc) <span class="sc">/</span> attack_rate_0</span>
+<span id="cb12-116"><a href="#cb12-116" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"True VE     = %.1f%%</span><span class="sc">\n</span><span class="st">"</span>, <span class="dv">100</span> <span class="sc">*</span> VE_true))</span>
+<span id="cb12-117"><a href="#cb12-117" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-118"><a href="#cb12-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-119"><a href="#cb12-119" aria-hidden="true" tabindex="-1"></a><span class="in">```{r trial-viz, fig.cap="Attack rates in the vaccinated arm (orange) and synthetic control arm (blue) from a single simulated trial. Error bars are 95% binomial confidence intervals. The green diamond marks the true VE predicted by the model; the black estimate is the observed trial VE. In this single simulation the observed VE is close to the truth, but sampling variability causes modest differences — exactly what motivates formal power analysis (Post 5)."}</span></span>
+<span id="cb12-120"><a href="#cb12-120" aria-hidden="true" tabindex="-1"></a>binom_ci <span class="ot">&lt;-</span> <span class="cf">function</span>(x, n, <span class="at">level =</span> <span class="fl">0.95</span>) {</span>
+<span id="cb12-121"><a href="#cb12-121" aria-hidden="true" tabindex="-1"></a>  t <span class="ot">&lt;-</span> <span class="fu">binom.test</span>(x, n, <span class="at">conf.level =</span> level)</span>
+<span id="cb12-122"><a href="#cb12-122" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">lo =</span> t<span class="sc">$</span>conf.int[<span class="dv">1</span>], <span class="at">hi =</span> t<span class="sc">$</span>conf.int[<span class="dv">2</span>])</span>
+<span id="cb12-123"><a href="#cb12-123" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-124"><a href="#cb12-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-125"><a href="#cb12-125" aria-hidden="true" tabindex="-1"></a>ci_v <span class="ot">&lt;-</span> <span class="fu">binom_ci</span>(<span class="fu">sum</span>(infected_vacc), n_arm)</span>
+<span id="cb12-126"><a href="#cb12-126" aria-hidden="true" tabindex="-1"></a>ci_c <span class="ot">&lt;-</span> <span class="fu">binom_ci</span>(<span class="fu">sum</span>(infected_ctrl), n_arm)</span>
+<span id="cb12-127"><a href="#cb12-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-128"><a href="#cb12-128" aria-hidden="true" tabindex="-1"></a>df_bar <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb12-129"><a href="#cb12-129" aria-hidden="true" tabindex="-1"></a>  <span class="at">arm   =</span> <span class="fu">c</span>(<span class="st">"Vaccinated"</span>, <span class="st">"Synthetic control"</span>),</span>
+<span id="cb12-130"><a href="#cb12-130" aria-hidden="true" tabindex="-1"></a>  <span class="at">AR    =</span> <span class="fu">c</span>(AR_vacc, AR_ctrl),</span>
+<span id="cb12-131"><a href="#cb12-131" aria-hidden="true" tabindex="-1"></a>  <span class="at">lo    =</span> <span class="fu">c</span>(ci_v[<span class="st">"lo"</span>], ci_c[<span class="st">"lo"</span>]),</span>
+<span id="cb12-132"><a href="#cb12-132" aria-hidden="true" tabindex="-1"></a>  <span class="at">hi    =</span> <span class="fu">c</span>(ci_v[<span class="st">"hi"</span>], ci_c[<span class="st">"hi"</span>])</span>
+<span id="cb12-133"><a href="#cb12-133" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb12-134"><a href="#cb12-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">arm =</span> <span class="fu">factor</span>(arm, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Synthetic control"</span>, <span class="st">"Vaccinated"</span>)))</span>
+<span id="cb12-135"><a href="#cb12-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-136"><a href="#cb12-136" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_bar, <span class="fu">aes</span>(<span class="at">x =</span> arm, <span class="at">y =</span> AR, <span class="at">fill =</span> arm)) <span class="sc">+</span></span>
+<span id="cb12-137"><a href="#cb12-137" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">width =</span> <span class="fl">0.45</span>, <span class="at">show.legend =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb12-138"><a href="#cb12-138" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_errorbar</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lo, <span class="at">ymax =</span> hi), <span class="at">width =</span> <span class="fl">0.12</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb12-139"><a href="#cb12-139" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> <span class="fu">tibble</span>(<span class="at">arm =</span> <span class="fu">factor</span>(<span class="st">"Vaccinated"</span>,</span>
+<span id="cb12-140"><a href="#cb12-140" aria-hidden="true" tabindex="-1"></a>                                         <span class="at">levels =</span> <span class="fu">levels</span>(df_bar<span class="sc">$</span>arm)),</span>
+<span id="cb12-141"><a href="#cb12-141" aria-hidden="true" tabindex="-1"></a>                            <span class="at">AR =</span> <span class="fu">mean</span>(p_inf_vacc)),</span>
+<span id="cb12-142"><a href="#cb12-142" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"#1A9641"</span>, <span class="at">shape =</span> <span class="dv">18</span>, <span class="at">size =</span> <span class="dv">5</span>) <span class="sc">+</span></span>
+<span id="cb12-143"><a href="#cb12-143" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Vaccinated"</span> <span class="ot">=</span> <span class="st">"#E87722"</span>,</span>
+<span id="cb12-144"><a href="#cb12-144" aria-hidden="true" tabindex="-1"></a>                                <span class="st">"Synthetic control"</span> <span class="ot">=</span> <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb12-145"><a href="#cb12-145" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(), <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.55</span>)) <span class="sc">+</span></span>
+<span id="cb12-146"><a href="#cb12-146" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Attack rate (6-month cumulative incidence)"</span>) <span class="sc">+</span></span>
+<span id="cb12-147"><a href="#cb12-147" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">1</span>, <span class="at">y =</span> <span class="fl">0.53</span>,</span>
+<span id="cb12-148"><a href="#cb12-148" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"VE = %.0f%%"</span>, <span class="dv">100</span> <span class="sc">*</span> VE_obs),</span>
+<span id="cb12-149"><a href="#cb12-149" aria-hidden="true" tabindex="-1"></a>           <span class="at">size =</span> <span class="fl">4.5</span>, <span class="at">colour =</span> <span class="st">"grey20"</span>)</span>
+<span id="cb12-150"><a href="#cb12-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-151"><a href="#cb12-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-152"><a href="#cb12-152" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-153"><a href="#cb12-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-154"><a href="#cb12-154" aria-hidden="true" tabindex="-1"></a><span class="fu"># Validation: the critical step</span></span>
+<span id="cb12-155"><a href="#cb12-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-156"><a href="#cb12-156" aria-hidden="true" tabindex="-1"></a>A synthetic control arm is credible only if the model that generates it has been validated against real control outcomes it did not use for fitting. This is called a **prospective external validation** (or more precisely, a retrospective validation using data held back from calibration).</span>
+<span id="cb12-157"><a href="#cb12-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-158"><a href="#cb12-158" aria-hidden="true" tabindex="-1"></a><span class="fu">## Setting up a validation exercise</span></span>
+<span id="cb12-159"><a href="#cb12-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-160"><a href="#cb12-160" aria-hidden="true" tabindex="-1"></a>We simulate validation as follows:</span>
+<span id="cb12-161"><a href="#cb12-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-162"><a href="#cb12-162" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Training dataset**: a past trial where both active and placebo arms were observed (n = 300 per arm).</span>
+<span id="cb12-163"><a href="#cb12-163" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Validation**: run the synthetic control model on the training trial's vaccinated arm, predict the placebo attack rate, and compare to the observed placebo attack rate.</span>
+<span id="cb12-164"><a href="#cb12-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-165"><a href="#cb12-165" aria-hidden="true" tabindex="-1"></a><span class="in">```{r validation-sim, fig.cap="Validation exercise: 500 synthetic trials comparing observed placebo attack rates (x-axis, from the historical trial) versus the model-predicted synthetic control attack rate (y-axis). The diagonal line is perfect agreement. The model predictions scatter symmetrically around the diagonal with no systematic bias — the hallmark of a calibrated synthetic control model. A model that consistently overestimates the control attack rate would make the vaccine look better than it is; systematic underestimation would make it look worse."}</span></span>
+<span id="cb12-166"><a href="#cb12-166" aria-hidden="true" tabindex="-1"></a>n_val     <span class="ot">&lt;-</span> <span class="dv">200</span>   <span class="co"># validation runs (different epidemic contexts)</span></span>
+<span id="cb12-167"><a href="#cb12-167" aria-hidden="true" tabindex="-1"></a>AR_pred   <span class="ot">&lt;-</span> <span class="fu">numeric</span>(n_val)</span>
+<span id="cb12-168"><a href="#cb12-168" aria-hidden="true" tabindex="-1"></a>AR_obs    <span class="ot">&lt;-</span> <span class="fu">numeric</span>(n_val)</span>
+<span id="cb12-169"><a href="#cb12-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-170"><a href="#cb12-170" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (v <span class="cf">in</span> <span class="fu">seq_len</span>(n_val)) {</span>
+<span id="cb12-171"><a href="#cb12-171" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Each validation scenario: different underlying attack rate</span></span>
+<span id="cb12-172"><a href="#cb12-172" aria-hidden="true" tabindex="-1"></a>  ar0_v <span class="ot">&lt;-</span> <span class="fu">rbeta</span>(<span class="dv">1</span>, <span class="at">shape1 =</span> <span class="dv">3</span>, <span class="at">shape2 =</span> <span class="dv">7</span>) <span class="sc">*</span> <span class="fl">0.7</span> <span class="sc">+</span> <span class="fl">0.05</span>  <span class="co"># AR0 ~ 5%–75%</span></span>
+<span id="cb12-173"><a href="#cb12-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-174"><a href="#cb12-174" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Observed placebo arm in historical trial (n = 300)</span></span>
+<span id="cb12-175"><a href="#cb12-175" aria-hidden="true" tabindex="-1"></a>  AR_obs[v] <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">rbinom</span>(<span class="dv">300</span>, <span class="dv">1</span>, ar0_v))</span>
+<span id="cb12-176"><a href="#cb12-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-177"><a href="#cb12-177" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Synthetic control arm prediction: use model's predicted attack rates</span></span>
+<span id="cb12-178"><a href="#cb12-178" aria-hidden="true" tabindex="-1"></a>  titre_v <span class="ot">&lt;-</span> <span class="fu">rlnorm</span>(<span class="dv">300</span>, mu_log, sigma_log)</span>
+<span id="cb12-179"><a href="#cb12-179" aria-hidden="true" tabindex="-1"></a>  pp_v    <span class="ot">&lt;-</span> <span class="fu">hill_p</span>(titre_v)</span>
+<span id="cb12-180"><a href="#cb12-180" aria-hidden="true" tabindex="-1"></a>  AR_pred[v] <span class="ot">&lt;-</span> ar0_v  <span class="co"># in a real SCA, this is estimated from the model;</span></span>
+<span id="cb12-181"><a href="#cb12-181" aria-hidden="true" tabindex="-1"></a>                         <span class="co"># here we use the true value to show calibration</span></span>
+<span id="cb12-182"><a href="#cb12-182" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Add noise to represent model imprecision</span></span>
+<span id="cb12-183"><a href="#cb12-183" aria-hidden="true" tabindex="-1"></a>  AR_pred[v] <span class="ot">&lt;-</span> AR_pred[v] <span class="sc">*</span> <span class="fu">exp</span>(<span class="fu">rnorm</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="fl">0.08</span>))</span>
+<span id="cb12-184"><a href="#cb12-184" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-185"><a href="#cb12-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-186"><a href="#cb12-186" aria-hidden="true" tabindex="-1"></a>df_val <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">AR_obs =</span> AR_obs, <span class="at">AR_pred =</span> AR_pred)</span>
+<span id="cb12-187"><a href="#cb12-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-188"><a href="#cb12-188" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_val, <span class="fu">aes</span>(<span class="at">x =</span> AR_obs, <span class="at">y =</span> AR_pred)) <span class="sc">+</span></span>
+<span id="cb12-189"><a href="#cb12-189" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>, <span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">colour =</span> <span class="st">"grey40"</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb12-190"><a href="#cb12-190" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb12-191"><a href="#cb12-191" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">colour =</span> <span class="st">"#E87722"</span>,</span>
+<span id="cb12-192"><a href="#cb12-192" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> <span class="st">"#E87722"</span>, <span class="at">alpha =</span> <span class="fl">0.15</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb12-193"><a href="#cb12-193" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(), <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.75</span>)) <span class="sc">+</span></span>
+<span id="cb12-194"><a href="#cb12-194" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>(), <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.75</span>)) <span class="sc">+</span></span>
+<span id="cb12-195"><a href="#cb12-195" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Observed placebo attack rate (historical trial)"</span>,</span>
+<span id="cb12-196"><a href="#cb12-196" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Predicted synthetic control attack rate"</span>)</span>
+<span id="cb12-197"><a href="#cb12-197" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-198"><a href="#cb12-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-199"><a href="#cb12-199" aria-hidden="true" tabindex="-1"></a><span class="fu">## What validation statistics matter?</span></span>
+<span id="cb12-200"><a href="#cb12-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-201"><a href="#cb12-201" aria-hidden="true" tabindex="-1"></a>Regulators <span class="co">[</span><span class="ot">@fda2020midd; @bai2024virtualpatients</span><span class="co">]</span> typically ask for:</span>
+<span id="cb12-202"><a href="#cb12-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-203"><a href="#cb12-203" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Metric <span class="pp">|</span> What it tests <span class="pp">|</span></span>
+<span id="cb12-204"><a href="#cb12-204" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb12-205"><a href="#cb12-205" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Calibration**: predicted vs observed attack rate (slope = 1, intercept = 0) <span class="pp">|</span> No systematic bias <span class="pp">|</span></span>
+<span id="cb12-206"><a href="#cb12-206" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Discrimination**: AUC of predicted probability vs observed infection <span class="pp">|</span> Model ranks individuals correctly <span class="pp">|</span></span>
+<span id="cb12-207"><a href="#cb12-207" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Coverage**: % of observations within the model's prediction interval <span class="pp">|</span> Uncertainty is honest <span class="pp">|</span></span>
+<span id="cb12-208"><a href="#cb12-208" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Generalisability**: validation in a population different from the calibration set <span class="pp">|</span> Not just overfitting <span class="pp">|</span></span>
+<span id="cb12-209"><a href="#cb12-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-210"><a href="#cb12-210" aria-hidden="true" tabindex="-1"></a>Our simulation shows a well-calibrated model (slope ≈ 1, no systematic bias). Real-world validation is harder: attack rates in the historical trial may be confounded by non-pharmaceutical interventions, variant effects, or population-level immunity that the model does not explicitly represent.</span>
+<span id="cb12-211"><a href="#cb12-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-212"><a href="#cb12-212" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-213"><a href="#cb12-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-214"><a href="#cb12-214" aria-hidden="true" tabindex="-1"></a><span class="fu"># Bayesian borrowing: a statistical companion to the digital twin</span></span>
+<span id="cb12-215"><a href="#cb12-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-216"><a href="#cb12-216" aria-hidden="true" tabindex="-1"></a>The synthetic control arm is a *model-based* approach. It is often combined with **Bayesian borrowing** — incorporating historical control data as an informative prior on the placebo response, with the degree of borrowing determined by the statistical consistency between historical and current data <span class="co">[</span><span class="ot">@neuenschwander2010; @viele2014</span><span class="co">]</span>.</span>
+<span id="cb12-217"><a href="#cb12-217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-218"><a href="#cb12-218" aria-hidden="true" tabindex="-1"></a>The two approaches are complementary:</span>
+<span id="cb12-219"><a href="#cb12-219" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The digital twin provides a mechanistic, individual-level prediction of what the unvaccinated outcome would have been.</span>
+<span id="cb12-220"><a href="#cb12-220" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bayesian borrowing provides a principled statistical framework for weighting that prediction against observed data, with automatic discounting when the historical and current populations are inconsistent (the *conflict* problem).</span>
+<span id="cb12-221"><a href="#cb12-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-222"><a href="#cb12-222" aria-hidden="true" tabindex="-1"></a><span class="in">```{r bayesian-borrowing, fig.cap="Bayesian borrowing: posterior distribution of the control attack rate under three priors. The non-informative prior (grey) is dominated by the current trial data. The informative prior (blue) reflects the model's prediction (AR0 = 35%) with moderate precision. The mixture prior (orange, robust mixture) discounts the informative prior when the data conflict with it. The green dashed line marks the true attack rate."}</span></span>
+<span id="cb12-223"><a href="#cb12-223" aria-hidden="true" tabindex="-1"></a><span class="co"># Likelihood: binomial(n_ctrl, AR_ctrl_obs)</span></span>
+<span id="cb12-224"><a href="#cb12-224" aria-hidden="true" tabindex="-1"></a><span class="co"># Prior: beta(a, b) parameterised by mean and effective sample size</span></span>
+<span id="cb12-225"><a href="#cb12-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-226"><a href="#cb12-226" aria-hidden="true" tabindex="-1"></a><span class="co"># Beta parameterisation from mean and ESS</span></span>
+<span id="cb12-227"><a href="#cb12-227" aria-hidden="true" tabindex="-1"></a>beta_from_mean_ess <span class="ot">&lt;-</span> <span class="cf">function</span>(mean, ess) {</span>
+<span id="cb12-228"><a href="#cb12-228" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> mean <span class="sc">*</span> ess; b <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> mean) <span class="sc">*</span> ess</span>
+<span id="cb12-229"><a href="#cb12-229" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">a =</span> a, <span class="at">b =</span> b)</span>
+<span id="cb12-230"><a href="#cb12-230" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-231"><a href="#cb12-231" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-232"><a href="#cb12-232" aria-hidden="true" tabindex="-1"></a>n_ctrl_obs <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb12-233"><a href="#cb12-233" aria-hidden="true" tabindex="-1"></a>k_ctrl_obs <span class="ot">&lt;-</span> <span class="fu">round</span>(n_ctrl_obs <span class="sc">*</span> <span class="fl">0.33</span>)  <span class="co"># observed 33% attack rate in "current" trial</span></span>
+<span id="cb12-234"><a href="#cb12-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-235"><a href="#cb12-235" aria-hidden="true" tabindex="-1"></a><span class="co"># Three priors</span></span>
+<span id="cb12-236"><a href="#cb12-236" aria-hidden="true" tabindex="-1"></a>prior_flat  <span class="ot">&lt;-</span> <span class="fu">beta_from_mean_ess</span>(<span class="fl">0.35</span>, <span class="dv">2</span>)    <span class="co"># near-flat</span></span>
+<span id="cb12-237"><a href="#cb12-237" aria-hidden="true" tabindex="-1"></a>prior_info  <span class="ot">&lt;-</span> <span class="fu">beta_from_mean_ess</span>(<span class="fl">0.35</span>, <span class="dv">50</span>)   <span class="co"># informative: ESS = 50</span></span>
+<span id="cb12-238"><a href="#cb12-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-239"><a href="#cb12-239" aria-hidden="true" tabindex="-1"></a>AR_grid <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.01</span>, <span class="fl">0.70</span>, <span class="at">length.out =</span> <span class="dv">500</span>)</span>
+<span id="cb12-240"><a href="#cb12-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-241"><a href="#cb12-241" aria-hidden="true" tabindex="-1"></a>post_density <span class="ot">&lt;-</span> <span class="cf">function</span>(prior, k, n) {</span>
+<span id="cb12-242"><a href="#cb12-242" aria-hidden="true" tabindex="-1"></a>  a_post <span class="ot">&lt;-</span> prior[<span class="st">"a"</span>] <span class="sc">+</span> k</span>
+<span id="cb12-243"><a href="#cb12-243" aria-hidden="true" tabindex="-1"></a>  b_post <span class="ot">&lt;-</span> prior[<span class="st">"b"</span>] <span class="sc">+</span> (n <span class="sc">-</span> k)</span>
+<span id="cb12-244"><a href="#cb12-244" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dbeta</span>(AR_grid, a_post, b_post)</span>
+<span id="cb12-245"><a href="#cb12-245" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-246"><a href="#cb12-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-247"><a href="#cb12-247" aria-hidden="true" tabindex="-1"></a>df_post <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb12-248"><a href="#cb12-248" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">AR =</span> AR_grid, <span class="at">density =</span> <span class="fu">post_density</span>(prior_flat, k_ctrl_obs, n_ctrl_obs),</span>
+<span id="cb12-249"><a href="#cb12-249" aria-hidden="true" tabindex="-1"></a>         <span class="at">prior =</span> <span class="st">"Non-informative (ESS = 2)"</span>),</span>
+<span id="cb12-250"><a href="#cb12-250" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">AR =</span> AR_grid, <span class="at">density =</span> <span class="fu">post_density</span>(prior_info, k_ctrl_obs, n_ctrl_obs),</span>
+<span id="cb12-251"><a href="#cb12-251" aria-hidden="true" tabindex="-1"></a>         <span class="at">prior =</span> <span class="st">"Informative (ESS = 50)"</span>),</span>
+<span id="cb12-252"><a href="#cb12-252" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Robust mixture: 80% informative + 20% flat</span></span>
+<span id="cb12-253"><a href="#cb12-253" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">AR =</span> AR_grid,</span>
+<span id="cb12-254"><a href="#cb12-254" aria-hidden="true" tabindex="-1"></a>         <span class="at">density =</span> <span class="fl">0.8</span> <span class="sc">*</span> <span class="fu">post_density</span>(prior_info, k_ctrl_obs, n_ctrl_obs) <span class="sc">+</span></span>
+<span id="cb12-255"><a href="#cb12-255" aria-hidden="true" tabindex="-1"></a>                   <span class="fl">0.2</span> <span class="sc">*</span> <span class="fu">post_density</span>(prior_flat, k_ctrl_obs, n_ctrl_obs),</span>
+<span id="cb12-256"><a href="#cb12-256" aria-hidden="true" tabindex="-1"></a>         <span class="at">prior =</span> <span class="st">"Robust mixture (80% informative)"</span>)</span>
+<span id="cb12-257"><a href="#cb12-257" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-258"><a href="#cb12-258" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-259"><a href="#cb12-259" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_post, <span class="fu">aes</span>(<span class="at">x =</span> AR, <span class="at">y =</span> density, <span class="at">colour =</span> prior, <span class="at">fill =</span> prior)) <span class="sc">+</span></span>
+<span id="cb12-260"><a href="#cb12-260" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb12-261"><a href="#cb12-261" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb12-262"><a href="#cb12-262" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> attack_rate_0, <span class="at">linetype =</span> <span class="st">"dashed"</span>,</span>
+<span id="cb12-263"><a href="#cb12-263" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"#1A9641"</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb12-264"><a href="#cb12-264" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> attack_rate_0 <span class="sc">+</span> <span class="fl">0.015</span>, <span class="at">y =</span> <span class="dv">25</span>,</span>
+<span id="cb12-265"><a href="#cb12-265" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"True AR0"</span>, <span class="at">colour =</span> <span class="st">"#1A9641"</span>, <span class="at">size =</span> <span class="fl">3.5</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb12-266"><a href="#cb12-266" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">percent_format</span>()) <span class="sc">+</span></span>
+<span id="cb12-267"><a href="#cb12-267" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Non-informative (ESS = 2)"</span> <span class="ot">=</span> <span class="st">"grey50"</span>,</span>
+<span id="cb12-268"><a href="#cb12-268" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"Informative (ESS = 50)"</span>    <span class="ot">=</span> <span class="st">"#3B6EA8"</span>,</span>
+<span id="cb12-269"><a href="#cb12-269" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"Robust mixture (80% informative)"</span> <span class="ot">=</span> <span class="st">"#E87722"</span>)) <span class="sc">+</span></span>
+<span id="cb12-270"><a href="#cb12-270" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values  =</span> <span class="fu">c</span>(<span class="st">"Non-informative (ESS = 2)"</span> <span class="ot">=</span> <span class="st">"grey50"</span>,</span>
+<span id="cb12-271"><a href="#cb12-271" aria-hidden="true" tabindex="-1"></a>                                 <span class="st">"Informative (ESS = 50)"</span>    <span class="ot">=</span> <span class="st">"#3B6EA8"</span>,</span>
+<span id="cb12-272"><a href="#cb12-272" aria-hidden="true" tabindex="-1"></a>                                 <span class="st">"Robust mixture (80% informative)"</span> <span class="ot">=</span> <span class="st">"#E87722"</span>)) <span class="sc">+</span></span>
+<span id="cb12-273"><a href="#cb12-273" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Control arm attack rate"</span>, <span class="at">y =</span> <span class="st">"Posterior density"</span>,</span>
+<span id="cb12-274"><a href="#cb12-274" aria-hidden="true" tabindex="-1"></a>       <span class="at">colour =</span> <span class="cn">NULL</span>, <span class="at">fill =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb12-275"><a href="#cb12-275" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>,</span>
+<span id="cb12-276"><a href="#cb12-276" aria-hidden="true" tabindex="-1"></a>        <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">9</span>))</span>
+<span id="cb12-277"><a href="#cb12-277" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb12-278"><a href="#cb12-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-279"><a href="#cb12-279" aria-hidden="true" tabindex="-1"></a>The informative prior (blue) pulls the posterior towards the model's prediction and narrows the uncertainty interval — this is the sample-size-saving effect of Bayesian borrowing. The robust mixture (orange) achieves most of that gain while protecting against the prior being badly wrong: if the current data were to show AR0 = 60% instead of 33%, the mixture prior would self-discount.</span>
+<span id="cb12-280"><a href="#cb12-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-281"><a href="#cb12-281" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-282"><a href="#cb12-282" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-283"><a href="#cb12-283" aria-hidden="true" tabindex="-1"></a><span class="fu"># The regulatory landscape</span></span>
+<span id="cb12-284"><a href="#cb12-284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-285"><a href="#cb12-285" aria-hidden="true" tabindex="-1"></a><span class="fu">## What FDA and EMA have accepted</span></span>
+<span id="cb12-286"><a href="#cb12-286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-287"><a href="#cb12-287" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**FDA Model-Informed Drug Development (MIDD)**: the FDA's 2020 guidance creates a paired-meeting process where sponsors present modelling evidence before a trial begins and receive feedback on whether the model is adequate for the intended regulatory use <span class="co">[</span><span class="ot">@fda2020midd</span><span class="co">]</span>. FDA has accepted Bayesian synthetic control arms in oncology and rare-disease settings; vaccine applications are fewer but growing.</span>
+<span id="cb12-288"><a href="#cb12-288" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-289"><a href="#cb12-289" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**EMA PROCOVA qualification**: EMA qualified PROCOVA — which uses a digital-twin-derived prognostic score to reduce variance in primary endpoints — as an acceptable analysis method. This is not a full synthetic control arm, but it uses the digital-twin concept (individual-level model-derived predictions) within a randomised trial to reduce sample size <span class="co">[</span><span class="ot">@janssen2025</span><span class="co">]</span>.</span>
+<span id="cb12-290"><a href="#cb12-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-291"><a href="#cb12-291" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**ICH M15**: the first international harmonised guideline on model-informed drug development (draft 2024) is creating a common language for regulatory submissions that use modelling as evidence.</span>
+<span id="cb12-292"><a href="#cb12-292" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-293"><a href="#cb12-293" aria-hidden="true" tabindex="-1"></a><span class="fu">## What has not been accepted</span></span>
+<span id="cb12-294"><a href="#cb12-294" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-295"><a href="#cb12-295" aria-hidden="true" tabindex="-1"></a>No pivotal vaccine trial has yet received primary approval on the basis of a fully synthetic control arm for efficacy. The regulatory position for vaccines is that:</span>
+<span id="cb12-296"><a href="#cb12-296" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-297"><a href="#cb12-297" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; A model-generated synthetic control arm can reduce, but not yet eliminate, the randomised placebo group in a pivotal trial.</span></span>
+<span id="cb12-298"><a href="#cb12-298" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-299"><a href="#cb12-299" aria-hidden="true" tabindex="-1"></a>The path to full elimination requires: (i) a validated mechanistic model with demonstrated external generalisability, (ii) pre-registration of the synthetic arm methodology alongside the statistical analysis plan, and (iii) at least one precedent case in the same therapeutic area. For infectious-disease vaccines, that precedent does not yet exist, but the COVID-19 accelerations (booster approvals based on immunogenicity rather than efficacy data) have moved the goalposts considerably.</span>
+<span id="cb12-300"><a href="#cb12-300" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-301"><a href="#cb12-301" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-302"><a href="#cb12-302" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-303"><a href="#cb12-303" aria-hidden="true" tabindex="-1"></a><span class="fu"># What comes next</span></span>
+<span id="cb12-304"><a href="#cb12-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-305"><a href="#cb12-305" aria-hidden="true" tabindex="-1"></a>We now have the full digital-twin pipeline:</span>
+<span id="cb12-306"><a href="#cb12-306" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-307"><a href="#cb12-307" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>✅ **Post 1**: Within-host ODE → antibody trajectory</span>
+<span id="cb12-308"><a href="#cb12-308" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>✅ **Post 2**: Correlate of protection → protection probability</span>
+<span id="cb12-309"><a href="#cb12-309" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>✅ **Post 3**: LHS sampling → virtual patient cohort</span>
+<span id="cb12-310"><a href="#cb12-310" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>✅ **Post 4** (this post): Synthetic control arm + Bayesian borrowing + validation</span>
+<span id="cb12-311"><a href="#cb12-311" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-312"><a href="#cb12-312" aria-hidden="true" tabindex="-1"></a>**Post 5** uses this entire pipeline to perform a **trial simulation**: running thousands of Monte Carlo trials to compute power, optimise sample size, and design adaptive interim analyses — all before a single participant is enrolled.</span>
+<span id="cb12-313"><a href="#cb12-313" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-314"><a href="#cb12-314" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb12-315"><a href="#cb12-315" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-316"><a href="#cb12-316" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {.unnumbered}</span></span>
+<span id="cb12-317"><a href="#cb12-317" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-318"><a href="#cb12-318" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb12-319"><a href="#cb12-319" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb12-320"><a href="#cb12-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-321"><a href="#cb12-321" aria-hidden="true" tabindex="-1"></a><span class="in">```{r session-info, echo=FALSE}</span></span>
+<span id="cb12-322"><a href="#cb12-322" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
+<span id="cb12-323"><a href="#cb12-323" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
