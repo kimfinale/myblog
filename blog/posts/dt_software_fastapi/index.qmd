@@ -1,0 +1,397 @@
+---
+title: "Exposing Your Epidemic Model as a REST API"
+subtitle: "From a local function to a network service — FastAPI, HTTP verbs, and JSON schemas. Post 2 in the Building Digital Twin Systems series."
+author: "Jong-Hoon Kim"
+date: "2026-04-23"
+categories: [digital twin, software engineering, Python, FastAPI, REST API]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## What a REST API is and why you need one
+
+In [Post 1](https://www.jonghoonk.com/blog/posts/dt_software_foundations/) we built a validated, testable SIR model function. That function can be called from R or Python by anyone who installs your package. But "install my package" is a high barrier. A hospital surveillance team using a web dashboard cannot import your R package. A pharma client running Julia cannot call your Python function.
+
+A **REST API** removes this barrier. It exposes your model over HTTP — the same protocol used by every web browser on Earth. Any program in any language that can make an HTTP request (all of them can) can call your model, send parameters, and receive results. Fielding's doctoral dissertation [@fielding2000] formalised this architectural style; FastAPI [@fastapi2024] is the modern Python library that makes implementing it straightforward.
+
+```
+Client (any language)        Your server
+─────────────────────        ─────────────────────────────────────────
+POST /simulate    ──────►    Validate input
+{beta: 0.4, ...}             Run sir_model(beta=0.4, ...)
+                  ◄──────    Return JSON trajectory
+{"trajectory": [...]}
+```
+
+## REST fundamentals: verbs and resources
+
+REST uses HTTP verbs to express intent on *resources* (nouns):
+
+| Verb | Meaning | Example |
+|------|---------|---------|
+| `GET` | Retrieve existing data | `GET /scenarios/42` — fetch a stored scenario |
+| `POST` | Create something new | `POST /simulate` — run a new simulation |
+| `DELETE` | Remove a resource | `DELETE /scenarios/42` |
+
+The API returns standard HTTP status codes: `200 OK`, `201 Created`, `422 Unprocessable Entity` (invalid input), `500 Internal Server Error`.
+
+## Setting up FastAPI
+
+FastAPI is installed with pip. The server is run with `uvicorn` (an ASGI server).
+
+```bash
+pip install fastapi uvicorn scipy
+```
+
+The complete application below lives in a single file for clarity. In a real product it would be split across modules.
+
+## Building the epidemic model API
+
+### Step 1 — the model
+
+We use SciPy's ODE solver [@virtanen2020] for accuracy. It is faster and more numerically stable than the manual Euler loop from Post 1.
+
+```python
+# sir_api/model.py
+from scipy.integrate import solve_ivp
+import numpy as np
+
+
+def sir_rhs(t, y, beta, gamma, N):
+    """Right-hand side of the SIR ODE system."""
+    S, I, R = y
+    dS = -beta * S * I / N
+    dI =  beta * S * I / N - gamma * I
+    dR =  gamma * I
+    return [dS, dI, dR]
+
+
+def run_sir(S0: float, I0: float, beta: float,
+            gamma: float, days: int) -> dict:
+    """
+    Solve SIR ODEs and return a dict of time-series arrays.
+    """
+    N = S0 + I0
+    t_span = (0, days)
+    t_eval = np.arange(0, days + 1, dtype=float)
+    y0 = [S0, I0, 0.0]
+
+    sol = solve_ivp(sir_rhs, t_span, y0, args=(beta, gamma, N),
+                    t_eval=t_eval, dense_output=False,
+                    method="RK45", rtol=1e-6)
+
+    return {
+        "time":  sol.t.tolist(),
+        "S":     sol.y[0].tolist(),
+        "I":     sol.y[1].tolist(),
+        "R":     sol.y[2].tolist(),
+        "R0":    round(beta / gamma, 3),
+        "peak_I": float(np.max(sol.y[1])),
+        "peak_day": int(np.argmax(sol.y[1])),
+    }
+```
+
+### Step 2 — Pydantic schemas
+
+FastAPI uses Pydantic models to define and validate the shapes of requests and responses. Every field gets a type and optional constraints. FastAPI enforces them automatically — no manual `if beta <= 0: raise` needed.
+
+```python
+# sir_api/schemas.py
+from pydantic import BaseModel, Field
+
+
+class SimulateRequest(BaseModel):
+    S0: float = Field(gt=0, description="Initial susceptibles")
+    I0: float = Field(gt=0, description="Initial infectious")
+    beta: float = Field(gt=0, lt=5,
+                        description="Transmission rate (per day)")
+    gamma: float = Field(gt=0, lt=1,
+                         description="Recovery rate (per day)")
+    days: int = Field(ge=1, le=365,
+                      description="Simulation length (days)")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "S0": 9900, "I0": 100,
+                "beta": 0.4, "gamma": 0.1, "days": 60
+            }
+        }
+    }
+
+
+class TrajectoryPoint(BaseModel):
+    time: float
+    S: float
+    I: float
+    R: float
+
+
+class SimulateResponse(BaseModel):
+    R0: float
+    peak_I: float
+    peak_day: int
+    trajectory: list[TrajectoryPoint]
+```
+
+### Step 3 — the FastAPI application
+
+```python
+# sir_api/main.py
+from fastapi import FastAPI, HTTPException
+from .schemas import SimulateRequest, SimulateResponse, TrajectoryPoint
+from .model import run_sir
+
+app = FastAPI(
+    title="SIR Epidemic Model API",
+    description="Run deterministic SIR epidemic simulations over HTTP.",
+    version="0.1.0",
+)
+
+
+@app.get("/health")
+def health_check():
+    """Returns 200 if the service is running."""
+    return {"status": "ok"}
+
+
+@app.post("/simulate", response_model=SimulateResponse)
+def simulate(req: SimulateRequest):
+    """
+    Run a SIR epidemic simulation.
+
+    Returns the full S/I/R trajectory plus summary statistics.
+    """
+    try:
+        result = run_sir(
+            S0=req.S0, I0=req.I0,
+            beta=req.beta, gamma=req.gamma,
+            days=req.days,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail=f"Simulation failed: {e}")
+
+    trajectory = [
+        TrajectoryPoint(time=t, S=s, I=i, R=r)
+        for t, s, i, r in zip(result["time"], result["S"],
+                               result["I"], result["R"])
+    ]
+    return SimulateResponse(
+        R0=result["R0"],
+        peak_I=result["peak_I"],
+        peak_day=result["peak_day"],
+        trajectory=trajectory,
+    )
+```
+
+### Step 4 — running the server
+
+```bash
+# From the project root
+uvicorn sir_api.main:app --reload --port 8000
+```
+
+The `--reload` flag restarts the server whenever you save a file — essential during development.
+
+## Exploring the interactive documentation
+
+FastAPI generates interactive API documentation automatically from your Pydantic schemas. Navigate to `http://localhost:8000/docs` in a browser to see:
+
+- A list of all endpoints
+- The expected request schema with types and constraints
+- An **Try it out** button that lets you send real requests from the browser
+- The response schema
+
+This documentation is generated from your code — it is always up to date and you never write it manually.
+
+## Calling the API from R
+
+Once the server is running, any HTTP client can call it. From R:
+
+```r
+library(httr2)
+
+response <- request("http://localhost:8000/simulate") |>
+  req_method("POST") |>
+  req_body_json(list(
+    S0 = 9900, I0 = 100,
+    beta = 0.4, gamma = 0.1,
+    days = 60
+  )) |>
+  req_perform()
+
+result <- resp_body_json(response)
+cat("R0:", result$R0, "\n")
+cat("Peak infected:", round(result$peak_I), "on day", result$peak_day, "\n")
+
+# Convert trajectory to data frame for plotting
+traj <- do.call(rbind, lapply(result$trajectory, as.data.frame))
+```
+
+From Python (e.g., a dashboard or data pipeline):
+
+```python
+import httpx
+
+resp = httpx.post("http://localhost:8000/simulate", json={
+    "S0": 9900, "I0": 100,
+    "beta": 0.4, "gamma": 0.1, "days": 60
+})
+data = resp.json()
+print(f"R0={data['R0']}, peak on day {data['peak_day']}")
+```
+
+From the command line:
+
+```bash
+curl -s -X POST http://localhost:8000/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"S0":9900,"I0":100,"beta":0.4,"gamma":0.1,"days":60}' | python3 -m json.tool
+```
+
+## What happens when inputs are invalid
+
+Send a negative `beta`:
+
+```bash
+curl -s -X POST http://localhost:8000/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"S0":9900,"I0":100,"beta":-0.4,"gamma":0.1,"days":60}'
+```
+
+FastAPI returns:
+
+```json
+{
+  "detail": [
+    {
+      "type": "greater_than",
+      "loc": ["body", "beta"],
+      "msg": "Input should be greater than 0",
+      "input": -0.4
+    }
+  ]
+}
+```
+
+No simulation code ran. The validation layer stopped it immediately and produced a clear, actionable error message. This is exactly what production software must do.
+
+## Project structure at this stage
+
+```
+sir_project/
+├── sir_api/
+│   ├── __init__.py
+│   ├── main.py          ← FastAPI application
+│   ├── model.py         ← SIR ODE solver
+│   └── schemas.py       ← Pydantic request/response models
+├── tests/
+│   ├── test_model.py    ← unit tests (from Post 1)
+│   └── test_api.py      ← API tests using httpx.TestClient
+└── pyproject.toml
+```
+
+### Testing the API itself
+
+FastAPI provides a `TestClient` so you can test the full HTTP stack without starting a server:
+
+```python
+# tests/test_api.py
+from fastapi.testclient import TestClient
+from sir_api.main import app
+
+client = TestClient(app)
+
+def test_simulate_valid():
+    resp = client.post("/simulate", json={
+        "S0": 9900, "I0": 100,
+        "beta": 0.4, "gamma": 0.1, "days": 60
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["R0"] == pytest.approx(4.0, rel=0.01)
+    assert len(data["trajectory"]) == 61   # days 0..60
+
+def test_simulate_negative_beta():
+    resp = client.post("/simulate", json={
+        "S0": 9900, "I0": 100,
+        "beta": -0.4, "gamma": 0.1, "days": 60
+    })
+    assert resp.status_code == 422   # validation error
+```
+
+## Demonstrating the API contract with R
+
+The server runs elsewhere, but we can verify the API contract locally in R by simulating what the call and response look like — using the same model logic from Post 1:
+
+```{r}
+#| label: api-contract-demo
+#| fig-cap: "Simulated API response: SIR trajectory for beta=0.4, gamma=0.1, 60 days. This is what /simulate returns as a JSON array."
+
+library(ggplot2)
+library(tidyr)
+
+# Reproduce what the /simulate endpoint computes
+sir_euler <- function(S0, I0, beta, gamma, days, dt = 0.1) {
+  N <- S0 + I0
+  steps <- round(days / dt)
+  out <- data.frame(time = numeric(steps + 1),
+                    S = numeric(steps + 1),
+                    I = numeric(steps + 1),
+                    R = numeric(steps + 1))
+  S <- S0; I <- I0; R <- 0
+  out[1, ] <- c(0, S, I, R)
+  for (i in seq_len(steps)) {
+    inf <- beta * S * I / N * dt
+    rec <- gamma * I * dt
+    S <- S - inf; I <- I + inf - rec; R <- R + rec
+    out[i + 1, ] <- c(i * dt, S, I, R)
+  }
+  out
+}
+
+traj <- sir_euler(9900, 100, beta = 0.4, gamma = 0.1, days = 60)
+cat(sprintf("R0 = %.2f | peak I = %.0f on day %.0f\n",
+            0.4 / 0.1, max(traj$I),
+            traj$time[which.max(traj$I)]))
+
+traj_long <- pivot_longer(traj, c(S, I, R),
+                          names_to = "compartment",
+                          values_to = "count")
+ggplot(traj_long, aes(time, count, colour = compartment)) +
+  geom_line(linewidth = 0.9) +
+  scale_colour_manual(values = c(S = "steelblue",
+                                 I = "firebrick",
+                                 R = "darkgreen")) +
+  labs(x = "Days", y = "Individuals", colour = NULL,
+       title = "Simulated /simulate API response") +
+  theme_minimal(base_size = 13)
+```
+
+## Summary and what comes next
+
+We have an epidemic model API that:
+
+- Accepts a JSON request over HTTP from any language
+- Validates every input field automatically
+- Returns a typed JSON response with the full trajectory
+- Produces clear error messages for invalid inputs
+- Has auto-generated interactive documentation
+
+The API runs on your laptop. To be useful as a product it must run anywhere, reliably, with reproducible behaviour. That requires **containerisation** — the topic of [Post 3](https://www.jonghoonk.com/blog/posts/dt_software_docker/), where we package the API and all its dependencies into a Docker container.
+
+## References
+
+::: {#refs}
+:::
