@@ -4,7 +4,9 @@ author: "Jong-Hoon Kim"
 date: "2023-08-10"
 categories: [Monte Carlo, R, parameter estimation, code, analysis]
 image: "thumbnail.jpg"
-editor_options: 
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+editor_options:
   chunk_output_type: console
 ---
 
@@ -12,7 +14,7 @@ editor_options:
 knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE) 
 ```
 
-최근에 파티클필터링 (particle filtering; PF) 방법을 이용하여 $\mathcal{R}_t$ 추정하는 과정에 대한 논문을 썼다. 그런데, 항상 의문이었던 것은 PF를 조금만 변형하면 감염병 모형의 감염속도 $\beta=\mathcal{R}_0 \gamma$ 와 같은 time-invariant 파라미터를 추정할 수도 있지 않을까 하는 것이었다. [Population Monte Carlo (PMC)](https://www.tandfonline.com/doi/abs/10.1198/106186004X12803?journalCode=ucgs20)가 바로 그 방법이었다.
+최근에 파티클필터링 (particle filtering; PF) 방법을 이용하여 $\mathcal{R}_t$ 추정하는 과정에 대한 논문을 썼다. 그런데, 항상 의문이었던 것은 PF를 조금만 변형하면 감염병 모형의 감염속도 $\beta=\mathcal{R}_0 \gamma$ 와 같은 time-invariant 파라미터를 추정할 수도 있지 않을까 하는 것이었다. Population Monte Carlo (PMC) [@cappe2004] 가 바로 그 방법이었다.
 
 이번 포스트에서는 SIR 모형의 모수 $\beta$를 PMC 방법으로 추정하여 보았다. 추정하는 PMC 알고리즘을 아래에 구현하였다. 전에 구현했던 [particle filtering]() 와 유사하다. 즉 중요도 샘플링 (importance sampling)을 연속으로 구현하는 데 연속으로 샘플링 하기 위해 Markov Chain Monte Carlo 에서 사용하듯이 proposal 을 이용하여 다음 단계의 샘플을 만들고 중요도 샘플링을 이용하여 추정을 하는 것이다.
 
@@ -196,3 +198,8 @@ out <- readRDS("out_20230811.rds")
 hist(out$theta[niter,], xlab=expression(beta), main="")
 abline(v=truebeta, col=2, lwd=2)
 ```
+
+## References
+
+::: {#refs}
+:::
