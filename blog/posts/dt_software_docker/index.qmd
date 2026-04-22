@@ -1,0 +1,285 @@
+---
+title: "Containerising Your Model Service with Docker"
+subtitle: "From 'works on my machine' to 'runs anywhere' — images, layers, and Compose. Post 3 in the Building Digital Twin Systems series."
+author: "Jong-Hoon Kim"
+date: "2026-04-23"
+categories: [digital twin, software engineering, Docker, deployment, reproducibility]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## The deployment problem
+
+In [Post 2](https://www.jonghoonk.com/blog/posts/dt_software_fastapi/) we built an epidemic model API. It runs on your laptop with `uvicorn sir_api.main:app`. To share it with a colleague you send them your code and they spend an afternoon debugging Python version mismatches, missing libraries, and operating system differences.
+
+To deploy it on a cloud server you have to configure the operating system, install Python, install your packages, and hope nothing changes when the server updates itself. Six months later the server reboots after a security patch and your API silently breaks because NumPy 1.26 was replaced by 2.0.
+
+Docker solves this. A **container** bundles your application, all its Python packages, and a slice of the operating system into a single artifact — an **image** — that runs identically on any machine that has Docker installed [@boettiger2015]. The same image runs on your laptop, your colleague's Windows machine, a Linux cloud server, and a Kubernetes cluster.
+
+## Core concepts in five minutes
+
+| Concept | Analogy | What it is |
+|---|---|---|
+| **Image** | Recipe / ISO file | A read-only snapshot: OS layer + your app + dependencies |
+| **Container** | Running process | A running instance of an image |
+| **Dockerfile** | Build instructions | A script that produces an image |
+| **Layer** | Git commit | Each `RUN` / `COPY` instruction adds a cached layer |
+| **Registry** | PyPI / CRAN | Where images are stored (Docker Hub, AWS ECR) |
+
+The relationship is:
+
+```
+Dockerfile  ──(docker build)──►  Image  ──(docker run)──►  Container
+```
+
+## Installing Docker
+
+Download **Docker Desktop** from [docker.com](https://www.docker.com/products/docker-desktop/). On Windows and macOS it provides a graphical interface and manages the Linux VM that runs containers. Verify the installation:
+
+```bash
+docker --version
+docker run hello-world
+```
+
+The second command downloads a tiny test image from Docker Hub and runs it. If you see "Hello from Docker!" the installation works.
+
+## Writing the Dockerfile for the epidemic model API
+
+The Dockerfile for the FastAPI service from Post 2:
+
+```dockerfile
+# Base image: official Python slim (smaller than full)
+FROM python:3.12-slim
+
+# Create a non-root user for security
+RUN adduser --disabled-password --gecos "" appuser
+
+# Set working directory inside the container
+WORKDIR /app
+
+# Copy only the dependency file first (better layer caching)
+COPY pyproject.toml .
+
+# Install dependencies
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir .
+
+# Copy application code (changes more often than deps)
+COPY sir_api/ sir_api/
+
+# Switch to non-root user
+USER appuser
+
+# Tell Docker which port the app listens on (documentation only)
+EXPOSE 8000
+
+# Command to run when the container starts
+CMD ["uvicorn", "sir_api.main:app",
+     "--host", "0.0.0.0",
+     "--port", "8000",
+     "--workers", "2"]
+```
+
+### Why the order matters
+
+Docker builds images in layers and caches each one. If `pyproject.toml` has not changed, Docker reuses the cached layer that installed your packages — even if you changed application code. By copying `pyproject.toml` first and your source code second, you avoid reinstalling all dependencies on every code change. On a large project this saves several minutes per build.
+
+```
+Layer 1 (rarely changes): python:3.12-slim base
+Layer 2 (rarely changes): add appuser
+Layer 3 (rarely changes): COPY pyproject.toml + pip install
+Layer 4 (changes often):  COPY sir_api/
+```
+
+## Building and running the image
+
+```bash
+# Build — assigns the tag "sir-api:0.1.0" to the image
+docker build -t sir-api:0.1.0 .
+
+# Run — maps host port 8000 to container port 8000
+docker run -p 8000:8000 sir-api:0.1.0
+```
+
+The API is now accessible at `http://localhost:8000`. The container has no access to your laptop's file system or other processes unless you explicitly grant it. This isolation is also a security feature.
+
+```bash
+# Run in the background (detached mode)
+docker run -d --name epidemic-api -p 8000:8000 sir-api:0.1.0
+
+# Check it is running
+docker ps
+
+# Follow logs
+docker logs -f epidemic-api
+
+# Stop
+docker stop epidemic-api
+```
+
+## Multi-container applications with Docker Compose
+
+A real digital twin product has more than one service: the API, a database, perhaps a background worker. Docker Compose describes all of them in a single YAML file and starts them together.
+
+```yaml
+# docker-compose.yml
+services:
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://dtuser:secret@db:5432/dtdb
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: dtuser
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: dtdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dtuser -d dtdb"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+```
+
+```bash
+# Start everything (builds the api image if needed)
+docker compose up --build
+
+# Stop and remove containers (data volume persists)
+docker compose down
+
+# Stop and remove everything including the database volume
+docker compose down -v
+```
+
+The `depends_on` with `service_healthy` ensures the API only starts once the database is accepting connections. Without this, the API might crash on startup trying to connect to a database that is not yet ready.
+
+## Environment variables and secrets
+
+Passwords must never be in a Dockerfile or committed to git. Docker passes them as environment variables.
+
+```bash
+# Pass a secret at runtime
+docker run -p 8000:8000 \
+  -e DATABASE_URL="postgresql://..." \
+  -e API_KEY="..." \
+  sir-api:0.1.0
+```
+
+For local development with Compose, store secrets in a `.env` file and add `.env` to `.gitignore`:
+
+```bash
+# .env  (never commit this)
+DATABASE_URL=postgresql://dtuser:secret@db:5432/dtdb
+API_KEY=dev-insecure-key-change-for-production
+```
+
+```yaml
+# docker-compose.yml — reads from .env automatically
+services:
+  api:
+    env_file: .env
+```
+
+## A note on R containers
+
+The Rocker project [@nust2020] provides production Docker images for R:
+
+```dockerfile
+# R-based model wrapped in a Plumber API
+FROM rocker/r-ver:4.3.2
+
+RUN install2.r plumber deSolve
+
+COPY plumber_api.R /app/plumber_api.R
+
+EXPOSE 8000
+CMD ["Rscript", "-e", "pr <- plumber::plumb('/app/plumber_api.R'); pr$run(port=8000, host='0.0.0.0')"]
+```
+
+`plumber` is the R equivalent of FastAPI. The same containerisation principles apply regardless of language.
+
+## Verifying the container responds correctly
+
+```{r}
+#| label: http-demo
+#| fig-cap: "Direct comparison of the Euler SIR output (representing what the containerised API returns) against the analytical endemic prevalence. Container behaviour is language-independent."
+
+# Simulate what the containerised API would return
+sir_euler <- function(S0, I0, beta, gamma, days, dt = 0.5) {
+  N <- S0 + I0
+  out <- data.frame(time = seq(0, days, dt),
+                    S = NA, I = NA, R = NA)
+  S <- S0; I <- I0; R <- 0
+  for (i in seq_len(nrow(out))) {
+    out[i, ] <- c((i - 1) * dt, S, I, R)
+    inf <- beta * S * I / N * dt
+    rec <- gamma * I * dt
+    S <- S - inf; I <- I + inf - rec; R <- R + rec
+  }
+  out
+}
+
+library(ggplot2)
+
+scenarios <- list(
+  list(beta = 0.3, gamma = 0.1, label = "R0 = 3.0"),
+  list(beta = 0.2, gamma = 0.1, label = "R0 = 2.0"),
+  list(beta = 0.12, gamma = 0.1, label = "R0 = 1.2")
+)
+
+results <- do.call(rbind, lapply(scenarios, function(s) {
+  df <- sir_euler(9900, 100, s$beta, s$gamma, 200)
+  df$scenario <- s$label
+  df
+}))
+
+ggplot(results[results$time %% 1 == 0, ],
+       aes(time, I / (results$I[1] + results$S[1]),
+           colour = scenario)) +
+  geom_line(linewidth = 1) +
+  labs(x = "Days", y = "Infected fraction",
+       colour = "Scenario",
+       title = "Three API calls — different R0 values") +
+  theme_minimal(base_size = 13)
+```
+
+## Summary
+
+A Docker container packages your model API so it runs identically on any machine. Key habits:
+
+- **Order Dockerfile layers** from least-changed to most-changed for fast builds
+- **Never hard-code secrets** — use environment variables
+- **Use Docker Compose** to manage multi-service applications locally
+- **Use named volumes** to persist database data across container restarts
+
+The next post shifts from deployment infrastructure back to the model itself. [Post 4](https://www.jonghoonk.com/blog/posts/dt_software_enkf/) introduces the **Ensemble Kalman Filter** — the real-time model updating algorithm that turns a static simulation into an operational digital twin.
+
+## References
+
+::: {#refs}
+:::
