@@ -4,7 +4,9 @@ author: "Jong-Hoon Kim"
 date: "2023-10-16"
 categories: [SIR, SymPy]
 image: "SimPy_logo.svg.png"
-editor_options: 
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+editor_options:
   chunk_output_type: console
 ---
 
@@ -12,7 +14,7 @@ editor_options:
 knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE) 
 ```
 
-I attempted to replicate some of the simple analytical results presented in the book, Mathematical Epidemiology by Brauer *et al*.
+I attempted to replicate some of the simple analytical results presented in *Mathematical Epidemiology* [@brauer2008]. The SIR model equations below follow the classical formulation of Kermack and McKendrick [@kermack1927].
 
 $$
 \begin{align}
@@ -34,7 +36,7 @@ dSdI = dIdt / dSdt #-(I*S*b - I*g)/(I*S*b)
 simplify(-(I*S*R_0*g - I*g)/(I*S*R_0*g)) 
 ```
 
-The second part is integrate the equation, $\text{d}I/\text{d}S$
+The second part is to integrate the equation $\text{d}I/\text{d}S$, which yields the relationship between $S$ and $I$ along a trajectory — the SIR orbit equation. This result is equivalent to $I(S) = I_0 + S_0 - S + (1/R_0)\ln(S/S_0)$ described in @hethcote2000.
 
 ```{python}
 S, I = symbols("S I", cls=Function)
@@ -44,3 +46,8 @@ eq = Eq(I(t).diff(t), - S(t).diff(t) + (1/R_0)*(1/S(t))*S(t).diff(t))
 
 integrate(eq, t)
 ```
+
+## References
+
+::: {#refs}
+:::
