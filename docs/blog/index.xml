@@ -5325,6 +5325,1920 @@ matplotlib 3.10.8</code></pre>
   <pubDate>Thu, 23 Apr 2026 15:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>Time-Series Data Storage with TimescaleDB</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/dt_software_database/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="why-simulation-data-needs-a-database" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="why-simulation-data-needs-a-database"><span class="header-section-number">1</span> Why simulation data needs a database</h2>
+<p>After <a href="https://www.jonghoonk.com/blog/posts/dt_software_enkf/">Post 4</a> (EnKF) and <a href="https://www.jonghoonk.com/blog/posts/dt_software_surrogate/">Post 5</a> (GP surrogate), your digital twin produces several types of time-stamped output every day:</p>
+<ul>
+<li><strong>Observations</strong>: daily case counts from surveillance</li>
+<li><strong>State estimates</strong>: EnKF posterior for <img src="https://latex.codecogs.com/png.latex?S">, <img src="https://latex.codecogs.com/png.latex?E">, <img src="https://latex.codecogs.com/png.latex?I">, <img src="https://latex.codecogs.com/png.latex?R">, <img src="https://latex.codecogs.com/png.latex?%5Cbeta"></li>
+<li><strong>Forecasts</strong>: 14-day forward projections with uncertainty</li>
+<li><strong>Scenario runs</strong>: counterfactuals under alternative interventions</li>
+</ul>
+<p>Saving these to CSV files works for one outbreak. It breaks when you need to:</p>
+<ul>
+<li>Query “all estimates for district X between March and June”</li>
+<li>Join surveillance data with model output by timestamp</li>
+<li>Write to the database from a Python API while reading from an R dashboard</li>
+<li>Retain 3 years of daily forecasts without running out of disk or memory</li>
+</ul>
+<p>A relational database handles all of this. <strong>TimescaleDB</strong> <span class="citation" data-cites="freedman2019">(1)</span> is a PostgreSQL <span class="citation" data-cites="momjian2001">(2)</span> extension that adds time-series optimisations — automatic partitioning by time, efficient time-range queries, and continuous aggregates — while keeping full SQL compatibility.</p>
+</section>
+<section id="core-concepts" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="core-concepts"><span class="header-section-number">2</span> Core concepts</h2>
+<section id="postgresql-refresher" class="level3" data-number="2.1">
+<h3 data-number="2.1" class="anchored" data-anchor-id="postgresql-refresher"><span class="header-section-number">2.1</span> PostgreSQL refresher</h3>
+<p>PostgreSQL is a relational database: data lives in <strong>tables</strong> (rows and columns), queries use SQL, and the database enforces data types and constraints. The key operations are:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Create a table</span></span>
+<span id="cb1-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">TABLE</span> observations (</span>
+<span id="cb1-3">    <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span>      TIMESTAMPTZ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb1-4">    location  TEXT        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb1-5">    cases     <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">INTEGER</span>     <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span></span>
+<span id="cb1-6">);</span>
+<span id="cb1-7"></span>
+<span id="cb1-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Insert a row</span></span>
+<span id="cb1-9"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">INSERT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">INTO</span> observations <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">VALUES</span> (<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'2024-03-01'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'district_a'</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">42</span>);</span>
+<span id="cb1-10"></span>
+<span id="cb1-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Query with a time filter</span></span>
+<span id="cb1-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> observations</span>
+<span id="cb1-13"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'2024-03-01'</span></span>
+<span id="cb1-14">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span>  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'2024-04-01'</span></span>
+<span id="cb1-15"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ORDER</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span>;</span></code></pre></div></div>
+</section>
+<section id="what-timescaledb-adds" class="level3" data-number="2.2">
+<h3 data-number="2.2" class="anchored" data-anchor-id="what-timescaledb-adds"><span class="header-section-number">2.2</span> What TimescaleDB adds</h3>
+<p>TimescaleDB converts a regular table into a <strong>hypertable</strong> with one command:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb2-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> create_hypertable(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'observations'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'time'</span>);</span></code></pre></div></div>
+<p>Under the hood it partitions the table into <strong>chunks</strong> by time interval (default: 7 days). This means:</p>
+<ul>
+<li>Time-range queries touch only the relevant chunks — much faster than scanning the full table</li>
+<li>Old chunks can be compressed or moved to cheaper storage automatically</li>
+<li>Chunk pruning is transparent: you write the same SQL</li>
+</ul>
+</section>
+</section>
+<section id="schema-design-for-a-digital-twin" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="schema-design-for-a-digital-twin"><span class="header-section-number">3</span> Schema design for a digital twin</h2>
+<p>A practical schema for an epidemic digital twin has four tables:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Raw surveillance data</span></span>
+<span id="cb3-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">TABLE</span> observations (</span>
+<span id="cb3-3">    <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span>          TIMESTAMPTZ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb3-4">    location_id   TEXT        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb3-5">    new_cases     <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">INTEGER</span>     <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb3-6">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">source</span>        TEXT</span>
+<span id="cb3-7">);</span>
+<span id="cb3-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> create_hypertable(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'observations'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'time'</span>);</span>
+<span id="cb3-9"></span>
+<span id="cb3-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- EnKF posterior state estimates</span></span>
+<span id="cb3-11"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">TABLE</span> model_states (</span>
+<span id="cb3-12">    <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span>          TIMESTAMPTZ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb3-13">    location_id   TEXT        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb3-14">    run_id        UUID        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb3-15">    S_median      <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span>,</span>
+<span id="cb3-16">    E_median      <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span>,</span>
+<span id="cb3-17">    I_median      <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span>,</span>
+<span id="cb3-18">    R_median      <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span>,</span>
+<span id="cb3-19">    beta_median   <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span>,</span>
+<span id="cb3-20">    beta_lo95     <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span>,</span>
+<span id="cb3-21">    beta_hi95     <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span></span>
+<span id="cb3-22">);</span>
+<span id="cb3-23"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> create_hypertable(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'model_states'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'time'</span>);</span>
+<span id="cb3-24"></span>
+<span id="cb3-25"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Short-term forecasts</span></span>
+<span id="cb3-26"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">TABLE</span> forecasts (</span>
+<span id="cb3-27">    issued_at     TIMESTAMPTZ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- when the forecast was made</span></span>
+<span id="cb3-28">    target_time   TIMESTAMPTZ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- what time it predicts</span></span>
+<span id="cb3-29">    location_id   TEXT        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb3-30">    horizon_days  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">SMALLINT</span>    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb3-31">    cases_median  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span>,</span>
+<span id="cb3-32">    cases_lo95    <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span>,</span>
+<span id="cb3-33">    cases_hi95    <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">REAL</span></span>
+<span id="cb3-34">);</span>
+<span id="cb3-35"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> create_hypertable(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'forecasts'</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'issued_at'</span>);</span>
+<span id="cb3-36"></span>
+<span id="cb3-37"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Scenario / counterfactual runs</span></span>
+<span id="cb3-38"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">TABLE</span> scenarios (</span>
+<span id="cb3-39">    run_id        UUID <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">PRIMARY</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">KEY</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb3-40">    created_at    TIMESTAMPTZ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">DEFAULT</span> NOW(),</span>
+<span id="cb3-41">    description   TEXT,</span>
+<span id="cb3-42">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">parameters</span>    JSONB       <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- flexible key-value store for run config</span></span>
+<span id="cb3-43">);</span></code></pre></div></div>
+<p>The <code>JSONB</code> column on <code>scenarios</code> stores arbitrary key-value metadata (beta, gamma, intervention timing) without requiring a schema change when parameters evolve.</p>
+</section>
+<section id="simulating-the-workflow-in-r" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="simulating-the-workflow-in-r"><span class="header-section-number">4</span> Simulating the workflow in R</h2>
+<p>We do not need a live database to work through the patterns — we can simulate the full workflow using R data frames with the same column structure. This lets you develop and test logic locally before wiring up a real TimescaleDB instance.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggplot2)</span>
+<span id="cb4-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(dplyr)</span>
+<span id="cb4-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidyr)</span></code></pre></div></div>
+</div>
+<section id="generating-synthetic-data" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="generating-synthetic-data"><span class="header-section-number">4.1</span> Generating synthetic data</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2024</span>)</span>
+<span id="cb5-2"></span>
+<span id="cb5-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Simulate 90 days of observations for two locations</span></span>
+<span id="cb5-4">n_days <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">90</span></span>
+<span id="cb5-5">dates  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.Date</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"2024-01-01"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"day"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">length.out =</span> n_days)</span>
+<span id="cb5-6"></span>
+<span id="cb5-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># SEIR peak parameters per location</span></span>
+<span id="cb5-8">make_obs <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(beta, seed_val) {</span>
+<span id="cb5-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">set.seed</span>(seed_val)</span>
+<span id="cb5-10">  N <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100000</span>; S <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> N <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>; E <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">30</span>; I <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>; R <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span></span>
+<span id="cb5-11">  sigma <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>; gamma <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>; out <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">numeric</span>(n_days)</span>
+<span id="cb5-12">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> (d <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq_len</span>(n_days)) {</span>
+<span id="cb5-13">    new_e <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> beta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> S <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> N</span>
+<span id="cb5-14">    new_i <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> sigma <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> E</span>
+<span id="cb5-15">    new_r <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> gamma <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb5-16">    S <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> S <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> new_e; E <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> E <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> new_e <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> new_i</span>
+<span id="cb5-17">    I <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> I <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> new_i <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> new_r; R <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> R <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> new_r</span>
+<span id="cb5-18">    out[d] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rpois</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, new_i))</span>
+<span id="cb5-19">  }</span>
+<span id="cb5-20">  out</span>
+<span id="cb5-21">}</span>
+<span id="cb5-22"></span>
+<span id="cb5-23">obs_a <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">make_obs</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.35</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">101</span>)</span>
+<span id="cb5-24">obs_b <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">make_obs</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.28</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">202</span>)</span>
+<span id="cb5-25"></span>
+<span id="cb5-26"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># "observations" table</span></span>
+<span id="cb5-27">df_obs <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb5-28">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">time        =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(dates, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>),</span>
+<span id="cb5-29">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">location_id =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_b"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">each =</span> n_days),</span>
+<span id="cb5-30">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">new_cases   =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(obs_a, obs_b),</span>
+<span id="cb5-31">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">source      =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"surveillance"</span></span>
+<span id="cb5-32">)</span></code></pre></div></div>
+</div>
+</section>
+<section id="simulating-enkf-posterior-storage" class="level3" data-number="4.2">
+<h3 data-number="4.2" class="anchored" data-anchor-id="simulating-enkf-posterior-storage"><span class="header-section-number">4.2</span> Simulating EnKF posterior storage</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Simulate what the EnKF would write to model_states</span></span>
+<span id="cb6-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (using a simple running mean + noise for illustration)</span></span>
+<span id="cb6-3">make_states <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(obs_vec, beta_true) {</span>
+<span id="cb6-4">  n <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(obs_vec)</span>
+<span id="cb6-5">  beta_est  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cumsum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.25</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(n <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.005</span>)))</span>
+<span id="cb6-6">  beta_est  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pmin</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pmax</span>(beta_est, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>), <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>)</span>
+<span id="cb6-7">  I_est     <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> stats<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(obs_vec, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">circular =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb6-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb6-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">beta_median =</span> beta_est,</span>
+<span id="cb6-10">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">beta_lo95   =</span> beta_est <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>,</span>
+<span id="cb6-11">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">beta_hi95   =</span> beta_est <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>,</span>
+<span id="cb6-12">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">I_median    =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(I_est)</span>
+<span id="cb6-13">  )</span>
+<span id="cb6-14">}</span>
+<span id="cb6-15"></span>
+<span id="cb6-16">states_a <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">make_states</span>(obs_a, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.35</span>)</span>
+<span id="cb6-17">states_b <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">make_states</span>(obs_b, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.28</span>)</span>
+<span id="cb6-18"></span>
+<span id="cb6-19">df_states <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb6-20">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">time        =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(dates, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>),</span>
+<span id="cb6-21">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">location_id =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_b"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">each =</span> n_days),</span>
+<span id="cb6-22">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">run_id      =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"run-2024-01-01"</span>,</span>
+<span id="cb6-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rbind</span>(states_a, states_b)</span>
+<span id="cb6-24">)</span></code></pre></div></div>
+</div>
+</section>
+<section id="generating-forecasts" class="level3" data-number="4.3">
+<h3 data-number="4.3" class="anchored" data-anchor-id="generating-forecasts"><span class="header-section-number">4.3</span> Generating forecasts</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Simple 14-day ahead forecast issued every 7 days</span></span>
+<span id="cb7-2">issue_days <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>, n_days <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">14</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>)</span>
+<span id="cb7-3"></span>
+<span id="cb7-4">df_fcst <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">do.call</span>(rbind, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(issue_days, <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(d) {</span>
+<span id="cb7-5">  base   <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> df_obs<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>new_cases[df_obs<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>location_id <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>][d]</span>
+<span id="cb7-6">  growth <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.97</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># slight decline</span></span>
+<span id="cb7-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">do.call</span>(rbind, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">14</span>, <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(h) {</span>
+<span id="cb7-8">    mu <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> base <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> growth<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>h</span>
+<span id="cb7-9">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb7-10">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">issued_at    =</span> dates[d],</span>
+<span id="cb7-11">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">target_time  =</span> dates[d <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> h],</span>
+<span id="cb7-12">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">location_id  =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>,</span>
+<span id="cb7-13">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">horizon_days =</span> h,</span>
+<span id="cb7-14">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cases_median =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(mu),</span>
+<span id="cb7-15">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cases_lo95   =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(mu <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>),</span>
+<span id="cb7-16">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cases_hi95   =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(mu <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>)</span>
+<span id="cb7-17">    )</span>
+<span id="cb7-18">  }))</span>
+<span id="cb7-19">}))</span></code></pre></div></div>
+</div>
+</section>
+</section>
+<section id="querying-patterns-in-sql-and-r" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="querying-patterns-in-sql-and-r"><span class="header-section-number">5</span> Querying patterns in SQL and R</h2>
+<p>The value of a database is its query language. Here are the four most common patterns for a digital twin dashboard, shown as equivalent R <code>dplyr</code> operations <span class="citation" data-cites="wickham2019">(3)</span> alongside their SQL counterparts.</p>
+<section id="pattern-1-time-range-filter" class="level3" data-number="5.1">
+<h3 data-number="5.1" class="anchored" data-anchor-id="pattern-1-time-range-filter"><span class="header-section-number">5.1</span> Pattern 1: time-range filter</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- SQL</span></span>
+<span id="cb8-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span>, new_cases</span>
+<span id="cb8-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span>   observations</span>
+<span id="cb8-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span>  location_id <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'district_a'</span></span>
+<span id="cb8-5">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span>  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BETWEEN</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'2024-02-01'</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'2024-03-31'</span>;</span></code></pre></div></div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">df_obs <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb9-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(location_id <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>,</span>
+<span id="cb9-3">         time <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.Date</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"2024-02-01"</span>),</span>
+<span id="cb9-4">         time <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.Date</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"2024-03-31"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb9-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(time, new_cases) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb9-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>        time new_cases
+1 2024-02-01        88
+2 2024-02-02       103
+3 2024-02-03        81
+4 2024-02-04       128
+5 2024-02-05       139</code></pre>
+</div>
+</div>
+</section>
+<section id="pattern-2-join-observations-with-model-state" class="level3" data-number="5.2">
+<h3 data-number="5.2" class="anchored" data-anchor-id="pattern-2-join-observations-with-model-state"><span class="header-section-number">5.2</span> Pattern 2: join observations with model state</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb11-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- SQL</span></span>
+<span id="cb11-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> o.<span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span>, o.new_cases, s.beta_median, s.I_median</span>
+<span id="cb11-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span>   observations o</span>
+<span id="cb11-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">JOIN</span>   model_states s</span>
+<span id="cb11-5">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ON</span>   o.<span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> s.<span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span> o.location_id <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> s.location_id</span>
+<span id="cb11-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span>  o.location_id <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'district_a'</span>;</span></code></pre></div></div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">joined <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> df_obs <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb12-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(location_id <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb12-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">inner_join</span>(</span>
+<span id="cb12-4">    df_states <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(location_id <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>),</span>
+<span id="cb12-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"time"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"location_id"</span>)</span>
+<span id="cb12-6">  )</span>
+<span id="cb12-7"></span>
+<span id="cb12-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(joined, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> time)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_col</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> new_cases), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey70"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">width =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.8</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> beta_median <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">800</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>,</span>
+<span id="cb12-11">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_ribbon</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymin =</span> beta_lo95 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">800</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymax =</span> beta_hi95 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">800</span>),</span>
+<span id="cb12-13">              <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_continuous</span>(</span>
+<span id="cb12-15">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">name  =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Daily new cases"</span>,</span>
+<span id="cb12-16">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sec.axis =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sec_axis</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> . <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">800</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">name =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"β estimate"</span>)</span>
+<span id="cb12-17">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-18">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Observed cases and EnKF β estimate: district A"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-19">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">13</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/dt_software_database/index_files/figure-html/query-join-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Observed cases (bars) joined with the EnKF β estimate (line). This is the core diagnostic plot for an operational digital twin.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="pattern-3-forecast-vs-actuals-calibration" class="level3" data-number="5.3">
+<h3 data-number="5.3" class="anchored" data-anchor-id="pattern-3-forecast-vs-actuals-calibration"><span class="header-section-number">5.3</span> Pattern 3: forecast vs actuals (calibration)</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb13-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- SQL: compare 7-day ahead forecasts to what actually happened</span></span>
+<span id="cb13-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> f.issued_at, f.target_time,</span>
+<span id="cb13-3">       f.cases_median, f.cases_lo95, f.cases_hi95,</span>
+<span id="cb13-4">       o.new_cases <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> actual</span>
+<span id="cb13-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span>   forecasts f</span>
+<span id="cb13-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">JOIN</span>   observations o</span>
+<span id="cb13-7">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ON</span>   f.target_time <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> o.<span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span> f.location_id <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> o.location_id</span>
+<span id="cb13-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span>  f.location_id <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'district_a'</span></span>
+<span id="cb13-9">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span>  f.horizon_days <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>;</span></code></pre></div></div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1">cal <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> df_fcst <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb14-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(horizon_days <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb14-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">inner_join</span>(</span>
+<span id="cb14-4">    df_obs <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(location_id <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb14-5">      <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rename</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">actual =</span> new_cases),</span>
+<span id="cb14-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"target_time"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"time"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"location_id"</span>)</span>
+<span id="cb14-7">  )</span>
+<span id="cb14-8"></span>
+<span id="cb14-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(cal, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> target_time)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_ribbon</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymin =</span> cases_lo95, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymax =</span> cases_hi95),</span>
+<span id="cb14-11">              <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"orange"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> cases_median), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"darkorange"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> actual), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey30"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"New cases"</span>,</span>
+<span id="cb14-15">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"7-day ahead forecast vs actuals"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-16">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">13</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/dt_software_database/index_files/figure-html/query-calibration-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Seven-day-ahead forecast (line and ribbon) vs actuals (points). Coverage of the 95% interval can be read directly from how many points fall inside the ribbon.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="pattern-4-timescaledb-continuous-aggregate-weekly-totals" class="level3" data-number="5.4">
+<h3 data-number="5.4" class="anchored" data-anchor-id="pattern-4-timescaledb-continuous-aggregate-weekly-totals"><span class="header-section-number">5.4</span> Pattern 4: TimescaleDB continuous aggregate (weekly totals)</h3>
+<p>In TimescaleDB, continuous aggregates pre-compute summaries and update incrementally:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb15-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Create a weekly aggregate (runs automatically as data arrives)</span></span>
+<span id="cb15-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">MATERIALIZED</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">VIEW</span> weekly_cases</span>
+<span id="cb15-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WITH</span> (timescaledb.continuous) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span></span>
+<span id="cb15-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> time_bucket(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'7 days'</span>, <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">time</span>) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> week,</span>
+<span id="cb15-5">       location_id,</span>
+<span id="cb15-6">       <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">SUM</span>(new_cases)              <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> total_cases,</span>
+<span id="cb15-7">       <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">AVG</span>(new_cases)              <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> avg_daily</span>
+<span id="cb15-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span>   observations</span>
+<span id="cb15-9"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">GROUP</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> week, location_id;</span>
+<span id="cb15-10"></span>
+<span id="cb15-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-- Query it like a regular table</span></span>
+<span id="cb15-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> weekly_cases</span>
+<span id="cb15-13"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span> week <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'2024-02-01'</span></span>
+<span id="cb15-14"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ORDER</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> week, location_id;</span></code></pre></div></div>
+<p>The R equivalent for local development:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1">df_obs <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb16-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">week =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.Date</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cut</span>(time, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"week"</span>))) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb16-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">group_by</span>(week, location_id) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb16-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summarise</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">total_cases =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(new_cases), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">.groups =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"drop"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb16-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> week, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> total_cases, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> location_id)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb16-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_col</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dodge"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">width =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb16-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_fill_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">district_a =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>,</span>
+<span id="cb16-8">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">district_b =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"firebrick"</span>),</span>
+<span id="cb16-9">                    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">name =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Location"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb16-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Weekly cases"</span>,</span>
+<span id="cb16-11">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Weekly case totals by district"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb16-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">13</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/dt_software_database/index_files/figure-html/weekly-agg-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Weekly case totals per district — equivalent to a TimescaleDB continuous aggregate query. In production this query reads a pre-computed materialised view and returns in milliseconds regardless of the raw table size.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="connecting-from-r-and-python" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="connecting-from-r-and-python"><span class="header-section-number">6</span> Connecting from R and Python</h2>
+<p>In a deployed system, both the EnKF runner (R) and the dashboard (Python) connect to the same TimescaleDB instance using standard database drivers.</p>
+<p><strong>From R</strong> using the <code>DBI</code> and <code>RPostgres</code> packages:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(DBI)</span>
+<span id="cb17-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(RPostgres)</span>
+<span id="cb17-3"></span>
+<span id="cb17-4">con <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbConnect</span>(</span>
+<span id="cb17-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Postgres</span>(),</span>
+<span id="cb17-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">host     =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"localhost"</span>,</span>
+<span id="cb17-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">port     =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5432</span>,</span>
+<span id="cb17-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">dbname   =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dtdb"</span>,</span>
+<span id="cb17-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">user     =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Sys.getenv</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"DB_USER"</span>),</span>
+<span id="cb17-10">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">password =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Sys.getenv</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"DB_PASSWORD"</span>)</span>
+<span id="cb17-11">)</span>
+<span id="cb17-12"></span>
+<span id="cb17-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Write EnKF output</span></span>
+<span id="cb17-14"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbWriteTable</span>(con, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"model_states"</span>, df_states, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">append =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb17-15"></span>
+<span id="cb17-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Read for dashboard</span></span>
+<span id="cb17-17">df <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbGetQuery</span>(con, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb17-18"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  SELECT time, beta_median, beta_lo95, beta_hi95</span></span>
+<span id="cb17-19"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  FROM   model_states</span></span>
+<span id="cb17-20"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  WHERE  location_id = 'district_a'</span></span>
+<span id="cb17-21"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  ORDER  BY time DESC</span></span>
+<span id="cb17-22"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  LIMIT  30</span></span>
+<span id="cb17-23"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb17-24"></span>
+<span id="cb17-25"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbDisconnect</span>(con)</span></code></pre></div></div>
+<p><strong>From Python</strong> using <code>psycopg2</code> or <code>SQLAlchemy</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> psycopg2</span>
+<span id="cb18-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> pandas <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> pd</span>
+<span id="cb18-3"></span>
+<span id="cb18-4">conn <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> psycopg2.<span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">connect</span>(</span>
+<span id="cb18-5">    host<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"localhost"</span>, dbname<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dtdb"</span>,</span>
+<span id="cb18-6">    user<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>os.environ[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"DB_USER"</span>],</span>
+<span id="cb18-7">    password<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>os.environ[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"DB_PASSWORD"</span>]</span>
+<span id="cb18-8">)</span>
+<span id="cb18-9"></span>
+<span id="cb18-10">df <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pd.read_sql(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"""</span></span>
+<span id="cb18-11"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    SELECT time, new_cases</span></span>
+<span id="cb18-12"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    FROM   observations</span></span>
+<span id="cb18-13"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    WHERE  location_id = </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%s</span></span>
+<span id="cb18-14"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">    ORDER  BY time</span></span>
+<span id="cb18-15"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"""</span>, conn, params<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"district_a"</span>,))</span></code></pre></div></div>
+<p>Using <code>Sys.getenv()</code> / <code>os.environ</code> for credentials keeps passwords out of code and out of git.</p>
+</section>
+<section id="running-timescaledb-locally-with-docker" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="running-timescaledb-locally-with-docker"><span class="header-section-number">7</span> Running TimescaleDB locally with Docker</h2>
+<p>The Docker Compose file from <a href="https://www.jonghoonk.com/blog/posts/dt_software_docker/">Post 3</a> already included a TimescaleDB service:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb19-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">db</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb19-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">image</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> timescale/timescaledb:latest-pg16</span></span>
+<span id="cb19-3"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">environment</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb19-4"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">POSTGRES_USER</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> dtuser</span></span>
+<span id="cb19-5"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">POSTGRES_PASSWORD</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> secret</span></span>
+<span id="cb19-6"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">POSTGRES_DB</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> dtdb</span></span>
+<span id="cb19-7"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ports</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb19-8"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"5432:5432"</span></span>
+<span id="cb19-9"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">volumes</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb19-10"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">-</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> pgdata:/var/lib/postgresql/data</span></span>
+<span id="cb19-11"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">  </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">healthcheck</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span></span>
+<span id="cb19-12"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">test</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"CMD-SHELL"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">,</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pg_isready -U dtuser -d dtdb"</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">]</span></span>
+<span id="cb19-13"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">interval</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> 5s</span></span>
+<span id="cb19-14"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">    </span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">retries</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">:</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;"> </span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span></span></code></pre></div></div>
+<p>After <code>docker compose up</code>, connect with <code>psql -h localhost -U dtuser -d dtdb</code> and run the schema creation SQL above. The data volume <code>pgdata</code> persists the database across container restarts.</p>
+</section>
+<section id="design-rules-for-production" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="design-rules-for-production"><span class="header-section-number">8</span> Design rules for production</h2>
+<p><strong>Choose the right time column</strong>. <code>issued_at</code> on forecasts (when the forecast was made) versus <code>target_time</code> (what it predicts) serve different queries. Store both — <code>issued_at</code> for hypertable partitioning, <code>target_time</code> for calibration joins.</p>
+<p><strong>Index location and run IDs</strong>. Add <code>CREATE INDEX ON model_states (location_id, time DESC)</code> so per-location queries skip unneeded chunks.</p>
+<p><strong>Compress old chunks</strong>. TimescaleDB’s native compression can reduce storage by 90% for old time ranges: <code>SELECT add_compression_policy('observations', INTERVAL '30 days')</code>.</p>
+<p><strong>Use connection pooling</strong>. Open a new database connection per API request is expensive. Use PgBouncer or SQLAlchemy’s connection pool in production.</p>
+</section>
+<section id="references" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="references"><span class="header-section-number">9</span> References</h2>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-freedman2019" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Freedman M, Pedreira G, Kumar A, Morozov D. <span>TimescaleDB</span>: Time-series data management in <span>PostgreSQL</span>. In: Proceedings of the VLDB endowment. 2019. p. 2182–3. doi:<a href="https://doi.org/10.14778/3352063.3352133">10.14778/3352063.3352133</a></div>
+</div>
+<div id="ref-momjian2001" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Momjian B. <span>PostgreSQL</span>: Introduction and concepts. Boston, MA: Addison-Wesley; 2001.</div>
+</div>
+<div id="ref-wickham2019" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Wickham H, Averick M, Bryan J, Chang W, McGowan L, François R, et al. Welcome to the <span class="nocase">tidyverse</span>. Journal of Open Source Software. 2019;4(43):1686. doi:<a href="https://doi.org/10.21105/joss.01686">10.21105/joss.01686</a></div>
+</div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>digital twin</category>
+  <category>database</category>
+  <category>TimescaleDB</category>
+  <category>PostgreSQL</category>
+  <category>R</category>
+  <category>data engineering</category>
+  <guid>https://www.jonghoonk.com/blog/posts/dt_software_database/</guid>
+  <pubDate>Wed, 22 Apr 2026 15:00:00 GMT</pubDate>
+</item>
+<item>
   <title>Containerising Your Model Service with Docker</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/dt_software_docker/</link>
@@ -32957,1005 +34871,6 @@ truncnorm  1.0.9</code></pre>
   <category>cholera</category>
   <category>R</category>
   <guid>https://www.jonghoonk.com/blog/posts/game_theory_minimax/</guid>
-  <pubDate>Sun, 19 Apr 2026 15:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Game Theory for Infectious Disease Modeling</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/game_theory_vacc/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p><em>Part 1 of a 5-part series on game theory for theoretical epidemiologists. The goal is not a comprehensive textbook but a working vocabulary, a few canonical examples, and a clear sense of where game-theoretic ideas plug into the compartmental models we already build.</em></p>
-<section id="from-nash-to-epidemics-a-brief-history" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> From Nash to epidemics: a brief history</h1>
-<p>Game theory began as a mathematical theory of economic behavior, but its relevance to biology was recognized almost immediately. Von Neumann and Morgenstern laid the foundations for strategic interaction in 1944, and Nash’s equilibrium concept followed in 1950. Maynard Smith and Price then transposed these ideas onto evolution, introducing the <strong>evolutionarily stable strategy</strong> (ESS) and making game theory a tool of population biology.</p>
-<p>The bridge to infectious diseases came much later. Early epidemic models — Kermack–McKendrick SIR, the <img src="https://latex.codecogs.com/png.latex?R_0"> threshold, mass-action mixing — treated individuals as passive particles whose behavior was not part of the dynamics. That was a powerful simplification, but it left a class of problems unresolved. Why does measles vaccination coverage stall below the herd-immunity threshold in populations where vaccines are free, safe, and effective? Why did adherence to social-distancing guidance during COVID-19 decay over time, even as incidence rose?</p>
-<p>Bauch and Earn (1) gave the first crisp formulation of the puzzle. Vaccination is a <strong>decision</strong>, and decisions respond to incentives. When enough others are vaccinated, I am protected by herd immunity whether I vaccinate or not; if vaccination carries any perceived cost — side effects, time, ideological friction — then the individually rational calculation diverges from what is socially optimal. The mechanism that makes vaccines protective at the population level creates a free-rider problem at the individual level. No one needs to be irrational or misinformed. <em>It is an equilibrium property of a coordination problem with externalities</em> — a structural feature, not a character flaw.</p>
-</section>
-<section id="game-theory-in-epidemiology-and-infectious-diseases" class="level1" data-number="2">
-<h1 data-number="2"><span class="header-section-number">2</span> Game theory in epidemiology and infectious diseases</h1>
-<p>The literature that followed Bauch and Earn has branched in several directions, each relevant to the diseases we work on at IVI:</p>
-<ul>
-<li><strong>Coupled behavior–disease dynamics</strong>. Individual decisions respond to current prevalence; prevalence responds to those decisions. Funk, Salathé and Jansen (2) give the canonical review of how behavioral feedback reshapes transmission. Reluga (3) formulates social distancing as a <em>differential</em> game, where strategies evolve continuously during an outbreak.</li>
-<li><strong>Imitation and social learning on networks</strong>. Rational best-response is a strong assumption. Bauch (4) showed that when individuals imitate neighbors rather than maximize expected utility, the coupled system can produce stable <em>limit cycles</em> in vaccine uptake, matching the oscillations observed in the pertussis record from England and Wales. Fu, Rosenbloom, Wang and Nowak (5) extend imitation dynamics onto social networks and show that network structure can paradoxically lower equilibrium coverage below the well-mixed prediction.</li>
-<li><strong>Vaccine scares and memory effects</strong>. Bauch and Bhattacharyya (6) use evolutionary game theory with social learning to explain why coverage is slow to recover after a vaccine scare, even when the scare is retracted — a mechanism directly relevant to HPV, MMR, and more recently COVID-19 vaccines.</li>
-<li><strong>Pathogen evolution</strong>. When strains compete for hosts, transmissibility and virulence coevolve according to an evolutionary game. The Anderson–May trade-off (7) and its modern refinements (8) remain the framework for predicting which strains are evolutionarily stable — relevant for typhoid Vi-conjugate vaccines, cholera O1/O139 dynamics, and SARS-CoV-2 antigenic evolution.</li>
-<li><strong>Unified reviews</strong>. Wang and colleagues (9) provide an encyclopedic review (113 pages) of the statistical-physics perspective on vaccination games. Chang and colleagues (10) classify the literature by population structure (compartmental vs.&nbsp;network), game frequency (one-shot vs.&nbsp;iterated), and strategy-adoption rule (best-response vs.&nbsp;imitation). Verelst and colleagues (11) give a focused systematic review of behavior-change models published between 2010 and 2015.</li>
-</ul>
-<p>A recurring theme is that <strong>ignoring behavior is no longer a safe default</strong>. Compartmental models without a game-theoretic layer systematically mispredict epidemic curves when behavior is adaptive, as we all observed during 2020–2022.</p>
-<div class="callout callout-style-default callout-tip callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Tip</span>What you need
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">install.packages</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dplyr"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"tidyr"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"ggplot2"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"patchwork"</span>))</span></code></pre></div></div>
-<p>Code tested with: R 4.4, <code>ggplot2 3.5</code>, <code>dplyr 1.1</code>.</p>
-</div>
-</div>
-<hr>
-</section>
-<section id="the-vaccination-game" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> The vaccination game</h1>
-<p>Consider a large, well-mixed population facing an imminent epidemic. Each individual <img src="https://latex.codecogs.com/png.latex?i"> chooses a probability <img src="https://latex.codecogs.com/png.latex?p_i%20%5Cin%20%5B0,%201%5D"> of vaccinating before the outbreak. Let <img src="https://latex.codecogs.com/png.latex?%5Cpi"> denote the population-average coverage. We posit:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Quantity</th>
-<th>Symbol</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Vaccine cost (relative)</td>
-<td><img src="https://latex.codecogs.com/png.latex?r%20%5Cin%20(0,%201)"></td>
-<td>Perceived cost of vaccination as a fraction of infection cost</td>
-</tr>
-<tr class="even">
-<td>Basic reproduction number</td>
-<td><img src="https://latex.codecogs.com/png.latex?R_0"></td>
-<td>Dimensionless</td>
-</tr>
-<tr class="odd">
-<td>Critical coverage</td>
-<td><img src="https://latex.codecogs.com/png.latex?%5Cpi_c%20=%201%20-%201/R_0"></td>
-<td>Herd-immunity threshold</td>
-</tr>
-<tr class="even">
-<td>Infection probability (unvaccinated)</td>
-<td><img src="https://latex.codecogs.com/png.latex?%5Cpi_%7B%5Ctext%7Binf%7D%7D(%5Cpi)"></td>
-<td>Decreasing in <img src="https://latex.codecogs.com/png.latex?%5Cpi">; zero above <img src="https://latex.codecogs.com/png.latex?%5Cpi_c"></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Expected cost to individual <img src="https://latex.codecogs.com/png.latex?i">:</strong></p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathcal%7BC%7D_i(p_i,%20%5Cpi)%20%5C;=%5C;%20p_i%20%5Ccdot%20r%20%5C;+%5C;%20(1%20-%20p_i)%20%5Ccdot%20%5Cpi_%7B%5Ctext%7Binf%7D%7D(%5Cpi).%0A"></p>
-<p><strong>Nash equilibrium.</strong> A coverage <img src="https://latex.codecogs.com/png.latex?%5Cpi%5E*"> is a Nash equilibrium if no individual can do strictly better by unilaterally deviating, given <img src="https://latex.codecogs.com/png.latex?%5Cpi%5E*">. For an <em>interior</em> equilibrium <img src="https://latex.codecogs.com/png.latex?0%20%3C%20%5Cpi%5E*%20%3C%20%5Cpi_c">, individuals must be indifferent:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0Ar%20%5C;=%5C;%20%5Cpi_%7B%5Ctext%7Binf%7D%7D(%5Cpi%5E*).%20%5Ctag%7B1%7D%0A"></p>
-<p><strong>Social optimum.</strong> A social planner chooses <img src="https://latex.codecogs.com/png.latex?%5Chat%7B%5Cpi%7D"> to minimize total expected cost per capita:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7B%5Cpi%7D%20%5C;=%5C;%20%5Carg%5Cmin_%7B%5Cpi%7D%20%5Cbig%5B%5C,%20%5Cpi%20%5Ccdot%20r%20+%20(1%20-%20%5Cpi)%20%5Ccdot%20%5Cpi_%7B%5Ctext%7Binf%7D%7D(%5Cpi)%20%5C,%5Cbig%5D.%20%5Ctag%7B2%7D%0A"></p>
-<p>Because each additional vaccination reduces <img src="https://latex.codecogs.com/png.latex?%5Cpi_%7B%5Ctext%7Binf%7D%7D"> for <em>others</em> — an externality individuals do not internalize — we obtain the <strong>fundamental inequality</strong>:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cpi%5E*%20%5C;%5Cle%5C;%20%5Chat%7B%5Cpi%7D.%20%5Ctag%7B3%7D%0A"></p>
-<p>The gap <img src="https://latex.codecogs.com/png.latex?%5Chat%5Cpi%20-%20%5Cpi%5E*"> is the <strong>price of anarchy</strong> of the vaccination game, expressed in units (coverage) that our compartmental models already speak.</p>
-<hr>
-</section>
-<section id="simulating-the-game-in-r" class="level1" data-number="4">
-<h1 data-number="4"><span class="header-section-number">4</span> Simulating the game in R</h1>
-<p>We implement the simplest tractable form: <img src="https://latex.codecogs.com/png.latex?%5Cpi_%7B%5Ctext%7Binf%7D%7D(%5Cpi)%20=%20q%20%5Ccdot%20%5Cmax(0,%5C;%201%20-%20%5Cpi%20/%20%5Cpi_c)">, where <img src="https://latex.codecogs.com/png.latex?q"> is the attack rate in a fully unvaccinated epidemic. This piecewise-linear form is not essential — any decreasing function will do — but keeps the algebra transparent.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(dplyr)</span>
-<span id="cb2-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(tidyr)</span>
-<span id="cb2-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(ggplot2)</span>
-<span id="cb2-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(patchwork)</span>
-<span id="cb2-5"></span>
-<span id="cb2-6"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_set</span>(</span>
-<span id="cb2-7">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb2-8">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme</span>(</span>
-<span id="cb2-9">            <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">panel.grid.minor   =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">element_blank</span>(),</span>
-<span id="cb2-10">            <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">plot.title         =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">element_text</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">face =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"bold"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>),</span>
-<span id="cb2-11">            <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">legend.position    =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"bottom"</span></span>
-<span id="cb2-12">        )</span>
-<span id="cb2-13">)</span>
-<span id="cb2-14"></span>
-<span id="cb2-15">C_NASH <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#F44336"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># red</span></span>
-<span id="cb2-16">C_SOCIAL <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#2196F3"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># blue</span></span>
-<span id="cb2-17">C_CRIT <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#4CAF50"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># green</span></span>
-<span id="cb2-18">C_GAP <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"#9C27B0"</span> <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># purple (price of anarchy)</span></span></code></pre></div></div>
-</details>
-</div>
-<section id="infection-probability-nash-equilibrium-social-optimum" class="level2" data-number="4.1">
-<h2 data-number="4.1" class="anchored" data-anchor-id="infection-probability-nash-equilibrium-social-optimum"><span class="header-section-number">4.1</span> Infection probability, Nash equilibrium, social optimum</h2>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Infection probability for an unvaccinated individual at coverage pi</span></span>
-<span id="cb3-2">pi_inf <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(pi, R0, q) {</span>
-<span id="cb3-3">    pi_c <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> R0</span>
-<span id="cb3-4">    q <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pmax</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> pi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> pi_c)</span>
-<span id="cb3-5">}</span>
-<span id="cb3-6"></span>
-<span id="cb3-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Nash equilibrium from indifference: pi_inf(pi*) = r</span></span>
-<span id="cb3-8">nash_coverage <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(R0, q, r) {</span>
-<span id="cb3-9">    pi_c <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> R0</span>
-<span id="cb3-10">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (r <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;=</span> q) {</span>
-<span id="cb3-11">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>)</span>
-<span id="cb3-12">    } <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># never vaccinate</span></span>
-<span id="cb3-13">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">uniroot</span>(\(pi) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pi_inf</span>(pi, R0, q) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> r,</span>
-<span id="cb3-14">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, pi_c)</span>
-<span id="cb3-15">    )<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>root</span>
-<span id="cb3-16">}</span>
-<span id="cb3-17"></span>
-<span id="cb3-18"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Social optimum: minimize expected per-capita cost</span></span>
-<span id="cb3-19">social_optimum <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(R0, q, r) {</span>
-<span id="cb3-20">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">optimize</span>(\(pi) pi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> r <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> pi) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pi_inf</span>(pi, R0, q),</span>
-<span id="cb3-21">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb3-22">    )<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>minimum</span>
-<span id="cb3-23">}</span></code></pre></div></div>
-</details>
-</div>
-</section>
-<section id="a-single-parameter-set" class="level2" data-number="4.2">
-<h2 data-number="4.2" class="anchored" data-anchor-id="a-single-parameter-set"><span class="header-section-number">4.2</span> A single parameter set</h2>
-<p>Let us evaluate the game at <img src="https://latex.codecogs.com/png.latex?R_0%20=%205">, <img src="https://latex.codecogs.com/png.latex?q%20=%200.5">, <img src="https://latex.codecogs.com/png.latex?r%20=%200.10"> — broadly representative of a measles-like pathogen with a moderate perceived vaccine cost.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">R0 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span></span>
-<span id="cb4-2">q <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span></span>
-<span id="cb4-3">r <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.10</span></span>
-<span id="cb4-4">pi_c <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> R0</span>
-<span id="cb4-5">pi_n <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nash_coverage</span>(R0, q, r)</span>
-<span id="cb4-6">pi_s <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">social_optimum</span>(R0, q, r)</span>
-<span id="cb4-7"></span>
-<span id="cb4-8"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tibble</span>(</span>
-<span id="cb4-9">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">quantity =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(</span>
-<span id="cb4-10">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Critical coverage (pi_c)"</span>,</span>
-<span id="cb4-11">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Nash coverage (pi*)"</span>,</span>
-<span id="cb4-12">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Social optimum (pi_hat)"</span>,</span>
-<span id="cb4-13">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Price of anarchy (pi_hat - pi*)"</span></span>
-<span id="cb4-14">    ),</span>
-<span id="cb4-15">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">value =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(pi_c, pi_n, pi_s, pi_s <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> pi_n)</span>
-<span id="cb4-16">) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb4-17">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">value =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"%.3f"</span>, value)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb4-18">    knitr<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kable</span>()</span></code></pre></div></div>
-</details>
-<div class="cell-output-display">
-<table class="caption-top table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th style="text-align: left;">quantity</th>
-<th style="text-align: left;">value</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">Critical coverage (pi_c)</td>
-<td style="text-align: left;">0.800</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Nash coverage (pi*)</td>
-<td style="text-align: left;">0.640</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Social optimum (pi_hat)</td>
-<td style="text-align: left;">0.800</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Price of anarchy (pi_hat - pi*)</td>
-<td style="text-align: left;">0.160</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<p>At this parameter set the Nash equilibrium <img src="https://latex.codecogs.com/png.latex?%5Cpi%5E*%20=%200.64"> sits a full 16 percentage points below <img src="https://latex.codecogs.com/png.latex?%5Cpi_c%20=%200.80">. The social optimum reaches <img src="https://latex.codecogs.com/png.latex?%5Cpi_c"> exactly — which is a general property whenever the planner’s marginal cost of vaccination equals the marginal benefit of averted infection at the threshold.</p>
-<hr>
-</section>
-</section>
-<section id="results" class="level1" data-number="5">
-<h1 data-number="5"><span class="header-section-number">5</span> Results</h1>
-<section id="sweep-over-r_0" class="level2" data-number="5.1">
-<h2 data-number="5.1" class="anchored" data-anchor-id="sweep-over-r_0"><span class="header-section-number">5.1</span> Sweep over <img src="https://latex.codecogs.com/png.latex?R_0"></h2>
-<p>How does the Nash equilibrium respond as we vary transmissibility? This is the most policy-relevant question: for highly transmissible pathogens (measles, pertussis), herd immunity is close to 1, and even a small behavioral gap can matter enormously.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">q <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span></span>
-<span id="cb5-2">r <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.10</span></span>
-<span id="cb5-3">R0_grid <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.5</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">15</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">120</span>)</span>
-<span id="cb5-4"></span>
-<span id="cb5-5">sweep <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tibble</span>(</span>
-<span id="cb5-6">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R0      =</span> R0_grid,</span>
-<span id="cb5-7">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pi_c    =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> R0_grid,</span>
-<span id="cb5-8">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pi_nash =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(R0_grid, nash_coverage, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">q =</span> q, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">r =</span> r),</span>
-<span id="cb5-9">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pi_soc  =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(R0_grid, social_optimum, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">q =</span> q, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">r =</span> r)</span>
-<span id="cb5-10">)</span>
-<span id="cb5-11"></span>
-<span id="cb5-12"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(sweep, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> R0)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-13">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_ribbon</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ymin =</span> pi_nash, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ymax =</span> pi_soc),</span>
-<span id="cb5-14">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">fill =</span> C_GAP, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.18</span></span>
-<span id="cb5-15">    ) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-16">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> pi_c, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Herd-immunity threshold"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.8</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-17">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> pi_soc, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Social optimum"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-18">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> pi_nash, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Nash equilibrium"</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-19">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scale_colour_manual</span>(</span>
-<span id="cb5-20">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(</span>
-<span id="cb5-21">            <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Herd-immunity threshold"</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> C_CRIT,</span>
-<span id="cb5-22">            <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Social optimum"</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> C_SOCIAL,</span>
-<span id="cb5-23">            <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Nash equilibrium"</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> C_NASH</span>
-<span id="cb5-24">        ),</span>
-<span id="cb5-25">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">name =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span></span>
-<span id="cb5-26">    ) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-27">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(</span>
-<span id="cb5-28">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">expression</span>(R[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]),</span>
-<span id="cb5-29">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Vaccination coverage"</span>,</span>
-<span id="cb5-30">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Price of anarchy widens with transmissibility"</span></span>
-<span id="cb5-31">    ) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-32">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">coord_cartesian</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylim =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>))</span></code></pre></div></div>
-</details>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/game_theory_vacc/index_files/figure-html/sweep-R0-1.png" class="img-fluid figure-img" width="576"></p>
-<figcaption>Nash equilibrium, social optimum, and herd-immunity threshold as functions of <img src="https://latex.codecogs.com/png.latex?R_0">, with <img src="https://latex.codecogs.com/png.latex?q%20=%200.5">, <img src="https://latex.codecogs.com/png.latex?r%20=%200.10">. The shaded band shows the price of anarchy.</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<p>Two patterns emerge:</p>
-<ol type="1">
-<li><strong>The Nash curve saturates.</strong> Individual incentive to vaccinate diminishes as others do the work, so <img src="https://latex.codecogs.com/png.latex?%5Cpi%5E*"> grows more slowly than <img src="https://latex.codecogs.com/png.latex?%5Cpi_c">. For highly transmissible pathogens, voluntary uptake alone will not reach herd immunity at any realistic vaccine cost.</li>
-<li><strong>The price of anarchy is not monotone.</strong> It is small for low-<img src="https://latex.codecogs.com/png.latex?R_0"> pathogens (where vaccination is unnecessary) and for very high-<img src="https://latex.codecogs.com/png.latex?R_0"> ones (where individuals vaccinate anyway because infection is nearly certain). It peaks at intermediate transmissibility — exactly the regime most common in practice.</li>
-</ol>
-</section>
-<section id="sensitivity-to-perceived-vaccine-cost" class="level2" data-number="5.2">
-<h2 data-number="5.2" class="anchored" data-anchor-id="sensitivity-to-perceived-vaccine-cost"><span class="header-section-number">5.2</span> Sensitivity to perceived vaccine cost</h2>
-<p>The vaccine cost <img src="https://latex.codecogs.com/png.latex?r"> is the lever that behavior-change interventions pull on. Subsidies, information campaigns, and paid sick leave all reduce effective <img src="https://latex.codecogs.com/png.latex?r">; vaccine scares increase it.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">q <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span></span>
-<span id="cb6-2">grid <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">expand_grid</span>(</span>
-<span id="cb6-3">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R0 =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>),</span>
-<span id="cb6-4">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">r  =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.001</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.49</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>)</span>
-<span id="cb6-5">) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb6-6">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rowwise</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb6-7">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(</span>
-<span id="cb6-8">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pi_nash =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nash_coverage</span>(R0, q, r),</span>
-<span id="cb6-9">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">pi_c    =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> R0</span>
-<span id="cb6-10">    ) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb6-11">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ungroup</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|&gt;</span></span>
-<span id="cb6-12">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">R0 =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">factor</span>(R0, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">labels =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"R0 = 3"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"R0 = 5"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"R0 = 10"</span>)))</span>
-<span id="cb6-13"></span>
-<span id="cb6-14"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(grid, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> r, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> pi_nash, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> R0)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-15">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-16">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> pi_c, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> R0), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.6</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.6</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-17">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scale_colour_brewer</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">palette =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Set1"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">name =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-18">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(</span>
-<span id="cb6-19">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Perceived relative vaccine cost  r"</span>,</span>
-<span id="cb6-20">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Nash coverage  "</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> pi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"*"</span>),</span>
-<span id="cb6-21">        <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Vaccine scares move the equilibrium sharply"</span></span>
-<span id="cb6-22">    ) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-23">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">coord_cartesian</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ylim =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>))</span></code></pre></div></div>
-</details>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/game_theory_vacc/index_files/figure-html/sweep-r-1.png" class="img-fluid figure-img" width="576"></p>
-<figcaption>Nash vaccination coverage as a function of perceived vaccine cost <img src="https://latex.codecogs.com/png.latex?r">, for three values of <img src="https://latex.codecogs.com/png.latex?R_0">. The dashed line is the herd-immunity threshold at each <img src="https://latex.codecogs.com/png.latex?R_0">.</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<p>Two observations Bauch and Earn flagged in the original paper, reproduced here:</p>
-<ul>
-<li>Equilibrium coverage is <strong>highly sensitive</strong> to <img src="https://latex.codecogs.com/png.latex?r"> near zero. A modest increase in perceived cost (a scare) can cause a large drop in uptake.</li>
-<li>Pathogens with higher <img src="https://latex.codecogs.com/png.latex?R_0"> are <strong>more sensitive to <img src="https://latex.codecogs.com/png.latex?r"></strong>, not less, because the herd-immunity threshold is higher and the free-rider temptation correspondingly stronger.</li>
-</ul>
-<p>This is the mechanism behind the 1970s UK pertussis scare analyzed by Bauch (4): a small perceived-risk shock produced a large, slow-to-recover drop in coverage, followed by a resurgence of cases.</p>
-<hr>
-</section>
-</section>
-<section id="what-the-vaccination-game-tells-us" class="level1" data-number="6">
-<h1 data-number="6"><span class="header-section-number">6</span> What the vaccination game tells us</h1>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Property</th>
-<th>Answer</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Does voluntary vaccination reach herd immunity?</td>
-<td>Not in general — only when <img src="https://latex.codecogs.com/png.latex?r%20=%200"> or <img src="https://latex.codecogs.com/png.latex?R_0"> is low.</td>
-</tr>
-<tr class="even">
-<td>Is vaccine hesitancy evidence of irrationality?</td>
-<td>No — individually rational free-riding suffices.</td>
-</tr>
-<tr class="odd">
-<td>How big is the gap (price of anarchy)?</td>
-<td>Largest at intermediate <img src="https://latex.codecogs.com/png.latex?R_0">; can be tens of percentage points.</td>
-</tr>
-<tr class="even">
-<td>Does reducing perceived cost help?</td>
-<td>Yes, disproportionately so near <img src="https://latex.codecogs.com/png.latex?r%20%5Capprox%200">.</td>
-</tr>
-<tr class="odd">
-<td>Do vaccine scares cause lasting damage?</td>
-<td>Yes — especially for high-<img src="https://latex.codecogs.com/png.latex?R_0"> pathogens.</td>
-</tr>
-<tr class="even">
-<td>Is the well-mixed assumption critical?</td>
-<td>It matters — network structure can worsen the equilibrium (5).</td>
-</tr>
-</tbody>
-</table>
-<hr>
-</section>
-<section id="extensions-worth-exploring" class="level1" data-number="7">
-<h1 data-number="7"><span class="header-section-number">7</span> Extensions worth exploring</h1>
-<p><strong>Imperfect vaccines.</strong> Real vaccines provide partial protection. When efficacy drops below 1, the Nash equilibrium can fall even further below <img src="https://latex.codecogs.com/png.latex?%5Cpi_c">, and the herd-immunity threshold itself shifts.</p>
-<p><strong>Heterogeneous populations.</strong> Children, adults, and the elderly face different infection costs and transmission roles. The multi-group vaccination game (9) yields group-specific <img src="https://latex.codecogs.com/png.latex?%5Cpi%5E*"> values and is the natural framework for optimizing age-targeted schedules.</p>
-<p><strong>Dynamic games.</strong> When decisions are made during the epidemic rather than before, the game becomes a differential game (3). The timing of peak adherence and the window for vaccine development both become endogenous.</p>
-<p><strong>Replicator dynamics.</strong> If individuals imitate rather than best-respond, the Nash equilibrium is replaced by the rest points of the replicator equation (4), and limit cycles become possible. Post 3 of this series develops this in depth.</p>
-<p><strong>Applications to diseases I work on.</strong> For cholera, the reactive-vs-pre-emptive OCV allocation problem is a coordination game with incomplete information across countries and agencies. For typhoid, Vi-TCV introduction interacts with the evolutionary game between Vi-positive and Vi-negative <em>Salmonella Typhi</em> strains. Both are treated in Post 4 and Post 5.</p>
-<hr>
-</section>
-<section id="the-series-roadmap" class="level1" data-number="8">
-<h1 data-number="8"><span class="header-section-number">8</span> The series roadmap</h1>
-<ol type="1">
-<li><strong>(This post) Foundations.</strong> Vaccination game, Nash equilibrium, social optimum, price of anarchy.</li>
-<li><strong>The vaccination game in depth.</strong> Imperfect vaccines, heterogeneity, multi-strain games, calibration to coverage data.</li>
-<li><strong>Coupled behavior–disease dynamics.</strong> Replicator and imitation dynamics layered onto SIR models.</li>
-<li><strong>Evolutionary game theory for pathogens.</strong> Virulence–transmissibility trade-offs, ESS analysis, strain replacement under vaccination pressure — with cholera and typhoid as running examples.</li>
-<li><strong>Policy and mechanism design.</strong> Subsidies, mandates, information campaigns, network games, and agentic LLM-driven decision models.</li>
-</ol>
-<hr>
-</section>
-<section id="references" class="level1 unnumbered">
-<h1 class="unnumbered">References</h1>
-<ol type="1">
-<li><p><span id="ref-bauch2004"></span>Bauch CT, Earn DJD. Vaccination and the theory of games. <em>Proceedings of the National Academy of Sciences</em>. 2004;101(36):13391–4. doi:<a href="https://doi.org/10.1073/pnas.0403823101">10.1073/pnas.0403823101</a></p></li>
-<li><p><span id="ref-funk2010"></span>Funk S, Salathé M, Jansen VAA. Modelling the influence of human behaviour on the spread of infectious diseases: a review. <em>Journal of the Royal Society Interface</em>. 2010;7(50):1247–56. doi:<a href="https://doi.org/10.1098/rsif.2010.0142">10.1098/rsif.2010.0142</a></p></li>
-<li><p><span id="ref-reluga2010"></span>Reluga TC. Game theory of social distancing in response to an epidemic. <em>PLoS Computational Biology</em>. 2010;6(5):e1000793. doi:<a href="https://doi.org/10.1371/journal.pcbi.1000793">10.1371/journal.pcbi.1000793</a></p></li>
-<li><p><span id="ref-bauch2005"></span>Bauch CT. Imitation dynamics predict vaccinating behaviour. <em>Proceedings of the Royal Society B</em>. 2005;272(1573):1669–75. doi:<a href="https://doi.org/10.1098/rspb.2005.3153">10.1098/rspb.2005.3153</a></p></li>
-<li><p><span id="ref-fu2011"></span>Fu F, Rosenbloom DI, Wang L, Nowak MA. Imitation dynamics of vaccination behaviour on social networks. <em>Proceedings of the Royal Society B</em>. 2011;278(1702):42–9. doi:<a href="https://doi.org/10.1098/rspb.2010.1107">10.1098/rspb.2010.1107</a></p></li>
-<li><p><span id="ref-bauch2012"></span>Bauch CT, Bhattacharyya S. Evolutionary game theory and social learning can determine how vaccine scares unfold. <em>PLoS Computational Biology</em>. 2012;8(4):e1002452. doi:<a href="https://doi.org/10.1371/journal.pcbi.1002452">10.1371/journal.pcbi.1002452</a></p></li>
-<li><p><span id="ref-anderson1982"></span>Anderson RM, May RM. Coevolution of hosts and parasites. <em>Parasitology</em>. 1982;85(2):411–26. doi:<a href="https://doi.org/10.1017/S0031182000055360">10.1017/S0031182000055360</a></p></li>
-<li><p><span id="ref-alizon2009"></span>Alizon S, Hurford A, Mideo N, Van Baalen M. Virulence evolution and the trade-off hypothesis: history, current state of affairs and the future. <em>Journal of Evolutionary Biology</em>. 2009;22(2):245–59. doi:<a href="https://doi.org/10.1111/j.1420-9101.2008.01658.x">10.1111/j.1420-9101.2008.01658.x</a></p></li>
-<li><p><span id="ref-wang2016"></span>Wang Z, Bauch CT, Bhattacharyya S, d’Onofrio A, Manfredi P, Perc M, Perra N, Salathé M, Zhao D. Statistical physics of vaccination. <em>Physics Reports</em>. 2016;664:1–113. doi:<a href="https://doi.org/10.1016/j.physrep.2016.10.006">10.1016/j.physrep.2016.10.006</a></p></li>
-<li><p><span id="ref-chang2020"></span>Chang SL, Piraveenan M, Pattison P, Prokopenko M. Game theoretic modelling of infectious disease dynamics and intervention methods: a review. <em>Journal of Biological Dynamics</em>. 2020;14(1):57–89. doi:<a href="https://doi.org/10.1080/17513758.2020.1720322">10.1080/17513758.2020.1720322</a></p></li>
-<li><p><span id="ref-verelst2016"></span>Verelst F, Willem L, Beutels P. Behavioural change models for infectious disease transmission: a systematic review (2010–2015). <em>Journal of the Royal Society Interface</em>. 2016;13(125):20160820. doi:<a href="https://doi.org/10.1098/rsif.2016.0820">10.1098/rsif.2016.0820</a></p></li>
-</ol>
-<div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>R          4.5.3</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>ggplot2    4.0.2
-dplyr      1.2.0
-tidyr      1.3.2
-patchwork  1.3.2</code></pre>
-</div>
-</div>
-
-
-<!-- -->
-
-</section>
-
- ]]></description>
-  <category>game theory</category>
-  <category>vaccination</category>
-  <category>SIR</category>
-  <category>epidemiology</category>
-  <category>R</category>
-  <category>evolutionary games</category>
-  <guid>https://www.jonghoonk.com/blog/posts/game_theory_vacc/</guid>
   <pubDate>Sun, 19 Apr 2026 15:00:00 GMT</pubDate>
 </item>
 </channel>
