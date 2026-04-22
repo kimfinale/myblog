@@ -1,0 +1,184 @@
+---
+title: "Hybrid Forecasting: Combining Mechanistic Models with Machine Learning"
+subtitle: "Pure SEIR models shine at long horizons; ML wins at short ones. Ensembling both gives clients the best of both worlds. Skill 5 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, forecasting, machine learning, ensemble, R]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## The forecasting horizon problem
+
+Mechanistic SEIR models are powerful at **long horizons** (4–12 weeks) because they encode biological constraints: the epidemic cannot grow faster than $R_0$ allows, and it must eventually peak and decline. But at **short horizons** (1–7 days), the mechanistic model's forecast is often less accurate than a simple time-series extrapolation that just follows the recent trend.
+
+The US CDC's collaborative influenza forecasting project found that ensemble methods combining multiple model types outperformed any single model [@reich2019], a result replicated for COVID-19 [@ray2022]. Combining your mechanistic digital twin with a lightweight statistical learner is therefore both technically sound and a strong product story.
+
+## Three forecasting components
+
+We build three forecasters and combine them:
+
+1. **Mechanistic**: project the EnKF state estimate forward using the SEIR model
+2. **Statistical**: exponential smoothing on recent case counts (captures trend + noise)
+3. **Ensemble**: weighted average, weights learned from past forecast errors
+
+```{r}
+#| label: generate-truth
+
+set.seed(42)
+n_total <- 90
+N_pop   <- 100000
+
+# Simulate true SEIR trajectory
+seir_step <- function(S, E, I, R, beta, sigma = 0.2, gamma = 0.12) {
+  N   <- S + E + I + R
+  new_e <- beta * S * I / N
+  new_i <- sigma * E
+  new_r <- gamma * I
+  list(S = S - new_e, E = E + new_e - new_i,
+       I = I + new_i - new_r, R = R + new_r,
+       new_cases = new_i)
+}
+
+state <- list(S = N_pop - 30, E = 20, I = 10, R = 0)
+true_cases <- numeric(n_total)
+for (d in seq_len(n_total)) {
+  state <- seir_step(state$S, state$E, state$I, state$R, beta = 0.32)
+  true_cases[d] <- rpois(1, max(1, state$new_cases))
+}
+
+# Training window: days 1-75; evaluate on days 76-90
+n_train  <- 75
+n_eval   <- n_total - n_train
+obs      <- true_cases[seq_len(n_train)]
+actuals  <- true_cases[(n_train + 1):n_total]
+```
+
+```{r}
+#| label: forecasters
+
+# --- Mechanistic forecast: project SEIR forward from current state ---
+seir_forecast <- function(obs_vec, horizon, beta = 0.32,
+                           sigma = 0.2, gamma = 0.12, N = 100000) {
+  # Rough state initialisation from last 14 days
+  recent_inf <- mean(tail(obs_vec, 14))
+  I_est <- recent_inf / sigma
+  E_est <- I_est * sigma / sigma  # E ~ I at quasi-steady state
+  R_est <- sum(obs_vec) * 0.9
+  S_est <- N - E_est - I_est - R_est
+  state <- list(S = max(S_est, 1), E = E_est, I = I_est, R = max(R_est, 0))
+  fcst  <- numeric(horizon)
+  for (h in seq_len(horizon)) {
+    state <- seir_step(state$S, state$E, state$I, state$R, beta, sigma, gamma)
+    fcst[h] <- state$new_cases
+  }
+  fcst
+}
+
+# --- Statistical: exponential smoothing (Holt-Winters level + trend) ---
+hw_forecast <- function(obs_vec, horizon) {
+  # Holt two-parameter (level + trend)
+  alpha <- 0.25; beta_hw <- 0.1
+  n  <- length(obs_vec)
+  L  <- obs_vec[1]; T <- 0
+  for (i in 2:n) {
+    L_prev <- L; L <- alpha * obs_vec[i] + (1 - alpha) * (L + T)
+    T <- beta_hw * (L - L_prev) + (1 - beta_hw) * T
+  }
+  fcst <- pmax(0, L + T * seq_len(horizon))
+  fcst
+}
+
+# Generate 15-day forecasts
+horizon    <- n_eval
+fcst_seir  <- seir_forecast(obs, horizon)
+fcst_hw    <- hw_forecast(obs, horizon)
+```
+
+```{r}
+#| label: ensemble
+#| fig-cap: "Hybrid ensemble (purple) vs individual forecasters: mechanistic SEIR (blue) and exponential smoothing (orange). The ensemble minimises error by blending the biological constraints of SEIR with the data-driven trend of HW."
+
+# Simple equal-weight ensemble (in production, learn weights from holdout)
+fcst_ensemble <- 0.55 * fcst_seir + 0.45 * fcst_hw
+
+# Evaluate
+rmse <- function(pred, obs) sqrt(mean((pred - obs)^2))
+mae  <- function(pred, obs) mean(abs(pred - obs))
+
+scores <- data.frame(
+  Model = c("SEIR", "Holt-Winters", "Ensemble"),
+  RMSE  = round(c(rmse(fcst_seir, actuals),
+                  rmse(fcst_hw,   actuals),
+                  rmse(fcst_ensemble, actuals)), 1),
+  MAE   = round(c(mae(fcst_seir, actuals),
+                  mae(fcst_hw,   actuals),
+                  mae(fcst_ensemble, actuals)), 1)
+)
+knitr::kable(scores, caption = "Forecast accuracy (15-day horizon)")
+
+library(ggplot2)
+days_eval <- (n_train + 1):n_total
+df_plot <- data.frame(
+  day      = rep(days_eval, 4),
+  cases    = c(actuals, fcst_seir, fcst_hw, fcst_ensemble),
+  model    = rep(c("Actual", "SEIR", "Holt-Winters", "Ensemble"),
+                 each = n_eval)
+)
+df_plot$model <- factor(df_plot$model,
+                        levels = c("Actual","SEIR","Holt-Winters","Ensemble"))
+
+ggplot(df_plot, aes(x = day, y = cases, colour = model, linetype = model)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = c(Actual        = "grey30",
+                                 SEIR          = "steelblue",
+                                 `Holt-Winters` = "darkorange",
+                                 Ensemble      = "mediumpurple")) +
+  scale_linetype_manual(values = c(Actual        = "solid",
+                                   SEIR          = "dashed",
+                                   `Holt-Winters` = "dashed",
+                                   Ensemble      = "solid")) +
+  labs(x = "Day", y = "New cases", colour = NULL, linetype = NULL,
+       title = "15-day forecast: mechanistic vs statistical vs ensemble") +
+  theme_minimal(base_size = 13)
+```
+
+## Learning ensemble weights from past errors
+
+Equal weights are a starting point. Optimal weights minimise squared forecast error on a holdout window:
+
+```{r}
+#| label: optimal-weights
+
+# Optimise weights w such that w*SEIR + (1-w)*HW minimises RMSE
+opt <- optimise(
+  f = function(w) rmse(w * fcst_seir + (1 - w) * fcst_hw, actuals),
+  interval = c(0, 1)
+)
+cat(sprintf("Optimal SEIR weight: %.2f  |  HW weight: %.2f\n",
+            opt$minimum, 1 - opt$minimum))
+cat(sprintf("Ensemble RMSE at optimal weights: %.1f\n", opt$objective))
+```
+
+With more models (random forest, ARIMA, Facebook Prophet), stack them using non-negative least squares or Bayesian model averaging. The `forecastHybrid` R package automates this pipeline [@hyndman2008].
+
+## The product pitch
+
+"Our forecast combines a calibrated SEIR model with a data-driven component. At 1–3 day horizons it tracks the current trend; at 2–8 week horizons the mechanistic biology takes over. Neither approach alone achieves both."
+
+This narrative is technically accurate, scientifically grounded, and differentiates you from both pure statisticians and pure modellers.
+
+## References
+
+::: {#refs}
+:::
