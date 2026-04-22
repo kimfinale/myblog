@@ -27,7 +27,7 @@ editor_options:
 The previous posts in this series worked with compartmental **ODEs** — dynamics in time alone.
 Real epidemics have spatial structure: disease spreads outward from index cases, population density varies across a region, and interventions can be geographically targeted.
 
-The natural continuous-space extension is a **reaction-diffusion system** — a PDE that combines local transmission (reaction) with spatial movement of infectious individuals (diffusion) [@murray2003].
+The natural continuous-space extension is a **reaction-diffusion system** — a PDE that combines local transmission (reaction) with spatial movement of infectious individuals (diffusion) [@murray2003; @noble1974].
 Fitting such a PDE from sparse spatiotemporal observations is exactly the problem that spatiotemporal PINNs are designed for.
 
 This post shows:
@@ -52,7 +52,7 @@ Training takes ~5–10 min on CPU with the settings below.
 
 ## The reaction-diffusion SIR model
 
-Adding spatial diffusion to the SIR equations in fraction form gives a system of PDEs on $x \in [0, L]$, $t \in [0, T]$:
+Adding spatial diffusion to the SIR equations [@kermack1927; @hethcote2000] in fraction form gives a system of PDEs on $x \in [0, L]$, $t \in [0, T]$:
 
 $$
 \frac{\partial s}{\partial t} = D\,\frac{\partial^2 s}{\partial x^2} - \beta\,s\,i
@@ -80,8 +80,8 @@ $$
 i(x, 0) = i_0 \exp\!\left(-\frac{(x - L/2)^2}{2\ell^2}\right), \qquad s(x, 0) = 1 - i(x, 0)
 $$
 
-The resulting dynamics are a **travelling wave** of infection propagating outward from the source [@murray2003].
-The wave speed is approximately $c_w \approx 2\sqrt{D(\beta - \gamma)}$ — depending on both diffusion and the net growth rate $\beta - \gamma$.
+The resulting dynamics are a **travelling wave** of infection propagating outward from the source [@murray2003b].
+The wave speed is approximately $c_w \approx 2\sqrt{D(\beta - \gamma)}$ — a result analogous to Fisher's travelling wave [@fisher1937; @murray2003b], depending on both diffusion and the net growth rate $\beta - \gamma$.
 
 ---
 
@@ -219,6 +219,8 @@ The infection wave originates at the centre ($x = 0.5$) and propagates outward, 
 ---
 
 ## Spatiotemporal PINN
+
+The spatiotemporal PINN extends the framework of Raissi et al. [@raissi2019] from ODEs to PDEs, following the same collocation-point approach used in subsurface flow [@tartakovsky2020] and other PDE inverse problems.
 
 ### Architecture
 

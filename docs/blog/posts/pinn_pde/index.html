@@ -458,7 +458,7 @@ window.Quarto = {
 <section id="from-time-to-space-time" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="from-time-to-space-time"><span class="header-section-number">1</span> From time to space-time</h2>
 <p>The previous posts in this series worked with compartmental <strong>ODEs</strong> — dynamics in time alone. Real epidemics have spatial structure: disease spreads outward from index cases, population density varies across a region, and interventions can be geographically targeted.</p>
-<p>The natural continuous-space extension is a <strong>reaction-diffusion system</strong> — a PDE that combines local transmission (reaction) with spatial movement of infectious individuals (diffusion) <span class="citation" data-cites="murray2003">(<a href="#ref-murray2003" role="doc-biblioref">1</a>)</span>. Fitting such a PDE from sparse spatiotemporal observations is exactly the problem that spatiotemporal PINNs are designed for.</p>
+<p>The natural continuous-space extension is a <strong>reaction-diffusion system</strong> — a PDE that combines local transmission (reaction) with spatial movement of infectious individuals (diffusion) <span class="citation" data-cites="murray2003 noble1974">(<a href="#ref-murray2003" role="doc-biblioref">1</a>,<a href="#ref-noble1974" role="doc-biblioref">2</a>)</span>. Fitting such a PDE from sparse spatiotemporal observations is exactly the problem that spatiotemporal PINNs are designed for.</p>
 <p>This post shows:</p>
 <ol type="1">
 <li>The <strong>1-D reaction-diffusion SIR</strong> PDE and its finite-difference (FD) reference solution.</li>
@@ -485,7 +485,7 @@ Tip
 </section>
 <section id="the-reaction-diffusion-sir-model" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="the-reaction-diffusion-sir-model"><span class="header-section-number">2</span> The reaction-diffusion SIR model</h2>
-<p>Adding spatial diffusion to the SIR equations in fraction form gives a system of PDEs on <span class="math inline">\(x \in [0, L]\)</span>, <span class="math inline">\(t \in [0, T]\)</span>:</p>
+<p>Adding spatial diffusion to the SIR equations <span class="citation" data-cites="kermack1927 hethcote2000">(<a href="#ref-kermack1927" role="doc-biblioref">3</a>,<a href="#ref-hethcote2000" role="doc-biblioref">4</a>)</span> in fraction form gives a system of PDEs on <span class="math inline">\(x \in [0, L]\)</span>, <span class="math inline">\(t \in [0, T]\)</span>:</p>
 <p><span class="math display">\[
 \frac{\partial s}{\partial t} = D\,\frac{\partial^2 s}{\partial x^2} - \beta\,s\,i
 \]</span></p>
@@ -504,13 +504,13 @@ Tip
 <p><span class="math display">\[
 i(x, 0) = i_0 \exp\!\left(-\frac{(x - L/2)^2}{2\ell^2}\right), \qquad s(x, 0) = 1 - i(x, 0)
 \]</span></p>
-<p>The resulting dynamics are a <strong>travelling wave</strong> of infection propagating outward from the source <span class="citation" data-cites="murray2003">(<a href="#ref-murray2003" role="doc-biblioref">1</a>)</span>. The wave speed is approximately <span class="math inline">\(c_w \approx 2\sqrt{D(\beta - \gamma)}\)</span> — depending on both diffusion and the net growth rate <span class="math inline">\(\beta - \gamma\)</span>.</p>
+<p>The resulting dynamics are a <strong>travelling wave</strong> of infection propagating outward from the source <span class="citation" data-cites="murray2003b">(<a href="#ref-murray2003b" role="doc-biblioref">5</a>)</span>. The wave speed is approximately <span class="math inline">\(c_w \approx 2\sqrt{D(\beta - \gamma)}\)</span> — a result analogous to Fisher’s travelling wave <span class="citation" data-cites="fisher1937 murray2003b">(<a href="#ref-murray2003b" role="doc-biblioref">5</a>,<a href="#ref-fisher1937" role="doc-biblioref">6</a>)</span>, depending on both diffusion and the net growth rate <span class="math inline">\(\beta - \gamma\)</span>.</p>
 <hr>
 </section>
 <section id="finite-difference-reference-solution" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="finite-difference-reference-solution"><span class="header-section-number">3</span> Finite-difference reference solution</h2>
 <p>Before training the PINN, we generate a high-accuracy reference solution using explicit finite differences for validation.</p>
-<div id="a885e8ff" class="cell" data-execution_count="1">
+<div id="85609eae" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -556,7 +556,7 @@ i(x, 0) = i_0 \exp\!\left(-\frac{(x - L/2)^2}{2\ell^2}\right), \qquad s(x, 0) = 
 Expected wave travel in 20.0 days: 3.10 L units</code></pre>
 </div>
 </div>
-<div id="68528632" class="cell" data-execution_count="2">
+<div id="1b25a132" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fd_sir_1d(L<span class="op">=</span><span class="fl">1.0</span>, T<span class="op">=</span><span class="fl">20.0</span>, Nx<span class="op">=</span><span class="dv">101</span>, Nt<span class="op">=</span><span class="dv">10_000</span>,</span>
@@ -615,7 +615,7 @@ Expected wave travel in 20.0 days: 3.10 L units</code></pre>
 <span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<div id="fdd4768b" class="cell" data-execution_count="3">
+<div id="7daebed7" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Visualise the FD reference solution ───────────────────────────────────────</span></span>
@@ -657,6 +657,7 @@ Expected wave travel in 20.0 days: 3.10 L units</code></pre>
 </section>
 <section id="spatiotemporal-pinn" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="spatiotemporal-pinn"><span class="header-section-number">4</span> Spatiotemporal PINN</h2>
+<p>The spatiotemporal PINN extends the framework of Raissi et al. <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">7</a>)</span> from ODEs to PDEs, following the same collocation-point approach used in subsurface flow <span class="citation" data-cites="tartakovsky2020">(<a href="#ref-tartakovsky2020" role="doc-biblioref">8</a>)</span> and other PDE inverse problems.</p>
 <section id="architecture" class="level3" data-number="4.1">
 <h3 data-number="4.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">4.1</span> Architecture</h3>
 <p>The network maps normalised coordinates <span class="math inline">\((\tilde x, \tilde t) = (x/L,\; t/T_{\max}) \in [0,1]^2\)</span> to compartment fractions:</p>
@@ -664,7 +665,7 @@ Expected wave travel in 20.0 days: 3.10 L units</code></pre>
 (\hat s,\, \hat i,\, \hat r) = \sigma\!\left(\text{NN}_\theta(\tilde x,\, \tilde t)\right) \in (0,1)^3
 \]</span></p>
 <p>The physical parameters <span class="math inline">\(D\)</span>, <span class="math inline">\(\beta\)</span>, <span class="math inline">\(\gamma\)</span> are learnable log-scalars alongside the network weights.</p>
-<div id="24be9689" class="cell" data-execution_count="4">
+<div id="03c82e0b" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SpatiotemporalPINN(nn.Module):</span>
@@ -718,7 +719,7 @@ Expected wave travel in 20.0 days: 3.10 L units</code></pre>
 <li>First-order time derivative: one <code>autograd.grad</code> call w.r.t. <span class="math inline">\(t\)</span>.</li>
 <li>Second-order spatial derivative: two nested <code>autograd.grad</code> calls w.r.t. <span class="math inline">\(x\)</span>.</li>
 </ul>
-<div id="4e372bce" class="cell" data-execution_count="5">
+<div id="36e154cb" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> pde_loss(model, x_col, t_col):</span>
@@ -777,7 +778,7 @@ Note
 <section id="neumann-boundary-conditions" class="level3" data-number="5.2">
 <h3 data-number="5.2" class="anchored" data-anchor-id="neumann-boundary-conditions"><span class="header-section-number">5.2</span> Neumann boundary conditions</h3>
 <p>Zero-flux BCs (<span class="math inline">\(\partial s/\partial x = \partial i/\partial x = 0\)</span> at <span class="math inline">\(x = 0\)</span> and <span class="math inline">\(x = 1\)</span>) are enforced as an additional loss:</p>
-<div id="c367fc9d" class="cell" data-execution_count="6">
+<div id="9f7c90db" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> bc_loss(model, t_bc):</span>
@@ -831,7 +832,7 @@ Note
 <li><strong>Boundary conditions</strong> at <span class="math inline">\(x = 0\)</span> and <span class="math inline">\(x = 1\)</span> on random time points.</li>
 <li><strong>Sparse observations</strong> of <span class="math inline">\(I(x,t)\)</span> from the FD reference at <span class="math inline">\(t \in \{5, 10, 15, 20\}\)</span>, sampled at 20 random spatial locations each.</li>
 </ul>
-<div id="8d555ec7" class="cell" data-execution_count="7">
+<div id="c8b100f2" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── IC tensors ─────────────────────────────────────────────────────────────────</span></span>
@@ -875,7 +876,7 @@ IC points: 101</code></pre>
 </section>
 <section id="training" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="training"><span class="header-section-number">7</span> Training</h2>
-<div id="3f4789ec" class="cell" data-execution_count="8">
+<div id="5332873c" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> SpatiotemporalPINN(hidden<span class="op">=</span><span class="dv">64</span>, n_layers<span class="op">=</span><span class="dv">5</span>)</span>
@@ -943,7 +944,7 @@ Recovered γ:    0.0318  (true: 0.1)</code></pre>
 <h2 data-number="8" class="anchored" data-anchor-id="results"><span class="header-section-number">8</span> Results</h2>
 <section id="spatial-profiles-pinn-vs.-fd" class="level3" data-number="8.1">
 <h3 data-number="8.1" class="anchored" data-anchor-id="spatial-profiles-pinn-vs.-fd"><span class="header-section-number">8.1</span> Spatial profiles: PINN vs.&nbsp;FD</h3>
-<div id="9d629ac5" class="cell" data-execution_count="9">
+<div id="48ca9da1" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>t_snaps_eval <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">15</span>, <span class="dv">20</span>]</span>
@@ -986,7 +987,7 @@ Recovered γ:    0.0318  (true: 0.1)</code></pre>
 </section>
 <section id="space-time-heatmaps" class="level3" data-number="8.2">
 <h3 data-number="8.2" class="anchored" data-anchor-id="space-time-heatmaps"><span class="header-section-number">8.2</span> Space-time heatmaps</h3>
-<div id="95958cab" class="cell" data-execution_count="10">
+<div id="2fe554e2" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>Nx_plot, Nt_plot <span class="op">=</span> <span class="dv">100</span>, <span class="dv">100</span></span>
@@ -1187,8 +1188,29 @@ Note
 <div id="ref-murray2003" class="csl-entry" role="listitem">
 <div class="csl-left-margin">1. </div><div class="csl-right-inline">Murray JD. Mathematical biology <span>I</span>: An introduction. 3rd ed. New York: Springer; 2003. doi:<a href="https://doi.org/10.1007/b98868">10.1007/b98868</a></div>
 </div>
+<div id="ref-noble1974" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Noble JV. Geographic and temporal development of plagues. Nature. 1974;250:726–9. doi:<a href="https://doi.org/10.1038/250726a0">10.1038/250726a0</a></div>
 </div>
-<div id="14c6e43e" class="cell" data-execution_count="11">
+<div id="ref-kermack1927" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Kermack WO, McKendrick AG. A contribution to the mathematical theory of epidemics. Proceedings of the Royal Society of London Series A. 1927;115(772):700–21. doi:<a href="https://doi.org/10.1098/rspa.1927.0118">10.1098/rspa.1927.0118</a></div>
+</div>
+<div id="ref-hethcote2000" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Hethcote HW. The mathematics of infectious diseases. SIAM Review. 2000;42(4):599–653. doi:<a href="https://doi.org/10.1137/S0036144500371907">10.1137/S0036144500371907</a></div>
+</div>
+<div id="ref-murray2003b" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Murray JD. Mathematical biology <span>II</span>: Spatial models and biomedical applications. 3rd ed. New York: Springer; 2003. doi:<a href="https://doi.org/10.1007/b98869">10.1007/b98869</a></div>
+</div>
+<div id="ref-fisher1937" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Fisher RA. The wave of advance of advantageous genes. Annals of Eugenics. 1937;7(4):355–69. doi:<a href="https://doi.org/10.1111/j.1469-1809.1937.tb02153.x">10.1111/j.1469-1809.1937.tb02153.x</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry" role="listitem">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+<div id="ref-tartakovsky2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">8. </div><div class="csl-right-inline">Tartakovsky AM, Marrero CO, Perdikaris P, Tartakovsky GD, Barajas-Solano D. Physics-informed deep neural networks for learning parameters and constitutive relationships in subsurface flow problems. Water Resources Research. 2020;56(5):e2019WR026731. doi:<a href="https://doi.org/10.1029/2019WR026731">10.1029/2019WR026731</a></div>
+</div>
+</div>
+<div id="1fcf2df8" class="cell" data-execution_count="11">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu
