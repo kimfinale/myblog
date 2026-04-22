@@ -2,10 +2,12 @@
 title: "Variables selection in statistical models"
 author: "Jong-Hoon Kim"
 date: "2024-05-18"
-categories: [R, variable selection, generalized linear model, ]
+categories: [R, variable selection, generalized linear model]
 image: "chatgpt.png"
-from: markdown+emoji  
-editor_options: 
+from: markdown+emoji
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+editor_options:
   chunk_output_type: console
 ---
 
@@ -15,92 +17,69 @@ knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE)
 
 When building statistical models, one of the most critical steps is variable selection. This process involves choosing the appropriate predictors or features that will be included in your model. The goal is to create a model that is both accurate and interpretable, avoiding overfitting and underfitting. I'll explore what I am learning regarding issues related to variable selection, the common methods used, and best practices to ensure robust model performance.
 
-The following contents are mainly based on [the work by Sauebrei et al](https://diagnprognres.biomedcentral.com/articles/10.1186/s41512-020-00074-3), which I am learning. As such, the following contents should not be used as a definitive guide to variable selection.
+The following contents are mainly based on the work by Sauerbrei et al. [@sauerbrei2020], which I am learning. As such, the following contents should not be used as a definitive guide to variable selection.
 
-Variable selection should start by defining what kind of model one is developing. The work by Shumeli, [To explain or to predict?](https://www.stat.berkeley.edu/~aldous/157/Papers/shmueli.pdf), discusses that there may be three kinds of statistical models: descriptive, explanatory, and predictive models. The first sentence of its abstract reads, "Statistical modeling is a powerful tool for developing and testing theories by way of causal explanation, prediction, and description."
+## Types of Models
 
-Then we can list the variables based on the prior information. In this stage, drawing a directed acyclic graph (DAG) may help.
+Variable selection should start by defining what kind of model one is developing. The work by Shmueli [@shmueli2010] discusses that there may be three kinds of statistical models: descriptive, explanatory, and predictive models. The first sentence of its abstract reads, "Statistical modeling is a powerful tool for developing and testing theories by way of causal explanation, prediction, and description."
 
-Once the list is made, one can employ a
+- **Descriptive models** summarize patterns in the data without causal claims
+- **Explanatory models** aim to test causal hypotheses
+- **Predictive models** aim to forecast new observations accurately
 
-1.  Forward selection (FS)
-2.  Backward elimination (BE)
-3.  Stepwise method that combines FS with additional BE. BE method is preferred because we already starts with a plausible model
-4.  Best subset selection
+The type of model determines which selection criteria to use. Akaike's information criterion (AIC) is in principle preferable for predictive models, whereas Schwarz's Bayesian information criterion (BIC) is more appropriate for descriptive models.
 
-Different information criteria have been proposed, among which Akaike’s information criterion (AIC) is in principle preferable for predictive models and Schwartz’s Bayesian information criterion (BIC) for descriptive models.
+## Selection Strategies
 
-19. Burnham KP, Anderson DR. Model selection and multimodel inference: a practical information-theoretic approach. New York: Springer; 2002.
+Once candidate variables are listed (using prior knowledge and, ideally, a directed acyclic graph), common algorithmic strategies include:
 
-true data generating model??
+1. **Forward selection (FS)**: starts with no variables and adds one at a time based on model performance
+2. **Backward elimination (BE)**: starts with all variables and removes the least significant at each step; preferred because it starts with a plausible full model
+3. **Stepwise**: combines FS with additional BE
+4. **Best subset selection**: exhaustive search over all subsets
 
-1.  Filter Methods: These methods apply statistical measures to assign a score to each feature. Features are ranked by their scores, and the top-ranked ones are selected.
+Additional approaches covered by Sauerbrei et al. [@sauerbrei2020] include:
 
-Correlation Coefficient: Measures the linear relationship between each feature and the target variable. Features with high correlation (positive or negative) are preferred.
+5. Change-in-estimate criterion
+6. Lasso — shrinks coefficients and performs selection simultaneously
+7. Elastic net — combines L1 (Lasso) and L2 (Ridge) penalties
+8. Boosting — component-wise boosting is a forward stagewise regression procedure applicable to generalised linear models
+9. Resampling-based methods: bootstrap inclusion frequencies (BIF) and stability selection
 
-Chi-Square Test: Used for categorical variables, this test assesses whether there is a significant association between the feature and the target variable.
+## Filter, Wrapper, and Embedded Methods
 
-ANOVA F-Value: For continuous variables, the ANOVA F-value tests the null hypothesis that all means are equal.
+A broader taxonomy divides methods into three categories:
 
-2.  Wrapper Methods: These methods evaluate feature subsets based on model performance. The main types of wrapper methods include:
+**Filter methods** apply statistical measures to score each feature independently of the model:
+- Correlation coefficient (linear relationships)
+- Chi-square test (categorical variables)
+- ANOVA F-value (continuous variables)
 
-Forward Selection: Starts with no variables and adds one variable at a time based on model performance improvement.
+**Wrapper methods** evaluate feature subsets based on actual model performance, including forward selection, backward elimination, and recursive feature elimination (RFE).
 
-Backward Elimination: Starts with all variables and removes the least significant variable at each step.
+**Embedded methods** perform selection during model training:
+- **Lasso (L1)**: penalty equal to the absolute value of coefficients; can shrink some to zero
+- **Ridge (L2)**: penalty equal to the square of coefficients; reduces impact of less important variables without full selection
+- **Tree-based methods** (Random Forests, Gradient Boosting): inherently rank variables by their contribution to reducing impurity
 
-Recursive Feature Elimination (RFE): Builds the model and eliminates the least important feature iteratively until the optimal number of features is reached.
+For generalised linear mixed models, Bolker et al. [@bolker2009] provide a practical introduction to model selection and inference.
 
-3.  Embedded Methods: These methods perform variable selection during the model training process and are typically specific to certain types of models.
+## Post-Selection Inference
 
-LASSO (Least Absolute Shrinkage and Selection Operator): Adds a penalty equal to the absolute value of the magnitude of coefficients. This penalty can shrink some coefficients to zero, effectively performing variable selection.
+Since the main aim of descriptive models is the interpretation of estimated regression coefficients, point estimates should be accompanied by confidence intervals and sometimes also by $p$ values. Post-selection inference is challenging because the same data used for selection are also used for estimation, which can bias confidence intervals.
 
-Ridge Regression: Adds a penalty equal to the square of the magnitude of coefficients. While it doesn't perform variable selection outright, it can reduce the impact of less important variables.
+Generalised additive models (GAMs) offer a flexible extension; see Sauerbrei et al. [@sauerbrei2020] for a state-of-the-art overview.
 
-Tree-Based Methods: Models like Random Forests or Gradient Boosting Trees inherently perform variable selection by considering the importance of variables based on their contribution to reducing impurity or error.
+## Best Practices
 
-Best Practices for Variable Selection 1. Understand Your Data: Before diving into variable selection techniques, it's crucial to have a deep understanding of your data. Perform exploratory data analysis (EDA) to identify potential relationships and understand the context of each variable.
+1. **Understand your data**: Perform exploratory data analysis (EDA) before selection
+2. **Use domain knowledge**: Leverage subject-matter expertise to guide candidate variables
+3. **Use prior information and DAGs**: Drawing a directed acyclic graph (DAG) helps identify confounders and mediators
+4. **Cross-validation**: Always validate model performance on held-out data
+5. **Combine methods**: Filter methods can narrow the field; wrapper or embedded methods can fine-tune
+6. **Re-evaluate regularly**: As new data arrive or the problem changes, revisit the selection
 
-2.  Use Domain Knowledge: Leverage domain expertise to inform your variable selection process. Certain variables might be inherently more important based on the context of the problem.
+## References
 
-3.  Cross-Validation: Always use cross-validation to assess the performance of your model with the selected variables. This ensures that your model's performance is consistent across different subsets of the data.
-
-4.  Combine Methods: Often, the best approach is to combine multiple methods. For instance, you might start with filter methods to narrow down the field and then use wrapper methods to fine-tune the selection.
-
-5.  Regularly Re-Evaluate: As new data becomes available or the problem context changes, re-evaluate your variable selection. What was relevant at one time may no longer be the best choice.
-
-Conclusion Variable selection is a pivotal step in building effective statistical models. By carefully choosing the right variables, you can improve model accuracy, interpretability, and efficiency. Whether using filter methods, wrapper methods, or embedded methods, the key is to balance model complexity with performance. Combining these methods with domain knowledge and cross-validation will ensure that your model is robust and reliable. As data science continues to evolve, so too will the strategies for variable selection, making it an exciting area of ongoing research and application.
-
-Use prior information. Try to draw a directed acyclic graph (DAG)
-
-1.  Forward selection (FS)
-2.  Backward elimination (BE)
-3.  Stepwise method that combines FS with additional BE. BE method is preferred because we already starts with a plausible model
-4.  Best subset selection
-
-Different information criteria have been proposed, among which Akaike’s information criterion (AIC) is in principle preferable for predictive models and Schwartz’s Bayesian information criterion (BIC) for descriptive models.
-
-19. Burnham KP, Anderson DR. Model selection and multimodel inference: a practical information-theoretic approach. New York: Springer; 2002.
-
-true data generating model??
-
-5.  Change-in-estimate
-6.  Lasso
-7.  Elastic net
-8.  Boosting - Component-wise boosting is a forward stagewise regression procedure applicable to generalised linear models
-9.  Resampling-based: 9.1: bootstrap inclusion frequencies (BIF) 9.2: stability selection
-
-Post-selection inference
-
-Since the main aim of descriptive models is the interpretation of the estimated regression coefficients, point estimates should be accompanied by confidence intervals and sometimes also by $p$ values.
-
-Generalised additive model (GAM) [State-of-the-art](https://diagnprognres.biomedcentral.com/articles/10.1186/s41512-020-00074-3)
-
-[To explain or to predict?](https://www.stat.berkeley.edu/~aldous/157/Papers/shmueli.pdf)
-
-Clssic guide to the generalized linear mixed model is [Bolker et al.](https://www.cell.com/trends/ecology-evolution/abstract/S0169-5347(09)00019-6?mobileUi\u003d0\u0026code\u003dcell-site=)
-
-[Reporting guidelines for the GLIMM](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2021.666182/full)
-
-### Data Fields
-
-age: Age of the subject age_grp: sex: household size: Number of people living together excluding oneself school/occupation
+::: {#refs}
+:::
