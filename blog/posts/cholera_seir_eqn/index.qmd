@@ -4,9 +4,11 @@ author: "Jong-Hoon Kim"
 date: "2024-03-28"
 categories: [SEIR model, steady states, ODE, deSolve, Mathematica]
 image: "sample_figure.png"
-editor_options: 
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+editor_options:
   chunk_output_type: console
-format: 
+format:
   html:
     page-layout: full
     toc-location: left
@@ -17,10 +19,7 @@ format:
 knitr::opts_chunk$set(warning=FALSE, message=FALSE) 
 ```
 
-In this post, I compared the numerical solutions obtained using `deSolve::ode` 
-with the algebraic solutions derived from Mathematica for the steady states of 
-a SEIR model. The model considers the waning of natural immunity over time 
-in a dynamically changing population.
+In this post, I compared the numerical solutions obtained using `deSolve::ode` with the algebraic solutions derived from Mathematica for the steady states of a SEIR model [@hethcote2000; @keeling2008]. The model considers the waning of natural immunity over time in a dynamically changing population.
 
 ### $SEIR$ model with waning immunity and vital dynamics
 $$
@@ -203,12 +202,17 @@ seir_2stg_vital <- function(t, u, p){
 }
 
 u0 <- c(0.99, 0, 0, 0.01, 0, 0, 0)
-p <- c(kappa=1.115044/2, gamma=1/2, mu=1/(65*365), 
+p <- c(kappa=1.115044/2, gamma=1/2, mu=1/(65*365),
       omega=1/(4*365), beta=0.6)
 tspan <- seq(from=0, to=365*300)
 outdf <- as.data.frame(ode(y=u0, times=tspan, func=seir_2stg_vital, parms=p))
 names(outdf) <- c("day","s","e1","e2","i1","i2","r1","r2")
 tail(outdf, 1)
 ```
+
+## References
+
+::: {#refs}
+:::
 
 
