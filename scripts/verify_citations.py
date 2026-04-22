@@ -20,6 +20,7 @@ import time
 import json
 import urllib.request
 import urllib.parse
+import html
 
 CROSSREF_URL = "https://api.crossref.org/works/{doi}"
 MAILTO       = "kimfinale@gmail.com"   # CrossRef polite pool
@@ -113,6 +114,8 @@ def bib_first_author(author_str: str) -> str:
 # ── Comparison ────────────────────────────────────────────────────────────────
 
 def normalise(s: str) -> str:
+    s = html.unescape(s)           # &amp; → &,  &lt; → <, etc.
+    s = re.sub(r"\\(.)", r"\1", s) # strip LaTeX escapes: \& → &, \" → "
     return s.lower().replace("-", " ").replace("&", "and").strip()
 
 
@@ -206,7 +209,7 @@ def main():
 
     grand = total_ok + total_miss + total_err + total_skip
     print(f"\n{'─'*64}")
-    print(f"  Grand total: {grand} entries — "
+    print(f"  Grand total: {grand} entries -- "
           f"{total_ok} OK, {total_miss} mismatches, "
           f"{total_err} errors, {total_skip} skipped (no DOI)")
     print(f"{'─'*64}")

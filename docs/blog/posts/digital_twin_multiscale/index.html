@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-04-22">
+
+<title>Multiscale Modelling for Digital Twins in Vaccine Trials – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-953e13259b406e3222ebc3917f29fddf.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#why-multiple-scales" id="toc-why-multiple-scales" class="nav-link active" data-scroll-target="#why-multiple-scales"><span class="header-section-number">1</span> Why multiple scales?</a></li>
+  <li><a href="#scale-1-within-host-viral-dynamics" id="toc-scale-1-within-host-viral-dynamics" class="nav-link" data-scroll-target="#scale-1-within-host-viral-dynamics"><span class="header-section-number">2</span> Scale 1 — Within-host viral dynamics</a>
+  <ul class="collapse">
+  <li><a href="#the-target-cell-model" id="toc-the-target-cell-model" class="nav-link" data-scroll-target="#the-target-cell-model"><span class="header-section-number">2.1</span> The target cell model</a></li>
+  <li><a href="#effect-of-immune-clearance-rate" id="toc-effect-of-immune-clearance-rate" class="nav-link" data-scroll-target="#effect-of-immune-clearance-rate"><span class="header-section-number">2.2</span> Effect of immune clearance rate</a></li>
+  </ul></li>
+  <li><a href="#scale-2-vaccine-induced-antibody-kinetics" id="toc-scale-2-vaccine-induced-antibody-kinetics" class="nav-link" data-scroll-target="#scale-2-vaccine-induced-antibody-kinetics"><span class="header-section-number">3</span> Scale 2 — Vaccine-induced antibody kinetics</a>
+  <ul class="collapse">
+  <li><a href="#antigen-driven-antibody-model" id="toc-antigen-driven-antibody-model" class="nav-link" data-scroll-target="#antigen-driven-antibody-model"><span class="header-section-number">3.1</span> Antigen-driven antibody model</a></li>
+  <li><a href="#virtual-patient-cohort" id="toc-virtual-patient-cohort" class="nav-link" data-scroll-target="#virtual-patient-cohort"><span class="header-section-number">3.2</span> Virtual patient cohort</a></li>
+  </ul></li>
+  <li><a href="#scale-3-population-trial-outcome" id="toc-scale-3-population-trial-outcome" class="nav-link" data-scroll-target="#scale-3-population-trial-outcome"><span class="header-section-number">4</span> Scale 3 — Population trial outcome</a>
+  <ul class="collapse">
+  <li><a href="#from-titre-to-individual-protection" id="toc-from-titre-to-individual-protection" class="nav-link" data-scroll-target="#from-titre-to-individual-protection"><span class="header-section-number">4.1</span> From titre to individual protection</a></li>
+  <li><a href="#analytic-attack-rate" id="toc-analytic-attack-rate" class="nav-link" data-scroll-target="#analytic-attack-rate"><span class="header-section-number">4.2</span> Analytic attack rate</a></li>
+  </ul></li>
+  <li><a href="#cross-scale-sensitivity-analysis" id="toc-cross-scale-sensitivity-analysis" class="nav-link" data-scroll-target="#cross-scale-sensitivity-analysis"><span class="header-section-number">5</span> Cross-scale sensitivity analysis</a></li>
+  <li><a href="#discussion" id="toc-discussion" class="nav-link" data-scroll-target="#discussion"><span class="header-section-number">6</span> Discussion</a>
+  <ul class="collapse">
+  <li><a href="#what-makes-this-a-digital-twin" id="toc-what-makes-this-a-digital-twin" class="nav-link" data-scroll-target="#what-makes-this-a-digital-twin"><span class="header-section-number">6.1</span> What makes this a digital twin?</a></li>
+  <li><a href="#limitations-of-this-illustration" id="toc-limitations-of-this-illustration" class="nav-link" data-scroll-target="#limitations-of-this-illustration"><span class="header-section-number">6.2</span> Limitations of this illustration</a></li>
+  <li><a href="#extensions" id="toc-extensions" class="nav-link" data-scroll-target="#extensions"><span class="header-section-number">6.3</span> Extensions</a></li>
+  </ul></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Multiscale Modelling for Digital Twins in Vaccine Trials</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+<p class="subtitle lead">A three-scale R pipeline: viral dynamics → antibody kinetics → population trial outcomes</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">digital twin</div>
+    <div class="quarto-category">multiscale</div>
+    <div class="quarto-category">ODE</div>
+    <div class="quarto-category">R</div>
+    <div class="quarto-category">vaccine</div>
+    <div class="quarto-category">infectious disease</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 22, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="why-multiple-scales" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Why multiple scales?</h1>
+<p>The outcome of a vaccine trial depends on processes that span at least three orders of magnitude in time and space: molecular events inside a single cell, the kinetics of an individual’s immune system, and the spread of a pathogen through a population. A <em>multiscale digital twin</em> is a computational stack that couples models at each of these scales so that trial-level predictions inherit uncertainty from every scale below <span class="citation" data-cites="masison2021">(<a href="#ref-masison2021" role="doc-biblioref">1</a>)</span>.</p>
+<p>This post builds such a stack in R. Each section implements one scale as an ODE system, connects its outputs to the next scale, and visualises the resulting dynamics. The goal is a <em>working pipeline</em> you can inspect, modify, and reason about.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Scale</th>
+<th>Model</th>
+<th>Key output</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1 — Within-host</td>
+<td>Target cell ODEs</td>
+<td>Viral load trajectory</td>
+</tr>
+<tr class="even">
+<td>2 — Immunological</td>
+<td>Antigen–antibody ODEs</td>
+<td>Titre at challenge; waning rate</td>
+</tr>
+<tr class="odd">
+<td>3 — Population</td>
+<td>SIR with heterogeneous VE</td>
+<td>Attack rate in trial arms</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="scale-1-within-host-viral-dynamics" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Scale 1 — Within-host viral dynamics</h1>
+<section id="the-target-cell-model" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="the-target-cell-model"><span class="header-section-number">2.1</span> The target cell model</h2>
+<p>The <em>target cell limited</em> model <span class="citation" data-cites="perelson1996">(<a href="#ref-perelson1996" role="doc-biblioref">2</a>)</span> tracks three populations:</p>
+<p><span class="math display">\[
+\frac{dT}{dt} = \lambda - d_T T - \beta V T
+\]</span> <span class="math display">\[
+\frac{dI}{dt} = \beta V T - \delta I
+\]</span> <span class="math display">\[
+\frac{dV}{dt} = p\,I - c\,V
+\]</span></p>
+<p><span class="math inline">\(T\)</span> = uninfected target cells (e.g.&nbsp;airway epithelial cells), <span class="math inline">\(I\)</span> = productively infected cells, <span class="math inline">\(V\)</span> = free virus (virions/mL). The within-host basic reproductive number is <span class="math inline">\(R_0^w = \beta T_0 p \,(c\,\delta)^{-1}\)</span>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tcm <span class="ot">&lt;-</span> <span class="cf">function</span>(t, y, parms) {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">with</span>(<span class="fu">as.list</span>(<span class="fu">c</span>(y, parms)), {</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    dT <span class="ot">&lt;-</span>  lambda <span class="sc">-</span> d_T <span class="sc">*</span> T <span class="sc">-</span> beta <span class="sc">*</span> V <span class="sc">*</span> T</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    dI <span class="ot">&lt;-</span>  beta  <span class="sc">*</span> V <span class="sc">*</span> T   <span class="sc">-</span> delta <span class="sc">*</span> I</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    dV <span class="ot">&lt;-</span>  p <span class="sc">*</span> I            <span class="sc">-</span> c    <span class="sc">*</span> V</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="fu">c</span>(dT, dI, dV))</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameters for a generic respiratory virus (for illustration)</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># R0_within = beta * T0 * p / (c * delta) = 5e-8 * 1e7 * 50 / 5 = 5</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>parms0 <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">lambda =</span> <span class="fl">1e5</span>,   <span class="co"># target-cell production (/day); T* = lambda/d_T = 1e7</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">d_T    =</span> <span class="fl">0.01</span>,  <span class="co"># background death rate (/day)</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta   =</span> <span class="fl">5e-8</span>,  <span class="co"># infection rate constant (mL/virion/day)</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta  =</span> <span class="fl">1.0</span>,   <span class="co"># infected-cell clearance (/day)</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">p      =</span> <span class="dv">50</span>,    <span class="co"># viral burst size (virions/cell/day)</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">c      =</span> <span class="fl">5.0</span>    <span class="co"># viral clearance rate (/day)</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>y0    <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">T =</span> <span class="fl">1e7</span>, <span class="at">I =</span> <span class="dv">100</span>, <span class="at">V =</span> <span class="dv">0</span>)   <span class="co"># I0 = 100 initially infected cells</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>times <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">21</span>, <span class="at">by =</span> <span class="fl">0.05</span>)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>out0 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">ode</span>(<span class="at">y =</span> y0, <span class="at">times =</span> times, <span class="at">func =</span> tcm, <span class="at">parms =</span> parms0))</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>df1 <span class="ot">&lt;-</span> out0 <span class="sc">|&gt;</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(time, T, V) <span class="sc">|&gt;</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">T =</span> T <span class="sc">/</span> <span class="fl">1e7</span>,           <span class="co"># fraction of initial target cells</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">V =</span> V <span class="sc">/</span> <span class="fu">max</span>(V)         <span class="co"># fraction of peak viral load</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">c</span>(T, V), <span class="at">names_to =</span> <span class="st">"variable"</span>, <span class="at">values_to =</span> <span class="st">"value"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">variable =</span> <span class="fu">recode</span>(variable,</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">T =</span> <span class="st">"Target cells (fraction of T₀)"</span>,</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">V =</span> <span class="st">"Viral load (fraction of peak)"</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df1, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> value, <span class="at">colour =</span> variable)) <span class="sc">+</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#E87722"</span>, <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-infection"</span>, <span class="at">y =</span> <span class="st">"Relative value"</span>, <span class="at">colour =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/scale1-single-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Single within-host simulation. Viral load (blue) peaks around day 4–5 as infected cells expand, then collapses as target cells are depleted and virus is cleared. Target cells (orange) partially recover after the acute phase.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="effect-of-immune-clearance-rate" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="effect-of-immune-clearance-rate"><span class="header-section-number">2.2</span> Effect of immune clearance rate</h2>
+<p>The infected-cell clearance rate <span class="math inline">\(\delta\)</span> encodes the combined effect of cytotoxic T-cell killing, innate immune pressure, and apoptosis. People differ in <span class="math inline">\(\delta\)</span>: stronger cellular immunity clears infected cells faster, limiting peak viraemia.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>delta_vals <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.3</span>, <span class="fl">3.5</span>, <span class="at">by =</span> <span class="fl">0.1</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>sweep_res <span class="ot">&lt;-</span> <span class="fu">lapply</span>(delta_vals, <span class="cf">function</span>(d) {</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  p_i        <span class="ot">&lt;-</span> parms0</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  p_i[<span class="st">"delta"</span>] <span class="ot">&lt;-</span> d</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  out_i      <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ode</span>(<span class="at">y =</span> y0, <span class="at">times =</span> times, <span class="at">func =</span> tcm, <span class="at">parms =</span> p_i)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  above    <span class="ot">&lt;-</span> out_i<span class="sc">$</span>V <span class="sc">&gt;</span> <span class="dv">1</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  duration <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">any</span>(above)) <span class="fu">diff</span>(<span class="fu">range</span>(out_i<span class="sc">$</span>time[above])) <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">delta =</span> d, <span class="at">peak_V =</span> <span class="fu">max</span>(out_i<span class="sc">$</span>V), <span class="at">duration =</span> duration)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>sw <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(sweep_res)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>p_pk <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(sw, <span class="fu">aes</span>(<span class="at">x =</span> delta, <span class="at">y =</span> peak_V <span class="sc">/</span> <span class="fl">1e6</span>)) <span class="sc">+</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">size =</span> <span class="fl">1.8</span>) <span class="sc">+</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Clearance rate "</span>, delta, <span class="st">" (/day)"</span>)),</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Peak viral load ("</span>, <span class="dv">10</span><span class="sc">^</span><span class="dv">6</span>, <span class="st">" virions/mL)"</span>))) <span class="sc">+</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>p_dur <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(sw, <span class="fu">aes</span>(<span class="at">x =</span> delta, <span class="at">y =</span> duration)) <span class="sc">+</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#E87722"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">colour =</span> <span class="st">"#E87722"</span>, <span class="at">size =</span> <span class="fl">1.8</span>) <span class="sc">+</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Clearance rate "</span>, delta, <span class="st">" (/day)"</span>)),</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Detectable infection (days)"</span>) <span class="sc">+</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>p_pk <span class="sc">+</span> p_dur</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/scale1-sweep-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Effect of varying the infected-cell clearance rate δ on peak viral load (left) and the duration virus is detectable above 1 virion/mL (right). The nonlinear collapse above δ ≈ 1.5 /day illustrates why a modest boost in cellular immunity can dramatically reduce viraemia.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>This parameter sweep motivates the virtual patient concept: if individuals draw <span class="math inline">\(\delta\)</span> from a distribution rather than a single value, the resulting viral load trajectories span a wide range, producing the population-level heterogeneity that Scale 2 and Scale 3 must represent.</p>
+<hr>
+</section>
+</section>
+<section id="scale-2-vaccine-induced-antibody-kinetics" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Scale 2 — Vaccine-induced antibody kinetics</h1>
+<section id="antigen-driven-antibody-model" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="antigen-driven-antibody-model"><span class="header-section-number">3.1</span> Antigen-driven antibody model</h2>
+<p>After vaccination, antigen is cleared while simultaneously driving B-cell differentiation and antibody secretion. A two-compartment model captures the essentials:</p>
+<p><span class="math display">\[
+\frac{dAg}{dt} = -k_{Ag}\,Ag
+\]</span> <span class="math display">\[
+\frac{dAb}{dt} = r_{Ab}\,Ag - d_{Ab}\,Ab
+\]</span></p>
+<p><span class="math inline">\(Ag\)</span> = antigen (normalised dose units), <span class="math inline">\(Ab\)</span> = serum antibody titre (AU/mL). With <span class="math inline">\(Ag(0)=1\)</span>, <span class="math inline">\(Ab(0)=0\)</span>, the analytical solution is:</p>
+<p><span class="math display">\[
+Ab(t) = \frac{r_{Ab}}{k_{Ag}-d_{Ab}}\bigl(e^{-d_{Ab}t}-e^{-k_{Ag}t}\bigr)
+\]</span></p>
+<p>Titre peaks at <span class="math inline">\(t^{*} = \ln(k_{Ag}/d_{Ab})\,/\,(k_{Ag}-d_{Ab})\)</span>, typically 10–21 days, then wanes as <span class="math inline">\(e^{-d_{Ab}t}\)</span> dominates.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Ab_t <span class="ot">&lt;-</span> <span class="cf">function</span>(t, <span class="at">r_Ab =</span> <span class="dv">5</span>, <span class="at">d_Ab =</span> <span class="fl">0.01</span>, <span class="at">k_Ag =</span> <span class="fl">0.3</span>) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  r_Ab <span class="sc">/</span> (k_Ag <span class="sc">-</span> d_Ab) <span class="sc">*</span> (<span class="fu">exp</span>(<span class="sc">-</span>d_Ab <span class="sc">*</span> t) <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span>k_Ag <span class="sc">*</span> t))</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>t_vac <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">180</span>, <span class="at">by =</span> <span class="fl">0.5</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>df2a  <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">time =</span> t_vac, <span class="at">titre =</span> <span class="fu">Ab_t</span>(t_vac))</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df2a, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> titre)) <span class="sc">+</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"rect"</span>, <span class="at">xmin =</span> <span class="dv">55</span>, <span class="at">xmax =</span> <span class="dv">65</span>, <span class="at">ymin =</span> <span class="sc">-</span><span class="cn">Inf</span>, <span class="at">ymax =</span> <span class="cn">Inf</span>,</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>           <span class="at">fill =</span> <span class="st">"#3B6EA8"</span>, <span class="at">alpha =</span> <span class="fl">0.12</span>) <span class="sc">+</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">60</span>, <span class="at">y =</span> <span class="fu">max</span>(df2a<span class="sc">$</span>titre) <span class="sc">*</span> <span class="fl">0.95</span>,</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"Challenge</span><span class="sc">\n</span><span class="st">window"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>,</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>           <span class="at">colour =</span> <span class="st">"#3B6EA8"</span>) <span class="sc">+</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-vaccination"</span>, <span class="at">y =</span> <span class="st">"Antibody titre (AU/mL)"</span>) <span class="sc">+</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/scale2-single-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Antibody kinetics for a single vaccinee. Titre peaks near day 14 and wanes slowly over months. The shaded band marks the 60-day challenge window used in Scale 3.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="virtual-patient-cohort" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="virtual-patient-cohort"><span class="header-section-number">3.2</span> Virtual patient cohort</h2>
+<p>Two parameters capture the main axes of inter-individual variation:</p>
+<ul>
+<li><span class="math inline">\(r_{Ab}\)</span>: immune responsiveness (B-cell clone size, adjuvant response)</li>
+<li><span class="math inline">\(d_{Ab}\)</span>: waning rate (long-lived plasma-cell survival, isotype class)</li>
+</ul>
+<p>We sample 500 virtual vaccinees from log-normal distributions and extract each individual’s titre at day 60 — a plausible mid-trial challenge time.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>n_vp <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>r_Ab_i <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">rnorm</span>(n_vp, <span class="fu">log</span>(<span class="dv">5</span>),    <span class="fl">0.55</span>))  <span class="co"># ~55% CV in responsiveness</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>d_Ab_i <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">rnorm</span>(n_vp, <span class="fu">log</span>(<span class="fl">0.01</span>), <span class="fl">0.40</span>))  <span class="co"># ~40% CV in waning rate</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>titre_60 <span class="ot">&lt;-</span> <span class="fu">pmax</span>(</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mapply</span>(Ab_t, <span class="at">t =</span> <span class="dv">60</span>, <span class="at">r_Ab =</span> r_Ab_i, <span class="at">d_Ab =</span> d_Ab_i),</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.01</span>   <span class="co"># numerical floor</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(<span class="at">titre =</span> titre_60), <span class="fu">aes</span>(<span class="at">x =</span> titre)) <span class="sc">+</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">50</span>, <span class="at">fill =</span> <span class="st">"#3B6EA8"</span>, <span class="at">colour =</span> <span class="st">"white"</span>,</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                 <span class="at">linewidth =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Antibody titre at day 60 (AU/mL, log scale)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/scale2-cohort-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Distribution of antibody titres at the 60-day challenge window across 500 virtual patients. The log scale reveals the right-skewed distribution typical of clinical immunogenicity data. Variation arises from individual differences in immune responsiveness and antibody waning.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The distribution is approximately log-normal, consistent with observed immunogenicity data for licensed vaccines. The two-fold range from 5th to 95th percentile reflects the biological reality that the same vaccine produces widely varying responses across individuals.</p>
+<hr>
+</section>
+</section>
+<section id="scale-3-population-trial-outcome" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Scale 3 — Population trial outcome</h1>
+<section id="from-titre-to-individual-protection" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="from-titre-to-individual-protection"><span class="header-section-number">4.1</span> From titre to individual protection</h2>
+<p>The antibody–protection relationship is well described by a Hill function:</p>
+<p><span class="math display">\[
+\text{VE}_i = \frac{T_i^k}{T_i^k + \text{EC}_{50}^k}
+\]</span></p>
+<p>where <span class="math inline">\(T_i\)</span> is individual <span class="math inline">\(i\)</span>’s titre at challenge, <span class="math inline">\(\text{EC}_{50}\)</span> is the titre giving 50% protection, and <span class="math inline">\(k\)</span> governs steepness. Setting <span class="math inline">\(\text{EC}_{50} = \text{median}(T_i)\)</span> ensures that the median virtual patient has 50% protection — a conservative but transparent calibration choice.</p>
+</section>
+<section id="analytic-attack-rate" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="analytic-attack-rate"><span class="header-section-number">4.2</span> Analytic attack rate</h2>
+<p>For an SIR epidemic, the final attack rate satisfies the implicit equation:</p>
+<p><span class="math display">\[
+1 - \text{AR} = \exp\!\bigl(-R_0^{\text{eff}}\cdot\text{AR}\bigr), \qquad
+R_0^{\text{eff}} = R_0\,(1 - \bar{\text{VE}})
+\]</span></p>
+<p>where <span class="math inline">\(\bar{\text{VE}} = n^{-1}\sum_i \text{VE}_i\)</span>. This avoids running one ODE system per trial replicate while preserving the nonlinear epidemic threshold behaviour.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>EC50 <span class="ot">&lt;-</span> <span class="fu">median</span>(titre_60)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>k    <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>VEi  <span class="ot">&lt;-</span> titre_60<span class="sc">^</span>k <span class="sc">/</span> (titre_60<span class="sc">^</span>k <span class="sc">+</span> EC50<span class="sc">^</span>k)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>ar_solve <span class="ot">&lt;-</span> <span class="cf">function</span>(mean_VE, <span class="at">R0 =</span> <span class="fl">2.5</span>) {</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  R0_eff <span class="ot">&lt;-</span> R0 <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> mean_VE)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (R0_eff <span class="sc">&lt;=</span> <span class="dv">1</span>) <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">uniroot</span>(<span class="cf">function</span>(ar) <span class="dv">1</span> <span class="sc">-</span> ar <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span>R0_eff <span class="sc">*</span> ar),</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">interval =</span> <span class="fu">c</span>(<span class="fl">1e-8</span>, <span class="dv">1</span> <span class="sc">-</span> <span class="fl">1e-8</span>))<span class="sc">$</span>root</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>n_trial <span class="ot">&lt;-</span> <span class="dv">200</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>n_rep   <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>vacc_ar <span class="ot">&lt;-</span> <span class="fu">replicate</span>(n_rep, {</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  idx  <span class="ot">&lt;-</span> <span class="fu">sample</span>(n_vp, n_trial, <span class="at">replace =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  R0_i <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">1</span>, <span class="fl">2.5</span>, <span class="fl">0.15</span>)</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ar_solve</span>(<span class="fu">mean</span>(VEi[idx]), R0_i)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>placebo_ar <span class="ot">&lt;-</span> <span class="fu">replicate</span>(n_rep, {</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ar_solve</span>(<span class="dv">0</span>, <span class="fu">rnorm</span>(<span class="dv">1</span>, <span class="fl">2.5</span>, <span class="fl">0.15</span>))</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>p_ve <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="fu">data.frame</span>(<span class="at">VE =</span> VEi), <span class="fu">aes</span>(<span class="at">x =</span> VE)) <span class="sc">+</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">40</span>, <span class="at">fill =</span> <span class="st">"#E87722"</span>, <span class="at">colour =</span> <span class="st">"white"</span>,</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>                 <span class="at">linewidth =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Individual VE"</span>, <span class="at">y =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>df3 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">arm =</span> <span class="st">"Vaccine"</span>, <span class="at">ar =</span> vacc_ar),</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">arm =</span> <span class="st">"Placebo"</span>, <span class="at">ar =</span> placebo_ar)</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>p_ar <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df3, <span class="fu">aes</span>(<span class="at">x =</span> ar, <span class="at">fill =</span> arm, <span class="at">colour =</span> arm)) <span class="sc">+</span></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_density</span>(<span class="at">alpha =</span> <span class="fl">0.35</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values  =</span> <span class="fu">c</span>(<span class="at">Vaccine =</span> <span class="st">"#E87722"</span>, <span class="at">Placebo =</span> <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="at">Vaccine =</span> <span class="st">"#E87722"</span>, <span class="at">Placebo =</span> <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Attack rate"</span>, <span class="at">y =</span> <span class="st">"Density"</span>, <span class="at">fill =</span> <span class="cn">NULL</span>, <span class="at">colour =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>p_ve <span class="sc">+</span> p_ar</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/scale3-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Scale 3 outputs. Left: individual VE distribution across the 500 virtual vaccinees, arising directly from the titre distribution in Scale 2. Right: attack-rate densities across 1000 bootstrapped trial replicates (200 participants per arm). The vaccinated arm (orange) is shifted far left of the placebo arm (blue), with additional spread from VE heterogeneity.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="cross-scale-sensitivity-analysis" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Cross-scale sensitivity analysis</h1>
+<p>A key virtue of a multiscale pipeline is that you can trace how uncertainty at one scale propagates to outcomes at another. Here we sweep the antibody waning rate <span class="math inline">\(d_{Ab}\)</span> (Scale 2) across a physiologically plausible range and ask: how does it affect the attack rate in the vaccinated arm (Scale 3)?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>d_Ab_range <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.002</span>), <span class="fu">log</span>(<span class="fl">0.08</span>), <span class="at">length.out =</span> <span class="dv">50</span>))</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>cross <span class="ot">&lt;-</span> <span class="fu">lapply</span>(d_Ab_range, <span class="cf">function</span>(d) {</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  t_i   <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">Ab_t</span>(<span class="dv">60</span>, <span class="at">r_Ab =</span> <span class="dv">5</span>, <span class="at">d_Ab =</span> d), <span class="fl">0.01</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  ve_i  <span class="ot">&lt;-</span> t_i<span class="sc">^</span>k <span class="sc">/</span> (t_i<span class="sc">^</span>k <span class="sc">+</span> EC50<span class="sc">^</span>k)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  ar_i  <span class="ot">&lt;-</span> <span class="fu">ar_solve</span>(ve_i, <span class="at">R0 =</span> <span class="fl">2.5</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">d_Ab =</span> d, <span class="at">titre =</span> t_i, <span class="at">ar =</span> ar_i)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>cr <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(cross)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>placebo_ref <span class="ot">&lt;-</span> <span class="fu">ar_solve</span>(<span class="dv">0</span>, <span class="fl">2.5</span>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>p_cs1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(cr, <span class="fu">aes</span>(<span class="at">x =</span> d_Ab, <span class="at">y =</span> titre)) <span class="sc">+</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Waning rate "</span>, d[Ab], <span class="st">" (/day)"</span>)),</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Titre at day 60 (AU/mL)"</span>) <span class="sc">+</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>p_cs2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(cr, <span class="fu">aes</span>(<span class="at">x =</span> d_Ab, <span class="at">y =</span> ar)) <span class="sc">+</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> placebo_ref, <span class="at">linetype =</span> <span class="st">"dashed"</span>,</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#E87722"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">0.003</span>, <span class="at">y =</span> placebo_ref <span class="sc">*</span> <span class="fl">1.03</span>,</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"Placebo"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">colour =</span> <span class="st">"grey40"</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Waning rate "</span>, d[Ab], <span class="st">" (/day)"</span>)),</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Attack rate (vaccinated arm)"</span>) <span class="sc">+</span></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>p_cs1 <span class="sc">+</span> p_cs2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/cross-scale-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Cross-scale propagation: how the Scale 2 waning rate d_Ab drives the Scale 3 trial outcome. Left: titre at the 60-day challenge window collapses as waning accelerates. Right: corresponding attack rate in the vaccinated arm rises toward the placebo level (grey dashed line, R₀ = 2.5). The inflection near d_Ab ≈ 0.01 /day (antibody half-life ∼ 70 days) marks the critical waning threshold for this vaccine and challenge scenario.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>When <span class="math inline">\(d_{Ab}\)</span> is small (slow waning), titres remain above EC<span class="math inline">\(_{50}\)</span> at day 60 and the vaccinated arm is well protected. As waning accelerates, titres fall below EC<span class="math inline">\(_{50}\)</span> and trial attack rate converges to the placebo level. This curve is directly actionable for trial design: it identifies the minimum waning rate that the vaccine must achieve to preserve measurable efficacy at a given challenge time.</p>
+<hr>
+</section>
+<section id="discussion" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Discussion</h1>
+<section id="what-makes-this-a-digital-twin" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="what-makes-this-a-digital-twin"><span class="header-section-number">6.1</span> What makes this a digital twin?</h2>
+<p>Three features distinguish this pipeline from a conventional transmission model:</p>
+<ol type="1">
+<li><p><strong>Individualisation.</strong> Each virtual patient has their own <span class="math inline">\((r_{Ab},\, d_{Ab})\)</span>, producing a titre distribution rather than a point estimate. The trial outcome inherits this individual-level variability directly.</p></li>
+<li><p><strong>Explicit scale coupling.</strong> Scale 2 outputs feed into Scale 3 analytically, and the cross-scale analysis runs the pipeline in reverse — from a target attack rate down to the required titre and then to the required waning rate. Bidirectional reasoning is what separates a digital twin from a forward-only simulation.</p></li>
+<li><p><strong>Counterfactual control arm.</strong> The placebo arm is generated by setting <span class="math inline">\(\overline{\text{VE}} = 0\)</span> in the same SIR model. This counterfactual is the regulatory anchor that sponsors submit to FDA/EMA under the MIDD program <span class="citation" data-cites="fda2020midd">(<a href="#ref-fda2020midd" role="doc-biblioref">3</a>)</span>.</p></li>
+</ol>
+</section>
+<section id="limitations-of-this-illustration" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="limitations-of-this-illustration"><span class="header-section-number">6.2</span> Limitations of this illustration</h2>
+<ul>
+<li><p><strong>Decoupled Scale 1.</strong> In a full multiscale twin, the viral dynamics model (Scale 1) would set initial conditions for Scale 2: the antigen dose reaching lymph nodes is a function of the viral inoculum and the innate immune response at the injection site. Coupling these requires a more elaborate interfacing layer, as implemented in the mRNA vaccine QSP models of Dasti et al. <span class="citation" data-cites="dasti2025">(<a href="#ref-dasti2025" role="doc-biblioref">4</a>)</span>.</p></li>
+<li><p><strong>Steady-state immunity.</strong> The model fixes challenge at a single time point (day 60). A realistic twin would draw challenge time from the epidemic curve — itself a Scale 3 output — creating a feedback loop that the present pipeline ignores.</p></li>
+<li><p><strong>Homogeneous mixing.</strong> The SIR final-size approximation assumes random contact. Age structure, household clustering, or healthcare-worker exposure would each shift the attack rate curve and require additional scales <span class="citation" data-cites="niarakis2024">(<a href="#ref-niarakis2024" role="doc-biblioref">5</a>)</span>.</p></li>
+</ul>
+</section>
+<section id="extensions" class="level2" data-number="6.3">
+<h2 data-number="6.3" class="anchored" data-anchor-id="extensions"><span class="header-section-number">6.3</span> Extensions</h2>
+<p>The pipeline is modular by design: swapping Scale 1 from a generic respiratory model to an influenza-specific or SARS-CoV-2-specific parameterisation <span class="citation" data-cites="perelson1996">(<a href="#ref-perelson1996" role="doc-biblioref">2</a>)</span> requires changing only that block. Similarly, Scale 3 can be upgraded from a homogeneous SIR to an age-stratified SEIR without touching Scales 1 or 2. This modularity — formalised by Masison et al. <span class="citation" data-cites="masison2021">(<a href="#ref-masison2021" role="doc-biblioref">1</a>)</span> — is what makes multiscale digital twins tractable despite their apparent complexity.</p>
+<p>Physics-informed neural networks <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">6</a>)</span> offer a complementary direction: rather than specifying between-scale mappings analytically, a neural network trained on multi-scale longitudinal data can learn them from observations, at the cost of interpretability but with potentially higher accuracy when mechanistic knowledge is incomplete.</p>
+<hr>
+</section>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-masison2021" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline"><span class="nocase">Masison J, Beezley J, Carlson Y, et al.</span> A modular computational framework for medical digital twins. Proceedings of the National Academy of Sciences. 2021;118(20):e2024287118. doi:<a href="https://doi.org/10.1073/pnas.2024287118">10.1073/pnas.2024287118</a></div>
+</div>
+<div id="ref-perelson1996" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Perelson AS, Neumann AU, Markowitz M, Leonard JM, Ho DD. <span>HIV</span>-1 dynamics in vivo: Virion clearance rate, infected cell life-span, and viral generation time. Science. 1996;271(5255):1582–6. doi:<a href="https://doi.org/10.1126/science.271.5255.1582">10.1126/science.271.5255.1582</a></div>
+</div>
+<div id="ref-fda2020midd" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">U.S. Food and Drug Administration. Model-informed drug development: Paired meeting program for new drugs and biological products [Internet]. Guidance for Industry; 2020. Available from: <a href="https://www.fda.gov/media/133986/download">https://www.fda.gov/media/133986/download</a></div>
+</div>
+<div id="ref-dasti2025" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><span class="nocase">Dasti L et al.</span> A multiscale quantitative systems pharmacology model for the development and optimization of <span class="nocase">mRNA</span> vaccines. CPT: Pharmacometrics &amp; Systems Pharmacology. 2025. doi:<a href="https://doi.org/10.1002/psp4.70041">10.1002/psp4.70041</a></div>
+</div>
+<div id="ref-niarakis2024" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline"><span class="nocase">Niarakis A et al.</span> Immune digital twins for complex human pathologies: Applications, limitations, and challenges. npj Systems Biology and Applications. 2024;10:141. doi:<a href="https://doi.org/10.1038/s41540-024-00450-5">10.1038/s41540-024-00450-5</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.5.3 (2026-03-11 ucrt)
+Platform: x86_64-w64-mingw32/x64
+Running under: Windows 11 x64 (build 26200)
+
+Matrix products: default
+  LAPACK version 3.12.1
+
+locale:
+[1] LC_COLLATE=English_United States.utf8 
+[2] LC_CTYPE=English_United States.utf8   
+[3] LC_MONETARY=English_United States.utf8
+[4] LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.utf8    
+
+time zone: Asia/Seoul
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] patchwork_1.3.2 tidyr_1.3.2     dplyr_1.2.0     ggplot2_4.0.2  
+[5] deSolve_1.42   
+
+loaded via a namespace (and not attached):
+ [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+ [5] xfun_0.57          otel_0.2.0         purrr_1.2.1        generics_0.1.4    
+ [9] S7_0.2.1           jsonlite_2.0.0     labeling_0.4.3     glue_1.8.0        
+[13] htmltools_0.5.9    scales_1.4.0       rmarkdown_2.31     grid_4.5.3        
+[17] tibble_3.3.1       evaluate_1.0.5     fastmap_1.2.0      yaml_2.3.12       
+[21] lifecycle_1.0.5    compiler_4.5.3     RColorBrewer_1.1-3 pkgconfig_2.0.3   
+[25] htmlwidgets_1.6.4  farver_2.1.2       digest_0.6.39      R6_2.6.1          
+[29] tidyselect_1.2.1   pillar_1.11.1      magrittr_2.0.4     withr_3.0.2       
+[33] tools_4.5.3        gtable_0.3.6      </code></pre>
+</div>
+</div>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Multiscale Modelling for Digital Twins in Vaccine Trials"</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "A three-scale R pipeline: viral dynamics → antibody kinetics → population trial outcomes"</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Jong-Hoon Kim"</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-04-22"</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> [digital twin, multiscale, ODE, R, vaccine, infectious disease]</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="an">bibliography:</span><span class="co"> references.bib</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="an">csl:</span><span class="co"> https://www.zotero.org/styles/vancouver</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co">    number-sections: true</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-width: 7</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-height: 4.5</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-align: center</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="an">knitr:</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="co">  opts_chunk:</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="co">    message: false</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="co">    warning: false</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="co">    fig.retina: 2</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a><span class="in">```{r setup, include=FALSE}</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(deSolve)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="fu"># Why multiple scales?</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>The outcome of a vaccine trial depends on processes that span at least three orders of magnitude in time and space: molecular events inside a single cell, the kinetics of an individual's immune system, and the spread of a pathogen through a population. A *multiscale digital twin* is a computational stack that couples models at each of these scales so that trial-level predictions inherit uncertainty from every scale below <span class="co">[</span><span class="ot">@masison2021</span><span class="co">]</span>.</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>This post builds such a stack in R. Each section implements one scale as an ODE system, connects its outputs to the next scale, and visualises the resulting dynamics. The goal is a *working pipeline* you can inspect, modify, and reason about.</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Scale <span class="pp">|</span> Model <span class="pp">|</span> Key output <span class="pp">|</span></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 1 — Within-host <span class="pp">|</span> Target cell ODEs <span class="pp">|</span> Viral load trajectory <span class="pp">|</span></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2 — Immunological <span class="pp">|</span> Antigen–antibody ODEs <span class="pp">|</span> Titre at challenge; waning rate <span class="pp">|</span></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 3 — Population <span class="pp">|</span> SIR with heterogeneous VE <span class="pp">|</span> Attack rate in trial arms <span class="pp">|</span></span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="fu"># Scale 1 — Within-host viral dynamics</span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a><span class="fu">## The target cell model</span></span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>The *target cell limited* model <span class="co">[</span><span class="ot">@perelson1996</span><span class="co">]</span> tracks three populations:</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>\frac{dT}{dt} = \lambda - d_T T - \beta V T</span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>\frac{dI}{dt} = \beta V T - \delta I</span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>\frac{dV}{dt} = p\,I - c\,V</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>$T$ = uninfected target cells (e.g. airway epithelial cells), $I$ = productively infected cells, $V$ = free virus (virions/mL). The within-host basic reproductive number is $R_0^w = \beta T_0 p \,(c\,\delta)^{-1}$.</span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a><span class="in">```{r scale1-single, fig.cap="Single within-host simulation. Viral load (blue) peaks around day 4–5 as infected cells expand, then collapses as target cells are depleted and virus is cleared. Target cells (orange) partially recover after the acute phase."}</span></span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a>tcm <span class="ot">&lt;-</span> <span class="cf">function</span>(t, y, parms) {</span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a>  <span class="fu">with</span>(<span class="fu">as.list</span>(<span class="fu">c</span>(y, parms)), {</span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a>    dT <span class="ot">&lt;-</span>  lambda <span class="sc">-</span> d_T <span class="sc">*</span> T <span class="sc">-</span> beta <span class="sc">*</span> V <span class="sc">*</span> T</span>
+<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a>    dI <span class="ot">&lt;-</span>  beta  <span class="sc">*</span> V <span class="sc">*</span> T   <span class="sc">-</span> delta <span class="sc">*</span> I</span>
+<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a>    dV <span class="ot">&lt;-</span>  p <span class="sc">*</span> I            <span class="sc">-</span> c    <span class="sc">*</span> V</span>
+<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="fu">c</span>(dT, dI, dV))</span>
+<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameters for a generic respiratory virus (for illustration)</span></span>
+<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a><span class="co"># R0_within = beta * T0 * p / (c * delta) = 5e-8 * 1e7 * 50 / 5 = 5</span></span>
+<span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a>parms0 <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a>  <span class="at">lambda =</span> <span class="fl">1e5</span>,   <span class="co"># target-cell production (/day); T* = lambda/d_T = 1e7</span></span>
+<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>  <span class="at">d_T    =</span> <span class="fl">0.01</span>,  <span class="co"># background death rate (/day)</span></span>
+<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta   =</span> <span class="fl">5e-8</span>,  <span class="co"># infection rate constant (mL/virion/day)</span></span>
+<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a>  <span class="at">delta  =</span> <span class="fl">1.0</span>,   <span class="co"># infected-cell clearance (/day)</span></span>
+<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a>  <span class="at">p      =</span> <span class="dv">50</span>,    <span class="co"># viral burst size (virions/cell/day)</span></span>
+<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a>  <span class="at">c      =</span> <span class="fl">5.0</span>    <span class="co"># viral clearance rate (/day)</span></span>
+<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-87"><a href="#cb8-87" aria-hidden="true" tabindex="-1"></a>y0    <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">T =</span> <span class="fl">1e7</span>, <span class="at">I =</span> <span class="dv">100</span>, <span class="at">V =</span> <span class="dv">0</span>)   <span class="co"># I0 = 100 initially infected cells</span></span>
+<span id="cb8-88"><a href="#cb8-88" aria-hidden="true" tabindex="-1"></a>times <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">21</span>, <span class="at">by =</span> <span class="fl">0.05</span>)</span>
+<span id="cb8-89"><a href="#cb8-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a>out0 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">ode</span>(<span class="at">y =</span> y0, <span class="at">times =</span> times, <span class="at">func =</span> tcm, <span class="at">parms =</span> parms0))</span>
+<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-92"><a href="#cb8-92" aria-hidden="true" tabindex="-1"></a>df1 <span class="ot">&lt;-</span> out0 <span class="sc">|&gt;</span></span>
+<span id="cb8-93"><a href="#cb8-93" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(time, T, V) <span class="sc">|&gt;</span></span>
+<span id="cb8-94"><a href="#cb8-94" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb8-95"><a href="#cb8-95" aria-hidden="true" tabindex="-1"></a>    <span class="at">T =</span> T <span class="sc">/</span> <span class="fl">1e7</span>,           <span class="co"># fraction of initial target cells</span></span>
+<span id="cb8-96"><a href="#cb8-96" aria-hidden="true" tabindex="-1"></a>    <span class="at">V =</span> V <span class="sc">/</span> <span class="fu">max</span>(V)         <span class="co"># fraction of peak viral load</span></span>
+<span id="cb8-97"><a href="#cb8-97" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb8-98"><a href="#cb8-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">c</span>(T, V), <span class="at">names_to =</span> <span class="st">"variable"</span>, <span class="at">values_to =</span> <span class="st">"value"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb8-99"><a href="#cb8-99" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">variable =</span> <span class="fu">recode</span>(variable,</span>
+<span id="cb8-100"><a href="#cb8-100" aria-hidden="true" tabindex="-1"></a>    <span class="at">T =</span> <span class="st">"Target cells (fraction of T₀)"</span>,</span>
+<span id="cb8-101"><a href="#cb8-101" aria-hidden="true" tabindex="-1"></a>    <span class="at">V =</span> <span class="st">"Viral load (fraction of peak)"</span></span>
+<span id="cb8-102"><a href="#cb8-102" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb8-103"><a href="#cb8-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-104"><a href="#cb8-104" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df1, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> value, <span class="at">colour =</span> variable)) <span class="sc">+</span></span>
+<span id="cb8-105"><a href="#cb8-105" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb8-106"><a href="#cb8-106" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#E87722"</span>, <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb8-107"><a href="#cb8-107" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-infection"</span>, <span class="at">y =</span> <span class="st">"Relative value"</span>, <span class="at">colour =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb8-108"><a href="#cb8-108" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb8-109"><a href="#cb8-109" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span>
+<span id="cb8-110"><a href="#cb8-110" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-111"><a href="#cb8-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-112"><a href="#cb8-112" aria-hidden="true" tabindex="-1"></a><span class="fu">## Effect of immune clearance rate</span></span>
+<span id="cb8-113"><a href="#cb8-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-114"><a href="#cb8-114" aria-hidden="true" tabindex="-1"></a>The infected-cell clearance rate $\delta$ encodes the combined effect of cytotoxic T-cell killing, innate immune pressure, and apoptosis. People differ in $\delta$: stronger cellular immunity clears infected cells faster, limiting peak viraemia.</span>
+<span id="cb8-115"><a href="#cb8-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a><span class="in">```{r scale1-sweep, fig.cap="Effect of varying the infected-cell clearance rate δ on peak viral load (left) and the duration virus is detectable above 1 virion/mL (right). The nonlinear collapse above δ ≈ 1.5 /day illustrates why a modest boost in cellular immunity can dramatically reduce viraemia."}</span></span>
+<span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a>delta_vals <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.3</span>, <span class="fl">3.5</span>, <span class="at">by =</span> <span class="fl">0.1</span>)</span>
+<span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>sweep_res <span class="ot">&lt;-</span> <span class="fu">lapply</span>(delta_vals, <span class="cf">function</span>(d) {</span>
+<span id="cb8-120"><a href="#cb8-120" aria-hidden="true" tabindex="-1"></a>  p_i        <span class="ot">&lt;-</span> parms0</span>
+<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a>  p_i[<span class="st">"delta"</span>] <span class="ot">&lt;-</span> d</span>
+<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a>  out_i      <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(</span>
+<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ode</span>(<span class="at">y =</span> y0, <span class="at">times =</span> times, <span class="at">func =</span> tcm, <span class="at">parms =</span> p_i)</span>
+<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a>  above    <span class="ot">&lt;-</span> out_i<span class="sc">$</span>V <span class="sc">&gt;</span> <span class="dv">1</span></span>
+<span id="cb8-126"><a href="#cb8-126" aria-hidden="true" tabindex="-1"></a>  duration <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">any</span>(above)) <span class="fu">diff</span>(<span class="fu">range</span>(out_i<span class="sc">$</span>time[above])) <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb8-127"><a href="#cb8-127" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">delta =</span> d, <span class="at">peak_V =</span> <span class="fu">max</span>(out_i<span class="sc">$</span>V), <span class="at">duration =</span> duration)</span>
+<span id="cb8-128"><a href="#cb8-128" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb8-129"><a href="#cb8-129" aria-hidden="true" tabindex="-1"></a>sw <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(sweep_res)</span>
+<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-131"><a href="#cb8-131" aria-hidden="true" tabindex="-1"></a>p_pk <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(sw, <span class="fu">aes</span>(<span class="at">x =</span> delta, <span class="at">y =</span> peak_V <span class="sc">/</span> <span class="fl">1e6</span>)) <span class="sc">+</span></span>
+<span id="cb8-132"><a href="#cb8-132" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">size =</span> <span class="fl">1.8</span>) <span class="sc">+</span></span>
+<span id="cb8-134"><a href="#cb8-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Clearance rate "</span>, delta, <span class="st">" (/day)"</span>)),</span>
+<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Peak viral load ("</span>, <span class="dv">10</span><span class="sc">^</span><span class="dv">6</span>, <span class="st">" virions/mL)"</span>))) <span class="sc">+</span></span>
+<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a>p_dur <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(sw, <span class="fu">aes</span>(<span class="at">x =</span> delta, <span class="at">y =</span> duration)) <span class="sc">+</span></span>
+<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#E87722"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">colour =</span> <span class="st">"#E87722"</span>, <span class="at">size =</span> <span class="fl">1.8</span>) <span class="sc">+</span></span>
+<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Clearance rate "</span>, delta, <span class="st">" (/day)"</span>)),</span>
+<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Detectable infection (days)"</span>) <span class="sc">+</span></span>
+<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-145"><a href="#cb8-145" aria-hidden="true" tabindex="-1"></a>p_pk <span class="sc">+</span> p_dur</span>
+<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a>This parameter sweep motivates the virtual patient concept: if individuals draw $\delta$ from a distribution rather than a single value, the resulting viral load trajectories span a wide range, producing the population-level heterogeneity that Scale 2 and Scale 3 must represent.</span>
+<span id="cb8-149"><a href="#cb8-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-150"><a href="#cb8-150" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-151"><a href="#cb8-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a><span class="fu"># Scale 2 — Vaccine-induced antibody kinetics</span></span>
+<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a><span class="fu">## Antigen-driven antibody model</span></span>
+<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-156"><a href="#cb8-156" aria-hidden="true" tabindex="-1"></a>After vaccination, antigen is cleared while simultaneously driving B-cell differentiation and antibody secretion. A two-compartment model captures the essentials:</span>
+<span id="cb8-157"><a href="#cb8-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-158"><a href="#cb8-158" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-159"><a href="#cb8-159" aria-hidden="true" tabindex="-1"></a>\frac{dAg}{dt} = -k_{Ag}\,Ag</span>
+<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-161"><a href="#cb8-161" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-162"><a href="#cb8-162" aria-hidden="true" tabindex="-1"></a>\frac{dAb}{dt} = r_{Ab}\,Ag - d_{Ab}\,Ab</span>
+<span id="cb8-163"><a href="#cb8-163" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-164"><a href="#cb8-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-165"><a href="#cb8-165" aria-hidden="true" tabindex="-1"></a>$Ag$ = antigen (normalised dose units), $Ab$ = serum antibody titre (AU/mL). With $Ag(0)=1$, $Ab(0)=0$, the analytical solution is:</span>
+<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-167"><a href="#cb8-167" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-168"><a href="#cb8-168" aria-hidden="true" tabindex="-1"></a>Ab(t) = \frac{r_{Ab}}{k_{Ag}-d_{Ab}}\bigl(e^{-d_{Ab}t}-e^{-k_{Ag}t}\bigr)</span>
+<span id="cb8-169"><a href="#cb8-169" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-170"><a href="#cb8-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-171"><a href="#cb8-171" aria-hidden="true" tabindex="-1"></a>Titre peaks at $t^{*} = \ln(k_{Ag}/d_{Ab})\,/\,(k_{Ag}-d_{Ab})$, typically 10–21 days, then wanes as $e^{-d_{Ab}t}$ dominates.</span>
+<span id="cb8-172"><a href="#cb8-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a><span class="in">```{r scale2-single, fig.cap="Antibody kinetics for a single vaccinee. Titre peaks near day 14 and wanes slowly over months. The shaded band marks the 60-day challenge window used in Scale 3."}</span></span>
+<span id="cb8-174"><a href="#cb8-174" aria-hidden="true" tabindex="-1"></a>Ab_t <span class="ot">&lt;-</span> <span class="cf">function</span>(t, <span class="at">r_Ab =</span> <span class="dv">5</span>, <span class="at">d_Ab =</span> <span class="fl">0.01</span>, <span class="at">k_Ag =</span> <span class="fl">0.3</span>) {</span>
+<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a>  r_Ab <span class="sc">/</span> (k_Ag <span class="sc">-</span> d_Ab) <span class="sc">*</span> (<span class="fu">exp</span>(<span class="sc">-</span>d_Ab <span class="sc">*</span> t) <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span>k_Ag <span class="sc">*</span> t))</span>
+<span id="cb8-176"><a href="#cb8-176" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-178"><a href="#cb8-178" aria-hidden="true" tabindex="-1"></a>t_vac <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">180</span>, <span class="at">by =</span> <span class="fl">0.5</span>)</span>
+<span id="cb8-179"><a href="#cb8-179" aria-hidden="true" tabindex="-1"></a>df2a  <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">time =</span> t_vac, <span class="at">titre =</span> <span class="fu">Ab_t</span>(t_vac))</span>
+<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-181"><a href="#cb8-181" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df2a, <span class="fu">aes</span>(<span class="at">x =</span> time, <span class="at">y =</span> titre)) <span class="sc">+</span></span>
+<span id="cb8-182"><a href="#cb8-182" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"rect"</span>, <span class="at">xmin =</span> <span class="dv">55</span>, <span class="at">xmax =</span> <span class="dv">65</span>, <span class="at">ymin =</span> <span class="sc">-</span><span class="cn">Inf</span>, <span class="at">ymax =</span> <span class="cn">Inf</span>,</span>
+<span id="cb8-183"><a href="#cb8-183" aria-hidden="true" tabindex="-1"></a>           <span class="at">fill =</span> <span class="st">"#3B6EA8"</span>, <span class="at">alpha =</span> <span class="fl">0.12</span>) <span class="sc">+</span></span>
+<span id="cb8-184"><a href="#cb8-184" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb8-185"><a href="#cb8-185" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">60</span>, <span class="at">y =</span> <span class="fu">max</span>(df2a<span class="sc">$</span>titre) <span class="sc">*</span> <span class="fl">0.95</span>,</span>
+<span id="cb8-186"><a href="#cb8-186" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"Challenge</span><span class="sc">\n</span><span class="st">window"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>,</span>
+<span id="cb8-187"><a href="#cb8-187" aria-hidden="true" tabindex="-1"></a>           <span class="at">colour =</span> <span class="st">"#3B6EA8"</span>) <span class="sc">+</span></span>
+<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days post-vaccination"</span>, <span class="at">y =</span> <span class="st">"Antibody titre (AU/mL)"</span>) <span class="sc">+</span></span>
+<span id="cb8-189"><a href="#cb8-189" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb8-190"><a href="#cb8-190" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-191"><a href="#cb8-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-192"><a href="#cb8-192" aria-hidden="true" tabindex="-1"></a><span class="fu">## Virtual patient cohort</span></span>
+<span id="cb8-193"><a href="#cb8-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-194"><a href="#cb8-194" aria-hidden="true" tabindex="-1"></a>Two parameters capture the main axes of inter-individual variation:</span>
+<span id="cb8-195"><a href="#cb8-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-196"><a href="#cb8-196" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$r_{Ab}$: immune responsiveness (B-cell clone size, adjuvant response)</span>
+<span id="cb8-197"><a href="#cb8-197" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$d_{Ab}$: waning rate (long-lived plasma-cell survival, isotype class)</span>
+<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a>We sample 500 virtual vaccinees from log-normal distributions and extract each individual's titre at day 60 — a plausible mid-trial challenge time.</span>
+<span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a><span class="in">```{r scale2-cohort, fig.cap="Distribution of antibody titres at the 60-day challenge window across 500 virtual patients. The log scale reveals the right-skewed distribution typical of clinical immunogenicity data. Variation arises from individual differences in immune responsiveness and antibody waning."}</span></span>
+<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb8-203"><a href="#cb8-203" aria-hidden="true" tabindex="-1"></a>n_vp <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb8-204"><a href="#cb8-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-205"><a href="#cb8-205" aria-hidden="true" tabindex="-1"></a>r_Ab_i <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">rnorm</span>(n_vp, <span class="fu">log</span>(<span class="dv">5</span>),    <span class="fl">0.55</span>))  <span class="co"># ~55% CV in responsiveness</span></span>
+<span id="cb8-206"><a href="#cb8-206" aria-hidden="true" tabindex="-1"></a>d_Ab_i <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">rnorm</span>(n_vp, <span class="fu">log</span>(<span class="fl">0.01</span>), <span class="fl">0.40</span>))  <span class="co"># ~40% CV in waning rate</span></span>
+<span id="cb8-207"><a href="#cb8-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-208"><a href="#cb8-208" aria-hidden="true" tabindex="-1"></a>titre_60 <span class="ot">&lt;-</span> <span class="fu">pmax</span>(</span>
+<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mapply</span>(Ab_t, <span class="at">t =</span> <span class="dv">60</span>, <span class="at">r_Ab =</span> r_Ab_i, <span class="at">d_Ab =</span> d_Ab_i),</span>
+<span id="cb8-210"><a href="#cb8-210" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.01</span>   <span class="co"># numerical floor</span></span>
+<span id="cb8-211"><a href="#cb8-211" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-212"><a href="#cb8-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-213"><a href="#cb8-213" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(<span class="at">titre =</span> titre_60), <span class="fu">aes</span>(<span class="at">x =</span> titre)) <span class="sc">+</span></span>
+<span id="cb8-214"><a href="#cb8-214" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">50</span>, <span class="at">fill =</span> <span class="st">"#3B6EA8"</span>, <span class="at">colour =</span> <span class="st">"white"</span>,</span>
+<span id="cb8-215"><a href="#cb8-215" aria-hidden="true" tabindex="-1"></a>                 <span class="at">linewidth =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb8-216"><a href="#cb8-216" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb8-217"><a href="#cb8-217" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Antibody titre at day 60 (AU/mL, log scale)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
+<span id="cb8-218"><a href="#cb8-218" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb8-219"><a href="#cb8-219" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-220"><a href="#cb8-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-221"><a href="#cb8-221" aria-hidden="true" tabindex="-1"></a>The distribution is approximately log-normal, consistent with observed immunogenicity data for licensed vaccines. The two-fold range from 5th to 95th percentile reflects the biological reality that the same vaccine produces widely varying responses across individuals.</span>
+<span id="cb8-222"><a href="#cb8-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-223"><a href="#cb8-223" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-224"><a href="#cb8-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-225"><a href="#cb8-225" aria-hidden="true" tabindex="-1"></a><span class="fu"># Scale 3 — Population trial outcome</span></span>
+<span id="cb8-226"><a href="#cb8-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-227"><a href="#cb8-227" aria-hidden="true" tabindex="-1"></a><span class="fu">## From titre to individual protection</span></span>
+<span id="cb8-228"><a href="#cb8-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-229"><a href="#cb8-229" aria-hidden="true" tabindex="-1"></a>The antibody–protection relationship is well described by a Hill function:</span>
+<span id="cb8-230"><a href="#cb8-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-231"><a href="#cb8-231" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-232"><a href="#cb8-232" aria-hidden="true" tabindex="-1"></a>\text{VE}_i = \frac{T_i^k}{T_i^k + \text{EC}_{50}^k}</span>
+<span id="cb8-233"><a href="#cb8-233" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-234"><a href="#cb8-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-235"><a href="#cb8-235" aria-hidden="true" tabindex="-1"></a>where $T_i$ is individual $i$'s titre at challenge, $\text{EC}_{50}$ is the titre giving 50% protection, and $k$ governs steepness. Setting $\text{EC}_{50} = \text{median}(T_i)$ ensures that the median virtual patient has 50% protection — a conservative but transparent calibration choice.</span>
+<span id="cb8-236"><a href="#cb8-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-237"><a href="#cb8-237" aria-hidden="true" tabindex="-1"></a><span class="fu">## Analytic attack rate</span></span>
+<span id="cb8-238"><a href="#cb8-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a>For an SIR epidemic, the final attack rate satisfies the implicit equation:</span>
+<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-242"><a href="#cb8-242" aria-hidden="true" tabindex="-1"></a>1 - \text{AR} = \exp<span class="sc">\!</span>\bigl(-R_0^{\text{eff}}\cdot\text{AR}\bigr), \qquad</span>
+<span id="cb8-243"><a href="#cb8-243" aria-hidden="true" tabindex="-1"></a>R_0^{\text{eff}} = R_0\,(1 - \bar{\text{VE}})</span>
+<span id="cb8-244"><a href="#cb8-244" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb8-245"><a href="#cb8-245" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-246"><a href="#cb8-246" aria-hidden="true" tabindex="-1"></a>where $\bar{\text{VE}} = n^{-1}\sum_i \text{VE}_i$. This avoids running one ODE system per trial replicate while preserving the nonlinear epidemic threshold behaviour.</span>
+<span id="cb8-247"><a href="#cb8-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-248"><a href="#cb8-248" aria-hidden="true" tabindex="-1"></a><span class="in">```{r scale3, fig.cap="Scale 3 outputs. Left: individual VE distribution across the 500 virtual vaccinees, arising directly from the titre distribution in Scale 2. Right: attack-rate densities across 1000 bootstrapped trial replicates (200 participants per arm). The vaccinated arm (orange) is shifted far left of the placebo arm (blue), with additional spread from VE heterogeneity."}</span></span>
+<span id="cb8-249"><a href="#cb8-249" aria-hidden="true" tabindex="-1"></a>EC50 <span class="ot">&lt;-</span> <span class="fu">median</span>(titre_60)</span>
+<span id="cb8-250"><a href="#cb8-250" aria-hidden="true" tabindex="-1"></a>k    <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb8-251"><a href="#cb8-251" aria-hidden="true" tabindex="-1"></a>VEi  <span class="ot">&lt;-</span> titre_60<span class="sc">^</span>k <span class="sc">/</span> (titre_60<span class="sc">^</span>k <span class="sc">+</span> EC50<span class="sc">^</span>k)</span>
+<span id="cb8-252"><a href="#cb8-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-253"><a href="#cb8-253" aria-hidden="true" tabindex="-1"></a>ar_solve <span class="ot">&lt;-</span> <span class="cf">function</span>(mean_VE, <span class="at">R0 =</span> <span class="fl">2.5</span>) {</span>
+<span id="cb8-254"><a href="#cb8-254" aria-hidden="true" tabindex="-1"></a>  R0_eff <span class="ot">&lt;-</span> R0 <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> mean_VE)</span>
+<span id="cb8-255"><a href="#cb8-255" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (R0_eff <span class="sc">&lt;=</span> <span class="dv">1</span>) <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb8-256"><a href="#cb8-256" aria-hidden="true" tabindex="-1"></a>  <span class="fu">uniroot</span>(<span class="cf">function</span>(ar) <span class="dv">1</span> <span class="sc">-</span> ar <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span>R0_eff <span class="sc">*</span> ar),</span>
+<span id="cb8-257"><a href="#cb8-257" aria-hidden="true" tabindex="-1"></a>          <span class="at">interval =</span> <span class="fu">c</span>(<span class="fl">1e-8</span>, <span class="dv">1</span> <span class="sc">-</span> <span class="fl">1e-8</span>))<span class="sc">$</span>root</span>
+<span id="cb8-258"><a href="#cb8-258" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-259"><a href="#cb8-259" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-260"><a href="#cb8-260" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
+<span id="cb8-261"><a href="#cb8-261" aria-hidden="true" tabindex="-1"></a>n_trial <span class="ot">&lt;-</span> <span class="dv">200</span></span>
+<span id="cb8-262"><a href="#cb8-262" aria-hidden="true" tabindex="-1"></a>n_rep   <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb8-263"><a href="#cb8-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-264"><a href="#cb8-264" aria-hidden="true" tabindex="-1"></a>vacc_ar <span class="ot">&lt;-</span> <span class="fu">replicate</span>(n_rep, {</span>
+<span id="cb8-265"><a href="#cb8-265" aria-hidden="true" tabindex="-1"></a>  idx  <span class="ot">&lt;-</span> <span class="fu">sample</span>(n_vp, n_trial, <span class="at">replace =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-266"><a href="#cb8-266" aria-hidden="true" tabindex="-1"></a>  R0_i <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">1</span>, <span class="fl">2.5</span>, <span class="fl">0.15</span>)</span>
+<span id="cb8-267"><a href="#cb8-267" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ar_solve</span>(<span class="fu">mean</span>(VEi[idx]), R0_i)</span>
+<span id="cb8-268"><a href="#cb8-268" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb8-269"><a href="#cb8-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-270"><a href="#cb8-270" aria-hidden="true" tabindex="-1"></a>placebo_ar <span class="ot">&lt;-</span> <span class="fu">replicate</span>(n_rep, {</span>
+<span id="cb8-271"><a href="#cb8-271" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ar_solve</span>(<span class="dv">0</span>, <span class="fu">rnorm</span>(<span class="dv">1</span>, <span class="fl">2.5</span>, <span class="fl">0.15</span>))</span>
+<span id="cb8-272"><a href="#cb8-272" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb8-273"><a href="#cb8-273" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-274"><a href="#cb8-274" aria-hidden="true" tabindex="-1"></a>p_ve <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="fu">data.frame</span>(<span class="at">VE =</span> VEi), <span class="fu">aes</span>(<span class="at">x =</span> VE)) <span class="sc">+</span></span>
+<span id="cb8-275"><a href="#cb8-275" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">40</span>, <span class="at">fill =</span> <span class="st">"#E87722"</span>, <span class="at">colour =</span> <span class="st">"white"</span>,</span>
+<span id="cb8-276"><a href="#cb8-276" aria-hidden="true" tabindex="-1"></a>                 <span class="at">linewidth =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb8-277"><a href="#cb8-277" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Individual VE"</span>, <span class="at">y =</span> <span class="st">"Count"</span>) <span class="sc">+</span></span>
+<span id="cb8-278"><a href="#cb8-278" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb8-279"><a href="#cb8-279" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-280"><a href="#cb8-280" aria-hidden="true" tabindex="-1"></a>df3 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb8-281"><a href="#cb8-281" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">arm =</span> <span class="st">"Vaccine"</span>, <span class="at">ar =</span> vacc_ar),</span>
+<span id="cb8-282"><a href="#cb8-282" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">arm =</span> <span class="st">"Placebo"</span>, <span class="at">ar =</span> placebo_ar)</span>
+<span id="cb8-283"><a href="#cb8-283" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-284"><a href="#cb8-284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-285"><a href="#cb8-285" aria-hidden="true" tabindex="-1"></a>p_ar <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df3, <span class="fu">aes</span>(<span class="at">x =</span> ar, <span class="at">fill =</span> arm, <span class="at">colour =</span> arm)) <span class="sc">+</span></span>
+<span id="cb8-286"><a href="#cb8-286" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_density</span>(<span class="at">alpha =</span> <span class="fl">0.35</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb8-287"><a href="#cb8-287" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values  =</span> <span class="fu">c</span>(<span class="at">Vaccine =</span> <span class="st">"#E87722"</span>, <span class="at">Placebo =</span> <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb8-288"><a href="#cb8-288" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="at">Vaccine =</span> <span class="st">"#E87722"</span>, <span class="at">Placebo =</span> <span class="st">"#3B6EA8"</span>)) <span class="sc">+</span></span>
+<span id="cb8-289"><a href="#cb8-289" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Attack rate"</span>, <span class="at">y =</span> <span class="st">"Density"</span>, <span class="at">fill =</span> <span class="cn">NULL</span>, <span class="at">colour =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb8-290"><a href="#cb8-290" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb8-291"><a href="#cb8-291" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span>
+<span id="cb8-292"><a href="#cb8-292" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-293"><a href="#cb8-293" aria-hidden="true" tabindex="-1"></a>p_ve <span class="sc">+</span> p_ar</span>
+<span id="cb8-294"><a href="#cb8-294" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-295"><a href="#cb8-295" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-296"><a href="#cb8-296" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-297"><a href="#cb8-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-298"><a href="#cb8-298" aria-hidden="true" tabindex="-1"></a><span class="fu"># Cross-scale sensitivity analysis</span></span>
+<span id="cb8-299"><a href="#cb8-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-300"><a href="#cb8-300" aria-hidden="true" tabindex="-1"></a>A key virtue of a multiscale pipeline is that you can trace how uncertainty at one scale propagates to outcomes at another. Here we sweep the antibody waning rate $d_{Ab}$ (Scale 2) across a physiologically plausible range and ask: how does it affect the attack rate in the vaccinated arm (Scale 3)?</span>
+<span id="cb8-301"><a href="#cb8-301" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-302"><a href="#cb8-302" aria-hidden="true" tabindex="-1"></a><span class="in">```{r cross-scale, fig.cap="Cross-scale propagation: how the Scale 2 waning rate d_Ab drives the Scale 3 trial outcome. Left: titre at the 60-day challenge window collapses as waning accelerates. Right: corresponding attack rate in the vaccinated arm rises toward the placebo level (grey dashed line, R₀ = 2.5). The inflection near d_Ab ≈ 0.01 /day (antibody half-life ∼ 70 days) marks the critical waning threshold for this vaccine and challenge scenario."}</span></span>
+<span id="cb8-303"><a href="#cb8-303" aria-hidden="true" tabindex="-1"></a>d_Ab_range <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">seq</span>(<span class="fu">log</span>(<span class="fl">0.002</span>), <span class="fu">log</span>(<span class="fl">0.08</span>), <span class="at">length.out =</span> <span class="dv">50</span>))</span>
+<span id="cb8-304"><a href="#cb8-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-305"><a href="#cb8-305" aria-hidden="true" tabindex="-1"></a>cross <span class="ot">&lt;-</span> <span class="fu">lapply</span>(d_Ab_range, <span class="cf">function</span>(d) {</span>
+<span id="cb8-306"><a href="#cb8-306" aria-hidden="true" tabindex="-1"></a>  t_i   <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">Ab_t</span>(<span class="dv">60</span>, <span class="at">r_Ab =</span> <span class="dv">5</span>, <span class="at">d_Ab =</span> d), <span class="fl">0.01</span>)</span>
+<span id="cb8-307"><a href="#cb8-307" aria-hidden="true" tabindex="-1"></a>  ve_i  <span class="ot">&lt;-</span> t_i<span class="sc">^</span>k <span class="sc">/</span> (t_i<span class="sc">^</span>k <span class="sc">+</span> EC50<span class="sc">^</span>k)</span>
+<span id="cb8-308"><a href="#cb8-308" aria-hidden="true" tabindex="-1"></a>  ar_i  <span class="ot">&lt;-</span> <span class="fu">ar_solve</span>(ve_i, <span class="at">R0 =</span> <span class="fl">2.5</span>)</span>
+<span id="cb8-309"><a href="#cb8-309" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">d_Ab =</span> d, <span class="at">titre =</span> t_i, <span class="at">ar =</span> ar_i)</span>
+<span id="cb8-310"><a href="#cb8-310" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb8-311"><a href="#cb8-311" aria-hidden="true" tabindex="-1"></a>cr <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(cross)</span>
+<span id="cb8-312"><a href="#cb8-312" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-313"><a href="#cb8-313" aria-hidden="true" tabindex="-1"></a>placebo_ref <span class="ot">&lt;-</span> <span class="fu">ar_solve</span>(<span class="dv">0</span>, <span class="fl">2.5</span>)</span>
+<span id="cb8-314"><a href="#cb8-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-315"><a href="#cb8-315" aria-hidden="true" tabindex="-1"></a>p_cs1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(cr, <span class="fu">aes</span>(<span class="at">x =</span> d_Ab, <span class="at">y =</span> titre)) <span class="sc">+</span></span>
+<span id="cb8-316"><a href="#cb8-316" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#3B6EA8"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb8-317"><a href="#cb8-317" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb8-318"><a href="#cb8-318" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Waning rate "</span>, d[Ab], <span class="st">" (/day)"</span>)),</span>
+<span id="cb8-319"><a href="#cb8-319" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Titre at day 60 (AU/mL)"</span>) <span class="sc">+</span></span>
+<span id="cb8-320"><a href="#cb8-320" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb8-321"><a href="#cb8-321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-322"><a href="#cb8-322" aria-hidden="true" tabindex="-1"></a>p_cs2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(cr, <span class="fu">aes</span>(<span class="at">x =</span> d_Ab, <span class="at">y =</span> ar)) <span class="sc">+</span></span>
+<span id="cb8-323"><a href="#cb8-323" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> placebo_ref, <span class="at">linetype =</span> <span class="st">"dashed"</span>,</span>
+<span id="cb8-324"><a href="#cb8-324" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb8-325"><a href="#cb8-325" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">colour =</span> <span class="st">"#E87722"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb8-326"><a href="#cb8-326" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">0.003</span>, <span class="at">y =</span> placebo_ref <span class="sc">*</span> <span class="fl">1.03</span>,</span>
+<span id="cb8-327"><a href="#cb8-327" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"Placebo"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">colour =</span> <span class="st">"grey40"</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb8-328"><a href="#cb8-328" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_log10</span>() <span class="sc">+</span></span>
+<span id="cb8-329"><a href="#cb8-329" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(<span class="fu">paste</span>(<span class="st">"Waning rate "</span>, d[Ab], <span class="st">" (/day)"</span>)),</span>
+<span id="cb8-330"><a href="#cb8-330" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Attack rate (vaccinated arm)"</span>) <span class="sc">+</span></span>
+<span id="cb8-331"><a href="#cb8-331" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb8-332"><a href="#cb8-332" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-333"><a href="#cb8-333" aria-hidden="true" tabindex="-1"></a>p_cs1 <span class="sc">+</span> p_cs2</span>
+<span id="cb8-334"><a href="#cb8-334" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-335"><a href="#cb8-335" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-336"><a href="#cb8-336" aria-hidden="true" tabindex="-1"></a>When $d_{Ab}$ is small (slow waning), titres remain above EC$_{50}$ at day 60 and the vaccinated arm is well protected. As waning accelerates, titres fall below EC$_{50}$ and trial attack rate converges to the placebo level. This curve is directly actionable for trial design: it identifies the minimum waning rate that the vaccine must achieve to preserve measurable efficacy at a given challenge time.</span>
+<span id="cb8-337"><a href="#cb8-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-338"><a href="#cb8-338" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-339"><a href="#cb8-339" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-340"><a href="#cb8-340" aria-hidden="true" tabindex="-1"></a><span class="fu"># Discussion</span></span>
+<span id="cb8-341"><a href="#cb8-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-342"><a href="#cb8-342" aria-hidden="true" tabindex="-1"></a><span class="fu">## What makes this a digital twin?</span></span>
+<span id="cb8-343"><a href="#cb8-343" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-344"><a href="#cb8-344" aria-hidden="true" tabindex="-1"></a>Three features distinguish this pipeline from a conventional transmission model:</span>
+<span id="cb8-345"><a href="#cb8-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-346"><a href="#cb8-346" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Individualisation.** Each virtual patient has their own $(r_{Ab},\, d_{Ab})$, producing a titre distribution rather than a point estimate. The trial outcome inherits this individual-level variability directly.</span>
+<span id="cb8-347"><a href="#cb8-347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-348"><a href="#cb8-348" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Explicit scale coupling.** Scale 2 outputs feed into Scale 3 analytically, and the cross-scale analysis runs the pipeline in reverse — from a target attack rate down to the required titre and then to the required waning rate. Bidirectional reasoning is what separates a digital twin from a forward-only simulation.</span>
+<span id="cb8-349"><a href="#cb8-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-350"><a href="#cb8-350" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Counterfactual control arm.** The placebo arm is generated by setting $\overline{\text{VE}} = 0$ in the same SIR model. This counterfactual is the regulatory anchor that sponsors submit to FDA/EMA under the MIDD program <span class="co">[</span><span class="ot">@fda2020midd</span><span class="co">]</span>.</span>
+<span id="cb8-351"><a href="#cb8-351" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-352"><a href="#cb8-352" aria-hidden="true" tabindex="-1"></a><span class="fu">## Limitations of this illustration</span></span>
+<span id="cb8-353"><a href="#cb8-353" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-354"><a href="#cb8-354" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Decoupled Scale 1.** In a full multiscale twin, the viral dynamics model (Scale 1) would set initial conditions for Scale 2: the antigen dose reaching lymph nodes is a function of the viral inoculum and the innate immune response at the injection site. Coupling these requires a more elaborate interfacing layer, as implemented in the mRNA vaccine QSP models of Dasti et al. <span class="co">[</span><span class="ot">@dasti2025</span><span class="co">]</span>.</span>
+<span id="cb8-355"><a href="#cb8-355" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-356"><a href="#cb8-356" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Steady-state immunity.** The model fixes challenge at a single time point (day 60). A realistic twin would draw challenge time from the epidemic curve — itself a Scale 3 output — creating a feedback loop that the present pipeline ignores.</span>
+<span id="cb8-357"><a href="#cb8-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-358"><a href="#cb8-358" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Homogeneous mixing.** The SIR final-size approximation assumes random contact. Age structure, household clustering, or healthcare-worker exposure would each shift the attack rate curve and require additional scales <span class="co">[</span><span class="ot">@niarakis2024</span><span class="co">]</span>.</span>
+<span id="cb8-359"><a href="#cb8-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-360"><a href="#cb8-360" aria-hidden="true" tabindex="-1"></a><span class="fu">## Extensions</span></span>
+<span id="cb8-361"><a href="#cb8-361" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-362"><a href="#cb8-362" aria-hidden="true" tabindex="-1"></a>The pipeline is modular by design: swapping Scale 1 from a generic respiratory model to an influenza-specific or SARS-CoV-2-specific parameterisation <span class="co">[</span><span class="ot">@perelson1996</span><span class="co">]</span> requires changing only that block. Similarly, Scale 3 can be upgraded from a homogeneous SIR to an age-stratified SEIR without touching Scales 1 or 2. This modularity — formalised by Masison et al. <span class="co">[</span><span class="ot">@masison2021</span><span class="co">]</span> — is what makes multiscale digital twins tractable despite their apparent complexity.</span>
+<span id="cb8-363"><a href="#cb8-363" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-364"><a href="#cb8-364" aria-hidden="true" tabindex="-1"></a>Physics-informed neural networks <span class="co">[</span><span class="ot">@raissi2019</span><span class="co">]</span> offer a complementary direction: rather than specifying between-scale mappings analytically, a neural network trained on multi-scale longitudinal data can learn them from observations, at the cost of interpretability but with potentially higher accuracy when mechanistic knowledge is incomplete.</span>
+<span id="cb8-365"><a href="#cb8-365" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-366"><a href="#cb8-366" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-367"><a href="#cb8-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-368"><a href="#cb8-368" aria-hidden="true" tabindex="-1"></a><span class="fu"># References {.unnumbered}</span></span>
+<span id="cb8-369"><a href="#cb8-369" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-370"><a href="#cb8-370" aria-hidden="true" tabindex="-1"></a>::: {#refs}</span>
+<span id="cb8-371"><a href="#cb8-371" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb8-372"><a href="#cb8-372" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-373"><a href="#cb8-373" aria-hidden="true" tabindex="-1"></a><span class="in">```{r session-info, echo=FALSE}</span></span>
+<span id="cb8-374"><a href="#cb8-374" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
+<span id="cb8-375"><a href="#cb8-375" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

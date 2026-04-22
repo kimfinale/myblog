@@ -2235,6 +2235,1754 @@ loaded via a namespace (and not attached):
   <pubDate>Tue, 21 Apr 2026 15:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>Multiscale Modelling for Digital Twins in Vaccine Trials</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/digital_twin_multiscale/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="why-multiple-scales" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Why multiple scales?</h1>
+<p>The outcome of a vaccine trial depends on processes that span at least three orders of magnitude in time and space: molecular events inside a single cell, the kinetics of an individual’s immune system, and the spread of a pathogen through a population. A <em>multiscale digital twin</em> is a computational stack that couples models at each of these scales so that trial-level predictions inherit uncertainty from every scale below <span class="citation" data-cites="masison2021">(1)</span>.</p>
+<p>This post builds such a stack in R. Each section implements one scale as an ODE system, connects its outputs to the next scale, and visualises the resulting dynamics. The goal is a <em>working pipeline</em> you can inspect, modify, and reason about.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Scale</th>
+<th>Model</th>
+<th>Key output</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1 — Within-host</td>
+<td>Target cell ODEs</td>
+<td>Viral load trajectory</td>
+</tr>
+<tr class="even">
+<td>2 — Immunological</td>
+<td>Antigen–antibody ODEs</td>
+<td>Titre at challenge; waning rate</td>
+</tr>
+<tr class="odd">
+<td>3 — Population</td>
+<td>SIR with heterogeneous VE</td>
+<td>Attack rate in trial arms</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="scale-1-within-host-viral-dynamics" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Scale 1 — Within-host viral dynamics</h1>
+<section id="the-target-cell-model" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="the-target-cell-model"><span class="header-section-number">2.1</span> The target cell model</h2>
+<p>The <em>target cell limited</em> model <span class="citation" data-cites="perelson1996">(2)</span> tracks three populations:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdT%7D%7Bdt%7D%20=%20%5Clambda%20-%20d_T%20T%20-%20%5Cbeta%20V%20T%0A"> <img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdI%7D%7Bdt%7D%20=%20%5Cbeta%20V%20T%20-%20%5Cdelta%20I%0A"> <img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdV%7D%7Bdt%7D%20=%20p%5C,I%20-%20c%5C,V%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?T"> = uninfected target cells (e.g.&nbsp;airway epithelial cells), <img src="https://latex.codecogs.com/png.latex?I"> = productively infected cells, <img src="https://latex.codecogs.com/png.latex?V"> = free virus (virions/mL). The within-host basic reproductive number is <img src="https://latex.codecogs.com/png.latex?R_0%5Ew%20=%20%5Cbeta%20T_0%20p%20%5C,(c%5C,%5Cdelta)%5E%7B-1%7D">.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1">tcm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(t, y, parms) {</span>
+<span id="cb1-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">with</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.list</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(y, parms)), {</span>
+<span id="cb1-3">    dT <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span>  lambda <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> d_T <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> T <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> beta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> V <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> T</span>
+<span id="cb1-4">    dI <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span>  beta  <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> V <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> T   <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> delta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I</span>
+<span id="cb1-5">    dV <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span>  p <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> I            <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> c    <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> V</span>
+<span id="cb1-6">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(dT, dI, dV))</span>
+<span id="cb1-7">  })</span>
+<span id="cb1-8">}</span>
+<span id="cb1-9"></span>
+<span id="cb1-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Parameters for a generic respiratory virus (for illustration)</span></span>
+<span id="cb1-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># R0_within = beta * T0 * p / (c * delta) = 5e-8 * 1e7 * 50 / 5 = 5</span></span>
+<span id="cb1-12">parms0 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb1-13">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lambda =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e5</span>,   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># target-cell production (/day); T* = lambda/d_T = 1e7</span></span>
+<span id="cb1-14">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">d_T    =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># background death rate (/day)</span></span>
+<span id="cb1-15">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">beta   =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5e-8</span>,  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># infection rate constant (mL/virion/day)</span></span>
+<span id="cb1-16">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delta  =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>,   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># infected-cell clearance (/day)</span></span>
+<span id="cb1-17">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p      =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>,    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># viral burst size (virions/cell/day)</span></span>
+<span id="cb1-18">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">c      =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.0</span>    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># viral clearance rate (/day)</span></span>
+<span id="cb1-19">)</span>
+<span id="cb1-20"></span>
+<span id="cb1-21">y0    <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">T =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e7</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">I =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">V =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># I0 = 100 initially infected cells</span></span>
+<span id="cb1-22">times <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>)</span>
+<span id="cb1-23"></span>
+<span id="cb1-24">out0 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.data.frame</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ode</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> y0, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">times =</span> times, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">func =</span> tcm, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">parms =</span> parms0))</span>
+<span id="cb1-25"></span>
+<span id="cb1-26">df1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> out0 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb1-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(time, T, V) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb1-28">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb1-29">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">T =</span> T <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e7</span>,           <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># fraction of initial target cells</span></span>
+<span id="cb1-30">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">V =</span> V <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(V)         <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># fraction of peak viral load</span></span>
+<span id="cb1-31">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb1-32">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pivot_longer</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(T, V), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">names_to =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"variable"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values_to =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"value"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb1-33">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">variable =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">recode</span>(variable,</span>
+<span id="cb1-34">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">T =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Target cells (fraction of T₀)"</span>,</span>
+<span id="cb1-35">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">V =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Viral load (fraction of peak)"</span></span>
+<span id="cb1-36">  ))</span>
+<span id="cb1-37"></span>
+<span id="cb1-38"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df1, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> time, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> value, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> variable)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-39">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-40">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_colour_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-41">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Days post-infection"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Relative value"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-42">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb1-43">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_multiscale/index_files/figure-html/scale1-single-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Single within-host simulation. Viral load (blue) peaks around day 4–5 as infected cells expand, then collapses as target cells are depleted and virus is cleared. Target cells (orange) partially recover after the acute phase.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="effect-of-immune-clearance-rate" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="effect-of-immune-clearance-rate"><span class="header-section-number">2.2</span> Effect of immune clearance rate</h2>
+<p>The infected-cell clearance rate <img src="https://latex.codecogs.com/png.latex?%5Cdelta"> encodes the combined effect of cytotoxic T-cell killing, innate immune pressure, and apoptosis. People differ in <img src="https://latex.codecogs.com/png.latex?%5Cdelta">: stronger cellular immunity clears infected cells faster, limiting peak viraemia.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">delta_vals <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>)</span>
+<span id="cb2-2"></span>
+<span id="cb2-3">sweep_res <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(delta_vals, <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(d) {</span>
+<span id="cb2-4">  p_i        <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> parms0</span>
+<span id="cb2-5">  p_i[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"delta"</span>] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> d</span>
+<span id="cb2-6">  out_i      <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.data.frame</span>(</span>
+<span id="cb2-7">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ode</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> y0, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">times =</span> times, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">func =</span> tcm, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">parms =</span> p_i)</span>
+<span id="cb2-8">  )</span>
+<span id="cb2-9">  above    <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> out_i<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>V <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb2-10">  duration <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">any</span>(above)) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">diff</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">range</span>(out_i<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>time[above])) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span></span>
+<span id="cb2-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delta =</span> d, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">peak_V =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(out_i<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>V), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">duration =</span> duration)</span>
+<span id="cb2-12">})</span>
+<span id="cb2-13">sw <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(sweep_res)</span>
+<span id="cb2-14"></span>
+<span id="cb2-15">p_pk <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(sw, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> delta, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> peak_V <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e6</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-16">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.8</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-18">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Clearance rate "</span>, delta, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">" (/day)"</span>)),</span>
+<span id="cb2-19">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Peak viral load ("</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">" virions/mL)"</span>))) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-20">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb2-21"></span>
+<span id="cb2-22">p_dur <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(sw, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> delta, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> duration)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-24">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.8</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-25">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Clearance rate "</span>, delta, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">" (/day)"</span>)),</span>
+<span id="cb2-26">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Detectable infection (days)"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb2-28"></span>
+<span id="cb2-29">p_pk <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> p_dur</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_multiscale/index_files/figure-html/scale1-sweep-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Effect of varying the infected-cell clearance rate δ on peak viral load (left) and the duration virus is detectable above 1 virion/mL (right). The nonlinear collapse above δ ≈ 1.5 /day illustrates why a modest boost in cellular immunity can dramatically reduce viraemia.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>This parameter sweep motivates the virtual patient concept: if individuals draw <img src="https://latex.codecogs.com/png.latex?%5Cdelta"> from a distribution rather than a single value, the resulting viral load trajectories span a wide range, producing the population-level heterogeneity that Scale 2 and Scale 3 must represent.</p>
+<hr>
+</section>
+</section>
+<section id="scale-2-vaccine-induced-antibody-kinetics" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Scale 2 — Vaccine-induced antibody kinetics</h1>
+<section id="antigen-driven-antibody-model" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="antigen-driven-antibody-model"><span class="header-section-number">3.1</span> Antigen-driven antibody model</h2>
+<p>After vaccination, antigen is cleared while simultaneously driving B-cell differentiation and antibody secretion. A two-compartment model captures the essentials:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdAg%7D%7Bdt%7D%20=%20-k_%7BAg%7D%5C,Ag%0A"> <img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BdAb%7D%7Bdt%7D%20=%20r_%7BAb%7D%5C,Ag%20-%20d_%7BAb%7D%5C,Ab%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?Ag"> = antigen (normalised dose units), <img src="https://latex.codecogs.com/png.latex?Ab"> = serum antibody titre (AU/mL). With <img src="https://latex.codecogs.com/png.latex?Ag(0)=1">, <img src="https://latex.codecogs.com/png.latex?Ab(0)=0">, the analytical solution is:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AAb(t)%20=%20%5Cfrac%7Br_%7BAb%7D%7D%7Bk_%7BAg%7D-d_%7BAb%7D%7D%5Cbigl(e%5E%7B-d_%7BAb%7Dt%7D-e%5E%7B-k_%7BAg%7Dt%7D%5Cbigr)%0A"></p>
+<p>Titre peaks at <img src="https://latex.codecogs.com/png.latex?t%5E%7B*%7D%20=%20%5Cln(k_%7BAg%7D/d_%7BAb%7D)%5C,/%5C,(k_%7BAg%7D-d_%7BAb%7D)">, typically 10–21 days, then wanes as <img src="https://latex.codecogs.com/png.latex?e%5E%7B-d_%7BAb%7Dt%7D"> dominates.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">Ab_t <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(t, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r_Ab =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">d_Ab =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">k_Ag =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>) {</span>
+<span id="cb3-2">  r_Ab <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (k_Ag <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> d_Ab) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>d_Ab <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> t) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>k_Ag <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> t))</span>
+<span id="cb3-3">}</span>
+<span id="cb3-4"></span>
+<span id="cb3-5">t_vac <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">180</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>)</span>
+<span id="cb3-6">df2a  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">time =</span> t_vac, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">titre =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Ab_t</span>(t_vac))</span>
+<span id="cb3-7"></span>
+<span id="cb3-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df2a, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> time, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> titre)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"rect"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xmin =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">55</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xmax =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">65</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymin =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">Inf</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymax =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">Inf</span>,</span>
+<span id="cb3-10">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.12</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">60</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(df2a<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>titre) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.95</span>,</span>
+<span id="cb3-13">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Challenge</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">window"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>,</span>
+<span id="cb3-14">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-15">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Days post-vaccination"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antibody titre (AU/mL)"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-16">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_multiscale/index_files/figure-html/scale2-single-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Antibody kinetics for a single vaccinee. Titre peaks near day 14 and wanes slowly over months. The shaded band marks the 60-day challenge window used in Scale 3.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="virtual-patient-cohort" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="virtual-patient-cohort"><span class="header-section-number">3.2</span> Virtual patient cohort</h2>
+<p>Two parameters capture the main axes of inter-individual variation:</p>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?r_%7BAb%7D">: immune responsiveness (B-cell clone size, adjuvant response)</li>
+<li><img src="https://latex.codecogs.com/png.latex?d_%7BAb%7D">: waning rate (long-lived plasma-cell survival, isotype class)</li>
+</ul>
+<p>We sample 500 virtual vaccinees from log-normal distributions and extract each individual’s titre at day 60 — a plausible mid-trial challenge time.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">42</span>)</span>
+<span id="cb4-2">n_vp <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">500</span></span>
+<span id="cb4-3"></span>
+<span id="cb4-4">r_Ab_i <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(n_vp, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>),    <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.55</span>))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ~55% CV in responsiveness</span></span>
+<span id="cb4-5">d_Ab_i <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(n_vp, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>), <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.40</span>))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ~40% CV in waning rate</span></span>
+<span id="cb4-6"></span>
+<span id="cb4-7">titre_60 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pmax</span>(</span>
+<span id="cb4-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mapply</span>(Ab_t, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">t =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">60</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r_Ab =</span> r_Ab_i, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">d_Ab =</span> d_Ab_i),</span>
+<span id="cb4-9">  <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># numerical floor</span></span>
+<span id="cb4-10">)</span>
+<span id="cb4-11"></span>
+<span id="cb4-12"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">titre =</span> titre_60), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> titre)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_histogram</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bins =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span>,</span>
+<span id="cb4-14">                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-15">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_x_log10</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-16">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Antibody titre at day 60 (AU/mL, log scale)"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Count"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_multiscale/index_files/figure-html/scale2-cohort-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Distribution of antibody titres at the 60-day challenge window across 500 virtual patients. The log scale reveals the right-skewed distribution typical of clinical immunogenicity data. Variation arises from individual differences in immune responsiveness and antibody waning.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The distribution is approximately log-normal, consistent with observed immunogenicity data for licensed vaccines. The two-fold range from 5th to 95th percentile reflects the biological reality that the same vaccine produces widely varying responses across individuals.</p>
+<hr>
+</section>
+</section>
+<section id="scale-3-population-trial-outcome" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Scale 3 — Population trial outcome</h1>
+<section id="from-titre-to-individual-protection" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="from-titre-to-individual-protection"><span class="header-section-number">4.1</span> From titre to individual protection</h2>
+<p>The antibody–protection relationship is well described by a Hill function:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BVE%7D_i%20=%20%5Cfrac%7BT_i%5Ek%7D%7BT_i%5Ek%20+%20%5Ctext%7BEC%7D_%7B50%7D%5Ek%7D%0A"></p>
+<p>where <img src="https://latex.codecogs.com/png.latex?T_i"> is individual <img src="https://latex.codecogs.com/png.latex?i">’s titre at challenge, <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BEC%7D_%7B50%7D"> is the titre giving 50% protection, and <img src="https://latex.codecogs.com/png.latex?k"> governs steepness. Setting <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BEC%7D_%7B50%7D%20=%20%5Ctext%7Bmedian%7D(T_i)"> ensures that the median virtual patient has 50% protection — a conservative but transparent calibration choice.</p>
+</section>
+<section id="analytic-attack-rate" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="analytic-attack-rate"><span class="header-section-number">4.2</span> Analytic attack rate</h2>
+<p>For an SIR epidemic, the final attack rate satisfies the implicit equation:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A1%20-%20%5Ctext%7BAR%7D%20=%20%5Cexp%5C!%5Cbigl(-R_0%5E%7B%5Ctext%7Beff%7D%7D%5Ccdot%5Ctext%7BAR%7D%5Cbigr),%20%5Cqquad%0AR_0%5E%7B%5Ctext%7Beff%7D%7D%20=%20R_0%5C,(1%20-%20%5Cbar%7B%5Ctext%7BVE%7D%7D)%0A"></p>
+<p>where <img src="https://latex.codecogs.com/png.latex?%5Cbar%7B%5Ctext%7BVE%7D%7D%20=%20n%5E%7B-1%7D%5Csum_i%20%5Ctext%7BVE%7D_i">. This avoids running one ODE system per trial replicate while preserving the nonlinear epidemic threshold behaviour.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">EC50 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">median</span>(titre_60)</span>
+<span id="cb5-2">k    <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb5-3">VEi  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> titre_60<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (titre_60<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> EC50<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k)</span>
+<span id="cb5-4"></span>
+<span id="cb5-5">ar_solve <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(mean_VE, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">R0 =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span>) {</span>
+<span id="cb5-6">  R0_eff <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> R0 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> mean_VE)</span>
+<span id="cb5-7">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (R0_eff <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">return</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb5-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniroot</span>(<span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(ar) <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> ar <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>R0_eff <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> ar),</span>
+<span id="cb5-9">          <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-8</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-8</span>))<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>root</span>
+<span id="cb5-10">}</span>
+<span id="cb5-11"></span>
+<span id="cb5-12"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>)</span>
+<span id="cb5-13">n_trial <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span></span>
+<span id="cb5-14">n_rep   <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span></span>
+<span id="cb5-15"></span>
+<span id="cb5-16">vacc_ar <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">replicate</span>(n_rep, {</span>
+<span id="cb5-17">  idx  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sample</span>(n_vp, n_trial, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">replace =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>)</span>
+<span id="cb5-18">  R0_i <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>)</span>
+<span id="cb5-19">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ar_solve</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(VEi[idx]), R0_i)</span>
+<span id="cb5-20">})</span>
+<span id="cb5-21"></span>
+<span id="cb5-22">placebo_ar <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">replicate</span>(n_rep, {</span>
+<span id="cb5-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ar_solve</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>))</span>
+<span id="cb5-24">})</span>
+<span id="cb5-25"></span>
+<span id="cb5-26">p_ve <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">VE =</span> VEi), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> VE)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_histogram</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bins =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">40</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span>,</span>
+<span id="cb5-28">                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-29">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Individual VE"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Count"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-30">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb5-31"></span>
+<span id="cb5-32">df3 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(</span>
+<span id="cb5-33">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">arm =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Vaccine"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ar =</span> vacc_ar),</span>
+<span id="cb5-34">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">arm =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Placebo"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ar =</span> placebo_ar)</span>
+<span id="cb5-35">)</span>
+<span id="cb5-36"></span>
+<span id="cb5-37">p_ar <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df3, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> ar, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> arm, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> arm)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-38">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_density</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.35</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.7</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-39">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_fill_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values  =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Vaccine =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Placebo =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-40">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_colour_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Vaccine =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Placebo =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-41">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Attack rate"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Density"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-42">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-43">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>)</span>
+<span id="cb5-44"></span>
+<span id="cb5-45">p_ve <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> p_ar</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_multiscale/index_files/figure-html/scale3-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Scale 3 outputs. Left: individual VE distribution across the 500 virtual vaccinees, arising directly from the titre distribution in Scale 2. Right: attack-rate densities across 1000 bootstrapped trial replicates (200 participants per arm). The vaccinated arm (orange) is shifted far left of the placebo arm (blue), with additional spread from VE heterogeneity.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="cross-scale-sensitivity-analysis" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Cross-scale sensitivity analysis</h1>
+<p>A key virtue of a multiscale pipeline is that you can trace how uncertainty at one scale propagates to outcomes at another. Here we sweep the antibody waning rate <img src="https://latex.codecogs.com/png.latex?d_%7BAb%7D"> (Scale 2) across a physiologically plausible range and ask: how does it affect the attack rate in the vaccinated arm (Scale 3)?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">d_Ab_range <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.002</span>), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.08</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>))</span>
+<span id="cb6-2"></span>
+<span id="cb6-3">cross <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(d_Ab_range, <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(d) {</span>
+<span id="cb6-4">  t_i   <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Ab_t</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">60</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r_Ab =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">d_Ab =</span> d), <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>)</span>
+<span id="cb6-5">  ve_i  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> t_i<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (t_i<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> EC50<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span>k)</span>
+<span id="cb6-6">  ar_i  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ar_solve</span>(ve_i, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">R0 =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span>)</span>
+<span id="cb6-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">d_Ab =</span> d, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">titre =</span> t_i, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ar =</span> ar_i)</span>
+<span id="cb6-8">})</span>
+<span id="cb6-9">cr <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(cross)</span>
+<span id="cb6-10"></span>
+<span id="cb6-11">placebo_ref <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ar_solve</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span>)</span>
+<span id="cb6-12"></span>
+<span id="cb6-13">p_cs1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(cr, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> d_Ab, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> titre)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#3B6EA8"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-15">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_x_log10</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-16">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Waning rate "</span>, d[Ab], <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">" (/day)"</span>)),</span>
+<span id="cb6-17">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Titre at day 60 (AU/mL)"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-18">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb6-19"></span>
+<span id="cb6-20">p_cs2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(cr, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> d_Ab, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> ar)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-21">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_hline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">yintercept =</span> placebo_ref, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dashed"</span>,</span>
+<span id="cb6-22">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey50"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#E87722"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-24">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.003</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> placebo_ref <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.03</span>,</span>
+<span id="cb6-25">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Placebo"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey40"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-26">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_x_log10</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Waning rate "</span>, d[Ab], <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">" (/day)"</span>)),</span>
+<span id="cb6-28">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Attack rate (vaccinated arm)"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-29">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb6-30"></span>
+<span id="cb6-31">p_cs1 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> p_cs2</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.jonghoonk.com/blog/posts/digital_twin_multiscale/index_files/figure-html/cross-scale-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Cross-scale propagation: how the Scale 2 waning rate d_Ab drives the Scale 3 trial outcome. Left: titre at the 60-day challenge window collapses as waning accelerates. Right: corresponding attack rate in the vaccinated arm rises toward the placebo level (grey dashed line, R₀ = 2.5). The inflection near d_Ab ≈ 0.01 /day (antibody half-life ∼ 70 days) marks the critical waning threshold for this vaccine and challenge scenario.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>When <img src="https://latex.codecogs.com/png.latex?d_%7BAb%7D"> is small (slow waning), titres remain above EC<img src="https://latex.codecogs.com/png.latex?_%7B50%7D"> at day 60 and the vaccinated arm is well protected. As waning accelerates, titres fall below EC<img src="https://latex.codecogs.com/png.latex?_%7B50%7D"> and trial attack rate converges to the placebo level. This curve is directly actionable for trial design: it identifies the minimum waning rate that the vaccine must achieve to preserve measurable efficacy at a given challenge time.</p>
+<hr>
+</section>
+<section id="discussion" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Discussion</h1>
+<section id="what-makes-this-a-digital-twin" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="what-makes-this-a-digital-twin"><span class="header-section-number">6.1</span> What makes this a digital twin?</h2>
+<p>Three features distinguish this pipeline from a conventional transmission model:</p>
+<ol type="1">
+<li><p><strong>Individualisation.</strong> Each virtual patient has their own <img src="https://latex.codecogs.com/png.latex?(r_%7BAb%7D,%5C,%20d_%7BAb%7D)">, producing a titre distribution rather than a point estimate. The trial outcome inherits this individual-level variability directly.</p></li>
+<li><p><strong>Explicit scale coupling.</strong> Scale 2 outputs feed into Scale 3 analytically, and the cross-scale analysis runs the pipeline in reverse — from a target attack rate down to the required titre and then to the required waning rate. Bidirectional reasoning is what separates a digital twin from a forward-only simulation.</p></li>
+<li><p><strong>Counterfactual control arm.</strong> The placebo arm is generated by setting <img src="https://latex.codecogs.com/png.latex?%5Coverline%7B%5Ctext%7BVE%7D%7D%20=%200"> in the same SIR model. This counterfactual is the regulatory anchor that sponsors submit to FDA/EMA under the MIDD program <span class="citation" data-cites="fda2020midd">(3)</span>.</p></li>
+</ol>
+</section>
+<section id="limitations-of-this-illustration" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="limitations-of-this-illustration"><span class="header-section-number">6.2</span> Limitations of this illustration</h2>
+<ul>
+<li><p><strong>Decoupled Scale 1.</strong> In a full multiscale twin, the viral dynamics model (Scale 1) would set initial conditions for Scale 2: the antigen dose reaching lymph nodes is a function of the viral inoculum and the innate immune response at the injection site. Coupling these requires a more elaborate interfacing layer, as implemented in the mRNA vaccine QSP models of Dasti et al. <span class="citation" data-cites="dasti2025">(4)</span>.</p></li>
+<li><p><strong>Steady-state immunity.</strong> The model fixes challenge at a single time point (day 60). A realistic twin would draw challenge time from the epidemic curve — itself a Scale 3 output — creating a feedback loop that the present pipeline ignores.</p></li>
+<li><p><strong>Homogeneous mixing.</strong> The SIR final-size approximation assumes random contact. Age structure, household clustering, or healthcare-worker exposure would each shift the attack rate curve and require additional scales <span class="citation" data-cites="niarakis2024">(5)</span>.</p></li>
+</ul>
+</section>
+<section id="extensions" class="level2" data-number="6.3">
+<h2 data-number="6.3" class="anchored" data-anchor-id="extensions"><span class="header-section-number">6.3</span> Extensions</h2>
+<p>The pipeline is modular by design: swapping Scale 1 from a generic respiratory model to an influenza-specific or SARS-CoV-2-specific parameterisation <span class="citation" data-cites="perelson1996">(2)</span> requires changing only that block. Similarly, Scale 3 can be upgraded from a homogeneous SIR to an age-stratified SEIR without touching Scales 1 or 2. This modularity — formalised by Masison et al. <span class="citation" data-cites="masison2021">(1)</span> — is what makes multiscale digital twins tractable despite their apparent complexity.</p>
+<p>Physics-informed neural networks <span class="citation" data-cites="raissi2019">(6)</span> offer a complementary direction: rather than specifying between-scale mappings analytically, a neural network trained on multi-scale longitudinal data can learn them from observations, at the cost of interpretability but with potentially higher accuracy when mechanistic knowledge is incomplete.</p>
+<hr>
+</section>
+</section>
+<section id="references" class="level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-masison2021" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline"><span class="nocase">Masison J, Beezley J, Carlson Y, et al.</span> A modular computational framework for medical digital twins. Proceedings of the National Academy of Sciences. 2021;118(20):e2024287118. doi:<a href="https://doi.org/10.1073/pnas.2024287118">10.1073/pnas.2024287118</a></div>
+</div>
+<div id="ref-perelson1996" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Perelson AS, Neumann AU, Markowitz M, Leonard JM, Ho DD. <span>HIV</span>-1 dynamics in vivo: Virion clearance rate, infected cell life-span, and viral generation time. Science. 1996;271(5255):1582–6. doi:<a href="https://doi.org/10.1126/science.271.5255.1582">10.1126/science.271.5255.1582</a></div>
+</div>
+<div id="ref-fda2020midd" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">U.S. Food and Drug Administration. Model-informed drug development: Paired meeting program for new drugs and biological products [Internet]. Guidance for Industry; 2020. Available from: <a href="https://www.fda.gov/media/133986/download">https://www.fda.gov/media/133986/download</a></div>
+</div>
+<div id="ref-dasti2025" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><span class="nocase">Dasti L et al.</span> A multiscale quantitative systems pharmacology model for the development and optimization of <span class="nocase">mRNA</span> vaccines. CPT: Pharmacometrics &amp; Systems Pharmacology. 2025. doi:<a href="https://doi.org/10.1002/psp4.70041">10.1002/psp4.70041</a></div>
+</div>
+<div id="ref-niarakis2024" class="csl-entry">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline"><span class="nocase">Niarakis A et al.</span> Immune digital twins for complex human pathologies: Applications, limitations, and challenges. npj Systems Biology and Applications. 2024;10:141. doi:<a href="https://doi.org/10.1038/s41540-024-00450-5">10.1038/s41540-024-00450-5</a></div>
+</div>
+<div id="ref-raissi2019" class="csl-entry">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.5.3 (2026-03-11 ucrt)
+Platform: x86_64-w64-mingw32/x64
+Running under: Windows 11 x64 (build 26200)
+
+Matrix products: default
+  LAPACK version 3.12.1
+
+locale:
+[1] LC_COLLATE=English_United States.utf8 
+[2] LC_CTYPE=English_United States.utf8   
+[3] LC_MONETARY=English_United States.utf8
+[4] LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.utf8    
+
+time zone: Asia/Seoul
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] patchwork_1.3.2 tidyr_1.3.2     dplyr_1.2.0     ggplot2_4.0.2  
+[5] deSolve_1.42   
+
+loaded via a namespace (and not attached):
+ [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+ [5] xfun_0.57          otel_0.2.0         purrr_1.2.1        generics_0.1.4    
+ [9] S7_0.2.1           jsonlite_2.0.0     labeling_0.4.3     glue_1.8.0        
+[13] htmltools_0.5.9    scales_1.4.0       rmarkdown_2.31     grid_4.5.3        
+[17] tibble_3.3.1       evaluate_1.0.5     fastmap_1.2.0      yaml_2.3.12       
+[21] lifecycle_1.0.5    compiler_4.5.3     RColorBrewer_1.1-3 pkgconfig_2.0.3   
+[25] htmlwidgets_1.6.4  farver_2.1.2       digest_0.6.39      R6_2.6.1          
+[29] tidyselect_1.2.1   pillar_1.11.1      magrittr_2.0.4     withr_3.0.2       
+[33] tools_4.5.3        gtable_0.3.6      </code></pre>
+</div>
+</div>
+
+
+<!-- -->
+
+</section>
+
+ ]]></description>
+  <category>digital twin</category>
+  <category>multiscale</category>
+  <category>ODE</category>
+  <category>R</category>
+  <category>vaccine</category>
+  <category>infectious disease</category>
+  <guid>https://www.jonghoonk.com/blog/posts/digital_twin_multiscale/</guid>
+  <pubDate>Tue, 21 Apr 2026 15:00:00 GMT</pubDate>
+</item>
+<item>
   <title>Synthetic Control Arms</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/digital_twin_synthetic_control/</link>
@@ -45790,636 +47538,6 @@ font-style: inherit;">"Posterior Predictive Distributions"</span>)</span></code>
  ]]></description>
   <guid>https://www.jonghoonk.com/blog/posts/copula/</guid>
   <pubDate>Thu, 24 Jul 2025 15:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Outbreak Simulation: Pre-emptive vs. Reactive Vaccination</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/outbreak_simulation/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>When managing infectious disease risks such as cholera, limited vaccine supply often forces decision-makers to choose between <strong>pre-emptive</strong> and <strong>reactive</strong> vaccination campaigns. This post explores a cost-benefit model comparing the two strategies using analytical expressions and numerical simulations.</p>
-<p>We aim to answer: <strong>Under what conditions is it better to vaccinate before an outbreak occurs, and when is it more beneficial to wait and respond reactively?</strong></p>
-<section id="defining-the-core-quantities" class="level2" data-number="1">
-<h2 data-number="1" class="anchored" data-anchor-id="defining-the-core-quantities"><span class="header-section-number">1</span> Defining the Core Quantities</h2>
-<p>Let:</p>
-<ul>
-<li><img src="https://latex.codecogs.com/png.latex?B">: The full benefit gained by averting an outbreak (e.g., DALYs or cases averted)</li>
-<li><img src="https://latex.codecogs.com/png.latex?C">: The cost of deploying one vaccination campaign</li>
-<li><img src="https://latex.codecogs.com/png.latex?p">: The probability of an outbreak in a given region</li>
-<li><img src="https://latex.codecogs.com/png.latex?r">: The effectiveness of a reactive campaign relative to pre-emptive one (e.g., <img src="https://latex.codecogs.com/png.latex?r=0.6"> means 60% as effective)</li>
-</ul>
-<section id="pre-emptive-vaccination" class="level3" data-number="1.1">
-<h3 data-number="1.1" class="anchored" data-anchor-id="pre-emptive-vaccination"><span class="header-section-number">1.1</span> Pre-emptive Vaccination</h3>
-<p>If we vaccinate before any outbreak, the expected benefit is <img src="https://latex.codecogs.com/png.latex?B%20%5Ccdot%20p">. However, we always incur the campaign cost <img src="https://latex.codecogs.com/png.latex?C">, so the <strong>net expected benefit</strong> is:</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Cholera Outbreak Simulation Using Piecewise Linear Curves (Inspired by Middleton et al.)</span></span>
-<span id="cb1-2"></span>
-<span id="cb1-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(tidyverse)</span>
-<span id="cb1-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(ggplot2)</span>
-<span id="cb1-5"></span>
-<span id="cb1-6"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># --- Parameters ---</span></span>
-<span id="cb1-7">n_sim <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>                 <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># number of outbreaks</span></span>
-<span id="cb1-8">days <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>               <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># time horizon (days)</span></span>
-<span id="cb1-9">preemptive_reduction <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.8</span>  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># percent reduction in peak and total for preemptive vaccine</span></span>
-<span id="cb1-10">reactive_reduction <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.4</span>  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># percent reduction in post-day-7 values for reactive vaccine</span></span>
-<span id="cb1-11">reactive_delay <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">7</span></span>
-<span id="cb1-12"></span>
-<span id="cb1-13"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Function to generate piecewise linear outbreak</span></span>
-<span id="cb1-14">simulate_outbreak <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(start_day, peak_day, end_day, peak_height) {</span>
-<span id="cb1-15">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tibble</span>(</span>
-<span id="cb1-16">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">day =</span> days,</span>
-<span id="cb1-17">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">incidence =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">case_when</span>(</span>
-<span id="cb1-18">      day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> start_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>,</span>
-<span id="cb1-19">      day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;=</span> start_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&amp;</span> day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> peak_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> (day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> start_day) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> (peak_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> start_day) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> peak_height,</span>
-<span id="cb1-20">      day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;=</span> peak_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&amp;</span> day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;=</span> end_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> (end_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> day) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> (end_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> peak_day) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> peak_height,</span>
-<span id="cb1-21">      <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">TRUE</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span></span>
-<span id="cb1-22">    )</span>
-<span id="cb1-23">  )</span>
-<span id="cb1-24">}</span>
-<span id="cb1-25"></span>
-<span id="cb1-26"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Function to apply preemptive vaccination</span></span>
-<span id="cb1-27">apply_preemptive <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(incidence, reduction) {</span>
-<span id="cb1-28">  incidence <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> reduction)</span>
-<span id="cb1-29">}</span>
-<span id="cb1-30"></span>
-<span id="cb1-31"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Function to apply reactive vaccination</span></span>
-<span id="cb1-32">apply_reactive <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(df, reduction, delay) {</span>
-<span id="cb1-33">  df <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(</span>
-<span id="cb1-34">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">incidence =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ifelse</span>(day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> delay, incidence <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> reduction), incidence)</span>
-<span id="cb1-35">  )</span>
-<span id="cb1-36">}</span>
-<span id="cb1-37"></span>
-<span id="cb1-38"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># --- Simulate all outbreaks ---</span></span>
-<span id="cb1-39"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">42</span>)</span>
-<span id="cb1-40">outbreaks <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">vector</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"list"</span>, n_sim)</span>
-<span id="cb1-41"></span>
-<span id="cb1-42"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> (i <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>n_sim) {</span>
-<span id="cb1-43">  start_day <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">20</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb1-44">  duration <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">25</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb1-45">  peak_offset <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>(duration <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>), <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb1-46">  peak_day <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> start_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> peak_offset</span>
-<span id="cb1-47">  end_day <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> start_day <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> duration</span>
-<span id="cb1-48">  peak_height <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">runif</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">500</span>)</span>
-<span id="cb1-49"></span>
-<span id="cb1-50">  df <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">simulate_outbreak</span>(start_day, peak_day, end_day, peak_height)</span>
-<span id="cb1-51">  df <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> df <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">sim_id =</span> i)</span>
-<span id="cb1-52">  outbreaks[[i]] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> df</span>
-<span id="cb1-53">}</span>
-<span id="cb1-54"></span>
-<span id="cb1-55">all_outbreaks <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">bind_rows</span>(outbreaks)</span>
-<span id="cb1-56"></span>
-<span id="cb1-57"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Apply strategies</span></span>
-<span id="cb1-58">preemptive <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> all_outbreaks <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">group_by</span>(sim_id) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">incidence =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">apply_preemptive</span>(incidence, preemptive_reduction))</span>
-<span id="cb1-59">reactive <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> all_outbreaks <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">group_by</span>(sim_id) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">group_modify</span>(<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">apply_reactive</span>(.x, reactive_reduction, reactive_delay))</span>
-<span id="cb1-60"></span>
-<span id="cb1-61"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># --- Summarize ---</span></span>
-<span id="cb1-62">summarize_scenarios <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(df) {</span>
-<span id="cb1-63">  df <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> </span>
-<span id="cb1-64">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">group_by</span>(sim_id) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> </span>
-<span id="cb1-65">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">summarise</span>(</span>
-<span id="cb1-66">      <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cumulative_cases =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sum</span>(incidence),</span>
-<span id="cb1-67">      <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">peak_cases =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">max</span>(incidence)</span>
-<span id="cb1-68">    )</span>
-<span id="cb1-69">}</span>
-<span id="cb1-70"></span>
-<span id="cb1-71">baseline_summary <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">summarize_scenarios</span>(all_outbreaks)</span>
-<span id="cb1-72">preemptive_summary <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">summarize_scenarios</span>(preemptive)</span>
-<span id="cb1-73">reactive_summary <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">summarize_scenarios</span>(reactive)</span>
-<span id="cb1-74"></span>
-<span id="cb1-75"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Combine for comparison</span></span>
-<span id="cb1-76">comparison <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">bind_rows</span>(</span>
-<span id="cb1-77">  baseline_summary <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">strategy =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Baseline"</span>),</span>
-<span id="cb1-78">  preemptive_summary <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">strategy =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Preemptive"</span>),</span>
-<span id="cb1-79">  reactive_summary <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">strategy =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Reactive"</span>)</span>
-<span id="cb1-80">)</span>
-<span id="cb1-81"></span>
-<span id="cb1-82"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># --- Visualization ---</span></span>
-<span id="cb1-83"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Plot a few example outbreaks</span></span>
-<span id="cb1-84">example_ids <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>n_sim, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">6</span>)</span>
-<span id="cb1-85">example_data <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> all_outbreaks <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">filter</span>(sim_id <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%in%</span> example_ids)</span>
-<span id="cb1-86"></span>
-<span id="cb1-87">example_plot <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> example_data <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span> </span>
-<span id="cb1-88">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> day, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> incidence)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-89">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_line</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-90">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> sim_id, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">scales =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"free_y"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-91">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_minimal</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-92">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Example Simulated Cholera Outbreaks"</span>,</span>
-<span id="cb1-93">       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Day"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Daily Incidence"</span>)</span>
-<span id="cb1-94"></span>
-<span id="cb1-95"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Boxplots of cumulative cases and peak by strategy</span></span>
-<span id="cb1-96">boxplot_plot <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> comparison <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span></span>
-<span id="cb1-97">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pivot_longer</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">cols =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(cumulative_cases, peak_cases), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">names_to =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"metric"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">values_to =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"value"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span></span>
-<span id="cb1-98">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> strategy, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> value, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">fill =</span> strategy)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-99">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_boxplot</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-100">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> metric, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">scales =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"free_y"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-101">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_minimal</span>() <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb1-102">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Impact of Vaccination Strategies"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Value"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Strategy"</span>)</span>
-<span id="cb1-103"></span>
-<span id="cb1-104"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Display plots</span></span>
-<span id="cb1-105"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">print</span>(example_plot)</span></code></pre></div></div>
-</details>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/outbreak_simulation/index_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">print</span>(boxplot_plot)</span></code></pre></div></div>
-</details>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/outbreak_simulation/index_files/figure-html/unnamed-chunk-1-2.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-</section>
-</section>
-<section id="references" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="references"><span class="header-section-number">2</span> References</h2>
-
-
-</section>
-
- ]]></description>
-  <guid>https://www.jonghoonk.com/blog/posts/outbreak_simulation/</guid>
-  <pubDate>Fri, 27 Jun 2025 15:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
