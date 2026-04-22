@@ -1,0 +1,192 @@
+---
+title: "Multi-Tenant Architecture: Serving Multiple Health Departments on One Platform"
+subtitle: "Row-level security, schema isolation, and cost allocation across clients who must not see each other's data. Skill 11 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, multi-tenancy, database, architecture, software engineering]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## The scaling inflection point
+
+Your first client is running on a dedicated instance — one database, one API container. You sign a second client. Do you:
+
+**Option A**: Clone the entire stack — two separate databases, two API deployments, two sets of infrastructure.
+
+**Option B**: Add a `tenant_id` column to every table and run everything on shared infrastructure.
+
+Option A is simple but costs 2× at two clients, 10× at ten. Option B is a **multi-tenant** architecture [@guo2007; @fowler2002]: shared infrastructure, logically isolated data. It is the model used by every successful SaaS business.
+
+## Three isolation models
+
+```{r}
+#| label: isolation-models
+#| fig-cap: "Three multi-tenancy isolation models on the security vs. cost spectrum. Most digital twin businesses start at Row-Level Security and move to Schema Isolation if compliance requires it."
+
+library(ggplot2)
+
+df <- data.frame(
+  model      = c("Shared table\n+ RLS", "Schema per\ntenant",
+                 "Database per\ntenant"),
+  cost       = c(1, 2, 4),
+  isolation  = c(2, 3.5, 5),
+  label_cost = c("Lowest cost\nHighest density", "Medium cost",
+                 "Highest cost\nFull isolation")
+)
+
+ggplot(df, aes(x = cost, y = isolation)) +
+  geom_point(size = 6, colour = "steelblue") +
+  geom_text(aes(label = model), vjust = -1, size = 3.5) +
+  geom_text(aes(label = label_cost), vjust = 2.5, size = 2.8,
+            colour = "grey50") +
+  scale_x_continuous(name = "Infrastructure cost (relative)",
+                     limits = c(0.5, 5)) +
+  scale_y_continuous(name = "Data isolation strength",
+                     limits = c(1, 6)) +
+  labs(title = "Multi-tenancy isolation models") +
+  theme_minimal(base_size = 13)
+```
+
+## Row-Level Security in PostgreSQL
+
+The recommended starting point: add `tenant_id` to every table, then use PostgreSQL's **Row-Level Security (RLS)** to enforce that each database session can only see its own tenant's rows.
+
+```sql
+-- 1. Add tenant_id to existing tables
+ALTER TABLE observations  ADD COLUMN tenant_id TEXT NOT NULL;
+ALTER TABLE model_states  ADD COLUMN tenant_id TEXT NOT NULL;
+ALTER TABLE forecasts     ADD COLUMN tenant_id TEXT NOT NULL;
+
+-- 2. Enable RLS on each table
+ALTER TABLE observations  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE model_states  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE forecasts     ENABLE ROW LEVEL SECURITY;
+
+-- 3. Create policy: session variable must match tenant_id
+CREATE POLICY tenant_isolation ON observations
+  USING (tenant_id = current_setting('app.current_tenant'));
+
+CREATE POLICY tenant_isolation ON model_states
+  USING (tenant_id = current_setting('app.current_tenant'));
+
+-- 4. Set the tenant on connection
+SET app.current_tenant = 'district_health_dept';
+-- Now ALL queries on this connection see only that tenant's data
+```
+
+The API sets the tenant variable from the JWT claim before executing any query. Each database connection is locked to one tenant.
+
+## Simulating RLS in R
+
+```{r}
+#| label: rls-simulation
+
+# Simulate the multi-tenant data store in R
+all_observations <- data.frame(
+  tenant_id   = c(rep("dept_a", 5), rep("dept_b", 5), rep("dept_c", 5)),
+  date        = rep(Sys.Date() - 4:0, 3),
+  location_id = c(rep("loc_1", 5), rep("loc_2", 5), rep("loc_3", 5)),
+  new_cases   = c(rpois(5, 45), rpois(5, 80), rpois(5, 30))
+)
+
+# Simulate the RLS filter — what each tenant sees
+query_as_tenant <- function(data, tenant) {
+  data[data$tenant_id == tenant, setdiff(names(data), "tenant_id")]
+}
+
+# Each department sees only its own data
+cat("dept_a sees:\n"); print(query_as_tenant(all_observations, "dept_a"))
+cat("\ndept_b sees:\n"); print(query_as_tenant(all_observations, "dept_b"))
+```
+
+```{r}
+#| label: tenant-metrics
+#| fig-cap: "Per-tenant case counts in a shared multi-tenant store. RLS ensures dept_a never sees dept_b's data, even though they share the same physical table."
+
+library(ggplot2)
+library(dplyr)
+
+# Show what an admin (all-tenant) view looks like
+all_observations |>
+  ggplot(aes(x = date, y = new_cases, colour = tenant_id, group = tenant_id)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  scale_colour_manual(values = c(dept_a = "steelblue",
+                                  dept_b = "firebrick",
+                                  dept_c = "darkgreen"),
+                      name = "Tenant") +
+  labs(x = NULL, y = "Daily cases",
+       title = "Shared table — admin view across all tenants",
+       subtitle = "Each tenant's session sees only their own row via RLS") +
+  theme_minimal(base_size = 13)
+```
+
+## Tenant onboarding workflow
+
+When a new health department signs a contract, the onboarding script does:
+
+```r
+onboard_tenant <- function(con, tenant_id, contact_email) {
+  # 1. Insert tenant record
+  DBI::dbExecute(con,
+    "INSERT INTO tenants (tenant_id, contact_email, created_at)
+     VALUES ($1, $2, NOW())",
+    params = list(tenant_id, contact_email)
+  )
+
+  # 2. Create API key (hashed)
+  raw_key   <- paste0(sample(c(letters, 0:9), 32, replace=TRUE), collapse="")
+  key_hash  <- digest::digest(raw_key, algo = "sha256")
+  DBI::dbExecute(con,
+    "INSERT INTO api_keys (tenant_id, key_hash, created_at)
+     VALUES ($1, $2, NOW())",
+    params = list(tenant_id, key_hash)
+  )
+
+  # 3. Seed initial model state
+  # ... insert baseline EnKF posterior for this tenant
+
+  message(sprintf("Tenant '%s' onboarded. API key: %s", tenant_id, raw_key))
+  raw_key   # return only once; never stored in plaintext
+}
+```
+
+**The key rule**: the raw API key is shown only at creation and never stored — only its hash is in the database, like a password.
+
+## Cost attribution
+
+With shared infrastructure, you need to attribute costs to tenants for:
+
+- **Usage-based billing**: charge by API call, EnKF run, or data stored
+- **Resource planning**: identify which tenants drive the most compute
+
+Add a `usage_events` table:
+
+```sql
+CREATE TABLE usage_events (
+  tenant_id    TEXT        NOT NULL,
+  event_type   TEXT        NOT NULL,  -- 'api_call', 'enkf_run', 'report_gen'
+  occurred_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  duration_ms  INTEGER,
+  cost_units   NUMERIC     -- whatever unit you bill in
+);
+SELECT create_hypertable('usage_events', 'occurred_at');
+```
+
+Monthly billing is then a simple aggregate query per tenant.
+
+## References
+
+::: {#refs}
+:::

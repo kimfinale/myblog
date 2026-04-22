@@ -1,0 +1,185 @@
+---
+title: "API Versioning Strategies for Long-Running Client Integrations"
+subtitle: "Clients who depend on your API need stable contracts. Version properly and breaking changes become non-breaking. Skill 10 of 20."
+author: "Jong-Hoon Kim"
+date: "2026-04-24"
+categories: [business skills, API design, versioning, REST, software engineering]
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Why versioning matters for your business
+
+A hospital surveillance team has written an automated pipeline that calls your `/simulate` endpoint every night. You add a new field `delta_I` to the response — a breaking change if their parser expects exactly three fields. Without versioning, their pipeline breaks at 2 AM and the morning briefing is missing data.
+
+API versioning [@richardson2008; @semver2013] separates the evolution of your service from the stability of client integrations. It is the engineering practice that lets you ship improvements while honouring the contracts you have sold.
+
+## Three versioning strategies
+
+### 1. URL path versioning (most common)
+
+```
+/v1/simulate   ← old clients use this forever
+/v2/simulate   ← new clients use this
+```
+
+**Pros**: explicit, easy to route, visible in logs.
+**Cons**: duplicates code unless handled carefully.
+
+### 2. Header versioning
+
+```
+GET /simulate
+Accept: application/vnd.dt-api.v2+json
+```
+
+**Pros**: clean URLs; purist REST.
+**Cons**: harder to test in a browser, less visible.
+
+### 3. Query parameter
+
+```
+GET /simulate?version=2
+```
+
+**Pros**: easiest to implement.
+**Cons**: cacheable resources may be confused by proxies.
+
+**Recommendation**: use URL path versioning (`/v1/`, `/v2/`). It is the most widely understood and easiest to explain to clients.
+
+## Semantic versioning for the API
+
+Apply semantic versioning [@semver2013] to your API:
+
+- **MAJOR** (`v1` → `v2`): breaking change — removed field, changed type, renamed endpoint
+- **MINOR** (`v1.1` → `v1.2`): backwards-compatible addition — new optional field, new endpoint
+- **PATCH**: bug fix with no contract change (transparent to clients)
+
+Only MAJOR changes require a new URL path. MINOR changes are deployed in-place.
+
+## Implementing versioned routes in FastAPI
+
+```python
+from fastapi import FastAPI, APIRouter
+
+app = FastAPI()
+
+# v1 router
+v1 = APIRouter(prefix="/v1", tags=["v1"])
+
+@v1.post("/simulate")
+def simulate_v1(req: SimulateRequestV1):
+    result = run_sir(req.S0, req.I0, req.beta, req.gamma, req.days)
+    return SimulateResponseV1(**result)
+
+# v2 router — adds delta_I field and deprecates peak_R
+v2 = APIRouter(prefix="/v2", tags=["v2"])
+
+@v2.post("/simulate")
+def simulate_v2(req: SimulateRequestV2):
+    result = run_sir(req.S0, req.I0, req.beta, req.gamma, req.days)
+    return SimulateResponseV2(
+        R0       = result["R0"],
+        peak_I   = result["peak_I"],
+        peak_day = result["peak_day"],
+        delta_I  = result["delta_I"],   # new in v2
+        trajectory = result["trajectory"]
+    )
+
+app.include_router(v1)
+app.include_router(v2)
+```
+
+## The deprecation lifecycle
+
+The rule: **never delete a version without warning**. Clients need time to migrate. A professional deprecation process has four phases:
+
+```{r}
+#| label: deprecation-timeline
+#| fig-cap: "API version lifecycle. v1 is maintained for 12 months after v2 launch, giving clients a full year to migrate. Sunset notices go out at months 6 and 9."
+
+library(ggplot2)
+
+phases <- data.frame(
+  phase   = c("v1 launch", "v2 launch", "v1 deprecated", "v1 sunset"),
+  month   = c(0, 6, 12, 18),
+  y       = c(1, 1, 1, 1),
+  label_y = c(1.15, 1.15, 1.15, 1.15)
+)
+
+phases2 <- data.frame(
+  label = c("v1 active",     "v1 + v2 active",  "v1 deprecated"),
+  x     = c(3,                9,                  15),
+  y     = c(1.35,             1.35,               1.35)
+)
+
+ggplot() +
+  geom_segment(aes(x = 0, xend = 18, y = 1, yend = 1),
+               colour = "grey60", linewidth = 2) +
+  geom_point(data = phases, aes(x = month, y = y),
+             size = 5, colour = "steelblue") +
+  geom_text(data = phases, aes(x = month, y = label_y, label = phase),
+            size = 3.2, vjust = 0) +
+  geom_label(data = phases2, aes(x = x, y = y, label = label),
+             size = 3, fill = "lightyellow", label.size = 0.3) +
+  scale_x_continuous(breaks = c(0, 6, 12, 18),
+                     labels = paste("Month", c(0, 6, 12, 18))) +
+  ylim(0.8, 1.6) +
+  labs(x = NULL, y = NULL,
+       title = "API version lifecycle (12-month deprecation window)") +
+  theme_minimal(base_size = 13) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank())
+```
+
+## Adding deprecation headers
+
+FastAPI can inject a `Deprecation` header so client libraries can warn users automatically:
+
+```python
+from fastapi import Response
+
+@v1.post("/simulate")
+def simulate_v1(req: SimulateRequestV1, response: Response):
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = "Sat, 01 Jun 2025 00:00:00 GMT"
+    response.headers["Link"] = '</v2/simulate>; rel="successor-version"'
+    return simulate_logic(req)
+```
+
+## Communicating changes to clients
+
+A **changelog** is as important as the API itself. Maintain one in your documentation:
+
+```markdown
+## v2.0.0 — 2024-06-01
+
+### Breaking changes
+- `peak_R` field removed from `/simulate` response
+- `days` parameter maximum increased to 730 (was 365)
+
+### New features
+- `delta_I` (new daily infections) added to trajectory output
+- `/forecast` endpoint added with 14/21/28 day horizons
+
+### Migration guide
+Replace `result$peak_R` with `result$R[nrow(result$trajectory)]`.
+```
+
+Clients who receive this alongside a 12-month deprecation window have everything they need to migrate without disruption.
+
+## References
+
+::: {#refs}
+:::
