@@ -405,7 +405,8 @@ window.Quarto = {
   </ul></li>
   <li><a href="#extrapolation-comparison" id="toc-extrapolation-comparison" class="nav-link" data-scroll-target="#extrapolation-comparison"><span class="header-section-number">6</span> Extrapolation comparison</a></li>
   <li><a href="#method-comparison" id="toc-method-comparison" class="nav-link" data-scroll-target="#method-comparison"><span class="header-section-number">7</span> Method comparison</a></li>
-  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">8</span> References</a></li>
+  <li><a href="#extensions" id="toc-extensions" class="nav-link" data-scroll-target="#extensions"><span class="header-section-number">8</span> Extensions</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">9</span> References</a></li>
   </ul>
 </nav>
     </div>
@@ -455,7 +456,7 @@ window.Quarto = {
 <section id="two-paradigms-for-learning-dynamics" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="two-paradigms-for-learning-dynamics"><span class="header-section-number">1</span> Two paradigms for learning dynamics</h2>
 <p>The previous posts in this series trained a network to map time directly to compartment values, penalising ODE violations through the physics loss. There is a fundamentally different approach: <strong>solve the ODE in the forward pass</strong>, using the neural network as the right-hand side.</p>
-<p>This shift, introduced as <strong>Neural Ordinary Differential Equations</strong> by Chen et al. <span class="citation" data-cites="chen2018">(<a href="#ref-chen2018" role="doc-biblioref">1</a>)</span>, leads to three methods with different inductive biases:</p>
+<p>This shift, introduced as <strong>Neural Ordinary Differential Equations</strong> by Chen et al. <span class="citation" data-cites="chen2018">(<a href="#ref-chen2018" role="doc-biblioref">1</a>)</span>, leads to three methods with different inductive biases (compare with <span class="citation" data-cites="raissi2019">(<a href="#ref-raissi2019" role="doc-biblioref">2</a>)</span> for the PINN formulation):</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 20%">
@@ -546,7 +547,7 @@ Tip
 </section>
 <section id="euler-ode-solver-in-pytorch" class="level3" data-number="2.3">
 <h3 data-number="2.3" class="anchored" data-anchor-id="euler-ode-solver-in-pytorch"><span class="header-section-number">2.3</span> Euler ODE solver in PyTorch</h3>
-<div id="19e988e8" class="cell" data-execution_count="1">
+<div id="21bf2e4d" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -577,7 +578,7 @@ Tip
 <span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>C_UDE         <span class="op">=</span> <span class="st">"#FF9800"</span>   <span class="co"># orange — Universal DE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<div id="5a72164e" class="cell" data-execution_count="2">
+<div id="c9020c6d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> solve_euler(f, y0, t_eval):</span>
@@ -604,7 +605,7 @@ Tip
 </section>
 <section id="ground-truth" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="ground-truth"><span class="header-section-number">3</span> Ground truth</h2>
-<div id="7197d58b" class="cell" data-execution_count="3">
+<div id="33de5260" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── True SIR for Neural ODE / PINN extrapolation experiment ──────────────────</span></span>
@@ -706,7 +707,7 @@ Tip
 <section id="architecture" class="level3" data-number="4.1">
 <h3 data-number="4.1" class="anchored" data-anchor-id="architecture"><span class="header-section-number">4.1</span> Architecture</h3>
 <p>The Neural ODE replaces the SIR right-hand side entirely with a feedforward network <span class="math inline">\(f_\theta(\mathbf{y}, t)\)</span>, with no mechanistic assumptions.</p>
-<div id="de03e12a" class="cell" data-execution_count="4">
+<div id="8896fa9c" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> NeuralODE(nn.Module):</span>
@@ -777,7 +778,7 @@ Tip
 <h2 data-number="5" class="anchored" data-anchor-id="universal-differential-equations"><span class="header-section-number">5</span> Universal Differential Equations</h2>
 <section id="idea" class="level3" data-number="5.1">
 <h3 data-number="5.1" class="anchored" data-anchor-id="idea"><span class="header-section-number">5.1</span> Idea</h3>
-<p>A Universal Differential Equation <span class="citation" data-cites="rackauckas2020">(<a href="#ref-rackauckas2020" role="doc-biblioref">2</a>)</span> retains known mechanistic terms and adds a neural network for unknown or missing dynamics:</p>
+<p>A Universal Differential Equation <span class="citation" data-cites="rackauckas2020">(<a href="#ref-rackauckas2020" role="doc-biblioref">3</a>)</span> retains known mechanistic terms and adds a neural network for unknown or missing dynamics:</p>
 <p><span class="math display">\[
 \frac{d\mathbf{y}}{dt} = \underbrace{g(\mathbf{y},\, t;\,\theta_\text{mech})}_{\text{known physics}}
   + \underbrace{f_\phi(\mathbf{y},\, t)}_{\text{unknown correction}}
@@ -786,7 +787,7 @@ Tip
 </section>
 <section id="architecture-1" class="level3" data-number="5.2">
 <h3 data-number="5.2" class="anchored" data-anchor-id="architecture-1"><span class="header-section-number">5.2</span> Architecture</h3>
-<div id="69ca9b9e" class="cell" data-execution_count="5">
+<div id="331c25e3" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> UniversalDE(nn.Module):</span>
@@ -885,7 +886,7 @@ Note
 <section id="extrapolation-comparison" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="extrapolation-comparison"><span class="header-section-number">6</span> Extrapolation comparison</h2>
 <p>The key advantage of physics-constrained models is generalisation beyond the training window. Below we train each model on <span class="math inline">\([0, T_\text{train}]\)</span> only and evaluate extrapolation on the full horizon.</p>
-<div id="e536140a" class="cell" data-execution_count="6">
+<div id="b089961d" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── PINN trained on the same SIR window ───────────────────────────────────────</span></span>
@@ -960,7 +961,7 @@ Note
 PINN β: 0.231  γ: 0.070  R₀: 3.29</code></pre>
 </div>
 </div>
-<div id="245c3a45" class="cell" data-execution_count="7">
+<div id="bccf41e0" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Predict on full horizon ────────────────────────────────────────────────────</span></span>
@@ -1007,7 +1008,7 @@ PINN β: 0.231  γ: 0.070  R₀: 3.29</code></pre>
 </div>
 </div>
 </div>
-<div id="f3143631" class="cell" data-execution_count="8">
+<div id="9a9e93f7" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ── Quantify extrapolation error ───────────────────────────────────────────────</span></span>
@@ -1117,17 +1118,38 @@ Important
 </table>
 <hr>
 </section>
-<section id="references" class="level2" data-number="8">
-<h2 data-number="8" class="anchored" data-anchor-id="references"><span class="header-section-number">8</span> References</h2>
+<section id="extensions" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="extensions"><span class="header-section-number">8</span> Extensions</h2>
+<p><strong>Latent Neural ODEs for irregular time series</strong> — <span class="citation" data-cites="rubanova2019">(<a href="#ref-rubanova2019" role="doc-biblioref">4</a>)</span> extend the Neural ODE framework to an encoder-decoder architecture: a recurrent encoder reads irregularly spaced observations and maps them to a latent initial state; a Neural ODE decoder then generates the latent trajectory forward in time. This is the natural fit for clinical surveillance data with irregular reporting intervals and missing measurements.</p>
+<p><strong>Production-quality ODE solvers</strong> — The Euler integrator used here is pedagogically transparent but accumulates error over long horizons. The <code>torchdiffeq</code> library <span class="citation" data-cites="chen2018">(<a href="#ref-chen2018" role="doc-biblioref">1</a>)</span> provides Runge-Kutta and Dormand-Prince (adaptive step-size) solvers that are fully differentiable and memory-efficient via the adjoint method — a drop-in replacement in the <code>forward</code> pass.</p>
+<p><strong>Graph Neural ODEs for spatial networks</strong> — Replace the MLP right-hand side with a graph neural network: each node is a geographic unit, edge weights encode mobility flows, and the ODE evolves the entire network state simultaneously. This extends the SIR Neural ODE to metapopulation epidemic models on commuter or air-travel networks.</p>
+<p><strong>Real-data application</strong> — Dandekar and Barbastathis <span class="citation" data-cites="dandekar2020">(<a href="#ref-dandekar2020" role="doc-biblioref">5</a>)</span> applied a UDE-like approach to COVID-19 province-level case counts, learning a quarantine-strength function alongside the SIR skeleton. The approach recovered interpretable intervention signals consistent with known lockdown dates — demonstrating that the partial-physics architecture generalises from simulated to noisy real-world data.</p>
+<p><strong>Comprehensive reference</strong> — Kidger <span class="citation" data-cites="kidger2022">(<a href="#ref-kidger2022" role="doc-biblioref">6</a>)</span> provides a unified treatment of all neural differential equation variants — ODEs, stochastic DEs, and controlled DEs — including the adjoint method, theoretical existence results, and training pathologies. Recommended for readers moving beyond the tutorial level.</p>
+<hr>
+</section>
+<section id="references" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="references"><span class="header-section-number">9</span> References</h2>
 <div id="refs" class="references csl-bib-body" role="list">
 <div id="ref-chen2018" class="csl-entry" role="listitem">
 <div class="csl-left-margin">1. </div><div class="csl-right-inline">Chen RTQ, Rubanova Y, Bettencourt J, Duvenaud D. Neural ordinary differential equations. In: Advances in neural information processing systems [Internet]. 2018. Available from: <a href="https://arxiv.org/abs/1806.07366">https://arxiv.org/abs/1806.07366</a></div>
 </div>
+<div id="ref-raissi2019" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Raissi M, Perdikaris P, Karniadakis GE. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics. 2019;378:686–707. doi:<a href="https://doi.org/10.1016/j.jcp.2018.10.045">10.1016/j.jcp.2018.10.045</a></div>
+</div>
 <div id="ref-rackauckas2020" class="csl-entry" role="listitem">
-<div class="csl-left-margin">2. </div><div class="csl-right-inline">Rackauckas C, Ma Y, Martensen J, Warner C, Zubov K, Supekar R, et al. Universal differential equations for scientific machine learning [Internet]. 2020. Available from: <a href="https://arxiv.org/abs/2001.04385">https://arxiv.org/abs/2001.04385</a></div>
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Rackauckas C, Ma Y, Martensen J, Warner C, Zubov K, Supekar R, et al. Universal differential equations for scientific machine learning [Internet]. 2020. Available from: <a href="https://arxiv.org/abs/2001.04385">https://arxiv.org/abs/2001.04385</a></div>
+</div>
+<div id="ref-rubanova2019" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Rubanova Y, Chen RTQ, Duvenaud D. Latent ordinary differential equations for irregularly-sampled time series. In: Advances in neural information processing systems [Internet]. 2019. Available from: <a href="https://arxiv.org/abs/1907.03907">https://arxiv.org/abs/1907.03907</a></div>
+</div>
+<div id="ref-dandekar2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Dandekar R, Barbastathis G. Quantifying the effect of quarantine control in <span>COVID-19</span> infectious spread using machine learning. EBioMedicine. 2020;55:102875. doi:<a href="https://doi.org/10.1016/j.ebiom.2020.102875">10.1016/j.ebiom.2020.102875</a></div>
+</div>
+<div id="ref-kidger2022" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Kidger P. On neural differential equations [Internet]. 2022. Available from: <a href="https://arxiv.org/abs/2202.02435">https://arxiv.org/abs/2202.02435</a></div>
 </div>
 </div>
-<div id="e46b79b0" class="cell" data-execution_count="9">
+<div id="6d653504" class="cell" data-execution_count="9">
 <div class="cell-output cell-output-stdout">
 <pre><code>Python     3.12.10
 torch      2.11.0+cpu

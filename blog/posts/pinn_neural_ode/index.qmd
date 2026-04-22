@@ -27,7 +27,7 @@ editor_options:
 The previous posts in this series trained a network to map time directly to compartment values, penalising ODE violations through the physics loss.
 There is a fundamentally different approach: **solve the ODE in the forward pass**, using the neural network as the right-hand side.
 
-This shift, introduced as **Neural Ordinary Differential Equations** by Chen et al. [@chen2018], leads to three methods with different inductive biases:
+This shift, introduced as **Neural Ordinary Differential Equations** by Chen et al. [@chen2018], leads to three methods with different inductive biases (compare with [@raissi2019] for the PINN formulation):
 
 | Method | Physics used | Forward pass | Extrapolation | Parameters |
 |---|---|---|---|---|
@@ -539,6 +539,20 @@ The UDE (SEIR scenario) shows the clearest benefit: the SIR skeleton captures me
 | **Extrapolation** | Good (physics constrains) | Poor (no physics) | Moderate (partial physics) |
 | **Interpretability** | θ_mech explicitly estimated | Black box | θ_mech interpretable; correction implicit |
 | **Best use case** | Known ODE, parameter estimation | Unknown dynamics from rich data | Partially known ODE + unknown forcing |
+
+---
+
+## Extensions
+
+**Latent Neural ODEs for irregular time series** — [@rubanova2019] extend the Neural ODE framework to an encoder-decoder architecture: a recurrent encoder reads irregularly spaced observations and maps them to a latent initial state; a Neural ODE decoder then generates the latent trajectory forward in time. This is the natural fit for clinical surveillance data with irregular reporting intervals and missing measurements.
+
+**Production-quality ODE solvers** — The Euler integrator used here is pedagogically transparent but accumulates error over long horizons. The `torchdiffeq` library [@chen2018] provides Runge-Kutta and Dormand-Prince (adaptive step-size) solvers that are fully differentiable and memory-efficient via the adjoint method — a drop-in replacement in the `forward` pass.
+
+**Graph Neural ODEs for spatial networks** — Replace the MLP right-hand side with a graph neural network: each node is a geographic unit, edge weights encode mobility flows, and the ODE evolves the entire network state simultaneously. This extends the SIR Neural ODE to metapopulation epidemic models on commuter or air-travel networks.
+
+**Real-data application** — Dandekar and Barbastathis [@dandekar2020] applied a UDE-like approach to COVID-19 province-level case counts, learning a quarantine-strength function alongside the SIR skeleton. The approach recovered interpretable intervention signals consistent with known lockdown dates — demonstrating that the partial-physics architecture generalises from simulated to noisy real-world data.
+
+**Comprehensive reference** — Kidger [@kidger2022] provides a unified treatment of all neural differential equation variants — ODEs, stochastic DEs, and controlled DEs — including the adjoint method, theoretical existence results, and training pathologies. Recommended for readers moving beyond the tutorial level.
 
 ---
 
