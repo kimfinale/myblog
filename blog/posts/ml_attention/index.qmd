@@ -11,7 +11,7 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -51,8 +51,8 @@ k <- 5   # look-back window (how many past weeks to use)
 n_pred <- length(cases) - k
 X_mat  <- do.call(rbind, lapply(
   (k + 1):length(cases),
-  function(i) cases[(i - k):(i - 1)]
-))                                      # (n_pred, k) — each row is a window
+  function(i) rev(cases[(i - k):(i - 1)])
+))                                      # (n_pred, k) — col 1 = lag 1 (most recent)
 y_vec  <- cases[(k + 1):length(cases)] # (n_pred,)   — next-week targets
 
 cat("Forecasting steps:", n_pred, "\n")
@@ -67,7 +67,7 @@ $$\hat{y}_t = \sum_{j=1}^{k} w_j \, x_{t-j}, \quad \mathbf{w} = \text{softmax}(\
 
 where $\boldsymbol{\alpha} \in \mathbb{R}^k$ are **unnormalized attention logits** — the parameters we learn. The softmax ensures weights are non-negative and sum to 1. We find $\boldsymbol{\alpha}$ by minimising mean squared prediction error with gradient descent.
 
-This is the core idea behind every transformer: learn *which positions to attend to* rather than treating all positions equally.
+This is the core idea behind every transformer, i.e., learning which positions to attend to. In the following sections, we will see how the idea is generalized to the transformer architecture.
 
 ```{r}
 #| label: attn-train

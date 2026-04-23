@@ -441,8 +441,8 @@ window.Quarto = {
 
 <section id="why-transformers-matter-for-epidemic-intelligence" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="why-transformers-matter-for-epidemic-intelligence"><span class="header-section-number">1</span> Why transformers matter for epidemic intelligence</h2>
-<p>In 2017, Vaswani et al. <span class="citation" data-cites="vaswani2017">(<a href="#ref-vaswani2017" role="doc-biblioref">1</a>)</span> published “Attention Is All You Need” and rendered recurrent networks obsolete for sequence modeling. The transformer architecture they introduced is now the foundation of every large language model — GPT-4, Claude, Gemini — and of the time-series forecasting models emerging in computational epidemiology, including Temporal Fusion Transformer <span class="citation" data-cites="lim2021">(<a href="#ref-lim2021" role="doc-biblioref">2</a>)</span> and TimeGPT.</p>
-<p>Understanding transformers has two practical payoffs for a digital twin platform:</p>
+<p>“Attention Is All You Need” by Vaswani et al. <span class="citation" data-cites="vaswani2017">(<a href="#ref-vaswani2017" role="doc-biblioref">1</a>)</span> is likely the most cited paper in the field of deep learning. It introduced the transformer architecture, which rendered recurrent networks obsolete for sequence modeling. The transformer architecture they introduced is now the foundation of every large language model and of the time-series forecasting models emerging in computational epidemiology, including Temporal Fusion Transformer <span class="citation" data-cites="lim2021">(<a href="#ref-lim2021" role="doc-biblioref">2</a>)</span> and TimeGPT <span class="citation" data-cites="garzaTimeGPT12024">(<a href="#ref-garzaTimeGPT12024" role="doc-biblioref">3</a>)</span>.</p>
+<p>Understanding transformers has practical payoffs including the following:</p>
 <ol type="1">
 <li><strong>Time-series forecasting</strong>: attention-based models can learn which past epidemic weeks are most informative for the next-week forecast — something fixed moving averages cannot do.</li>
 <li><strong>LLM integration</strong>: LLMs attend to every part of your prompt when generating each output token. Understanding this mechanism makes you a better prompt engineer.</li>
@@ -454,6 +454,8 @@ window.Quarto = {
 <p>The simplest forecaster is a <strong>moving average</strong> (MA): predict next week as the mean of the last <span class="math inline">\(k\)</span> weeks. This treats all lags equally. Attention learns a <em>weighted</em> average where the weights are optimised to minimise prediction error.</p>
 <p>To make this concrete, we generate a 30-week epidemic curve and set up a <strong>one-step-ahead forecasting task</strong>: given the last <span class="math inline">\(k = 5\)</span> weeks, predict the next week’s case count.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 30-week epidemic curve (rise to peak at week 15, then decline)</span></span>
@@ -467,15 +469,19 @@ window.Quarto = {
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>n_pred <span class="ot">&lt;-</span> <span class="fu">length</span>(cases) <span class="sc">-</span> k</span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>X_mat  <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(</span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  (k <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">length</span>(cases),</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(i) cases[(i <span class="sc">-</span> k)<span class="sc">:</span>(i <span class="sc">-</span> <span class="dv">1</span>)]</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>))                                      <span class="co"># (n_pred, k) — each row is a window</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(i) <span class="fu">rev</span>(cases[(i <span class="sc">-</span> k)<span class="sc">:</span>(i <span class="sc">-</span> <span class="dv">1</span>)])</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>))                                      <span class="co"># (n_pred, k) — col 1 = lag 1 (most recent)</span></span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>y_vec  <span class="ot">&lt;-</span> cases[(k <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">length</span>(cases)] <span class="co"># (n_pred,)   — next-week targets</span></span>
 <span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Forecasting steps:"</span>, n_pred, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Forecasting steps: 25 </code></pre>
 </div>
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Observed range:   "</span>, <span class="fu">min</span>(cases), <span class="st">"–"</span>, <span class="fu">max</span>(cases), <span class="st">"cases/week</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Observed range:    1 – 199 cases/week</code></pre>
 </div>
@@ -486,8 +492,10 @@ window.Quarto = {
 <p>A moving average computes <span class="math inline">\(\hat{y}_t = \frac{1}{k} \sum_{j=1}^{k} x_{t-j}\)</span>. Attention generalises this to a <em>softmax-weighted</em> sum:</p>
 <p><span class="math display">\[\hat{y}_t = \sum_{j=1}^{k} w_j \, x_{t-j}, \quad \mathbf{w} = \text{softmax}(\boldsymbol{\alpha})\]</span></p>
 <p>where <span class="math inline">\(\boldsymbol{\alpha} \in \mathbb{R}^k\)</span> are <strong>unnormalized attention logits</strong> — the parameters we learn. The softmax ensures weights are non-negative and sum to 1. We find <span class="math inline">\(\boldsymbol{\alpha}\)</span> by minimising mean squared prediction error with gradient descent.</p>
-<p>This is the core idea behind every transformer: learn <em>which positions to attend to</em> rather than treating all positions equally.</p>
+<p>This is the core idea behind every transformer, i.e., learning which positions to attend to. In the following sections, we will see how the idea is generalized to the transformer architecture.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>softmax <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha) {</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  e <span class="ot">&lt;-</span> <span class="fu">exp</span>(alpha <span class="sc">-</span> <span class="fu">max</span>(alpha))   <span class="co"># numerically stable</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  e <span class="sc">/</span> <span class="fu">sum</span>(e)</span>
@@ -528,23 +536,33 @@ window.Quarto = {
 <span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>rmse_attn <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((attn_pred <span class="sc">-</span> y_vec)<span class="sc">^</span><span class="dv">2</span>))</span>
 <span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Learned attention weights (lag 1 = last week, lag 5 = 5 weeks ago):</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Learned attention weights (lag 1 = last week, lag 5 = 5 weeks ago):</code></pre>
 </div>
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">paste0</span>(<span class="st">"  lag "</span>, <span class="fu">seq_len</span>(k), <span class="st">": "</span>, <span class="fu">round</span>(w_learned, <span class="dv">3</span>)), <span class="at">sep =</span> <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
-<pre><code>  lag 1: 0
+<pre><code>  lag 1: 1
   lag 2: 0
   lag 3: 0
   lag 4: 0
-  lag 5: 1</code></pre>
+  lag 5: 0</code></pre>
 </div>
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"</span><span class="sc">\n</span><span class="st">Moving average RMSE:"</span>, <span class="fu">round</span>(rmse_ma,   <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Moving average RMSE: 55.8 </code></pre>
 </div>
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Attention RMSE:     "</span>, <span class="fu">round</span>(rmse_attn, <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Attention RMSE:      24.3 </code></pre>
 </div>
@@ -553,6 +571,8 @@ Moving average RMSE: 55.8 </code></pre>
 <section id="what-the-learned-weights-reveal" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="what-the-learned-weights-reveal"><span class="header-section-number">4</span> What the learned weights reveal</h2>
 <div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>week_idx <span class="ot">&lt;-</span> (k <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">length</span>(cases)</span>
@@ -607,6 +627,7 @@ Moving average RMSE: 55.8 </code></pre>
 <span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(p_pred)</span>
 <span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(p_weights)</span>
 <span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -678,6 +699,9 @@ Moving average RMSE: 55.8 </code></pre>
 </div>
 <div id="ref-lim2021" class="csl-entry" role="listitem">
 <div class="csl-left-margin">2. </div><div class="csl-right-inline">Lim B, Arik SO, Loeff N, Pfister T. Temporal fusion transformers for interpretable multi-horizon time series forecasting. International Journal of Forecasting. 2021;37(4):1748–64. doi:<a href="https://doi.org/10.1016/j.ijforecast.2021.03.012">10.1016/j.ijforecast.2021.03.012</a></div>
+</div>
+<div id="ref-garzaTimeGPT12024" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Garza A, Challu C, Mergenthaler-Canseco M. <span>TimeGPT-1</span> [Internet]. arXiv; 2024 [cited 2026 Apr 23]. Available from: <a href="https://arxiv.org/abs/2310.03589">https://arxiv.org/abs/2310.03589</a> doi:<a href="https://doi.org/10.48550/arXiv.2310.03589">10.48550/arXiv.2310.03589</a></div>
 </div>
 </div>
 
