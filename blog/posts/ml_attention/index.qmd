@@ -121,7 +121,9 @@ cat("Attention RMSE:     ", round(rmse_attn, 1), "\n")
 
 ```{r}
 #| label: attn-plot
-#| fig-cap: "Top: one-step-ahead forecasts. Attention (blue) follows the epidemic curve more closely than the moving average (orange) because it up-weights the most recent lag. Bottom: learned attention weights by lag. Lag 1 (last week) receives the highest weight — consistent with short-term autocorrelation in epidemic incidence. The weights decay with lag, a pattern a fixed MA cannot represent."
+#| fig-cap: "Left: one-step-ahead forecasts. Attention (blue) tracks the epidemic curve more closely than the moving average (orange) because it concentrates weight on the most recent lag. Right: learned attention weights by lag. Lag 1 (last week) receives nearly all the weight — consistent with strong short-term autocorrelation in epidemic incidence."
+#| fig-width: 10
+#| fig-height: 4
 
 library(ggplot2)
 
@@ -130,24 +132,24 @@ week_idx <- (k + 1):length(cases)
 df_pred <- data.frame(
   week    = rep(week_idx, 3),
   cases   = c(y_vec, ma_pred, attn_pred),
-  model   = rep(c("Observed", "Moving average", "Attention (learned)"),
+  model   = rep(c("Observed", "Moving avg", "Attention"),
                 each = n_pred)
 )
 df_pred$model <- factor(df_pred$model,
-  levels = c("Observed", "Moving average", "Attention (learned)"))
+  levels = c("Observed", "Moving avg", "Attention"))
 
 p_pred <- ggplot(df_pred, aes(x = week, y = cases,
                                colour = model, linetype = model)) +
   geom_line(linewidth = 0.9) +
   geom_point(data = subset(df_pred, model == "Observed"),
              size = 1.8) +
-  scale_colour_manual(values = c("Observed"           = "black",
-                                  "Moving average"     = "orange",
-                                  "Attention (learned)"= "steelblue"),
+  scale_colour_manual(values = c("Observed"    = "black",
+                                  "Moving avg"  = "orange",
+                                  "Attention"   = "steelblue"),
                       name = NULL) +
-  scale_linetype_manual(values = c("Observed"           = "solid",
-                                    "Moving average"     = "dashed",
-                                    "Attention (learned)"= "solid"),
+  scale_linetype_manual(values = c("Observed"   = "solid",
+                                    "Moving avg" = "dashed",
+                                    "Attention"  = "solid"),
                         name = NULL) +
   labs(x = "Week", y = "Cases",
        title = "A: One-step-ahead forecast comparison") +
@@ -164,11 +166,12 @@ df_weights <- data.frame(
 p_weights <- ggplot(df_weights, aes(x = lag, y = weight)) +
   geom_col(fill = "steelblue", width = 0.6) +
   geom_hline(yintercept = 1 / k, linetype = "dashed", colour = "firebrick") +
-  annotate("text", x = 1.5, y = 1 / k + 0.01,
+  annotate("text", x = 2, y = 1 / k + 0.03,
            label = "uniform (MA)", colour = "firebrick", size = 3.5) +
   labs(x = "Lag", y = "Attention weight",
        title = "B: Learned attention weights") +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
 
 gridExtra_available <- requireNamespace("gridExtra", quietly = TRUE)
 if (gridExtra_available) {
