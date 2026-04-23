@@ -33,27 +33,40 @@ An epidemic time series has temporal structure: next week's case count depends o
 
 The simplest forecaster is a **moving average** (MA): predict next week as the mean of the last $k$ weeks. This treats all lags equally. Attention learns a *weighted* average where the weights are optimised to minimise prediction error.
 
-To make this concrete, we generate a 30-week epidemic curve and set up a **one-step-ahead forecasting task**: given the last $k = 5$ weeks, predict the next week's case count.
+To make this concrete, we generate a 40-week epidemic series and set up a **one-step-ahead forecasting task**: given the last $k = 5$ weeks, predict the next week's case count.
+
+The series is constructed so that **both lag 1 and lag 2 carry genuine predictive information**. Many respiratory pathogens have an incubation period of roughly two weeks, so today's reported cases reflect both recent transmission (lag 1) and infections acquired two weeks ago (lag 2). We embed this structure explicitly: the series is the sum of a slow-moving epidemic envelope and a two-week alternating cycle (high week / low week), mimicking a reporting rhythm or biological echo. Lag 2 is in phase with the current week (both land on the same high or low week), while lag 1 is out of phase — making *both* lags necessary for a good forecast.
 
 ```{r}
 #| label: attn-data
 
 set.seed(42)
 
-# 30-week epidemic curve (rise to peak at week 15, then decline)
-t_seq <- 1:30
-cases <- round(200 * exp(-((t_seq - 15)^2) / 20) + rnorm(30, 0, 8))
-cases <- pmax(1, cases)
+n     <- 40
+t_seq <- 1:n
 
-k <- 5   # look-back window (how many past weeks to use)
+# Slow-moving epidemic envelope (peaks at week 20)
+envelope <- 70 * exp(-((t_seq - 20)^2) / 80) + 15
 
-# Sliding-window dataset: each row = one prediction step
+# 2-week alternating cycle: high/low weeks (reporting rhythm or incubation echo)
+biweekly <- 15 * cos(pi * t_seq)   # +15 on odd weeks, -15 on even weeks
+
+# Small AR(1) noise
+noise <- numeric(n)
+noise[1] <- rnorm(1, 0, 7)
+for (t in 2:n) noise[t] <- 0.20 * noise[t - 1] + rnorm(1, 0, 7)
+
+cases <- pmax(1, round(envelope + biweekly + noise))
+
+k <- 5   # look-back window
+
+# Sliding-window dataset: col 1 = lag 1 (most recent), col k = lag k (oldest)
 n_pred <- length(cases) - k
 X_mat  <- do.call(rbind, lapply(
   (k + 1):length(cases),
   function(i) rev(cases[(i - k):(i - 1)])
-))                                      # (n_pred, k) — col 1 = lag 1 (most recent)
-y_vec  <- cases[(k + 1):length(cases)] # (n_pred,)   — next-week targets
+))
+y_vec  <- cases[(k + 1):length(cases)]
 
 cat("Forecasting steps:", n_pred, "\n")
 cat("Observed range:   ", min(cases), "–", max(cases), "cases/week\n")
@@ -96,8 +109,8 @@ num_grad <- function(f, x, eps = 1e-6) {
 
 # Gradient descent on alpha
 alpha <- rep(0, k)   # start: uniform weights (= moving average)
-lr    <- 0.5
-for (iter in 1:2000) {
+lr    <- 0.08
+for (iter in 1:3000) {
   alpha <- alpha - lr * num_grad(loss_fn, alpha)
 }
 
@@ -121,7 +134,7 @@ cat("Attention RMSE:     ", round(rmse_attn, 1), "\n")
 
 ```{r}
 #| label: attn-plot
-#| fig-cap: "Left: one-step-ahead forecasts. Attention (blue) tracks the epidemic curve more closely than the moving average (orange) because it concentrates weight on the most recent lag. Right: learned attention weights by lag. Lag 1 (last week) receives nearly all the weight — consistent with strong short-term autocorrelation in epidemic incidence."
+#| fig-cap: "Left: one-step-ahead forecasts. Attention (blue) tracks the epidemic curve more closely than the moving average (orange) by learning non-uniform lag weights. Right: learned attention weights. Lags 2 and 4 (the even lags, in-phase with the 2-week cycle) receive all the weight; lags 1, 3, and 5 (out-of-phase) receive zero. A fixed moving average wastes weight on the out-of-phase lags and is therefore a worse predictor."
 #| fig-width: 10
 #| fig-height: 4
 
@@ -182,7 +195,7 @@ if (gridExtra_available) {
 }
 ```
 
-The dashed red line in panel B is the uniform weight $1/k$ that the moving average uses. The learned attention concentrates weight on recent lags, which is the correct inductive bias for epidemic incidence: last week explains most of next week's count.
+The dashed red line in panel B is the uniform weight $1/k$ that the moving average uses. The learned weights tell a clear story: **lags 2 and 4 (the even lags) receive all the weight; lags 1, 3, and 5 receive none**. This is the correct discovery — the two-week alternating cycle means every other week is in the same phase as the current week. Lag 1 (one step back) is *out* of phase: its biweekly component is anti-correlated with the target, so attending to it *hurts* prediction. The uniform MA does not know this and assigns equal weight to all five lags, averaging in the anti-phase lags and degrading accuracy. Attention finds the phase structure automatically from the data.
 
 ## From weighted average to full self-attention
 
