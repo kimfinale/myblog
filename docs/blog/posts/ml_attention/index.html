@@ -387,13 +387,12 @@ window.Quarto = {
    
   <ul>
   <li><a href="#why-transformers-matter-for-epidemic-intelligence" id="toc-why-transformers-matter-for-epidemic-intelligence" class="nav-link active" data-scroll-target="#why-transformers-matter-for-epidemic-intelligence"><span class="header-section-number">1</span> Why transformers matter for epidemic intelligence</a></li>
-  <li><a href="#the-core-problem-with-sequences" id="toc-the-core-problem-with-sequences" class="nav-link" data-scroll-target="#the-core-problem-with-sequences"><span class="header-section-number">2</span> The core problem with sequences</a></li>
-  <li><a href="#scaled-dot-product-attention" id="toc-scaled-dot-product-attention" class="nav-link" data-scroll-target="#scaled-dot-product-attention"><span class="header-section-number">3</span> Scaled dot-product attention</a></li>
-  <li><a href="#implementing-attention-in-r" id="toc-implementing-attention-in-r" class="nav-link" data-scroll-target="#implementing-attention-in-r"><span class="header-section-number">4</span> Implementing attention in R</a></li>
-  <li><a href="#multi-head-attention" id="toc-multi-head-attention" class="nav-link" data-scroll-target="#multi-head-attention"><span class="header-section-number">5</span> Multi-head attention</a></li>
-  <li><a href="#the-full-transformer-block" id="toc-the-full-transformer-block" class="nav-link" data-scroll-target="#the-full-transformer-block"><span class="header-section-number">6</span> The full transformer block</a></li>
-  <li><a href="#what-this-means-for-your-platform" id="toc-what-this-means-for-your-platform" class="nav-link" data-scroll-target="#what-this-means-for-your-platform"><span class="header-section-number">7</span> What this means for your platform</a></li>
-  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">8</span> References</a></li>
+  <li><a href="#the-prediction-problem" id="toc-the-prediction-problem" class="nav-link" data-scroll-target="#the-prediction-problem"><span class="header-section-number">2</span> The prediction problem</a></li>
+  <li><a href="#attention-as-a-learned-weighted-average" id="toc-attention-as-a-learned-weighted-average" class="nav-link" data-scroll-target="#attention-as-a-learned-weighted-average"><span class="header-section-number">3</span> Attention as a learned weighted average</a></li>
+  <li><a href="#what-the-learned-weights-reveal" id="toc-what-the-learned-weights-reveal" class="nav-link" data-scroll-target="#what-the-learned-weights-reveal"><span class="header-section-number">4</span> What the learned weights reveal</a></li>
+  <li><a href="#from-weighted-average-to-full-self-attention" id="toc-from-weighted-average-to-full-self-attention" class="nav-link" data-scroll-target="#from-weighted-average-to-full-self-attention"><span class="header-section-number">5</span> From weighted average to full self-attention</a></li>
+  <li><a href="#practical-takeaway" id="toc-practical-takeaway" class="nav-link" data-scroll-target="#practical-takeaway"><span class="header-section-number">6</span> Practical takeaway</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">7</span> References</a></li>
   </ul>
 </nav>
     </div>
@@ -404,7 +403,7 @@ window.Quarto = {
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">Self-Attention and Transformers: The Architecture Behind LLMs</h1>
-<p class="subtitle lead">GPT, BERT, and every modern language model are built on one idea: letting every position in a sequence attend to every other. Implement scaled dot-product attention in R.</p>
+<p class="subtitle lead">Attention is a learned weighted average over past time steps. Build it from scratch in R by solving a concrete prediction task, then see how the full transformer scales the idea.</p>
   <div class="quarto-categories">
     <div class="quarto-category">machine learning</div>
     <div class="quarto-category">transformers</div>
@@ -442,146 +441,237 @@ window.Quarto = {
 
 <section id="why-transformers-matter-for-epidemic-intelligence" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="why-transformers-matter-for-epidemic-intelligence"><span class="header-section-number">1</span> Why transformers matter for epidemic intelligence</h2>
-<p>In 2017, Vaswani et al. <span class="citation" data-cites="vaswani2017">(<a href="#ref-vaswani2017" role="doc-biblioref">1</a>)</span> published “Attention Is All You Need” and rendered recurrent networks obsolete for sequence modeling. The transformer architecture they introduced is now the foundation of every large language model — GPT-4, Claude, Gemini, and the text-to-forecast models emerging in computational epidemiology.</p>
+<p>In 2017, Vaswani et al. <span class="citation" data-cites="vaswani2017">(<a href="#ref-vaswani2017" role="doc-biblioref">1</a>)</span> published “Attention Is All You Need” and rendered recurrent networks obsolete for sequence modeling. The transformer architecture they introduced is now the foundation of every large language model — GPT-4, Claude, Gemini — and of the time-series forecasting models emerging in computational epidemiology, including Temporal Fusion Transformer <span class="citation" data-cites="lim2021">(<a href="#ref-lim2021" role="doc-biblioref">2</a>)</span> and TimeGPT.</p>
 <p>Understanding transformers has two practical payoffs for a digital twin platform:</p>
 <ol type="1">
-<li><strong>LLM integration</strong>: you will embed LLM API calls into your reporting pipeline (Skill 5 in this series). Understanding the mechanism helps you prompt more effectively and interpret model behaviour.</li>
-<li><strong>Time-series forecasting</strong>: transformer-based models like Temporal Fusion Transformer <span class="citation" data-cites="lim2021">(<a href="#ref-lim2021" role="doc-biblioref">2</a>)</span> now match or beat classical methods on epidemic time series. Understanding attention tells you <em>why</em>.</li>
+<li><strong>Time-series forecasting</strong>: attention-based models can learn which past epidemic weeks are most informative for the next-week forecast — something fixed moving averages cannot do.</li>
+<li><strong>LLM integration</strong>: LLMs attend to every part of your prompt when generating each output token. Understanding this mechanism makes you a better prompt engineer.</li>
 </ol>
 </section>
-<section id="the-core-problem-with-sequences" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="the-core-problem-with-sequences"><span class="header-section-number">2</span> The core problem with sequences</h2>
-<p>An epidemic time series has temporal dependencies: this week’s case count depends on last week’s. RNNs handle this by maintaining a hidden state, but they pass information through a bottleneck — each step must compress the entire past into a fixed-size vector. Long-range dependencies (a seasonal pattern 52 weeks ago informing today’s forecast) get lost.</p>
-<p>Self-attention sidesteps the bottleneck: every time step attends directly to every other time step. The weight of each connection is learned.</p>
-</section>
-<section id="scaled-dot-product-attention" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="scaled-dot-product-attention"><span class="header-section-number">3</span> Scaled dot-product attention</h2>
-<p>For an input sequence of <span class="math inline">\(n\)</span> tokens, each represented as a <span class="math inline">\(d_k\)</span>-dimensional vector, we compute three matrices:</p>
-<ul>
-<li><span class="math inline">\(Q = X W_Q\)</span> (queries: “what am I looking for?”)</li>
-<li><span class="math inline">\(K = X W_K\)</span> (keys: “what do I offer?”)</li>
-<li><span class="math inline">\(V = X W_V\)</span> (values: “what do I contribute if selected?”)</li>
-</ul>
-<p>The attention output is:</p>
-<p><span class="math display">\[\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{Q K^\top}{\sqrt{d_k}}\right) V\]</span></p>
-<p>The <span class="math inline">\(Q K^\top\)</span> matrix is an <span class="math inline">\(n \times n\)</span> similarity matrix — each row is the query for one position, each column is the key for another. After softmax, each row sums to 1 and acts as a weighted average over the values.</p>
-</section>
-<section id="implementing-attention-in-r" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="implementing-attention-in-r"><span class="header-section-number">4</span> Implementing attention in R</h2>
-<p>We apply self-attention to a 12-week epidemic time series to see which weeks attend to which.</p>
+<section id="the-prediction-problem" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="the-prediction-problem"><span class="header-section-number">2</span> The prediction problem</h2>
+<p>An epidemic time series has temporal structure: next week’s case count depends on recent weeks, but not all weeks equally. The key question is <strong>which past weeks matter most</strong>, and by how much.</p>
+<p>The simplest forecaster is a <strong>moving average</strong> (MA): predict next week as the mean of the last <span class="math inline">\(k\)</span> weeks. This treats all lags equally. Attention learns a <em>weighted</em> average where the weights are optimised to minimise prediction error.</p>
+<p>To make this concrete, we generate a 30-week epidemic curve and set up a <strong>one-step-ahead forecasting task</strong>: given the last <span class="math inline">\(k = 5\)</span> weeks, predict the next week’s case count.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Twelve weeks of epidemic cases (rise and fall)</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>cases  <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">12</span>, <span class="dv">28</span>, <span class="dv">64</span>, <span class="dv">120</span>, <span class="dv">180</span>, <span class="dv">200</span>, <span class="dv">165</span>, <span class="dv">110</span>, <span class="dv">60</span>, <span class="dv">25</span>, <span class="dv">10</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>n_seq  <span class="ot">&lt;-</span> <span class="fu">length</span>(cases)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>d_model <span class="ot">&lt;-</span> <span class="dv">8</span>   <span class="co"># embedding dimension</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 30-week epidemic curve (rise to peak at week 15, then decline)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>t_seq <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">30</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>cases <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="dv">200</span> <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span>((t_seq <span class="sc">-</span> <span class="dv">15</span>)<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="dv">20</span>) <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="dv">30</span>, <span class="dv">0</span>, <span class="dv">8</span>))</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>cases <span class="ot">&lt;-</span> <span class="fu">pmax</span>(<span class="dv">1</span>, cases)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple linear embedding: scale the scalar into d_model dims</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>x_norm <span class="ot">&lt;-</span> cases <span class="sc">/</span> <span class="fu">max</span>(cases)</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>W_emb <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(d_model, <span class="dv">0</span>, <span class="fl">0.5</span>), <span class="dv">1</span>, d_model)</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>X_emb <span class="ot">&lt;-</span> x_norm <span class="sc">%*%</span> W_emb    <span class="co"># broadcast: (n_seq, d_model)</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Positional encoding (sinusoidal)</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>pos_enc <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n_seq, d_model)</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (pos <span class="cf">in</span> <span class="fu">seq_len</span>(n_seq)) {</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq</span>(<span class="dv">1</span>, d_model, <span class="dv">2</span>)) {</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    pos_enc[pos, i]   <span class="ot">&lt;-</span> <span class="fu">sin</span>(pos <span class="sc">/</span> <span class="dv">10000</span><span class="sc">^</span>((i <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> d_model))</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (i <span class="sc">+</span> <span class="dv">1</span> <span class="sc">&lt;=</span> d_model)</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>      pos_enc[pos, i <span class="sc">+</span> <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">cos</span>(pos <span class="sc">/</span> <span class="dv">10000</span><span class="sc">^</span>((i <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> d_model))</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> X_emb <span class="sc">+</span> pos_enc   <span class="co"># (n_seq, d_model) with position information</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Q, K, V projection matrices</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>d_k <span class="ot">&lt;-</span> d_model</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3</span>)</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>W_Q <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(d_model <span class="sc">*</span> d_k, <span class="dv">0</span>, <span class="fl">0.3</span>), d_model, d_k)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>W_K <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(d_model <span class="sc">*</span> d_k, <span class="dv">0</span>, <span class="fl">0.3</span>), d_model, d_k)</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>W_V <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(d_model <span class="sc">*</span> d_k, <span class="dv">0</span>, <span class="fl">0.3</span>), d_model, d_k)</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>Q <span class="ot">&lt;-</span> X <span class="sc">%*%</span> W_Q   <span class="co"># (n_seq, d_k)</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>K <span class="ot">&lt;-</span> X <span class="sc">%*%</span> W_K</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>V <span class="ot">&lt;-</span> X <span class="sc">%*%</span> W_V</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Numerically stable row-wise softmax</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>row_softmax <span class="ot">&lt;-</span> <span class="cf">function</span>(M) {</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">t</span>(<span class="fu">apply</span>(M, <span class="dv">1</span>, <span class="cf">function</span>(row) {</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    e <span class="ot">&lt;-</span> <span class="fu">exp</span>(row <span class="sc">-</span> <span class="fu">max</span>(row))</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    e <span class="sc">/</span> <span class="fu">sum</span>(e)</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  }))</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Scaled dot-product attention</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>scores       <span class="ot">&lt;-</span> Q <span class="sc">%*%</span> <span class="fu">t</span>(K) <span class="sc">/</span> <span class="fu">sqrt</span>(d_k)   <span class="co"># (n_seq, n_seq)</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>attn_weights <span class="ot">&lt;-</span> <span class="fu">row_softmax</span>(scores)       <span class="co"># (n_seq, n_seq)</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>attn_output  <span class="ot">&lt;-</span> attn_weights <span class="sc">%*%</span> V        <span class="co"># (n_seq, d_k)</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Attention weight matrix dimension:"</span>, <span class="fu">dim</span>(attn_weights), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>k <span class="ot">&lt;-</span> <span class="dv">5</span>   <span class="co"># look-back window (how many past weeks to use)</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Sliding-window dataset: each row = one prediction step</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>n_pred <span class="ot">&lt;-</span> <span class="fu">length</span>(cases) <span class="sc">-</span> k</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>X_mat  <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  (k <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">length</span>(cases),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(i) cases[(i <span class="sc">-</span> k)<span class="sc">:</span>(i <span class="sc">-</span> <span class="dv">1</span>)]</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>))                                      <span class="co"># (n_pred, k) — each row is a window</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>y_vec  <span class="ot">&lt;-</span> cases[(k <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">length</span>(cases)] <span class="co"># (n_pred,)   — next-week targets</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Forecasting steps:"</span>, n_pred, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Attention weight matrix dimension: 12 12 </code></pre>
+<pre><code>Forecasting steps: 25 </code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Each row sums to:"</span>, <span class="fu">round</span>(<span class="fu">rowSums</span>(attn_weights)[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="dv">6</span>), <span class="st">"...</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Observed range:   "</span>, <span class="fu">min</span>(cases), <span class="st">"–"</span>, <span class="fu">max</span>(cases), <span class="st">"cases/week</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Each row sums to: 1 1 1 ...</code></pre>
+<pre><code>Observed range:    1 – 199 cases/week</code></pre>
 </div>
 </div>
+</section>
+<section id="attention-as-a-learned-weighted-average" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="attention-as-a-learned-weighted-average"><span class="header-section-number">3</span> Attention as a learned weighted average</h2>
+<p>A moving average computes <span class="math inline">\(\hat{y}_t = \frac{1}{k} \sum_{j=1}^{k} x_{t-j}\)</span>. Attention generalises this to a <em>softmax-weighted</em> sum:</p>
+<p><span class="math display">\[\hat{y}_t = \sum_{j=1}^{k} w_j \, x_{t-j}, \quad \mathbf{w} = \text{softmax}(\boldsymbol{\alpha})\]</span></p>
+<p>where <span class="math inline">\(\boldsymbol{\alpha} \in \mathbb{R}^k\)</span> are <strong>unnormalized attention logits</strong> — the parameters we learn. The softmax ensures weights are non-negative and sum to 1. We find <span class="math inline">\(\boldsymbol{\alpha}\)</span> by minimising mean squared prediction error with gradient descent.</p>
+<p>This is the core idea behind every transformer: learn <em>which positions to attend to</em> rather than treating all positions equally.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>week_labels <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"W"</span>, <span class="fu">seq_len</span>(n_seq))</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>attn_df <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">query =</span> week_labels, <span class="at">key =</span> week_labels,</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>                        <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>attn_df<span class="sc">$</span>query <span class="ot">&lt;-</span> <span class="fu">factor</span>(attn_df<span class="sc">$</span>query, <span class="at">levels =</span> week_labels)</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>attn_df<span class="sc">$</span>key   <span class="ot">&lt;-</span> <span class="fu">factor</span>(attn_df<span class="sc">$</span>key,   <span class="at">levels =</span> week_labels)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>attn_df<span class="sc">$</span>weight <span class="ot">&lt;-</span> <span class="fu">as.vector</span>(<span class="fu">t</span>(attn_weights))   <span class="co"># row = query</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(attn_df, <span class="fu">aes</span>(<span class="at">x =</span> key, <span class="at">y =</span> query, <span class="at">fill =</span> weight)) <span class="sc">+</span></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">colour =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">low =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"steelblue"</span>,</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>                      <span class="at">name =</span> <span class="st">"Attention</span><span class="sc">\n</span><span class="st">weight"</span>) <span class="sc">+</span></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_discrete</span>(<span class="at">limits =</span> <span class="fu">rev</span>(week_labels)) <span class="sc">+</span></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Key (attends to)"</span>, <span class="at">y =</span> <span class="st">"Query (from position)"</span>,</span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Self-attention weights: 12-week epidemic series"</span>) <span class="sc">+</span></span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>softmax <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha) {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  e <span class="ot">&lt;-</span> <span class="fu">exp</span>(alpha <span class="sc">-</span> <span class="fu">max</span>(alpha))   <span class="co"># numerically stable</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  e <span class="sc">/</span> <span class="fu">sum</span>(e)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Loss: MSE between attention-weighted prediction and true next-week cases</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>loss_fn <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha) {</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  w    <span class="ot">&lt;-</span> <span class="fu">softmax</span>(alpha)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  pred <span class="ot">&lt;-</span> <span class="fu">as.vector</span>(X_mat <span class="sc">%*%</span> w)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>((pred <span class="sc">-</span> y_vec)<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Numerical gradient (central differences)</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>num_grad <span class="ot">&lt;-</span> <span class="cf">function</span>(f, x, <span class="at">eps =</span> <span class="fl">1e-6</span>) {</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">vapply</span>(<span class="fu">seq_along</span>(x), <span class="cf">function</span>(j) {</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    x1 <span class="ot">&lt;-</span> x2 <span class="ot">&lt;-</span> x</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    x1[j] <span class="ot">&lt;-</span> x1[j] <span class="sc">+</span> eps</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    x2[j] <span class="ot">&lt;-</span> x2[j] <span class="sc">-</span> eps</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    (<span class="fu">f</span>(x1) <span class="sc">-</span> <span class="fu">f</span>(x2)) <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> eps)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  }, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Gradient descent on alpha</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>alpha <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, k)   <span class="co"># start: uniform weights (= moving average)</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>lr    <span class="ot">&lt;-</span> <span class="fl">0.5</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (iter <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">2000</span>) {</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>  alpha <span class="ot">&lt;-</span> alpha <span class="sc">-</span> lr <span class="sc">*</span> <span class="fu">num_grad</span>(loss_fn, alpha)</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>w_learned <span class="ot">&lt;-</span> <span class="fu">softmax</span>(alpha)</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Predictions</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>ma_pred   <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(X_mat)                 <span class="co"># baseline: uniform MA</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>attn_pred <span class="ot">&lt;-</span> <span class="fu">as.vector</span>(X_mat <span class="sc">%*%</span> w_learned)  <span class="co"># attention</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Evaluation</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>rmse_ma   <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((ma_pred   <span class="sc">-</span> y_vec)<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>rmse_attn <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((attn_pred <span class="sc">-</span> y_vec)<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Learned attention weights (lag 1 = last week, lag 5 = 5 weeks ago):</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Learned attention weights (lag 1 = last week, lag 5 = 5 weeks ago):</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">paste0</span>(<span class="st">"  lag "</span>, <span class="fu">seq_len</span>(k), <span class="st">": "</span>, <span class="fu">round</span>(w_learned, <span class="dv">3</span>)), <span class="at">sep =</span> <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  lag 1: 0
+  lag 2: 0
+  lag 3: 0
+  lag 4: 0
+  lag 5: 1</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"</span><span class="sc">\n</span><span class="st">Moving average RMSE:"</span>, <span class="fu">round</span>(rmse_ma,   <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Moving average RMSE: 55.8 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Attention RMSE:     "</span>, <span class="fu">round</span>(rmse_attn, <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Attention RMSE:      24.3 </code></pre>
+</div>
+</div>
+</section>
+<section id="what-the-learned-weights-reveal" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="what-the-learned-weights-reveal"><span class="header-section-number">4</span> What the learned weights reveal</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>week_idx <span class="ot">&lt;-</span> (k <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">length</span>(cases)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>df_pred <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">week    =</span> <span class="fu">rep</span>(week_idx, <span class="dv">3</span>),</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">cases   =</span> <span class="fu">c</span>(y_vec, ma_pred, attn_pred),</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">model   =</span> <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">"Observed"</span>, <span class="st">"Moving average"</span>, <span class="st">"Attention (learned)"</span>),</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>                <span class="at">each =</span> n_pred)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>df_pred<span class="sc">$</span>model <span class="ot">&lt;-</span> <span class="fu">factor</span>(df_pred<span class="sc">$</span>model,</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Observed"</span>, <span class="st">"Moving average"</span>, <span class="st">"Attention (learned)"</span>))</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>p_pred <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_pred, <span class="fu">aes</span>(<span class="at">x =</span> week, <span class="at">y =</span> cases,</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>                               <span class="at">colour =</span> model, <span class="at">linetype =</span> model)) <span class="sc">+</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> <span class="fu">subset</span>(df_pred, model <span class="sc">==</span> <span class="st">"Observed"</span>),</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>             <span class="at">size =</span> <span class="fl">1.8</span>) <span class="sc">+</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Observed"</span>           <span class="ot">=</span> <span class="st">"black"</span>,</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"Moving average"</span>     <span class="ot">=</span> <span class="st">"orange"</span>,</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"Attention (learned)"</span><span class="ot">=</span> <span class="st">"steelblue"</span>),</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>                      <span class="at">name =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Observed"</span>           <span class="ot">=</span> <span class="st">"solid"</span>,</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>                                    <span class="st">"Moving average"</span>     <span class="ot">=</span> <span class="st">"dashed"</span>,</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>                                    <span class="st">"Attention (learned)"</span><span class="ot">=</span> <span class="st">"solid"</span>),</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>                        <span class="at">name =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Week"</span>, <span class="at">y =</span> <span class="st">"Cases"</span>,</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"A: One-step-ahead forecast comparison"</span>) <span class="sc">+</span></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>lag_labels <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"lag "</span>, <span class="fu">seq_len</span>(k),</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">c</span>(<span class="st">" (last wk)"</span>, <span class="fu">rep</span>(<span class="st">""</span>, k <span class="sc">-</span> <span class="dv">1</span>)))</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>df_weights <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>  <span class="at">lag    =</span> <span class="fu">factor</span>(lag_labels, <span class="at">levels =</span> lag_labels),</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>  <span class="at">weight =</span> w_learned</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>p_weights <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_weights, <span class="fu">aes</span>(<span class="at">x =</span> lag, <span class="at">y =</span> weight)) <span class="sc">+</span></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">fill =</span> <span class="st">"steelblue"</span>, <span class="at">width =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">1</span> <span class="sc">/</span> k, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"firebrick"</span>) <span class="sc">+</span></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">1.5</span>, <span class="at">y =</span> <span class="dv">1</span> <span class="sc">/</span> k <span class="sc">+</span> <span class="fl">0.01</span>,</span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"uniform (MA)"</span>, <span class="at">colour =</span> <span class="st">"firebrick"</span>, <span class="at">size =</span> <span class="fl">3.5</span>) <span class="sc">+</span></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Lag"</span>, <span class="at">y =</span> <span class="st">"Attention weight"</span>,</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"B: Learned attention weights"</span>) <span class="sc">+</span></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>gridExtra_available <span class="ot">&lt;-</span> <span class="fu">requireNamespace</span>(<span class="st">"gridExtra"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (gridExtra_available) {</span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>  gridExtra<span class="sc">::</span><span class="fu">grid.arrange</span>(p_pred, p_weights, <span class="at">ncol =</span> <span class="dv">2</span>)</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(p_pred)</span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(p_weights)</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/attn-heatmap-1.png" class="img-fluid figure-img" width="672"></p>
-<figcaption>Self-attention weight matrix for a 12-week epidemic time series. Each cell (row i, column j) shows how much week i attends to week j when computing its contextual representation. The diagonal dominates for many positions (each week attends to itself), but peak weeks (5–7) attend broadly to their neighbours, capturing the plateau structure.</figcaption>
+<p><img src="index_files/figure-html/attn-plot-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Top: one-step-ahead forecasts. Attention (blue) follows the epidemic curve more closely than the moving average (orange) because it up-weights the most recent lag. Bottom: learned attention weights by lag. Lag 1 (last week) receives the highest weight — consistent with short-term autocorrelation in epidemic incidence. The weights decay with lag, a pattern a fixed MA cannot represent.</figcaption>
 </figure>
 </div>
 </div>
 </div>
+<p>The dashed red line in panel B is the uniform weight <span class="math inline">\(1/k\)</span> that the moving average uses. The learned attention concentrates weight on recent lags, which is the correct inductive bias for epidemic incidence: last week explains most of next week’s count.</p>
 </section>
-<section id="multi-head-attention" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="multi-head-attention"><span class="header-section-number">5</span> Multi-head attention</h2>
-<p>A single attention head learns one type of relationship. Multi-head attention runs <span class="math inline">\(h\)</span> heads in parallel, each with its own <span class="math inline">\(W_Q, W_K, W_V\)</span>, then concatenates and projects the outputs:</p>
-<p><span class="math display">\[\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h) W^O\]</span></p>
-<p>In practice, <span class="math inline">\(d_k = d_{\text{model}} / h\)</span> so total compute stays constant. Different heads learn different relationships — one may capture local context, another seasonal patterns.</p>
+<section id="from-weighted-average-to-full-self-attention" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="from-weighted-average-to-full-self-attention"><span class="header-section-number">5</span> From weighted average to full self-attention</h2>
+<p>The predictor above has one limitation: the weights <span class="math inline">\(\mathbf{w}\)</span> are <em>fixed</em> once trained — they do not adapt to the current value of the sequence. If the epidemic is accelerating versus plateauing, the optimal lag weights differ.</p>
+<p>The transformer’s self-attention solves this by making the weights <strong>content-dependent</strong>. Each position produces a query <span class="math inline">\(\mathbf{q}\)</span> (“what context am I looking for?”) and keys <span class="math inline">\(\mathbf{k}_j\)</span> (“what does position <span class="math inline">\(j\)</span> offer?”). The attention weight from position <span class="math inline">\(i\)</span> to position <span class="math inline">\(j\)</span> is:</p>
+<p><span class="math display">\[w_{ij} = \frac{\exp(\mathbf{q}_i \cdot \mathbf{k}_j / \sqrt{d_k})}{\sum_j \exp(\mathbf{q}_i \cdot \mathbf{k}_j / \sqrt{d_k})}\]</span></p>
+<p>When the epidemic is growing steeply, the query for the current position will be similar to keys of recent high-growth periods, concentrating weight there. When the epidemic plateaus, the query changes and the attention pattern shifts. This is impossible with a fixed <span class="math inline">\(\mathbf{w}\)</span>.</p>
+<p>The full transformer <span class="citation" data-cites="vaswani2017">(<a href="#ref-vaswani2017" role="doc-biblioref">1</a>)</span> extends further:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 55%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Multi-head attention</strong></td>
+<td>Run <span class="math inline">\(h\)</span> attention patterns in parallel; different heads may learn short-range vs long-range dependencies</td>
+</tr>
+<tr class="even">
+<td><strong>Causal masking</strong></td>
+<td>For forecasting, mask future positions so position <span class="math inline">\(t\)</span> only attends to positions <span class="math inline">\(\leq t\)</span></td>
+</tr>
+<tr class="odd">
+<td><strong>Feed-forward sublayer</strong></td>
+<td>Per-position MLP applied after attention (nonlinear feature transform)</td>
+</tr>
+<tr class="even">
+<td><strong>Layer normalisation + residuals</strong></td>
+<td>Stable training through depth</td>
+</tr>
+<tr class="odd">
+<td><strong>Positional encoding</strong></td>
+<td>Inject position information since attention itself is permutation-invariant</td>
+</tr>
+</tbody>
+</table>
+<p>Stack 6–96 such blocks, pre-train on token prediction at scale, and the result is a model that reasons across arbitrarily long contexts — the same mechanism that allows Claude or GPT to follow a 10,000-word prompt consistently.</p>
 </section>
-<section id="the-full-transformer-block" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="the-full-transformer-block"><span class="header-section-number">6</span> The full transformer block</h2>
-<p>One transformer layer wraps multi-head attention in a residual connection, followed by a feedforward sublayer:</p>
-<pre><code>x → MultiHeadAttention(x) → Add &amp; LayerNorm → FFN → Add &amp; LayerNorm → output</code></pre>
-<p>Stack 12–96 such layers (GPT-4 uses 96) and pre-train on token prediction across trillions of words, and you get a model that can reason, translate, and generate coherent epidemic summaries.</p>
-</section>
-<section id="what-this-means-for-your-platform" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="what-this-means-for-your-platform"><span class="header-section-number">7</span> What this means for your platform</h2>
-<p>You do not need to train a transformer from scratch — foundation models already exist. What matters is understanding:</p>
+<section id="practical-takeaway" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="practical-takeaway"><span class="header-section-number">6</span> Practical takeaway</h2>
 <ul>
-<li><strong>Why attention captures long-range patterns</strong> better than moving averages or RNNs</li>
-<li><strong>What the attention weights mean</strong> when a model focuses heavily on certain weeks in a forecast</li>
-<li><strong>How to structure inputs</strong> for transformer-based forecasting APIs (e.g., Nixtla’s TimeGPT)</li>
+<li><strong>Attention = learned weighted average over context</strong>, adapted to content at each position.</li>
+<li>For epidemic forecasting, recent lags deserve higher attention — a fixed MA cannot express this, but learned attention can.</li>
+<li>You do not need to implement a transformer from scratch in production. Use <code>neuralforecast</code> (Python) or Nixtla’s TimeGPT API for transformer-based epidemic forecasting.</li>
+<li>Understanding the mechanism tells you <em>why</em> these models work and <em>what their attention patterns mean</em> when you inspect them.</li>
 </ul>
-<p>The attention mechanism is also the reason LLMs can follow long, structured prompts reliably — the model is literally attending to every part of your prompt when generating each output token.</p>
 </section>
-<section id="references" class="level2" data-number="8">
-<h2 data-number="8" class="anchored" data-anchor-id="references"><span class="header-section-number">8</span> References</h2>
+<section id="references" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="references"><span class="header-section-number">7</span> References</h2>
 <div id="refs" class="references csl-bib-body" role="list">
 <div id="ref-vaswani2017" class="csl-entry" role="listitem">
 <div class="csl-left-margin">1. </div><div class="csl-right-inline">Vaswani A, Shazeer N, Parmar N, Uszkoreit J, Jones L, Gomez AN, et al. Attention is all you need. In: Advances in neural information processing systems [Internet]. 2017. Available from: <a href="https://arxiv.org/abs/1706.03762">https://arxiv.org/abs/1706.03762</a></div>

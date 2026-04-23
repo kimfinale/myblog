@@ -1,6 +1,6 @@
 ---
 title: "Self-Attention and Transformers: The Architecture Behind LLMs"
-subtitle: "GPT, BERT, and every modern language model are built on one idea: letting every position in a sequence attend to every other. Implement scaled dot-product attention in R."
+subtitle: "Attention is a learned weighted average over past time steps. Build it from scratch in R by solving a concrete prediction task, then see how the full transformer scales the idea."
 author: "Jong-Hoon Kim"
 date: "2026-04-24"
 categories: [machine learning, transformers, attention, deep learning, R]
@@ -20,148 +20,195 @@ execute:
 
 ## Why transformers matter for epidemic intelligence
 
-In 2017, Vaswani et al. [@vaswani2017] published "Attention Is All You Need" and rendered recurrent networks obsolete for sequence modeling. The transformer architecture they introduced is now the foundation of every large language model — GPT-4, Claude, Gemini, and the text-to-forecast models emerging in computational epidemiology.
+In 2017, Vaswani et al. [@vaswani2017] published "Attention Is All You Need" and rendered recurrent networks obsolete for sequence modeling. The transformer architecture they introduced is now the foundation of every large language model — GPT-4, Claude, Gemini — and of the time-series forecasting models emerging in computational epidemiology, including Temporal Fusion Transformer [@lim2021] and TimeGPT.
 
 Understanding transformers has two practical payoffs for a digital twin platform:
 
-1. **LLM integration**: you will embed LLM API calls into your reporting pipeline (Skill 5 in this series). Understanding the mechanism helps you prompt more effectively and interpret model behaviour.
-2. **Time-series forecasting**: transformer-based models like Temporal Fusion Transformer [@lim2021] now match or beat classical methods on epidemic time series. Understanding attention tells you *why*.
+1. **Time-series forecasting**: attention-based models can learn which past epidemic weeks are most informative for the next-week forecast — something fixed moving averages cannot do.
+2. **LLM integration**: LLMs attend to every part of your prompt when generating each output token. Understanding this mechanism makes you a better prompt engineer.
 
-## The core problem with sequences
+## The prediction problem
 
-An epidemic time series has temporal dependencies: this week's case count depends on last week's. RNNs handle this by maintaining a hidden state, but they pass information through a bottleneck — each step must compress the entire past into a fixed-size vector. Long-range dependencies (a seasonal pattern 52 weeks ago informing today's forecast) get lost.
+An epidemic time series has temporal structure: next week's case count depends on recent weeks, but not all weeks equally. The key question is **which past weeks matter most**, and by how much.
 
-Self-attention sidesteps the bottleneck: every time step attends directly to every other time step. The weight of each connection is learned.
+The simplest forecaster is a **moving average** (MA): predict next week as the mean of the last $k$ weeks. This treats all lags equally. Attention learns a *weighted* average where the weights are optimised to minimise prediction error.
 
-## Scaled dot-product attention
-
-For an input sequence of $n$ tokens, each represented as a $d_k$-dimensional vector, we compute three matrices:
-
-- $Q = X W_Q$ (queries: "what am I looking for?")
-- $K = X W_K$ (keys: "what do I offer?")
-- $V = X W_V$ (values: "what do I contribute if selected?")
-
-The attention output is:
-
-$$\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{Q K^\top}{\sqrt{d_k}}\right) V$$
-
-The $Q K^\top$ matrix is an $n \times n$ similarity matrix — each row is the query for one position, each column is the key for another. After softmax, each row sums to 1 and acts as a weighted average over the values.
-
-## Implementing attention in R
-
-We apply self-attention to a 12-week epidemic time series to see which weeks attend to which.
+To make this concrete, we generate a 30-week epidemic curve and set up a **one-step-ahead forecasting task**: given the last $k = 5$ weeks, predict the next week's case count.
 
 ```{r}
-#| label: attn-setup
+#| label: attn-data
 
 set.seed(42)
 
-# Twelve weeks of epidemic cases (rise and fall)
-cases  <- c(5, 12, 28, 64, 120, 180, 200, 165, 110, 60, 25, 10)
-n_seq  <- length(cases)
-d_model <- 8   # embedding dimension
+# 30-week epidemic curve (rise to peak at week 15, then decline)
+t_seq <- 1:30
+cases <- round(200 * exp(-((t_seq - 15)^2) / 20) + rnorm(30, 0, 8))
+cases <- pmax(1, cases)
 
-# Simple linear embedding: scale the scalar into d_model dims
-x_norm <- cases / max(cases)
-set.seed(7)
-W_emb <- matrix(rnorm(d_model, 0, 0.5), 1, d_model)
-X_emb <- x_norm %*% W_emb    # broadcast: (n_seq, d_model)
+k <- 5   # look-back window (how many past weeks to use)
 
-# Positional encoding (sinusoidal)
-pos_enc <- matrix(0, n_seq, d_model)
-for (pos in seq_len(n_seq)) {
-  for (i in seq(1, d_model, 2)) {
-    pos_enc[pos, i]   <- sin(pos / 10000^((i - 1) / d_model))
-    if (i + 1 <= d_model)
-      pos_enc[pos, i + 1] <- cos(pos / 10000^((i - 1) / d_model))
-  }
-}
-X <- X_emb + pos_enc   # (n_seq, d_model) with position information
+# Sliding-window dataset: each row = one prediction step
+n_pred <- length(cases) - k
+X_mat  <- do.call(rbind, lapply(
+  (k + 1):length(cases),
+  function(i) cases[(i - k):(i - 1)]
+))                                      # (n_pred, k) — each row is a window
+y_vec  <- cases[(k + 1):length(cases)] # (n_pred,)   — next-week targets
+
+cat("Forecasting steps:", n_pred, "\n")
+cat("Observed range:   ", min(cases), "–", max(cases), "cases/week\n")
 ```
 
+## Attention as a learned weighted average
+
+A moving average computes $\hat{y}_t = \frac{1}{k} \sum_{j=1}^{k} x_{t-j}$. Attention generalises this to a *softmax-weighted* sum:
+
+$$\hat{y}_t = \sum_{j=1}^{k} w_j \, x_{t-j}, \quad \mathbf{w} = \text{softmax}(\boldsymbol{\alpha})$$
+
+where $\boldsymbol{\alpha} \in \mathbb{R}^k$ are **unnormalized attention logits** — the parameters we learn. The softmax ensures weights are non-negative and sum to 1. We find $\boldsymbol{\alpha}$ by minimising mean squared prediction error with gradient descent.
+
+This is the core idea behind every transformer: learn *which positions to attend to* rather than treating all positions equally.
+
 ```{r}
-#| label: attn-compute
+#| label: attn-train
 
-# Q, K, V projection matrices
-d_k <- d_model
-set.seed(3)
-W_Q <- matrix(rnorm(d_model * d_k, 0, 0.3), d_model, d_k)
-W_K <- matrix(rnorm(d_model * d_k, 0, 0.3), d_model, d_k)
-W_V <- matrix(rnorm(d_model * d_k, 0, 0.3), d_model, d_k)
-
-Q <- X %*% W_Q   # (n_seq, d_k)
-K <- X %*% W_K
-V <- X %*% W_V
-
-# Numerically stable row-wise softmax
-row_softmax <- function(M) {
-  t(apply(M, 1, function(row) {
-    e <- exp(row - max(row))
-    e / sum(e)
-  }))
+softmax <- function(alpha) {
+  e <- exp(alpha - max(alpha))   # numerically stable
+  e / sum(e)
 }
 
-# Scaled dot-product attention
-scores       <- Q %*% t(K) / sqrt(d_k)   # (n_seq, n_seq)
-attn_weights <- row_softmax(scores)       # (n_seq, n_seq)
-attn_output  <- attn_weights %*% V        # (n_seq, d_k)
+# Loss: MSE between attention-weighted prediction and true next-week cases
+loss_fn <- function(alpha) {
+  w    <- softmax(alpha)
+  pred <- as.vector(X_mat %*% w)
+  mean((pred - y_vec)^2)
+}
 
-cat("Attention weight matrix dimension:", dim(attn_weights), "\n")
-cat("Each row sums to:", round(rowSums(attn_weights)[1:3], 6), "...\n")
+# Numerical gradient (central differences)
+num_grad <- function(f, x, eps = 1e-6) {
+  vapply(seq_along(x), function(j) {
+    x1 <- x2 <- x
+    x1[j] <- x1[j] + eps
+    x2[j] <- x2[j] - eps
+    (f(x1) - f(x2)) / (2 * eps)
+  }, numeric(1))
+}
+
+# Gradient descent on alpha
+alpha <- rep(0, k)   # start: uniform weights (= moving average)
+lr    <- 0.5
+for (iter in 1:2000) {
+  alpha <- alpha - lr * num_grad(loss_fn, alpha)
+}
+
+w_learned <- softmax(alpha)
+
+# Predictions
+ma_pred   <- rowMeans(X_mat)                 # baseline: uniform MA
+attn_pred <- as.vector(X_mat %*% w_learned)  # attention
+
+# Evaluation
+rmse_ma   <- sqrt(mean((ma_pred   - y_vec)^2))
+rmse_attn <- sqrt(mean((attn_pred - y_vec)^2))
+
+cat("Learned attention weights (lag 1 = last week, lag 5 = 5 weeks ago):\n")
+cat(paste0("  lag ", seq_len(k), ": ", round(w_learned, 3)), sep = "\n")
+cat("\nMoving average RMSE:", round(rmse_ma,   1), "\n")
+cat("Attention RMSE:     ", round(rmse_attn, 1), "\n")
 ```
 
+## What the learned weights reveal
+
 ```{r}
-#| label: attn-heatmap
-#| fig-cap: "Self-attention weight matrix for a 12-week epidemic time series. Each cell (row i, column j) shows how much week i attends to week j when computing its contextual representation. The diagonal dominates for many positions (each week attends to itself), but peak weeks (5–7) attend broadly to their neighbours, capturing the plateau structure."
+#| label: attn-plot
+#| fig-cap: "Top: one-step-ahead forecasts. Attention (blue) follows the epidemic curve more closely than the moving average (orange) because it up-weights the most recent lag. Bottom: learned attention weights by lag. Lag 1 (last week) receives the highest weight — consistent with short-term autocorrelation in epidemic incidence. The weights decay with lag, a pattern a fixed MA cannot represent."
 
 library(ggplot2)
 
-week_labels <- paste0("W", seq_len(n_seq))
+week_idx <- (k + 1):length(cases)
 
-attn_df <- expand.grid(query = week_labels, key = week_labels,
-                        stringsAsFactors = FALSE)
-attn_df$query <- factor(attn_df$query, levels = week_labels)
-attn_df$key   <- factor(attn_df$key,   levels = week_labels)
-attn_df$weight <- as.vector(t(attn_weights))   # row = query
+df_pred <- data.frame(
+  week    = rep(week_idx, 3),
+  cases   = c(y_vec, ma_pred, attn_pred),
+  model   = rep(c("Observed", "Moving average", "Attention (learned)"),
+                each = n_pred)
+)
+df_pred$model <- factor(df_pred$model,
+  levels = c("Observed", "Moving average", "Attention (learned)"))
 
-ggplot(attn_df, aes(x = key, y = query, fill = weight)) +
-  geom_tile(colour = "white", linewidth = 0.3) +
-  scale_fill_gradient(low = "white", high = "steelblue",
-                      name = "Attention\nweight") +
-  scale_y_discrete(limits = rev(week_labels)) +
-  labs(x = "Key (attends to)", y = "Query (from position)",
-       title = "Self-attention weights: 12-week epidemic series") +
+p_pred <- ggplot(df_pred, aes(x = week, y = cases,
+                               colour = model, linetype = model)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(data = subset(df_pred, model == "Observed"),
+             size = 1.8) +
+  scale_colour_manual(values = c("Observed"           = "black",
+                                  "Moving average"     = "orange",
+                                  "Attention (learned)"= "steelblue"),
+                      name = NULL) +
+  scale_linetype_manual(values = c("Observed"           = "solid",
+                                    "Moving average"     = "dashed",
+                                    "Attention (learned)"= "solid"),
+                        name = NULL) +
+  labs(x = "Week", y = "Cases",
+       title = "A: One-step-ahead forecast comparison") +
   theme_minimal(base_size = 12) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(legend.position = "top")
+
+lag_labels <- paste0("lag ", seq_len(k),
+                     c(" (last wk)", rep("", k - 1)))
+df_weights <- data.frame(
+  lag    = factor(lag_labels, levels = lag_labels),
+  weight = w_learned
+)
+
+p_weights <- ggplot(df_weights, aes(x = lag, y = weight)) +
+  geom_col(fill = "steelblue", width = 0.6) +
+  geom_hline(yintercept = 1 / k, linetype = "dashed", colour = "firebrick") +
+  annotate("text", x = 1.5, y = 1 / k + 0.01,
+           label = "uniform (MA)", colour = "firebrick", size = 3.5) +
+  labs(x = "Lag", y = "Attention weight",
+       title = "B: Learned attention weights") +
+  theme_minimal(base_size = 12)
+
+gridExtra_available <- requireNamespace("gridExtra", quietly = TRUE)
+if (gridExtra_available) {
+  gridExtra::grid.arrange(p_pred, p_weights, ncol = 2)
+} else {
+  print(p_pred)
+  print(p_weights)
+}
 ```
 
-## Multi-head attention
+The dashed red line in panel B is the uniform weight $1/k$ that the moving average uses. The learned attention concentrates weight on recent lags, which is the correct inductive bias for epidemic incidence: last week explains most of next week's count.
 
-A single attention head learns one type of relationship. Multi-head attention runs $h$ heads in parallel, each with its own $W_Q, W_K, W_V$, then concatenates and projects the outputs:
+## From weighted average to full self-attention
 
-$$\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h) W^O$$
+The predictor above has one limitation: the weights $\mathbf{w}$ are *fixed* once trained — they do not adapt to the current value of the sequence. If the epidemic is accelerating versus plateauing, the optimal lag weights differ.
 
-In practice, $d_k = d_{\text{model}} / h$ so total compute stays constant. Different heads learn different relationships — one may capture local context, another seasonal patterns.
+The transformer's self-attention solves this by making the weights **content-dependent**. Each position produces a query $\mathbf{q}$ ("what context am I looking for?") and keys $\mathbf{k}_j$ ("what does position $j$ offer?"). The attention weight from position $i$ to position $j$ is:
 
-## The full transformer block
+$$w_{ij} = \frac{\exp(\mathbf{q}_i \cdot \mathbf{k}_j / \sqrt{d_k})}{\sum_j \exp(\mathbf{q}_i \cdot \mathbf{k}_j / \sqrt{d_k})}$$
 
-One transformer layer wraps multi-head attention in a residual connection, followed by a feedforward sublayer:
+When the epidemic is growing steeply, the query for the current position will be similar to keys of recent high-growth periods, concentrating weight there. When the epidemic plateaus, the query changes and the attention pattern shifts. This is impossible with a fixed $\mathbf{w}$.
 
-```
-x → MultiHeadAttention(x) → Add & LayerNorm → FFN → Add & LayerNorm → output
-```
+The full transformer [@vaswani2017] extends further:
 
-Stack 12–96 such layers (GPT-4 uses 96) and pre-train on token prediction across trillions of words, and you get a model that can reason, translate, and generate coherent epidemic summaries.
+| Component | Purpose |
+|-----------|---------|
+| **Multi-head attention** | Run $h$ attention patterns in parallel; different heads may learn short-range vs long-range dependencies |
+| **Causal masking** | For forecasting, mask future positions so position $t$ only attends to positions $\leq t$ |
+| **Feed-forward sublayer** | Per-position MLP applied after attention (nonlinear feature transform) |
+| **Layer normalisation + residuals** | Stable training through depth |
+| **Positional encoding** | Inject position information since attention itself is permutation-invariant |
 
-## What this means for your platform
+Stack 6–96 such blocks, pre-train on token prediction at scale, and the result is a model that reasons across arbitrarily long contexts — the same mechanism that allows Claude or GPT to follow a 10,000-word prompt consistently.
 
-You do not need to train a transformer from scratch — foundation models already exist. What matters is understanding:
+## Practical takeaway
 
-- **Why attention captures long-range patterns** better than moving averages or RNNs
-- **What the attention weights mean** when a model focuses heavily on certain weeks in a forecast
-- **How to structure inputs** for transformer-based forecasting APIs (e.g., Nixtla's TimeGPT)
-
-The attention mechanism is also the reason LLMs can follow long, structured prompts reliably — the model is literally attending to every part of your prompt when generating each output token.
+- **Attention = learned weighted average over context**, adapted to content at each position.
+- For epidemic forecasting, recent lags deserve higher attention — a fixed MA cannot express this, but learned attention can.
+- You do not need to implement a transformer from scratch in production. Use `neuralforecast` (Python) or Nixtla's TimeGPT API for transformer-based epidemic forecasting.
+- Understanding the mechanism tells you *why* these models work and *what their attention patterns mean* when you inspect them.
 
 ## References
 
