@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-04-23">
+
+<title>Transformer-Based LLM Architectures for Epidemic Time Series Forecasting – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-953e13259b406e3222ebc3917f29fddf.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-802ed71b1f2fa2753fd04a8e93ae97e1.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#why-epidemic-forecasting-needs-its-own-transformer" id="toc-why-epidemic-forecasting-needs-its-own-transformer" class="nav-link active" data-scroll-target="#why-epidemic-forecasting-needs-its-own-transformer"><span class="header-section-number">1</span> Why epidemic forecasting needs its own transformer</a></li>
+  <li><a href="#the-three-innovations-in-detail" id="toc-the-three-innovations-in-detail" class="nav-link" data-scroll-target="#the-three-innovations-in-detail"><span class="header-section-number">2</span> The three innovations in detail</a>
+  <ul class="collapse">
+  <li><a href="#patching-turning-a-time-series-into-tokens" id="toc-patching-turning-a-time-series-into-tokens" class="nav-link" data-scroll-target="#patching-turning-a-time-series-into-tokens"><span class="header-section-number">2.1</span> Patching: turning a time series into tokens</a></li>
+  <li><a href="#revin-instance-normalization" id="toc-revin-instance-normalization" class="nav-link" data-scroll-target="#revin-instance-normalization"><span class="header-section-number">2.2</span> RevIN: instance normalization</a></li>
+  <li><a href="#multi-step-direct-forecasting" id="toc-multi-step-direct-forecasting" class="nav-link" data-scroll-target="#multi-step-direct-forecasting"><span class="header-section-number">2.3</span> Multi-step direct forecasting</a></li>
+  </ul></li>
+  <li><a href="#building-the-patch-attention-forecaster" id="toc-building-the-patch-attention-forecaster" class="nav-link" data-scroll-target="#building-the-patch-attention-forecaster"><span class="header-section-number">3</span> Building the patch-attention forecaster</a>
+  <ul class="collapse">
+  <li><a href="#data-a-two-wave-epidemic-series" id="toc-data-a-two-wave-epidemic-series" class="nav-link" data-scroll-target="#data-a-two-wave-epidemic-series"><span class="header-section-number">3.1</span> Data: a two-wave epidemic series</a></li>
+  <li><a href="#patching-and-revin-helpers" id="toc-patching-and-revin-helpers" class="nav-link" data-scroll-target="#patching-and-revin-helpers"><span class="header-section-number">3.2</span> Patching and RevIN helpers</a></li>
+  <li><a href="#building-the-training-dataset" id="toc-building-the-training-dataset" class="nav-link" data-scroll-target="#building-the-training-dataset"><span class="header-section-number">3.3</span> Building the training dataset</a></li>
+  <li><a href="#patch-attention-model" id="toc-patch-attention-model" class="nav-link" data-scroll-target="#patch-attention-model"><span class="header-section-number">3.4</span> Patch-attention model</a></li>
+  <li><a href="#training-with-gradient-descent" id="toc-training-with-gradient-descent" class="nav-link" data-scroll-target="#training-with-gradient-descent"><span class="header-section-number">3.5</span> Training with gradient descent</a></li>
+  <li><a href="#patching-the-time-series" id="toc-patching-the-time-series" class="nav-link" data-scroll-target="#patching-the-time-series"><span class="header-section-number">3.6</span> Patching the time series</a></li>
+  <li><a href="#generating-the-4-week-forecast" id="toc-generating-the-4-week-forecast" class="nav-link" data-scroll-target="#generating-the-4-week-forecast"><span class="header-section-number">3.7</span> Generating the 4-week forecast</a></li>
+  <li><a href="#forecast-comparison" id="toc-forecast-comparison" class="nav-link" data-scroll-target="#forecast-comparison"><span class="header-section-number">3.8</span> Forecast comparison</a></li>
+  </ul></li>
+  <li><a href="#from-scratch-to-production-timegpt-and-chronos" id="toc-from-scratch-to-production-timegpt-and-chronos" class="nav-link" data-scroll-target="#from-scratch-to-production-timegpt-and-chronos"><span class="header-section-number">4</span> From scratch to production: TimeGPT and CHRONOS</a></li>
+  <li><a href="#practical-takeaway" id="toc-practical-takeaway" class="nav-link" data-scroll-target="#practical-takeaway"><span class="header-section-number">5</span> Practical takeaway</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">6</span> References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Transformer-Based LLM Architectures for Epidemic Time Series Forecasting</h1>
+<p class="subtitle lead">Language models tokenize text into words; time series transformers tokenize history into patches. Build a patch-attention forecaster in R that predicts four weeks of case counts from sixteen weeks of history.</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">machine learning</div>
+    <div class="quarto-category">transformers</div>
+    <div class="quarto-category">time series</div>
+    <div class="quarto-category">forecasting</div>
+    <div class="quarto-category">R</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 23, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="why-epidemic-forecasting-needs-its-own-transformer" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="why-epidemic-forecasting-needs-its-own-transformer"><span class="header-section-number">1</span> Why epidemic forecasting needs its own transformer</h2>
+<p>The <a href="https://www.jonghoonk.com/blog/posts/ml_attention/">previous post</a> showed that attention is a learned weighted average over a context window. That is the mechanism inside every LLM — GPT, Claude, Gemini — and it also underlies the best time-series forecasting models.</p>
+<p>But applying an LLM directly to epidemic incidence data hits three structural problems:</p>
+<ol type="1">
+<li><strong>Continuous vs.&nbsp;discrete tokens.</strong> LLMs consume discrete tokens (integers drawn from a fixed vocabulary). Case counts are continuous — a naive tokenization loses numerical structure.</li>
+<li><strong>Expensive quadratic attention.</strong> A full weekly series from 2010 to today is roughly 750 time steps. Full self-attention is <span class="math inline">\(O(n^2)\)</span> in sequence length, which becomes expensive as history grows.</li>
+<li><strong>Distribution shift between epidemic waves.</strong> Each wave has a different scale. A model trained on a wave peaking at 2,000 cases/week struggles with a wave peaking at 200. Raw values carry absolute scale information that hurts cross-wave generalization.</li>
+</ol>
+<p>Three innovations, developed between 2021 and 2024, solve each problem:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 34%">
+<col style="width: 38%">
+<col style="width: 26%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Problem</th>
+<th>Solution</th>
+<th>Paper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Continuous inputs</td>
+<td><strong>Patch embedding</strong>: segment the series into fixed-length patches; each patch becomes one “token”</td>
+<td>PatchTST <span class="citation" data-cites="nie2023">(<a href="#ref-nie2023" role="doc-biblioref">1</a>)</span></td>
+</tr>
+<tr class="even">
+<td>Quadratic cost</td>
+<td><strong>Patching</strong> also reduces sequence length by a factor of the patch length</td>
+<td>PatchTST <span class="citation" data-cites="nie2023">(<a href="#ref-nie2023" role="doc-biblioref">1</a>)</span></td>
+</tr>
+<tr class="odd">
+<td>Distribution shift</td>
+<td><strong>Reversible Instance Normalization (RevIN)</strong>: normalize per instance before the model, denormalize predictions afterward</td>
+<td>Kim et al. <span class="citation" data-cites="kim2022">(<a href="#ref-kim2022" role="doc-biblioref">2</a>)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Together they define a blueprint — patch the input, normalize it, run a transformer encoder, project to the forecast horizon — that also underlies the zero-shot foundation models TimeGPT <span class="citation" data-cites="garzaTimeGPT12024">(<a href="#ref-garzaTimeGPT12024" role="doc-biblioref">3</a>)</span> and CHRONOS <span class="citation" data-cites="ansari2024">(<a href="#ref-ansari2024" role="doc-biblioref">4</a>)</span>.</p>
+<p>This post builds that blueprint from scratch in R, using only base R, ggplot2, and dplyr.</p>
+</section>
+<section id="the-three-innovations-in-detail" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="the-three-innovations-in-detail"><span class="header-section-number">2</span> The three innovations in detail</h2>
+<section id="patching-turning-a-time-series-into-tokens" class="level3" data-number="2.1">
+<h3 data-number="2.1" class="anchored" data-anchor-id="patching-turning-a-time-series-into-tokens"><span class="header-section-number">2.1</span> Patching: turning a time series into tokens</h3>
+<p>In an LLM, the input sentence is split into <strong>word-pieces</strong> (tokens), and the transformer attends across them. Each token carries a semantically coherent unit of meaning.</p>
+<p>For a time series, a single time step is the equivalent of a single character — too granular to carry meaning. A <strong>patch</strong> of <span class="math inline">\(M\)</span> consecutive time steps is the equivalent of a word: it captures a local trend, a brief acceleration, or a short plateau.</p>
+<p>Formally, given a look-back window of <span class="math inline">\(L\)</span> time steps, we divide it into <span class="math inline">\(P = L / M\)</span> non-overlapping patches. The transformer then attends across <span class="math inline">\(P\)</span> patch tokens rather than <span class="math inline">\(L\)</span> individual steps. Reducing the sequence from <span class="math inline">\(L\)</span> to <span class="math inline">\(P = L/M\)</span> cuts the quadratic attention cost by a factor of <span class="math inline">\(M^2\)</span>.</p>
+</section>
+<section id="revin-instance-normalization" class="level3" data-number="2.2">
+<h3 data-number="2.2" class="anchored" data-anchor-id="revin-instance-normalization"><span class="header-section-number">2.2</span> RevIN: instance normalization</h3>
+<p>RevIN <span class="citation" data-cites="kim2022">(<a href="#ref-kim2022" role="doc-biblioref">2</a>)</span> normalises each individual input window at inference time:</p>
+<p><span class="math display">\[\tilde{x}_t = \frac{x_t - \hat{\mu}}{\hat{\sigma} + \epsilon}, \quad \hat{\mu} = \frac{1}{L}\sum_{t=1}^{L} x_t, \quad \hat{\sigma} = \text{std}(x_1, \ldots, x_L)\]</span></p>
+<p>The model predicts <span class="math inline">\(\tilde{y}\)</span> in the normalized space. After prediction, the output is denormalized:</p>
+<p><span class="math display">\[\hat{y}_t = \tilde{y}_t \cdot (\hat{\sigma} + \epsilon) + \hat{\mu}\]</span></p>
+<p>This makes the model <strong>scale-invariant</strong>: it sees unit-variance, zero-mean inputs regardless of whether the current wave is small or large, making weights learned on one wave transfer to another.</p>
+</section>
+<section id="multi-step-direct-forecasting" class="level3" data-number="2.3">
+<h3 data-number="2.3" class="anchored" data-anchor-id="multi-step-direct-forecasting"><span class="header-section-number">2.3</span> Multi-step direct forecasting</h3>
+<p>RNNs and ARIMA produce forecasts autoregressively — one step at a time, feeding each prediction back as input. Error accumulates. A transformer encoder maps the full context to all <span class="math inline">\(H\)</span> future steps <strong>in one shot</strong>, producing a joint forecast that is both faster and more accurate at longer horizons <span class="citation" data-cites="lim2021">(<a href="#ref-lim2021" role="doc-biblioref">5</a>)</span>.</p>
+</section>
+</section>
+<section id="building-the-patch-attention-forecaster" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="building-the-patch-attention-forecaster"><span class="header-section-number">3</span> Building the patch-attention forecaster</h2>
+<section id="data-a-two-wave-epidemic-series" class="level3" data-number="3.1">
+<h3 data-number="3.1" class="anchored" data-anchor-id="data-a-two-wave-epidemic-series"><span class="header-section-number">3.1</span> Data: a two-wave epidemic series</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>n_total <span class="ot">&lt;-</span> <span class="dv">60</span>       <span class="co"># 52 weeks training + 8 weeks test</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>t_seq   <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">:</span>n_total</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>wave1    <span class="ot">&lt;-</span> <span class="dv">100</span> <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span>((t_seq <span class="sc">-</span> <span class="dv">18</span>)<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="dv">50</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>wave2    <span class="ot">&lt;-</span>  <span class="dv">80</span> <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span>((t_seq <span class="sc">-</span> <span class="dv">48</span>)<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="dv">30</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>seasonal <span class="ot">&lt;-</span>  <span class="dv">15</span> <span class="sc">*</span> <span class="fu">sin</span>(<span class="dv">2</span> <span class="sc">*</span> pi <span class="sc">*</span> t_seq <span class="sc">/</span> <span class="dv">52</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>noise    <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n_total, <span class="dv">0</span>, <span class="dv">6</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>cases <span class="ot">&lt;-</span> <span class="fu">pmax</span>(<span class="dv">1</span>, <span class="fu">round</span>(wave1 <span class="sc">+</span> wave2 <span class="sc">+</span> seasonal <span class="sc">+</span> noise <span class="sc">+</span> <span class="dv">20</span>))</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>n_train <span class="ot">&lt;-</span> <span class="dv">52</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>n_test  <span class="ot">&lt;-</span> <span class="dv">8</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>train_cases <span class="ot">&lt;-</span> cases[<span class="dv">1</span><span class="sc">:</span>n_train]</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>test_cases  <span class="ot">&lt;-</span> cases[(n_train <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span>n_total]</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Training weeks:"</span>, n_train, <span class="st">"| Test weeks:"</span>, n_test, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Training weeks: 52 | Test weeks: 8 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Case range — train:"</span>, <span class="fu">min</span>(train_cases), <span class="st">"–"</span>, <span class="fu">max</span>(train_cases),</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"| test:"</span>, <span class="fu">min</span>(test_cases), <span class="st">"–"</span>, <span class="fu">max</span>(test_cases), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Case range — train: 1 – 130 | test: 15 – 66 </code></pre>
+</div>
+</div>
+</section>
+<section id="patching-and-revin-helpers" class="level3" data-number="3.2">
+<h3 data-number="3.2" class="anchored" data-anchor-id="patching-and-revin-helpers"><span class="header-section-number">3.2</span> Patching and RevIN helpers</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>L     <span class="ot">&lt;-</span> <span class="dv">16</span>   <span class="co"># look-back window (weeks)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>P_len <span class="ot">&lt;-</span>  <span class="dv">4</span>   <span class="co"># patch length (weeks per patch)</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>P     <span class="ot">&lt;-</span> L <span class="sc">/</span> P_len   <span class="co"># number of patches = 4</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>H     <span class="ot">&lt;-</span>  <span class="dv">4</span>   <span class="co"># forecast horizon (weeks ahead)</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># RevIN: normalize one window, return normalized values + stats for denorm</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>revin_norm <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  mu    <span class="ot">&lt;-</span> <span class="fu">mean</span>(x)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  sigma <span class="ot">&lt;-</span> <span class="fu">sd</span>(x)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">x_norm =</span> (x <span class="sc">-</span> mu) <span class="sc">/</span> (sigma <span class="sc">+</span> <span class="fl">1e-8</span>), <span class="at">mu =</span> mu, <span class="at">sigma =</span> sigma)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>revin_denorm <span class="ot">&lt;-</span> <span class="cf">function</span>(x_norm, mu, sigma) {</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  x_norm <span class="sc">*</span> (sigma <span class="sc">+</span> <span class="fl">1e-8</span>) <span class="sc">+</span> mu</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Summarize each patch as its mean (the "embedding")</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>make_patch_means <span class="ot">&lt;-</span> <span class="cf">function</span>(x_norm, patch_len) {</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  n_p <span class="ot">&lt;-</span> <span class="fu">length</span>(x_norm) <span class="sc">/</span> patch_len</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">vapply</span>(<span class="fu">seq_len</span>(n_p), <span class="cf">function</span>(i) {</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    idx <span class="ot">&lt;-</span> ((i <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> patch_len <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span>(i <span class="sc">*</span> patch_len)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(x_norm[idx])</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  }, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="building-the-training-dataset" class="level3" data-number="3.3">
+<h3 data-number="3.3" class="anchored" data-anchor-id="building-the-training-dataset"><span class="header-section-number">3.3</span> Building the training dataset</h3>
+<p>Each training sample is a (patches, targets) pair. The patches encode the normalized look-back window; the targets are the next <span class="math inline">\(H\)</span> steps in the same normalized space.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>n_samples <span class="ot">&lt;-</span> n_train <span class="sc">-</span> L <span class="sc">-</span> H <span class="sc">+</span> <span class="dv">1</span>   <span class="co"># = 33 training examples</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>X_patches  <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="cn">NA_real_</span>, n_samples, P)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>y_targets  <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="cn">NA_real_</span>, n_samples, H)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>norm_stats  <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, n_samples)   <span class="co"># store mu/sigma for each window</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_len</span>(n_samples)) {</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  window    <span class="ot">&lt;-</span> train_cases[i<span class="sc">:</span>(i <span class="sc">+</span> L <span class="sc">-</span> <span class="dv">1</span>)]</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  rv        <span class="ot">&lt;-</span> <span class="fu">revin_norm</span>(window)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  norm_stats[[i]] <span class="ot">&lt;-</span> rv</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  X_patches[i, ] <span class="ot">&lt;-</span> <span class="fu">make_patch_means</span>(rv<span class="sc">$</span>x_norm, P_len)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  future         <span class="ot">&lt;-</span> train_cases[(i <span class="sc">+</span> L)<span class="sc">:</span>(i <span class="sc">+</span> L <span class="sc">+</span> H <span class="sc">-</span> <span class="dv">1</span>)]</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  y_targets[i, ] <span class="ot">&lt;-</span> (future <span class="sc">-</span> rv<span class="sc">$</span>mu) <span class="sc">/</span> (rv<span class="sc">$</span>sigma <span class="sc">+</span> <span class="fl">1e-8</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Training samples:"</span>, n_samples,</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"| Patches per sample:"</span>, P,</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"| Forecast steps:"</span>, H, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Training samples: 33 | Patches per sample: 4 | Forecast steps: 4 </code></pre>
+</div>
+</div>
+</section>
+<section id="patch-attention-model" class="level3" data-number="3.4">
+<h3 data-number="3.4" class="anchored" data-anchor-id="patch-attention-model"><span class="header-section-number">3.4</span> Patch-attention model</h3>
+<p>The model has three parameter groups:</p>
+<ul>
+<li><span class="math inline">\(\boldsymbol{\alpha} \in \mathbb{R}^P\)</span> — attention logits over patches; <span class="math inline">\(\mathbf{w} = \text{softmax}(\boldsymbol{\alpha})\)</span></li>
+<li><span class="math inline">\(\mathbf{W} \in \mathbb{R}^{P \times H}\)</span> — output projection from patch space to <span class="math inline">\(H\)</span> future steps</li>
+<li><span class="math inline">\(\mathbf{b} \in \mathbb{R}^H\)</span> — bias</li>
+</ul>
+<p>The forward pass for a batch of <span class="math inline">\(n\)</span> samples is:</p>
+<p><span class="math display">\[\mathbf{Z} = \mathbf{X} \odot \mathbf{w}^\top \quad (n \times P), \qquad \hat{\mathbf{Y}} = \mathbf{Z}\mathbf{W} + \mathbf{1}\mathbf{b}^\top \quad (n \times H)\]</span></p>
+<p>where <span class="math inline">\(\odot\)</span> broadcasts the patch weights <span class="math inline">\(\mathbf{w}\)</span> across all rows of <span class="math inline">\(\mathbf{X}\)</span>. The attention weights <span class="math inline">\(\mathbf{w}\)</span> scale the importance of each patch globally; the projection <span class="math inline">\(\mathbf{W}\)</span> maps the reweighted patches to each future horizon.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>softmax <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha) {</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  e <span class="ot">&lt;-</span> <span class="fu">exp</span>(alpha <span class="sc">-</span> <span class="fu">max</span>(alpha))</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  e <span class="sc">/</span> <span class="fu">sum</span>(e)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># params layout: alpha[1:P], vec(W)[1:(P*H)], b[1:H]</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>forward <span class="ot">&lt;-</span> <span class="cf">function</span>(params, X) {</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  alpha <span class="ot">&lt;-</span> params[<span class="fu">seq_len</span>(P)]</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  W     <span class="ot">&lt;-</span> <span class="fu">matrix</span>(params[(P <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span>(P <span class="sc">+</span> P <span class="sc">*</span> H)], <span class="at">nrow =</span> P, <span class="at">ncol =</span> H)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  b     <span class="ot">&lt;-</span> params[(P <span class="sc">+</span> P <span class="sc">*</span> H <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span>(P <span class="sc">+</span> P <span class="sc">*</span> H <span class="sc">+</span> H)]</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  w     <span class="ot">&lt;-</span> <span class="fu">softmax</span>(alpha)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  Z     <span class="ot">&lt;-</span> <span class="fu">sweep</span>(X, <span class="dv">2</span>, w, <span class="st">"*"</span>)                              <span class="co"># n × P</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  Z <span class="sc">%*%</span> W <span class="sc">+</span> <span class="fu">matrix</span>(b, <span class="fu">nrow</span>(X), H, <span class="at">byrow =</span> <span class="cn">TRUE</span>)            <span class="co"># n × H</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>loss_fn <span class="ot">&lt;-</span> <span class="cf">function</span>(params) {</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  yhat <span class="ot">&lt;-</span> <span class="fu">forward</span>(params, X_patches)</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>((yhat <span class="sc">-</span> y_targets)<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="training-with-gradient-descent" class="level3" data-number="3.5">
+<h3 data-number="3.5" class="anchored" data-anchor-id="training-with-gradient-descent"><span class="header-section-number">3.5</span> Training with gradient descent</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>num_grad <span class="ot">&lt;-</span> <span class="cf">function</span>(f, x, <span class="at">eps =</span> <span class="fl">1e-5</span>) {</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">vapply</span>(<span class="fu">seq_along</span>(x), <span class="cf">function</span>(j) {</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    x1 <span class="ot">&lt;-</span> x2 <span class="ot">&lt;-</span> x</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    x1[j] <span class="ot">&lt;-</span> x1[j] <span class="sc">+</span> eps</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    x2[j] <span class="ot">&lt;-</span> x2[j] <span class="sc">-</span> eps</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    (<span class="fu">f</span>(x1) <span class="sc">-</span> <span class="fu">f</span>(x2)) <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> eps)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  }, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>n_params <span class="ot">&lt;-</span> P <span class="sc">+</span> P <span class="sc">*</span> H <span class="sc">+</span> H    <span class="co"># 4 + 16 + 4 = 24</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">0</span>, P), <span class="fu">rnorm</span>(P <span class="sc">*</span> H, <span class="dv">0</span>, <span class="fl">0.1</span>), <span class="fu">rep</span>(<span class="dv">0</span>, H))</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>lr       <span class="ot">&lt;-</span> <span class="fl">0.05</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>n_iter   <span class="ot">&lt;-</span> <span class="dv">2500</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>loss_log <span class="ot">&lt;-</span> <span class="fu">numeric</span>(n_iter)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (iter <span class="cf">in</span> <span class="fu">seq_len</span>(n_iter)) {</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  g       <span class="ot">&lt;-</span> <span class="fu">num_grad</span>(loss_fn, params)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  params  <span class="ot">&lt;-</span> params <span class="sc">-</span> lr <span class="sc">*</span> g</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  loss_log[iter] <span class="ot">&lt;-</span> <span class="fu">loss_fn</span>(params)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>w_learned <span class="ot">&lt;-</span> <span class="fu">softmax</span>(params[<span class="fu">seq_len</span>(P)])</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Final training loss (normalized MSE):"</span>, <span class="fu">round</span>(<span class="fu">loss_fn</span>(params), <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Final training loss (normalized MSE): 0.5134 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Learned patch attention weights:</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Learned patch attention weights:</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">paste0</span>(<span class="st">"  patch "</span>, <span class="fu">seq_len</span>(P), <span class="st">" (weeks "</span>,</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>           (<span class="fu">seq_len</span>(P) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> P_len <span class="sc">+</span> <span class="dv">1</span>, <span class="st">"–"</span>,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>           <span class="fu">seq_len</span>(P) <span class="sc">*</span> P_len, <span class="st">" of look-back): "</span>,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>           <span class="fu">round</span>(w_learned, <span class="dv">3</span>)), <span class="at">sep =</span> <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  patch 1 (weeks 1–4 of look-back): 0.018
+  patch 2 (weeks 5–8 of look-back): 0.008
+  patch 3 (weeks 9–12 of look-back): 0.573
+  patch 4 (weeks 13–16 of look-back): 0.4</code></pre>
+</div>
+</div>
+<p>The attention weights reveal which temporal segment the model finds most predictive. In an epidemic context, the most recent patch (weeks 13–16 of the look-back window) should receive the highest weight because short-term autocorrelation in case counts is strong — similar to what the single-step attention model found in the previous post, but now measured at the coarser patch scale.</p>
+</section>
+<section id="patching-the-time-series" class="level3" data-number="3.6">
+<h3 data-number="3.6" class="anchored" data-anchor-id="patching-the-time-series"><span class="header-section-number">3.6</span> Patching the time series</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Build patch boundary data for the look-back window used in the test forecast</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>lb_start <span class="ot">&lt;-</span> n_train <span class="sc">-</span> L <span class="sc">+</span> <span class="dv">1</span>   <span class="co"># week 37</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>lb_end   <span class="ot">&lt;-</span> n_train            <span class="co"># week 52</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>patch_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">xmin  =</span> lb_start <span class="sc">+</span> (<span class="fu">seq_len</span>(P) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> P_len <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">xmax  =</span> lb_start <span class="sc">+</span> <span class="fu">seq_len</span>(P) <span class="sc">*</span> P_len <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">patch =</span> <span class="fu">factor</span>(<span class="fu">seq_len</span>(P)),</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">alpha_fill =</span> <span class="fu">seq</span>(<span class="fl">0.10</span>, <span class="fl">0.40</span>, <span class="at">length.out =</span> P)</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>ts_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">week =</span> <span class="fu">seq_along</span>(cases), <span class="at">cases =</span> cases)</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_rect</span>(</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> patch_df,</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">xmin =</span> xmin, <span class="at">xmax =</span> xmax, <span class="at">ymin =</span> <span class="dv">0</span>, <span class="at">ymax =</span> <span class="cn">Inf</span>, <span class="at">fill =</span> patch),</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span> <span class="fl">0.22</span>, <span class="at">show.legend =</span> <span class="cn">FALSE</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">xintercept =</span> patch_df<span class="sc">$</span>xmin[<span class="sc">-</span><span class="dv">1</span>],</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">colour =</span> <span class="st">"grey50"</span>, <span class="at">linewidth =</span> <span class="fl">0.4</span></span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> ts_df, <span class="fu">aes</span>(<span class="at">x =</span> week, <span class="at">y =</span> cases),</span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>            <span class="at">colour =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> ts_df <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(week <span class="sc">&gt;</span> n_train),</span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>             <span class="fu">aes</span>(<span class="at">x =</span> week, <span class="at">y =</span> cases),</span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"firebrick"</span>, <span class="at">size =</span> <span class="dv">2</span>, <span class="at">shape =</span> <span class="dv">16</span>) <span class="sc">+</span></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#bdd7e7"</span>, <span class="st">"#6baed6"</span>, <span class="st">"#3182bd"</span>, <span class="st">"#08519c"</span>)) <span class="sc">+</span></span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> lb_start <span class="sc">+</span> (<span class="fu">seq_len</span>(P) <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">*</span> P_len <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>           <span class="at">y =</span> <span class="fu">max</span>(cases) <span class="sc">*</span> <span class="fl">0.95</span>,</span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">paste0</span>(<span class="st">"P"</span>, <span class="fu">seq_len</span>(P)),</span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>           <span class="at">colour =</span> <span class="st">"grey30"</span>, <span class="at">size =</span> <span class="fl">3.5</span>, <span class="at">fontface =</span> <span class="st">"bold"</span>) <span class="sc">+</span></span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> n_train <span class="sc">+</span> <span class="fl">2.5</span>, <span class="at">y =</span> <span class="fu">max</span>(cases) <span class="sc">*</span> <span class="fl">0.7</span>,</span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"test</span><span class="sc">\n</span><span class="st">(held out)"</span>, <span class="at">colour =</span> <span class="st">"firebrick"</span>, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> n_train <span class="sc">+</span> <span class="fl">0.5</span>,</span>
+<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a>             <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">colour =</span> <span class="st">"firebrick"</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Week"</span>, <span class="at">y =</span> <span class="st">"Cases"</span>,</span>
+<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Epidemic series with look-back patches (P1–P4)"</span>) <span class="sc">+</span></span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-patches" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-patches-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-patches-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-patches-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: The 16-week look-back window (weeks 37–52, shaded) is divided into four patches of four weeks each. Each patch becomes one ‘token’ for the transformer encoder. The final patch (weeks 49–52, darkest shading) carries the most recent trend information and typically receives the highest attention weight.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="generating-the-4-week-forecast" class="level3" data-number="3.7">
+<h3 data-number="3.7" class="anchored" data-anchor-id="generating-the-4-week-forecast"><span class="header-section-number">3.7</span> Generating the 4-week forecast</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Input window: last L=16 weeks of training data</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>forecast_window <span class="ot">&lt;-</span> train_cases[(n_train <span class="sc">-</span> L <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span>n_train]</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>rv_test         <span class="ot">&lt;-</span> <span class="fu">revin_norm</span>(forecast_window)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>X_test          <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">make_patch_means</span>(rv_test<span class="sc">$</span>x_norm, P_len), <span class="at">nrow =</span> <span class="dv">1</span>)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Forward pass → normalized predictions → denormalize</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>pred_norm  <span class="ot">&lt;-</span> <span class="fu">forward</span>(params, X_test)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>pred_cases <span class="ot">&lt;-</span> <span class="fu">pmax</span>(<span class="dv">0</span>, <span class="fu">round</span>(<span class="fu">revin_denorm</span>(pred_norm[<span class="dv">1</span>, ], rv_test<span class="sc">$</span>mu, rv_test<span class="sc">$</span>sigma)))</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Naive baseline: repeat the last observed value</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>naive_pred <span class="ot">&lt;-</span> <span class="fu">rep</span>(train_cases[n_train], H)</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Error on the first H test weeks</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>obs_H <span class="ot">&lt;-</span> test_cases[<span class="fu">seq_len</span>(H)]</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>rmse_patch <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((pred_cases <span class="sc">-</span> obs_H)<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>rmse_naive <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>((naive_pred  <span class="sc">-</span> obs_H)<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"4-week forecast (patch-attention):"</span>, pred_cases, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>4-week forecast (patch-attention): 57 41 25 7 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"4-week forecast (naive):          "</span>, naive_pred, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>4-week forecast (naive):           62 62 62 62 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Observed:                         "</span>, obs_H, <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Observed:                          66 52 41 38 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"RMSE — patch-attention:"</span>, <span class="fu">round</span>(rmse_patch, <span class="dv">1</span>),</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"| naive:"</span>, <span class="fu">round</span>(rmse_naive, <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>RMSE — patch-attention: 18.8 | naive: 16.8 </code></pre>
+</div>
+</div>
+</section>
+<section id="forecast-comparison" class="level3" data-number="3.8">
+<h3 data-number="3.8" class="anchored" data-anchor-id="forecast-comparison"><span class="header-section-number">3.8</span> Forecast comparison</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>display_weeks <span class="ot">&lt;-</span> (n_train <span class="sc">-</span> <span class="dv">10</span>)<span class="sc">:</span>n_total</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>obs_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">week  =</span> display_weeks,</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">cases =</span> cases[display_weeks],</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">type  =</span> <span class="fu">ifelse</span>(display_weeks <span class="sc">&lt;=</span> n_train, <span class="st">"Observed (train)"</span>, <span class="st">"Observed (test)"</span>)</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>fc_weeks <span class="ot">&lt;-</span> (n_train <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span>(n_train <span class="sc">+</span> H)</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>fc_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">week  =</span> <span class="fu">rep</span>(fc_weeks, <span class="dv">2</span>),</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">cases =</span> <span class="fu">c</span>(pred_cases, naive_pred),</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">model =</span> <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">"Patch-attention"</span>, <span class="st">"Naive (last value)"</span>), <span class="at">each =</span> H)</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> obs_df <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(type <span class="sc">==</span> <span class="st">"Observed (train)"</span>),</span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">x =</span> week, <span class="at">y =</span> cases),</span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">colour =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.9</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(</span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> obs_df <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(type <span class="sc">==</span> <span class="st">"Observed (test)"</span>),</span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">x =</span> week, <span class="at">y =</span> cases),</span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">colour =</span> <span class="st">"firebrick"</span>, <span class="at">size =</span> <span class="fl">2.5</span>, <span class="at">shape =</span> <span class="dv">16</span></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(</span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> obs_df <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(type <span class="sc">==</span> <span class="st">"Observed (test)"</span>),</span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">x =</span> week, <span class="at">y =</span> cases),</span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">colour =</span> <span class="st">"firebrick"</span>, <span class="at">linewidth =</span> <span class="fl">0.7</span>, <span class="at">linetype =</span> <span class="st">"dotted"</span></span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(</span>
+<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> fc_df,</span>
+<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">x =</span> week, <span class="at">y =</span> cases, <span class="at">colour =</span> model, <span class="at">linetype =</span> model),</span>
+<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">linewidth =</span> <span class="fl">1.1</span></span>
+<span id="cb24-35"><a href="#cb24-35" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-36"><a href="#cb24-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(</span>
+<span id="cb24-37"><a href="#cb24-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> fc_df,</span>
+<span id="cb24-38"><a href="#cb24-38" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">x =</span> week, <span class="at">y =</span> cases, <span class="at">colour =</span> model),</span>
+<span id="cb24-39"><a href="#cb24-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">size =</span> <span class="fl">2.2</span></span>
+<span id="cb24-40"><a href="#cb24-40" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-41"><a href="#cb24-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> n_train <span class="sc">+</span> <span class="fl">0.5</span>,</span>
+<span id="cb24-42"><a href="#cb24-42" aria-hidden="true" tabindex="-1"></a>             <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">colour =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb24-43"><a href="#cb24-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(</span>
+<span id="cb24-44"><a href="#cb24-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Patch-attention"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>,</span>
+<span id="cb24-45"><a href="#cb24-45" aria-hidden="true" tabindex="-1"></a>               <span class="st">"Naive (last value)"</span> <span class="ot">=</span> <span class="st">"orange"</span>),</span>
+<span id="cb24-46"><a href="#cb24-46" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span></span>
+<span id="cb24-47"><a href="#cb24-47" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-48"><a href="#cb24-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(</span>
+<span id="cb24-49"><a href="#cb24-49" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Patch-attention"</span> <span class="ot">=</span> <span class="st">"solid"</span>,</span>
+<span id="cb24-50"><a href="#cb24-50" aria-hidden="true" tabindex="-1"></a>               <span class="st">"Naive (last value)"</span> <span class="ot">=</span> <span class="st">"dashed"</span>),</span>
+<span id="cb24-51"><a href="#cb24-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="cn">NULL</span></span>
+<span id="cb24-52"><a href="#cb24-52" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-53"><a href="#cb24-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> n_train <span class="sc">-</span> <span class="fl">0.5</span>, <span class="at">y =</span> <span class="fu">max</span>(cases[display_weeks]) <span class="sc">*</span> <span class="fl">0.97</span>,</span>
+<span id="cb24-54"><a href="#cb24-54" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"train"</span>, <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">colour =</span> <span class="st">"grey40"</span>, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb24-55"><a href="#cb24-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> n_train <span class="sc">+</span> <span class="fl">1.5</span>, <span class="at">y =</span> <span class="fu">max</span>(cases[display_weeks]) <span class="sc">*</span> <span class="fl">0.97</span>,</span>
+<span id="cb24-56"><a href="#cb24-56" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"forecast"</span>, <span class="at">hjust =</span> <span class="dv">0</span>, <span class="at">colour =</span> <span class="st">"grey40"</span>, <span class="at">size =</span> <span class="fl">3.2</span>) <span class="sc">+</span></span>
+<span id="cb24-57"><a href="#cb24-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Week"</span>, <span class="at">y =</span> <span class="st">"Cases"</span>,</span>
+<span id="cb24-58"><a href="#cb24-58" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"4-week epidemic forecast: patch-attention vs. naive"</span>) <span class="sc">+</span></span>
+<span id="cb24-59"><a href="#cb24-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb24-60"><a href="#cb24-60" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-forecast" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-forecast-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-forecast-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-forecast-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Four-week epidemic forecast. The patch-attention model (blue) captures the declining trend of the second wave by learning that the most recent patches — which show falling incidence — deserve higher attention weights. The naive forecast (orange dashed) anchors on the last observed value and misses the trend. Observed values beyond the training cutoff are shown in red.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="from-scratch-to-production-timegpt-and-chronos" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="from-scratch-to-production-timegpt-and-chronos"><span class="header-section-number">4</span> From scratch to production: TimeGPT and CHRONOS</h2>
+<p>The patch-attention model above has 24 parameters and trains on a single epidemic time series. Production systems extend this blueprint in two directions.</p>
+<p><strong>Foundation models</strong> pre-train the same architecture on tens of millions of diverse time series — electricity demand, retail sales, financial returns, disease counts — then apply the learned weights to new series <strong>without any retraining</strong> (zero-shot inference).</p>
+<p><strong>TimeGPT</strong> <span class="citation" data-cites="garzaTimeGPT12024">(<a href="#ref-garzaTimeGPT12024" role="doc-biblioref">3</a>)</span> works via a REST API: send a historical series, get back a probabilistic forecast with confidence intervals. No GPU required on the client side.</p>
+<p><strong>CHRONOS</strong> <span class="citation" data-cites="ansari2024">(<a href="#ref-ansari2024" role="doc-biblioref">4</a>)</span>, released by Amazon in 2024, converts time series values into discrete tokens (by quantizing the distribution of observed values), then trains a standard language model — T5 architecture — on token prediction. At inference time, it samples token sequences and maps them back to numeric forecasts. This is the closest to a literal “LLM for time series”: the same model class (transformer decoder) and the same training objective (next-token prediction) as GPT, applied to quantized time series data.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Zero-shot epidemic forecast with Nixtla TimeGPT (conceptual — not executed)</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> nixtla <span class="im">import</span> NixtlaClient</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>client <span class="op">=</span> NixtlaClient(api_key<span class="op">=</span><span class="st">"YOUR_KEY"</span>)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.DataFrame({</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"unique_id"</span>: <span class="st">"district_A"</span>,</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ds"</span>: pd.date_range(<span class="st">"2024-01-01"</span>, periods<span class="op">=</span><span class="dv">52</span>, freq<span class="op">=</span><span class="st">"W"</span>),</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"y"</span>: weekly_cases          <span class="co"># your epidemic incidence series</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>forecast <span class="op">=</span> client.forecast(</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    df,</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    h<span class="op">=</span><span class="dv">4</span>,                       <span class="co"># 4-week horizon</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    freq<span class="op">=</span><span class="st">"W"</span>,</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    level<span class="op">=</span>[<span class="dv">80</span>, <span class="dv">95</span>]             <span class="co"># prediction intervals</span></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Zero-shot forecast with Amazon CHRONOS (conceptual — not executed)</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> chronos <span class="im">import</span> ChronosPipeline</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>pipeline <span class="op">=</span> ChronosPipeline.from_pretrained(</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"amazon/chronos-t5-small"</span>,</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    device_map<span class="op">=</span><span class="st">"cpu"</span>,</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    torch_dtype<span class="op">=</span>torch.float32</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> pipeline.predict(</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    context<span class="op">=</span>torch.tensor(weekly_cases, dtype<span class="op">=</span>torch.float32).unsqueeze(<span class="dv">0</span>),</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>    prediction_length<span class="op">=</span><span class="dv">4</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a><span class="co"># samples shape: (num_samples, 4)</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>median_forecast <span class="op">=</span> samples.median(dim<span class="op">=</span><span class="dv">0</span>).values.numpy()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>When the historical series for a given district is short (a new health department client with only six months of data), zero-shot models are especially valuable: they borrow statistical strength from the millions of other series in their training corpus.</p>
+</section>
+<section id="practical-takeaway" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="practical-takeaway"><span class="header-section-number">5</span> Practical takeaway</h2>
+<p>The three-part blueprint — <strong>patch</strong>, <strong>normalize</strong>, <strong>attend</strong> — is the key mental model:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 38%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Why it matters</th>
+<th>What to use</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Patching</td>
+<td>Reduces sequence length; gives local context to each “token”</td>
+<td>PatchTST <span class="citation" data-cites="nie2023">(<a href="#ref-nie2023" role="doc-biblioref">1</a>)</span>, patch size 4–16 weeks for epidemic data</td>
+</tr>
+<tr class="even">
+<td>RevIN</td>
+<td>Handles scale shift between epidemic waves without extra data</td>
+<td>Built into PatchTST; apply manually when rolling your own</td>
+</tr>
+<tr class="odd">
+<td>Multi-step direct output</td>
+<td>No error accumulation; faster at long horizons</td>
+<td>Output a <span class="math inline">\(H\)</span>-vector in one forward pass</td>
+</tr>
+<tr class="even">
+<td>Zero-shot foundation model</td>
+<td>No retraining needed for new districts</td>
+<td>TimeGPT (API), CHRONOS (local)</td>
+</tr>
+</tbody>
+</table>
+<p>For a digital twin platform, the practical decision tree is:</p>
+<ol type="1">
+<li><strong>≥ 2 years of weekly data, district-specific</strong>: fine-tune a PatchTST-style model on that district’s history.</li>
+<li><strong>&lt; 1 year of data, new client</strong>: use TimeGPT or CHRONOS zero-shot; supplement with the mechanistic SEIR prior.</li>
+<li><strong>Need interpretable weights per time period</strong>: use the Temporal Fusion Transformer <span class="citation" data-cites="lim2021">(<a href="#ref-lim2021" role="doc-biblioref">5</a>)</span>, which outputs variable importance scores over patch positions.</li>
+</ol>
+<p>The R implementation above is a minimal proof of concept with 24 parameters. The principle scales directly to the production architectures: more patches, higher-dimensional embeddings, multi-head attention, and pre-training on thousands of epidemic series.</p>
+</section>
+<section id="references" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="references"><span class="header-section-number">6</span> References</h2>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-nie2023" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Nie Y, Nguyen NH, Sinthong P, Kalagnanam J. A time series is worth 64 words: Long-term forecasting with transformers. In: International conference on learning representations [Internet]. 2023. Available from: <a href="https://arxiv.org/abs/2211.14730">https://arxiv.org/abs/2211.14730</a></div>
+</div>
+<div id="ref-kim2022" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Kim T, Kim J, Tae Y, Park C, Choi JH, Choo J. Reversible instance normalization for accurate time-series forecasting against distribution shift. In: International conference on learning representations [Internet]. 2022. Available from: <a href="https://arxiv.org/abs/2106.06633">https://arxiv.org/abs/2106.06633</a></div>
+</div>
+<div id="ref-garzaTimeGPT12024" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Garza A, Challu C, Mergenthaler-Canseco M. TimeGPT-1. arXiv; 2024. doi:<a href="https://doi.org/10.48550/arXiv.2310.03589">10.48550/arXiv.2310.03589</a></div>
+</div>
+<div id="ref-ansari2024" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Ansari AF, Stella L, Turkmen C, Zhang X, Mercado P, Shen H, et al. Chronos: Learning the language of time series. arXiv; 2024. doi:<a href="https://doi.org/10.48550/arXiv.2403.07815">10.48550/arXiv.2403.07815</a></div>
+</div>
+<div id="ref-lim2021" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Lim B, Arik SO, Loeff N, Pfister T. Temporal fusion transformers for interpretable multi-horizon time series forecasting. International Journal of Forecasting. 2021;37(4):1748–64. doi:<a href="https://doi.org/10.1016/j.ijforecast.2021.03.012">10.1016/j.ijforecast.2021.03.012</a></div>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="kimfinale/myblog" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
