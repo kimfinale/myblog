@@ -10,7 +10,1322 @@
 <atom:link href="https://www.jonghoonk.com/blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Disease modeling for public health</description>
 <generator>quarto-1.9.36</generator>
-<lastBuildDate>Fri, 24 Apr 2026 15:00:00 GMT</lastBuildDate>
+<lastBuildDate>Wed, 02 Sep 2026 15:00:00 GMT</lastBuildDate>
+<item>
+  <title>Nash Equilibrium, Starting Simple</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/game_theory_nash_two_pop/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="why-this-matters" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="why-this-matters"><span class="header-section-number">1</span> Why this matters</h2>
+<p>Vaccination coverage is not a parameter we set; it is the aggregate outcome of many decisions, each made by an agent who responds to what everyone else is doing. The mathematical object that describes where such mutually-responsive decisions settle is the <strong>Nash equilibrium</strong> <span class="citation" data-cites="nash1950">(1)</span>. For a single well-mixed population, Bauch and Earn showed that voluntary vaccination settles at a Nash equilibrium strictly below the herd-immunity threshold <span class="citation" data-cites="bauch2004">(2)</span> — a point epidemiologists had raised well before game theory entered the field <span class="citation" data-cites="fine1986">(3)</span>. I worked through that single-population game in <a href="https://www.jonghoonk.com/blog/posts/game_theory_vacc/">an earlier post</a>.</p>
+<p>This post starts one step earlier — what a Nash equilibrium actually <em>is</em>, using nothing more than a 2×2 table — and then goes one step further: what happens when there are <strong>two populations coupled by travel or shared borders</strong>, each choosing its own coverage. This is the setting that matters for real vaccination strategy: districts within a country, or neighboring countries deciding on cholera or typhoid vaccination campaigns whose benefits spill across the border <span class="citation" data-cites="klepac2016">(4)</span>. The punchline is that the free-rider problem operates at two levels at once: individuals free-ride on their neighbors, and populations free-ride on each other.</p>
+</section>
+<section id="a-nash-equilibrium-in-one-table" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="a-nash-equilibrium-in-one-table"><span class="header-section-number">2</span> A Nash equilibrium in one table</h2>
+<p>Strip away everything continuous. Two neighboring health departments, A and B, each face one binary choice: fund a vaccination <strong>Campaign</strong> (C) or <strong>Not</strong> (N). A campaign costs 4 (in some currency of budget units). Epidemic costs depend on what both do, because transmission crosses the border:</p>
+<ul>
+<li>If <strong>both</strong> run campaigns, the outbreak is suppressed: no epidemic cost.</li>
+<li>If <strong>one</strong> runs a campaign, transmission is reduced everywhere, but incompletely: each department suffers epidemic cost 3.</li>
+<li>If <strong>neither</strong> runs one, each suffers epidemic cost 8.</li>
+</ul>
+<p>Each department pays its own campaign cost plus its own epidemic cost. Writing total costs as (A’s cost, B’s cost):</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th style="text-align: center;">B: Campaign</th>
+<th style="text-align: center;">B: No campaign</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>A: Campaign</strong></td>
+<td style="text-align: center;">(4, 4)</td>
+<td style="text-align: center;">(7, 3)</td>
+</tr>
+<tr class="even">
+<td><strong>A: No campaign</strong></td>
+<td style="text-align: center;">(3, 7)</td>
+<td style="text-align: center;">(8, 8)</td>
+</tr>
+</tbody>
+</table>
+<p>A <strong>best response</strong> is the cheapest choice <em>given what the other player does</em>. Check A’s best responses:</p>
+<ul>
+<li>If B campaigns, A pays 4 by campaigning or 3 by abstaining → best response: <strong>N</strong>. A free-rides on B’s spillover protection.</li>
+<li>If B abstains, A pays 7 by campaigning or 8 by abstaining → best response: <strong>C</strong>. Facing an unchecked epidemic, even a solo campaign pays for itself.</li>
+</ul>
+<p>A <strong>Nash equilibrium</strong> is a pair of choices in which each player is best-responding to the other — so no one can gain by <em>unilaterally</em> switching. Here there are two pure-strategy equilibria: <strong>(C, N)</strong> and <strong>(N, C)</strong>. In each, exactly one department pays for a campaign and the other free-rides, and neither can do better by changing only its own choice. (There is also a mixed equilibrium in which each campaigns with probability 1/2 — Nash’s theorem guarantees at least one equilibrium always exists once mixing is allowed <span class="citation" data-cites="nash1950">(1)</span>.)</p>
+<p>Notice what is <em>not</em> an equilibrium: (C, C), the outcome with the lowest total cost (8, versus 10 in either free-rider equilibrium and 16 with no campaigns). The socially best outcome is unstable because each player, holding the other’s choice fixed, gains by defecting. That divergence between equilibrium and optimum is the entire story of vaccination games; the rest of this post just replaces the 2×2 table with epidemic dynamics.</p>
+</section>
+<section id="one-population-continuous-strategies" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="one-population-continuous-strategies"><span class="header-section-number">3</span> One population, continuous strategies</h2>
+<p>Now let the strategy be continuous: each individual in a large well-mixed population decides whether to vaccinate before an epidemic, and the population-level outcome is a coverage <img src="https://latex.codecogs.com/png.latex?p%20%5Cin%20%5B0,1%5D">. Let <img src="https://latex.codecogs.com/png.latex?r"> be the cost of vaccination <em>relative to</em> the cost of infection (so <img src="https://latex.codecogs.com/png.latex?0%20%3C%20r%20%3C%201">), and let <img src="https://latex.codecogs.com/png.latex?%5Cpi(p)"> be the probability that an unvaccinated individual is eventually infected when coverage is <img src="https://latex.codecogs.com/png.latex?p">.</p>
+<p>For an SIR-type epidemic with a perfect vaccine, <img src="https://latex.codecogs.com/png.latex?%5Cpi(p)"> is the final size among the unvaccinated, which solves</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cpi%20=%201%20-%20%5Cexp%5C%7B-R_0%5C,(1-p)%5C,%5Cpi%5C%7D,%0A"></p>
+<p>and <img src="https://latex.codecogs.com/png.latex?%5Cpi(p)%20=%200"> once <img src="https://latex.codecogs.com/png.latex?p"> exceeds the herd-immunity threshold <img src="https://latex.codecogs.com/png.latex?p_H%20=%201%20-%201/R_0">.</p>
+<p>The logic of the 2×2 table carries over directly. If <img src="https://latex.codecogs.com/png.latex?%5Cpi(p)%20%3E%20r">, an unvaccinated individual gains by vaccinating, so coverage rises; if <img src="https://latex.codecogs.com/png.latex?%5Cpi(p)%20%3C%20r">, a vaccinated individual would have preferred not to, so coverage falls. The interior Nash equilibrium <img src="https://latex.codecogs.com/png.latex?p%5E*"> is the <strong>indifference point</strong> <span class="citation" data-cites="bauch2004">(2)</span>:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cpi(p%5E*)%20=%20r.%0A"></p>
+<p>Since <img src="https://latex.codecogs.com/png.latex?r%20%3E%200"> requires <img src="https://latex.codecogs.com/png.latex?%5Cpi(p%5E*)%20%3E%200">, the equilibrium always sits <em>below</em> <img src="https://latex.codecogs.com/png.latex?p_H">: voluntary vaccination never reaches herd immunity.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggplot2)</span>
+<span id="cb1-2"></span>
+<span id="cb1-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Final size among the unvaccinated at coverage p (perfect vaccine)</span></span>
+<span id="cb1-4">attack_rate <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(p, R0) {</span>
+<span id="cb1-5">  R_eff <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> R0 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p)</span>
+<span id="cb1-6">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (R_eff <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">return</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb1-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniroot</span>(<span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(z) z <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>R_eff <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> z)),</span>
+<span id="cb1-8">          <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-9</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">tol =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-12</span>)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>root</span>
+<span id="cb1-9">}</span>
+<span id="cb1-10"></span>
+<span id="cb1-11">R0 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># e.g., a moderately transmissible respiratory pathogen</span></span>
+<span id="cb1-12">r  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># vaccination cost relative to infection cost</span></span>
+<span id="cb1-13"></span>
+<span id="cb1-14">p_H    <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> R0</span>
+<span id="cb1-15">p_nash <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniroot</span>(<span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(p) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">attack_rate</span>(p, R0) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> r,</span>
+<span id="cb1-16">                  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, p_H <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-6</span>))<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>root</span>
+<span id="cb1-17"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nash =</span> p_nash, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">herd_immunity =</span> p_H), <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         nash herd_immunity 
+        0.554         0.600 </code></pre>
+</div>
+</div>
+<p>With <img src="https://latex.codecogs.com/png.latex?R_0%20=%202.5"> and <img src="https://latex.codecogs.com/png.latex?r%20=%200.2">, voluntary coverage settles at 0.554 — below the herd-immunity threshold of 0.6, and stably so: any campaign that pushes coverage above <img src="https://latex.codecogs.com/png.latex?p%5E*"> lowers the infection risk below <img src="https://latex.codecogs.com/png.latex?r">, and the incentive to vaccinate evaporates.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">p_grid <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.7</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.002</span>)</span>
+<span id="cb3-2">df <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p =</span> p_grid,</span>
+<span id="cb3-3">                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">risk =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sapply</span>(p_grid, attack_rate, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">R0 =</span> R0))</span>
+<span id="cb3-4"></span>
+<span id="cb3-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(p, risk)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_hline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">yintercept =</span> r, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dashed"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey40"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_vline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xintercept =</span> p_nash, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dotted"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_vline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xintercept =</span> p_H, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dotted"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"firebrick"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"point"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_nash, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> r, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_nash <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.015</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.45</span>,</span>
+<span id="cb3-12">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Nash equilibrium</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">p* = %.2f"</span>, p_nash),</span>
+<span id="cb3-13">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.4</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_H <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.015</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.45</span>,</span>
+<span id="cb3-15">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"herd immunity</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">p[H] = %.2f"</span>, p_H),</span>
+<span id="cb3-16">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.4</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"firebrick"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.03</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> r <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.035</span>,</span>
+<span id="cb3-18">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"relative vaccine cost r"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb3-19">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.4</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey40"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-20">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Vaccination coverage p"</span>,</span>
+<span id="cb3-21">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Infection risk if unvaccinated, "</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pi</span>(p))) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-22">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+<div class="cell-output-display">
+<div id="fig-single-pop" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-single-pop-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://www.jonghoonk.com/blog/posts/game_theory_nash_two_pop/index_files/figure-html/fig-single-pop-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-single-pop-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Infection risk to an unvaccinated individual as a function of vaccination coverage (<img src="https://latex.codecogs.com/png.latex?R_0%20=%202.5">). The Nash equilibrium sits where risk equals the relative cost of vaccination (<img src="https://latex.codecogs.com/png.latex?r%20=%200.2">), always short of the herd-immunity threshold.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>One identity worth noticing: at an interior equilibrium, everyone’s expected cost is exactly <img src="https://latex.codecogs.com/png.latex?r"> — vaccinators pay <img src="https://latex.codecogs.com/png.latex?r"> by construction, and non-vaccinators face risk <img src="https://latex.codecogs.com/png.latex?%5Cpi(p%5E*)%20=%20r">. This will make welfare comparisons easy below.</p>
+</section>
+<section id="two-coupled-populations" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="two-coupled-populations"><span class="header-section-number">4</span> Two coupled populations</h2>
+<p>Now the setting the title promised. Two populations of equal size (label them 1 and 2), coupled by a next-generation matrix</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AK%20=%20%5Cbegin%7Bpmatrix%7D%20R_w%20&amp;%20R_b%20%5C%5C%20R_b%20&amp;%20R_w%20%5Cend%7Bpmatrix%7D,%0A"></p>
+<p>where <img src="https://latex.codecogs.com/png.latex?R_w"> is within-population transmission and <img src="https://latex.codecogs.com/png.latex?R_b"> is between-population transmission. Each population independently arrives at its own voluntary coverage <img src="https://latex.codecogs.com/png.latex?p_1,%20p_2">. The final sizes among the unvaccinated now solve a coupled system:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cpi_i%20=%201%20-%20%5Cexp%5CBig%5C%7B-%5Ctextstyle%5Csum_j%20K_%7Bij%7D%5C,(1-p_j)%5C,%5Cpi_j%5CBig%5C%7D,%20%5Cquad%20i%20=%201,%202.%0A"></p>
+<p>The strategic structure is the same as before, applied within each population: coverage in population <img src="https://latex.codecogs.com/png.latex?i"> adjusts until <img src="https://latex.codecogs.com/png.latex?%5Cpi_i%20=%20r"> (or hits a boundary). But <img src="https://latex.codecogs.com/png.latex?%5Cpi_1"> now depends on <img src="https://latex.codecogs.com/png.latex?p_2">, and vice versa — which is exactly the condition for the game between populations to have interesting equilibria.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Coupled final sizes among the unvaccinated, by fixed-point iteration</span></span>
+<span id="cb4-2">attack_rates2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(p, K, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">tol =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-12</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">max_iter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5000</span>) {</span>
+<span id="cb4-3">  z <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb4-4">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> (i <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq_len</span>(max_iter)) {</span>
+<span id="cb4-5">    z_new <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.vector</span>(K <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%*%</span> ((<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> z)))</span>
+<span id="cb4-6">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">abs</span>(z_new <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> z)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> tol) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">break</span></span>
+<span id="cb4-7">    z <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> z_new</span>
+<span id="cb4-8">  }</span>
+<span id="cb4-9">  z</span>
+<span id="cb4-10">}</span>
+<span id="cb4-11"></span>
+<span id="cb4-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Population i's equilibrium coverage, given the other population's coverage:</span></span>
+<span id="cb4-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># raise p_i until the local infection risk falls to r (with boundary cases)</span></span>
+<span id="cb4-14">best_response <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(p_other, i, K, r) {</span>
+<span id="cb4-15">  f <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(p_i) {</span>
+<span id="cb4-16">    p <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">numeric</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>); p[i] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> p_i; p[<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>i] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> p_other</span>
+<span id="cb4-17">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">attack_rates2</span>(p, K)[i] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> r</span>
+<span id="cb4-18">  }</span>
+<span id="cb4-19">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">f</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">return</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># risk already below cost: no one vaccinates</span></span>
+<span id="cb4-20">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">f</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">return</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># spillover risk exceeds cost even at full coverage</span></span>
+<span id="cb4-21">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniroot</span>(f, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">tol =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-9</span>)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>root</span>
+<span id="cb4-22">}</span>
+<span id="cb4-23"></span>
+<span id="cb4-24"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 90% of contacts within, 10% between; rows sum to R0 = 2.5</span></span>
+<span id="cb4-25">K <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">matrix</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.25</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.25</span>,</span>
+<span id="cb4-26">              <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.25</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.25</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nrow =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">byrow =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span></code></pre></div></div>
+</div>
+<p>A Nash equilibrium of the two-population game is a pair <img src="https://latex.codecogs.com/png.latex?(p_1%5E*,%20p_2%5E*)"> where each coverage is a best response to the other. We can find it by iterating best responses until they stop moving:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">p <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>)</span>
+<span id="cb5-2"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> (it <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>) {</span>
+<span id="cb5-3">  p_new <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">best_response</span>(p[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, K, r),</span>
+<span id="cb5-4">             <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">best_response</span>(p[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, K, r))</span>
+<span id="cb5-5">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">abs</span>(p_new <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-10</span>) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">break</span></span>
+<span id="cb5-6">  p <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> p_new</span>
+<span id="cb5-7">}</span>
+<span id="cb5-8">p_nash2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> p</span>
+<span id="cb5-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p1 =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p2 =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>],</span>
+<span id="cb5-10">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">risk1 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">attack_rates2</span>(p_nash2, K)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>],</span>
+<span id="cb5-11">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">risk2 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">attack_rates2</span>(p_nash2, K)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]), <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   p1    p2 risk1 risk2 
+0.554 0.554 0.200 0.200 </code></pre>
+</div>
+</div>
+<p>The symmetric equilibrium is <img src="https://latex.codecogs.com/png.latex?(0.554,%200.554)"> — numerically identical to the single-population Nash coverage. That is not a coincidence: on the diagonal <img src="https://latex.codecogs.com/png.latex?p_1%20=%20p_2">, the coupling is invisible, because an individual’s total exposure depends only on the row sum <img src="https://latex.codecogs.com/png.latex?R_w%20+%20R_b%20=%20R_0">. The coupling shows its teeth <em>off</em> the diagonal, in the shape of the best-response curves.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">grid <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>)</span>
+<span id="cb7-2">br1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sapply</span>(grid, best_response, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">i =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">K =</span> K, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r =</span> r)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># p1 responding to p2</span></span>
+<span id="cb7-3">br2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sapply</span>(grid, best_response, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">i =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">K =</span> K, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r =</span> r)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># p2 responding to p1</span></span>
+<span id="cb7-4"></span>
+<span id="cb7-5">p_opt <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># social optimum, computed in the next section</span></span>
+<span id="cb7-6"></span>
+<span id="cb7-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> br1, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> grid, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Population 1's best response"</span>),</span>
+<span id="cb7-9">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> grid, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> br2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Population 2's best response"</span>),</span>
+<span id="cb7-11">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_abline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">slope =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">intercept =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dotted"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey70"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"point"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.5</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.03</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.045</span>,</span>
+<span id="cb7-15">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Nash equilibrium</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">(0.55, 0.55)"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.4</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-16">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"point"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_opt[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> p_opt[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">shape =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">18</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4.5</span>,</span>
+<span id="cb7-17">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey30"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-18">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_opt[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.03</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> p_opt[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.045</span>,</span>
+<span id="cb7-19">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"social optimum</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">(0.60, 0.60)"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.4</span>,</span>
+<span id="cb7-20">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey30"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-21">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_color_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Population 1's best response"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>,</span>
+<span id="cb7-22">                                <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Population 2's best response"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"firebrick"</span>),</span>
+<span id="cb7-23">                     <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">name =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-24">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coord_equal</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-25">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Coverage in population 1, "</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> p[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]),</span>
+<span id="cb7-26">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Coverage in population 2, "</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> p[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>])) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-28">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bottom"</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<div id="fig-best-response" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-best-response-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://www.jonghoonk.com/blog/posts/game_theory_nash_two_pop/index_files/figure-html/fig-best-response-1.png" class="img-fluid figure-img" width="624">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-best-response-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Best-response curves for the two-population vaccination game (<img src="https://latex.codecogs.com/png.latex?R_w%20=%202.25">, <img src="https://latex.codecogs.com/png.latex?R_b%20=%200.25">, <img src="https://latex.codecogs.com/png.latex?r%20=%200.2">). Each curve slopes downward — the more your neighbor vaccinates, the less your own population does. The Nash equilibrium (their intersection) lies below the social optimum in both coordinates.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Both curves slope <strong>downward</strong>: coverages are <em>strategic substitutes</em>. Read population 1’s curve (blue) at two points:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">br1_when_p2_is_0.3 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">best_response</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, K, r),</span>
+<span id="cb8-2">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">br1_when_p2_is_0.9 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">best_response</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.9</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, K, r)), <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>br1_when_p2_is_0.3 br1_when_p2_is_0.9 
+             0.753              0.506 </code></pre>
+</div>
+</div>
+<p>If population 2 is stuck at 30% coverage — supply constraints, hesitancy, a later campaign start — population 1’s voluntary equilibrium <em>rises</em> to 75%, compensating for the imported risk. If population 2 reaches 90%, population 1 relaxes to 51%, free-riding on its neighbor’s effort. Every unit of coverage a neighbor adds is partly absorbed as reduced effort at home. This is the two-population echo of the 2×2 game above: the same incentive that produced the (C, N) equilibrium now bends a whole curve.</p>
+<section id="the-social-optimum-and-the-price-of-anarchy" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="the-social-optimum-and-the-price-of-anarchy"><span class="header-section-number">4.1</span> The social optimum, and the price of anarchy</h3>
+<p>A benevolent planner controlling both populations would minimize total per-capita cost — vaccination costs plus infection costs:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">total_cost <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(p, K, r) {</span>
+<span id="cb10-2">  z <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">attack_rates2</span>(p, K)</span>
+<span id="cb10-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(r <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> p <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> z)</span>
+<span id="cb10-4">}</span>
+<span id="cb10-5"></span>
+<span id="cb10-6">grid_opt <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expand.grid</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p1 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.005</span>),</span>
+<span id="cb10-7">                        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p2 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.005</span>))</span>
+<span id="cb10-8">cost <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mapply</span>(<span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(a, b) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">total_cost</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(a, b), K, r),</span>
+<span id="cb10-9">               grid_opt<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>p1, grid_opt<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>p2)</span>
+<span id="cb10-10">opt <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> grid_opt[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">which.min</span>(cost), ]</span>
+<span id="cb10-11"></span>
+<span id="cb10-12"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p1_opt =</span> opt<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>p1, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p2_opt =</span> opt<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>p2,</span>
+<span id="cb10-13">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cost_optimum =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">min</span>(cost),</span>
+<span id="cb10-14">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cost_nash =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">total_cost</span>(p_nash2, K, r)), <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      p1_opt       p2_opt cost_optimum    cost_nash 
+        0.60         0.60         0.12         0.20 </code></pre>
+</div>
+</div>
+<p>The planner pushes both populations to the herd-immunity threshold <img src="https://latex.codecogs.com/png.latex?(0.6,%200.6)"> and eliminates the epidemic, at a per-capita cost of <img src="https://latex.codecogs.com/png.latex?0.12">. The Nash equilibrium costs <img src="https://latex.codecogs.com/png.latex?0.20"> per capita — recall the identity from the single-population game: at an interior equilibrium, everyone’s expected cost equals <img src="https://latex.codecogs.com/png.latex?r"> exactly. The ratio, about <strong>1.7</strong>, is the <em>price of anarchy</em>: society pays two-thirds more under decentralized decisions than under coordination, and it pays it in infections rather than in vaccine doses.</p>
+<p>Note what the planner’s solution requires: <em>both</em> populations exceed their Nash coverage simultaneously. If only one moves to 0.6 while the other best-responds, the other slides down its curve, and the pair drifts back toward the equilibrium. That is precisely why the Nash equilibrium is the right baseline for policy analysis — it is where the system returns when coordination fails. Klepac and colleagues develop this logic for real cross-border vaccination decisions, asking when regional agreements are <em>self-enforcing</em>, meaning that the agreed coverage is itself a Nash equilibrium of the game between countries <span class="citation" data-cites="klepac2016">(4)</span>.</p>
+</section>
+</section>
+<section id="practical-takeaway" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="practical-takeaway"><span class="header-section-number">5</span> Practical takeaway</h2>
+<p>For a modeler who wants to use this on actual multi-population vaccination questions:</p>
+<ol type="1">
+<li><strong>Treat coverage as an equilibrium, not a knob.</strong> When uptake is voluntary, the coverage your compartmental model should expect is the solution of <img src="https://latex.codecogs.com/png.latex?%5Cpi_i(p)%20=%20r_i">, not the target written in the strategy document. The indifference condition converts your existing final-size or transmission machinery directly into a behavioral prediction.</li>
+<li><strong>Best-response curves are cheap to compute and very informative.</strong> Everything in this post ran on base R plus <code>uniroot</code> and a fixed-point loop. The slope of the curves tells you the direction of the externality: downward-sloping curves mean neighbor effort substitutes for local effort, so a donor-funded campaign in one district partially <em>displaces</em> voluntary uptake next door — an effect worth building into campaign impact estimates.</li>
+<li><strong>The gap between Nash and optimum is the case for coordination.</strong> The price of anarchy quantifies, in the same cost units as a cost-effectiveness analysis, what regional coordination mechanisms (pooled procurement, synchronized campaigns, cross-border agreements) are worth. And an agreement will only hold if no signatory gains by unilaterally cutting coverage — that is, if the agreement is itself a Nash equilibrium <span class="citation" data-cites="klepac2016">(4)</span>.</li>
+</ol>
+<p>The model here is deliberately minimal — equal population sizes, a perfect vaccine, symmetric costs, one-shot decisions. Each relaxation (asymmetric sizes, waning, sequential campaigns, more than two populations) changes the numbers but not the method: write down each player’s cost, compute best responses, and find where they intersect.</p>
+</section>
+<section id="references" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="references"><span class="header-section-number">6</span> References</h2>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-nash1950" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Nash JF. Equilibrium points in n-person games. Proceedings of the National Academy of Sciences. 1950;36(1):48–9. doi:<a href="https://doi.org/10.1073/pnas.36.1.48">10.1073/pnas.36.1.48</a></div>
+</div>
+<div id="ref-bauch2004" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Bauch CT, Earn DJD. Vaccination and the theory of games. Proceedings of the National Academy of Sciences. 2004;101(36):13391–4. doi:<a href="https://doi.org/10.1073/pnas.0403823101">10.1073/pnas.0403823101</a></div>
+</div>
+<div id="ref-fine1986" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Fine PEM, Clarkson JA. Individual versus public priorities in the determination of optimal vaccination policies. American Journal of Epidemiology. 1986;124(6):1012–20. doi:<a href="https://doi.org/10.1093/oxfordjournals.aje.a114471">10.1093/oxfordjournals.aje.a114471</a></div>
+</div>
+<div id="ref-klepac2016" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Klepac P, Megiddo I, Grenfell BT, Laxminarayan R. Self-enforcing regional vaccination agreements. Journal of the Royal Society Interface. 2016;13(114):20150907. doi:<a href="https://doi.org/10.1098/rsif.2015.0907">10.1098/rsif.2015.0907</a></div>
+</div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>game theory</category>
+  <category>Nash equilibrium</category>
+  <category>vaccination</category>
+  <category>epidemiology</category>
+  <category>R</category>
+  <guid>https://www.jonghoonk.com/blog/posts/game_theory_nash_two_pop/</guid>
+  <pubDate>Wed, 02 Sep 2026 15:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Spatiotemporal PINNs: Disease Spread as a Reaction-Diffusion System</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
@@ -17324,923 +18639,6 @@ font-style: inherit;">--staged</span></span></code></pre></div></div>
   <category>AWS</category>
   <category>DevOps</category>
   <guid>https://www.jonghoonk.com/blog/posts/biz_secrets/</guid>
-  <pubDate>Thu, 23 Apr 2026 15:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Global Sensitivity Analysis as a Billable Model Audit Service</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/biz_sensitivity/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<section id="the-business-case" class="level2" data-number="1">
-<h2 data-number="1" class="anchored" data-anchor-id="the-business-case"><span class="header-section-number">1</span> The business case</h2>
-<p>A health department client asks: <em>“You say <img src="https://latex.codecogs.com/png.latex?R_0%20=%201.8">, but how sensitive is your 14-day forecast to that estimate? What if it’s actually 2.2?”</em> Without sensitivity analysis you can only shrug. With it, you can hand them a one-page report quantifying exactly how much each uncertain parameter moves the forecast needle.</p>
-<p>Global sensitivity analysis (SA) <span class="citation" data-cites="saltelli2002 marino2008">(1,2)</span> answers: <strong>which inputs explain most of the output variance?</strong> This is a different question from “what happens if I change <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> by 10%” (local sensitivity). Global SA samples the entire input space and decomposes variance into contributions from each parameter and their interactions.</p>
-<p>It is also a distinct, defensible deliverable — a model audit that commands consulting fees separate from the core subscription.</p>
-</section>
-<section id="variance-based-sobol-indices" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="variance-based-sobol-indices"><span class="header-section-number">2</span> Variance-based (Sobol) indices</h2>
-<p>For a model <img src="https://latex.codecogs.com/png.latex?Y%20=%20f(X_1,%20%5Cldots,%20X_k)">, the first-order Sobol index for parameter <img src="https://latex.codecogs.com/png.latex?X_i"> is:</p>
-<p><img src="https://latex.codecogs.com/png.latex?S_i%20=%20%5Cfrac%7BV_%7BX_i%7D%5B%5C,E_%7B%5Cmathbf%7BX%7D_%7B%5Csim%20i%7D%7D(Y%20%5Cmid%20X_i)%5C,%5D%7D%7BV(Y)%7D"></p>
-<p>It measures the fraction of output variance explained by <img src="https://latex.codecogs.com/png.latex?X_i"> alone. The total-order index <img src="https://latex.codecogs.com/png.latex?S_%7BT_i%7D"> captures <img src="https://latex.codecogs.com/png.latex?X_i">’s contribution including all interactions with other parameters:</p>
-<p><img src="https://latex.codecogs.com/png.latex?S_%7BT_i%7D%20=%201%20-%20%5Cfrac%7BV_%7BX_%7B%5Csim%20i%7D%7D%5B%5C,E_%7BX_i%7D(Y%20%5Cmid%20%5Cmathbf%7BX%7D_%7B%5Csim%20i%7D)%5C,%5D%7D%7BV(Y)%7D"></p>
-<p>When <img src="https://latex.codecogs.com/png.latex?S_%7BT_i%7D%20%5Cgg%20S_i">, interactions dominate. Both indices lie in <img src="https://latex.codecogs.com/png.latex?%5B0,1%5D"> and <img src="https://latex.codecogs.com/png.latex?%5Csum_i%20S_i%20%5Cleq%201"> <span class="citation" data-cites="saltelli2010">(3)</span>.</p>
-</section>
-<section id="implementing-sobol-indices-in-r" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="implementing-sobol-indices-in-r"><span class="header-section-number">3</span> Implementing Sobol indices in R</h2>
-<p>We compute Sobol indices for peak infected count in an SEIR model with three uncertain inputs: <img src="https://latex.codecogs.com/png.latex?%5Cbeta">, <img src="https://latex.codecogs.com/png.latex?%5Csigma"> (incubation rate), and <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> (recovery rate).</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># SEIR model returning peak infectious count</span></span>
-<span id="cb1-2">seir_peak <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(beta, sigma, gamma,</span>
-<span id="cb1-3">                      <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">N =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100000</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">I0 =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">days =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">120</span>) {</span>
-<span id="cb1-4">  S <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> N <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> I0; E <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>; I <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> I0; R <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span></span>
-<span id="cb1-5">  peak <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> I</span>
-<span id="cb1-6">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> (d <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq_len</span>(days)) {</span>
-<span id="cb1-7">    new_e <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> beta <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> S <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> I <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> N</span>
-<span id="cb1-8">    new_i <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> sigma <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> E</span>
-<span id="cb1-9">    new_r <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> gamma <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> I</span>
-<span id="cb1-10">    S <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> S <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> new_e; E <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> E <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> new_e <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> new_i</span>
-<span id="cb1-11">    I <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> I <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> new_i <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> new_r; R <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> R <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> new_r</span>
-<span id="cb1-12">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (I <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> peak) peak <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> I</span>
-<span id="cb1-13">  }</span>
-<span id="cb1-14">  peak <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> N   <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># return as fraction</span></span>
-<span id="cb1-15">}</span></code></pre></div></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2024</span>)</span>
-<span id="cb2-2"></span>
-<span id="cb2-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Parameter ranges (uniform priors)</span></span>
-<span id="cb2-4">ranges <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">list</span>(</span>
-<span id="cb2-5">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">beta  =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.20</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.55</span>),</span>
-<span id="cb2-6">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">sigma =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>,  <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>),</span>
-<span id="cb2-7">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">gamma =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>)</span>
-<span id="cb2-8">)</span>
-<span id="cb2-9"></span>
-<span id="cb2-10"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Saltelli (2010) estimator needs two independent base samples A, B</span></span>
-<span id="cb2-11">n <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4000</span></span>
-<span id="cb2-12">A <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(ranges, <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(r) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">runif</span>(n, r[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>], r[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]))</span>
-<span id="cb2-13">B <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(ranges, <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(r) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">runif</span>(n, r[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>], r[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]))</span>
-<span id="cb2-14"></span>
-<span id="cb2-15"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Evaluate model on A and B</span></span>
-<span id="cb2-16">yA <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mapply</span>(seir_peak, A[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"beta"</span>], A[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"sigma"</span>], A[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"gamma"</span>])</span>
-<span id="cb2-17">yB <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mapply</span>(seir_peak, B[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"beta"</span>], B[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"sigma"</span>], B[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"gamma"</span>])</span>
-<span id="cb2-18"></span>
-<span id="cb2-19"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># For each parameter i, create AB_i: A with column i replaced by B</span></span>
-<span id="cb2-20">sobol_indices <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(yA, yB, A, B, ranges) {</span>
-<span id="cb2-21">  k  <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ncol</span>(A)</span>
-<span id="cb2-22">  nms <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">colnames</span>(A)</span>
-<span id="cb2-23">  S  <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">numeric</span>(k); ST <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">numeric</span>(k)</span>
-<span id="cb2-24">  Vy <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">var</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(yA, yB))</span>
-<span id="cb2-25"></span>
-<span id="cb2-26">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> (i <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq_len</span>(k)) {</span>
-<span id="cb2-27">    AB_i <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> A</span>
-<span id="cb2-28">    AB_i[, i] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> B[, i]</span>
-<span id="cb2-29">    yABi <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mapply</span>(seir_peak,</span>
-<span id="cb2-30">                   AB_i[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"beta"</span>], AB_i[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"sigma"</span>], AB_i[,<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"gamma"</span>])</span>
-<span id="cb2-31"></span>
-<span id="cb2-32">    <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Jansen estimator (more robust than Saltelli original)</span></span>
-<span id="cb2-33">    S[i]  <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">var</span>(yB) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>((yB <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> yABi)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> Vy</span>
-<span id="cb2-34">    ST[i] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>((yA <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> yABi)<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> (<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> Vy)</span>
-<span id="cb2-35">  }</span>
-<span id="cb2-36">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">parameter =</span> nms,</span>
-<span id="cb2-37">             <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">S1 =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pmax</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, S),</span>
-<span id="cb2-38">             <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ST =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pmax</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, ST))</span>
-<span id="cb2-39">}</span>
-<span id="cb2-40"></span>
-<span id="cb2-41">idx <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sobol_indices</span>(yA, yB, A, B, ranges)</span>
-<span id="cb2-42"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">print</span>(idx)</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>  parameter         S1         ST
-1      beta 0.55765633 0.56522359
-2     sigma 0.04961737 0.04964628
-3     gamma 0.40615158 0.41383019</code></pre>
-</div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(ggplot2)</span>
-<span id="cb4-2"></span>
-<span id="cb4-3">idx_long <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rbind</span>(</span>
-<span id="cb4-4">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">parameter =</span> idx<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>parameter, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">index =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"First-order (S1)"</span>,</span>
-<span id="cb4-5">             <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">value =</span> idx<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>S1),</span>
-<span id="cb4-6">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">parameter =</span> idx<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>parameter, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">index =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Total-order (ST)"</span>,</span>
-<span id="cb4-7">             <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">value =</span> idx<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>ST)</span>
-<span id="cb4-8">)</span>
-<span id="cb4-9"></span>
-<span id="cb4-10"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(idx_long, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">reorder</span>(parameter, <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>value),</span>
-<span id="cb4-11">                     <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> value, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">fill =</span> index)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb4-12">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_col</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">position =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dodge"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">width =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.6</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb4-13">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scale_fill_manual</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"First-order (S1)"</span> <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"steelblue"</span>,</span>
-<span id="cb4-14">                               <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Total-order (ST)"</span>  <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"firebrick"</span>),</span>
-<span id="cb4-15">                    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">name =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb4-16">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_hline</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">yintercept =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.05</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dashed"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"grey40"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb4-17">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.6</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.07</span>,</span>
-<span id="cb4-18">           <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"5% threshold"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3.2</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"grey40"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb4-19">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Parameter"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Sobol index"</span>,</span>
-<span id="cb4-20">       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Global sensitivity: SEIR peak infectious fraction"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb4-21">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">13</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb4-22">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"top"</span>)</span></code></pre></div></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/biz_sensitivity/index_files/figure-html/plot-sobol-1.png" class="img-fluid figure-img" width="672"></p>
-<figcaption>First-order (S1) and total-order (ST) Sobol indices for peak infectious fraction. Parameters with large ST but small S1 have significant interaction effects.</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="morris-screening-for-quick-triage" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="morris-screening-for-quick-triage"><span class="header-section-number">4</span> Morris screening for quick triage</h2>
-<p>When you have many parameters (20+), full Sobol estimation is expensive. The <strong>Morris method</strong> <span class="citation" data-cites="marino2008">(2)</span> is a cheap rank-order screen: run the model <img src="https://latex.codecogs.com/png.latex?r(k+1)"> times (rather than <img src="https://latex.codecogs.com/png.latex?2nk">), and compute the mean <img src="https://latex.codecogs.com/png.latex?%5Cmu%5E*"> and standard deviation <img src="https://latex.codecogs.com/png.latex?%5Csigma"> of elementary effects.</p>
-<ul>
-<li>High <img src="https://latex.codecogs.com/png.latex?%5Cmu%5E*">: parameter has large influence</li>
-<li>High <img src="https://latex.codecogs.com/png.latex?%5Csigma">: parameter has nonlinear effects or interactions</li>
-</ul>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">morris_screen <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(model_fn, ranges, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">r =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">20</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">delta =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span>) {</span>
-<span id="cb5-2">  k   <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">length</span>(ranges)</span>
-<span id="cb5-3">  nms <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">names</span>(ranges)</span>
-<span id="cb5-4">  EE  <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">matrix</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">nrow =</span> r, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">ncol =</span> k)</span>
-<span id="cb5-5"></span>
-<span id="cb5-6">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> (rep <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq_len</span>(r)) {</span>
-<span id="cb5-7">    <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Random base point in [0, 1-delta]</span></span>
-<span id="cb5-8">    x0 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sapply</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seq_len</span>(k), <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(i) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">runif</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> delta))</span>
-<span id="cb5-9">    <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Evaluate at base</span></span>
-<span id="cb5-10">    params0 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mapply</span>(<span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(x, r) r[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> x <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">diff</span>(r), x0, ranges)</span>
-<span id="cb5-11">    y0 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">do.call</span>(model_fn, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.list</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">setNames</span>(params0, nms)))</span>
-<span id="cb5-12"></span>
-<span id="cb5-13">    <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Randomly permute dimensions and apply +delta one at a time</span></span>
-<span id="cb5-14">    perm <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(k)</span>
-<span id="cb5-15">    x_current <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> x0</span>
-<span id="cb5-16">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> (j <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> perm) {</span>
-<span id="cb5-17">      x_new <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> x_current</span>
-<span id="cb5-18">      x_new[j] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> x_current[j] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> delta</span>
-<span id="cb5-19">      params_new <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mapply</span>(<span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(x, r) r[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> x <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">diff</span>(r),</span>
-<span id="cb5-20">                           x_new, ranges)</span>
-<span id="cb5-21">      y_new <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">do.call</span>(model_fn, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.list</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">setNames</span>(params_new, nms)))</span>
-<span id="cb5-22">      EE[rep, j] <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> (y_new <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> y0) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> delta</span>
-<span id="cb5-23">      y0 <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> y_new</span>
-<span id="cb5-24">      x_current <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> x_new</span>
-<span id="cb5-25">    }</span>
-<span id="cb5-26">  }</span>
-<span id="cb5-27"></span>
-<span id="cb5-28">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data.frame</span>(</span>
-<span id="cb5-29">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">parameter =</span> nms,</span>
-<span id="cb5-30">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">mu_star   =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">colMeans</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">abs</span>(EE)),</span>
-<span id="cb5-31">    <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">sigma_ee  =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">apply</span>(EE, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, sd)</span>
-<span id="cb5-32">  )</span>
-<span id="cb5-33">}</span>
-<span id="cb5-34"></span>
-<span id="cb5-35">morris_res <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">morris_screen</span>(seir_peak, ranges, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">r =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span>)</span>
-<span id="cb5-36"></span>
-<span id="cb5-37"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggplot</span>(morris_res, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> mu_star, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> sigma_ee,</span>
-<span id="cb5-38">                       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">label =</span> parameter)) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-39">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">colour =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"steelblue"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-40">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">geom_text</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">nudge_x =</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.005</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-41">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"μ* (mean |elementary effect|)"</span>,</span>
-<span id="cb5-42">       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"σ (SD of elementary effects)"</span>,</span>
-<span id="cb5-43">       <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Morris sensitivity screening: SEIR model"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb5-44">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">13</span>)</span></code></pre></div></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://www.jonghoonk.com/blog/posts/biz_sensitivity/index_files/figure-html/morris-1.png" class="img-fluid figure-img" width="672"></p>
-<figcaption>Morris plot: parameters with high mean effect (μ*) are important; high standard deviation (σ) signals interactions or nonlinearity. Parameters in the bottom-left are unimportant and can be fixed.</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="packaging-as-a-deliverable" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="packaging-as-a-deliverable"><span class="header-section-number">5</span> Packaging as a deliverable</h2>
-<p>A sensitivity analysis report for a client should include:</p>
-<ol type="1">
-<li><strong>Parameter ranges</strong> — what assumptions went into the SA</li>
-<li><strong>Sobol indices table</strong> with confidence intervals (bootstrap)</li>
-<li><strong>Ranking narrative</strong> — “transmission rate <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> explains 78% of forecast variance”</li>
-<li><strong>Implications</strong> — which parameters are worth measuring better vs.&nbsp;fixing at nominal values</li>
-</ol>
-<p>The <code>sensitivity</code> R package provides production-ready estimators with confidence intervals. The <code>SALib</code> Python library is the equivalent for Python-based models.</p>
-</section>
-<section id="references" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="references"><span class="header-section-number">6</span> References</h2>
-<div id="refs" class="references csl-bib-body">
-<div id="ref-saltelli2002" class="csl-entry">
-<div class="csl-left-margin">1. </div><div class="csl-right-inline">Saltelli A, Tarantola S, Campolongo F, Ratto M. Making best use of model evaluations to compute sensitivity indices. Computer Physics Communications. 2002;145(2):280–97. doi:<a href="https://doi.org/10.1016/S0010-4655(02)00280-1">10.1016/S0010-4655(02)00280-1</a></div>
-</div>
-<div id="ref-marino2008" class="csl-entry">
-<div class="csl-left-margin">2. </div><div class="csl-right-inline">Marino S, Hogue IB, Ray CJ, Kirschner DE. A methodology for performing global uncertainty and sensitivity analysis in systems biology. Journal of Theoretical Biology. 2008;254(1):178–96. doi:<a href="https://doi.org/10.1016/j.jtbi.2008.04.011">10.1016/j.jtbi.2008.04.011</a></div>
-</div>
-<div id="ref-saltelli2010" class="csl-entry">
-<div class="csl-left-margin">3. </div><div class="csl-right-inline">Saltelli A, Annoni P, Azzini I, Campolongo F, Ratto M, Tarantola S. Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index. Computer Physics Communications. 2010;181(2):259–70. doi:<a href="https://doi.org/10.1016/j.cpc.2009.09.018">10.1016/j.cpc.2009.09.018</a></div>
-</div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>business skills</category>
-  <category>sensitivity analysis</category>
-  <category>Sobol</category>
-  <category>epidemic modeling</category>
-  <category>R</category>
-  <guid>https://www.jonghoonk.com/blog/posts/biz_sensitivity/</guid>
   <pubDate>Thu, 23 Apr 2026 15:00:00 GMT</pubDate>
 </item>
 </channel>
