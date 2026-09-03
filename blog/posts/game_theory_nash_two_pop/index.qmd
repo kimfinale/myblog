@@ -258,6 +258,77 @@ The planner pushes both populations to the herd-immunity threshold $(0.6, 0.6)$ 
 
 Note what the planner's solution requires: *both* populations exceed their Nash coverage simultaneously. If only one moves to 0.6 while the other best-responds, the other slides down its curve, and the pair drifts back toward the equilibrium. That is precisely why the Nash equilibrium is the right baseline for policy analysis — it is where the system returns when coordination fails. Klepac and colleagues develop this logic for real cross-border vaccination decisions, asking when regional agreements are *self-enforcing*, meaning that the agreed coverage is itself a Nash equilibrium of the game between countries [@klepac2016].
 
+## Reading Klepac et al. (2011)
+
+A natural next read is Klepac, Laxminarayan and Grenfell's synthesis of epidemiological and economic optima for a two-patch system [@klepac2011]. Their Figure 2 is built exactly like our @fig-best-response: the black lines are best-response curves ("cost minimizing coverage values at one patch for a given coverage in the other patch"), the black circle is their intersection — the Nash equilibrium — and the blue circle is the global optimum. Everything above transfers directly to reading that figure. Three ingredients differ, though, and they matter for interpreting the results.
+
+**1. The players are patch-level planners, not individuals.** In our game so far, individuals within each population vaccinate until their personal risk equals their personal cost, $\pi_i = r$. In Klepac et al., the player is the *patch* — a health ministry choosing $p_i$ to minimize its **total local cost**, vaccination plus infection, given the neighbor's coverage. This is a different best response: a planner internalizes the herd protection that each dose confers on its own unvaccinated residents, which an individual decision-maker ignores. We can compute it with the same machinery by replacing the indifference condition with a cost minimization:
+
+```{r}
+#| label: planner-br
+# Patch i's total per-capita cost, given its own and the neighbor's coverage
+local_cost <- function(p_i, p_other, i, K, r) {
+  p <- numeric(2); p[i] <- p_i; p[-i] <- p_other
+  r * p_i + (1 - p_i) * attack_rates2(p, K)[i]
+}
+
+# Planner best response: minimize local cost (grid search — the cost surface
+# has a kink at the elimination boundary, so avoid smooth optimizers)
+planner_br <- function(p_other, i, K, r, grid = seq(0, 1, by = 0.0025)) {
+  costs <- vapply(grid, local_cost, numeric(1),
+                  p_other = p_other, i = i, K = K, r = r)
+  grid[which.min(costs)]
+}
+
+# Is the social optimum (0.6, 0.6) a Nash equilibrium of the planner game?
+round(c(br_to_0.6 = planner_br(0.6, 1, K, r),
+        cost_at_0.60 = local_cost(0.60, 0.6, 1, K, r),
+        cost_at_0.55 = local_cost(0.55, 0.6, 1, K, r),
+        cost_at_0.65 = local_cost(0.65, 0.6, 1, K, r)), 3)
+```
+
+The planner's best response to a neighbor at 0.6 is exactly 0.6, and unilateral deviations in either direction raise local costs. So for our symmetric patches, $(0.6, 0.6)$ — the global optimum — **is** a Nash equilibrium of the planner game. This is the first thing to know when reading the paper: with patch planners as players, Klepac et al. find that for symmetric or weakly coupled patches "local optimal strategies agree with the global cost-effective strategy." The tragedy of the individual-level game largely disappears, because each planner already internalizes the within-patch externality; what remains is only the (smaller) cross-border externality. Their interesting divergences — Nash and global optimum splitting apart — require *strong* coupling combined with *asymmetries*, for example one patch with an expensive delivery system, which is the configuration of their Figure 2B.
+
+```{r}
+#| label: fig-planner-vs-individual
+#| fig-cap: "Population 1's best response to its neighbor's coverage under two decision-makers: individuals vaccinating until personal risk equals cost (steelblue), versus a local planner minimizing the patch's total cost (firebrick). The planner responds more aggressively everywhere; where each curve crosses the diagonal is the symmetric Nash equilibrium of the corresponding game. The planner game's equilibrium coincides with the social optimum."
+#| fig-width: 6.5
+#| fig-height: 6
+p2_grid <- seq(0, 1, by = 0.02)
+br_ind <- sapply(p2_grid, best_response, i = 1, K = K, r = r)
+br_pln <- sapply(p2_grid, planner_br, i = 1, K = K, r = r)
+
+ggplot() +
+  geom_line(aes(p2_grid, br_ind, color = "Individuals (risk = cost)"),
+            linewidth = 1.1) +
+  geom_line(aes(p2_grid, br_pln, color = "Local planner (min. local cost)"),
+            linewidth = 1.1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dotted", color = "grey70") +
+  annotate("point", x = p_nash2[1], y = p_nash2[1], size = 3,
+           color = "steelblue") +
+  annotate("text", x = p_nash2[1] + 0.03, y = p_nash2[1] - 0.09,
+           label = "individual Nash (0.55)", hjust = 0, size = 3.4,
+           color = "steelblue") +
+  annotate("point", x = 0.6, y = 0.6, size = 3, color = "firebrick") +
+  annotate("text", x = 0.6 + 0.03, y = 0.6 + 0.09,
+           label = "planner Nash =\nsocial optimum (0.60)", hjust = 0,
+           size = 3.4, color = "firebrick") +
+  scale_color_manual(values = c("Individuals (risk = cost)" = "steelblue",
+                                "Local planner (min. local cost)" = "firebrick"),
+                     name = NULL) +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(x = expression("Neighbor's coverage, " * p[2]),
+       y = expression("Population 1's best response, " * p[1])) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+**2. Endemic equilibrium, not final size.** Their epidemiological engine is an SIR model with births and deaths and a constant trickle of imported infections; costs are evaluated at the endemic equilibrium prevalence $\bar{I} = (\mu/\beta)\left[\mathcal{R}_0(1-p) - 1\right]$, rather than over a one-shot epidemic as here. The strategic analysis is unchanged — only the payoff function feeding the best responses is different. One practical consequence: the immigration term keeps prevalence strictly positive below the threshold, which smooths away the knife-edge elimination boundary of the final-size model. (In our model, that knife edge is why the asymmetric strong-coupling case is best explored with their machinery rather than ours: with a hard $\pi = 0$ frontier, a whole segment of the frontier can consist of equilibria.)
+
+**3. Convex campaign costs — and an optimum independent of transmission.** Their vaccination cost is exponential in coverage, $c(p) = a e^{xp}$, reflecting the rising marginal cost of reaching the last unvaccinated child. Combined with vaccination at birth and linear infection costs, this yields their most striking single-population result: the economic optimum $p' = \frac{1}{x}\ln\frac{c_I \mu}{a x (\mu + \nu)}$ does not depend on the transmission rate at all. The reason is visible in the endemic-prevalence formula: since $\mathcal{R}_0 = \beta/(\mu+\nu)$, the marginal reduction in $\bar{I}$ per unit of coverage is $\mu \mathcal{R}_0 / \beta = \mu/(\mu+\nu)$ — a constant. Each additional dose buys the same reduction in prevalence whatever the pathogen's transmissibility, so the optimum is set entirely by the ratio of disease burden to campaign costs. Our constant per-dose cost $r$ cannot reproduce this; if you extend the code above, the cost function is the first thing to upgrade.
+
+With those three translations in hand, the paper's headline findings read as extensions of @fig-best-response and @fig-planner-vs-individual: weak coupling or symmetry $\Rightarrow$ planner Nash $\approx$ global optimum (their Fig. 2A); strong coupling plus cost asymmetries $\Rightarrow$ the optima diverge and local incentives can preclude elimination that would be globally optimal (their Fig. 2B); and under budget constraints, the long-term global optimum can even direct one patch's resources into its *neighbor's* campaign (their Fig. 3) — herd immunity purchased where it is cheapest.
+
 ## Practical takeaway
 
 For a modeler who wants to use this on actual multi-population vaccination questions:

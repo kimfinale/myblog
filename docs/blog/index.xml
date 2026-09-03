@@ -1287,8 +1287,489 @@ font-style: inherit;">3</span>)</span></code></pre></div></div>
 <p>Note what the planner’s solution requires: <em>both</em> populations exceed their Nash coverage simultaneously. If only one moves to 0.6 while the other best-responds, the other slides down its curve, and the pair drifts back toward the equilibrium. That is precisely why the Nash equilibrium is the right baseline for policy analysis — it is where the system returns when coordination fails. Klepac and colleagues develop this logic for real cross-border vaccination decisions, asking when regional agreements are <em>self-enforcing</em>, meaning that the agreed coverage is itself a Nash equilibrium of the game between countries <span class="citation" data-cites="klepac2016">(4)</span>.</p>
 </section>
 </section>
-<section id="practical-takeaway" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="practical-takeaway"><span class="header-section-number">5</span> Practical takeaway</h2>
+<section id="reading-klepac-et-al.-2011" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="reading-klepac-et-al.-2011"><span class="header-section-number">5</span> Reading Klepac et al.&nbsp;(2011)</h2>
+<p>A natural next read is Klepac, Laxminarayan and Grenfell’s synthesis of epidemiological and economic optima for a two-patch system <span class="citation" data-cites="klepac2011">(5)</span>. Their Figure 2 is built exactly like our Figure&nbsp;2: the black lines are best-response curves (“cost minimizing coverage values at one patch for a given coverage in the other patch”), the black circle is their intersection — the Nash equilibrium — and the blue circle is the global optimum. Everything above transfers directly to reading that figure. Three ingredients differ, though, and they matter for interpreting the results.</p>
+<p><strong>1. The players are patch-level planners, not individuals.</strong> In our game so far, individuals within each population vaccinate until their personal risk equals their personal cost, <img src="https://latex.codecogs.com/png.latex?%5Cpi_i%20=%20r">. In Klepac et al., the player is the <em>patch</em> — a health ministry choosing <img src="https://latex.codecogs.com/png.latex?p_i"> to minimize its <strong>total local cost</strong>, vaccination plus infection, given the neighbor’s coverage. This is a different best response: a planner internalizes the herd protection that each dose confers on its own unvaccinated residents, which an individual decision-maker ignores. We can compute it with the same machinery by replacing the indifference condition with a cost minimization:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Patch i's total per-capita cost, given its own and the neighbor's coverage</span></span>
+<span id="cb12-2">local_cost <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(p_i, p_other, i, K, r) {</span>
+<span id="cb12-3">  p <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">numeric</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>); p[i] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> p_i; p[<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>i] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> p_other</span>
+<span id="cb12-4">  r <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> p_i <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p_i) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">attack_rates2</span>(p, K)[i]</span>
+<span id="cb12-5">}</span>
+<span id="cb12-6"></span>
+<span id="cb12-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Planner best response: minimize local cost (grid search — the cost surface</span></span>
+<span id="cb12-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># has a kink at the elimination boundary, so avoid smooth optimizers)</span></span>
+<span id="cb12-9">planner_br <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(p_other, i, K, r, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">grid =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0025</span>)) {</span>
+<span id="cb12-10">  costs <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">vapply</span>(grid, local_cost, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">numeric</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>),</span>
+<span id="cb12-11">                  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p_other =</span> p_other, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">i =</span> i, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">K =</span> K, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r =</span> r)</span>
+<span id="cb12-12">  grid[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">which.min</span>(costs)]</span>
+<span id="cb12-13">}</span>
+<span id="cb12-14"></span>
+<span id="cb12-15"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Is the social optimum (0.6, 0.6) a Nash equilibrium of the planner game?</span></span>
+<span id="cb12-16"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">br_to_0.6 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">planner_br</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, K, r),</span>
+<span id="cb12-17">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cost_at_0.60 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">local_cost</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.60</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, K, r),</span>
+<span id="cb12-18">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cost_at_0.55 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">local_cost</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.55</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, K, r),</span>
+<span id="cb12-19">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cost_at_0.65 =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">local_cost</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.65</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, K, r)), <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   br_to_0.6 cost_at_0.60 cost_at_0.55 cost_at_0.65 
+       0.600        0.120        0.178        0.130 </code></pre>
+</div>
+</div>
+<p>The planner’s best response to a neighbor at 0.6 is exactly 0.6, and unilateral deviations in either direction raise local costs. So for our symmetric patches, <img src="https://latex.codecogs.com/png.latex?(0.6,%200.6)"> — the global optimum — <strong>is</strong> a Nash equilibrium of the planner game. This is the first thing to know when reading the paper: with patch planners as players, Klepac et al.&nbsp;find that for symmetric or weakly coupled patches “local optimal strategies agree with the global cost-effective strategy.” The tragedy of the individual-level game largely disappears, because each planner already internalizes the within-patch externality; what remains is only the (smaller) cross-border externality. Their interesting divergences — Nash and global optimum splitting apart — require <em>strong</em> coupling combined with <em>asymmetries</em>, for example one patch with an expensive delivery system, which is the configuration of their Figure 2B.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1">p2_grid <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.02</span>)</span>
+<span id="cb14-2">br_ind <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sapply</span>(p2_grid, best_response, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">i =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">K =</span> K, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r =</span> r)</span>
+<span id="cb14-3">br_pln <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sapply</span>(p2_grid, planner_br, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">i =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">K =</span> K, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r =</span> r)</span>
+<span id="cb14-4"></span>
+<span id="cb14-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(p2_grid, br_ind, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Individuals (risk = cost)"</span>),</span>
+<span id="cb14-7">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(p2_grid, br_pln, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Local planner (min. local cost)"</span>),</span>
+<span id="cb14-9">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_abline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">slope =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">intercept =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dotted"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey70"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"point"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>,</span>
+<span id="cb14-12">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.03</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> p_nash2[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.09</span>,</span>
+<span id="cb14-14">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"individual Nash (0.55)"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.4</span>,</span>
+<span id="cb14-15">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-16">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"point"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"firebrick"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.03</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.09</span>,</span>
+<span id="cb14-18">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"planner Nash =</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\n</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">social optimum (0.60)"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb14-19">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.4</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"firebrick"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-20">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_color_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Individuals (risk = cost)"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>,</span>
+<span id="cb14-21">                                <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Local planner (min. local cost)"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"firebrick"</span>),</span>
+<span id="cb14-22">                     <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">name =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coord_equal</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-24">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Neighbor's coverage, "</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> p[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]),</span>
+<span id="cb14-25">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Population 1's best response, "</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> p[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>])) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-26">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bottom"</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<div id="fig-planner-vs-individual" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-planner-vs-individual-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://www.jonghoonk.com/blog/posts/game_theory_nash_two_pop/index_files/figure-html/fig-planner-vs-individual-1.png" class="img-fluid figure-img" width="624">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-planner-vs-individual-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Population 1’s best response to its neighbor’s coverage under two decision-makers: individuals vaccinating until personal risk equals cost (steelblue), versus a local planner minimizing the patch’s total cost (firebrick). The planner responds more aggressively everywhere; where each curve crosses the diagonal is the symmetric Nash equilibrium of the corresponding game. The planner game’s equilibrium coincides with the social optimum.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>2. Endemic equilibrium, not final size.</strong> Their epidemiological engine is an SIR model with births and deaths and a constant trickle of imported infections; costs are evaluated at the endemic equilibrium prevalence <img src="https://latex.codecogs.com/png.latex?%5Cbar%7BI%7D%20=%20(%5Cmu/%5Cbeta)%5Cleft%5B%5Cmathcal%7BR%7D_0(1-p)%20-%201%5Cright%5D">, rather than over a one-shot epidemic as here. The strategic analysis is unchanged — only the payoff function feeding the best responses is different. One practical consequence: the immigration term keeps prevalence strictly positive below the threshold, which smooths away the knife-edge elimination boundary of the final-size model. (In our model, that knife edge is why the asymmetric strong-coupling case is best explored with their machinery rather than ours: with a hard <img src="https://latex.codecogs.com/png.latex?%5Cpi%20=%200"> frontier, a whole segment of the frontier can consist of equilibria.)</p>
+<p><strong>3. Convex campaign costs — and an optimum independent of transmission.</strong> Their vaccination cost is exponential in coverage, <img src="https://latex.codecogs.com/png.latex?c(p)%20=%20a%20e%5E%7Bxp%7D">, reflecting the rising marginal cost of reaching the last unvaccinated child. Combined with vaccination at birth and linear infection costs, this yields their most striking single-population result: the economic optimum <img src="https://latex.codecogs.com/png.latex?p'%20=%20%5Cfrac%7B1%7D%7Bx%7D%5Cln%5Cfrac%7Bc_I%20%5Cmu%7D%7Ba%20x%20(%5Cmu%20+%20%5Cnu)%7D"> does not depend on the transmission rate at all. The reason is visible in the endemic-prevalence formula: since <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BR%7D_0%20=%20%5Cbeta/(%5Cmu+%5Cnu)">, the marginal reduction in <img src="https://latex.codecogs.com/png.latex?%5Cbar%7BI%7D"> per unit of coverage is <img src="https://latex.codecogs.com/png.latex?%5Cmu%20%5Cmathcal%7BR%7D_0%20/%20%5Cbeta%20=%20%5Cmu/(%5Cmu+%5Cnu)"> — a constant. Each additional dose buys the same reduction in prevalence whatever the pathogen’s transmissibility, so the optimum is set entirely by the ratio of disease burden to campaign costs. Our constant per-dose cost <img src="https://latex.codecogs.com/png.latex?r"> cannot reproduce this; if you extend the code above, the cost function is the first thing to upgrade.</p>
+<p>With those three translations in hand, the paper’s headline findings read as extensions of Figure&nbsp;2 and Figure&nbsp;3: weak coupling or symmetry <img src="https://latex.codecogs.com/png.latex?%5CRightarrow"> planner Nash <img src="https://latex.codecogs.com/png.latex?%5Capprox"> global optimum (their Fig. 2A); strong coupling plus cost asymmetries <img src="https://latex.codecogs.com/png.latex?%5CRightarrow"> the optima diverge and local incentives can preclude elimination that would be globally optimal (their Fig. 2B); and under budget constraints, the long-term global optimum can even direct one patch’s resources into its <em>neighbor’s</em> campaign (their Fig. 3) — herd immunity purchased where it is cheapest.</p>
+</section>
+<section id="practical-takeaway" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="practical-takeaway"><span class="header-section-number">6</span> Practical takeaway</h2>
 <p>For a modeler who wants to use this on actual multi-population vaccination questions:</p>
 <ol type="1">
 <li><strong>Treat coverage as an equilibrium, not a knob.</strong> When uptake is voluntary, the coverage your compartmental model should expect is the solution of <img src="https://latex.codecogs.com/png.latex?%5Cpi_i(p)%20=%20r_i">, not the target written in the strategy document. The indifference condition converts your existing final-size or transmission machinery directly into a behavioral prediction.</li>
@@ -1297,8 +1778,8 @@ font-style: inherit;">3</span>)</span></code></pre></div></div>
 </ol>
 <p>The model here is deliberately minimal — equal population sizes, a perfect vaccine, symmetric costs, one-shot decisions. Each relaxation (asymmetric sizes, waning, sequential campaigns, more than two populations) changes the numbers but not the method: write down each player’s cost, compute best responses, and find where they intersect.</p>
 </section>
-<section id="references" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="references"><span class="header-section-number">6</span> References</h2>
+<section id="references" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="references"><span class="header-section-number">7</span> References</h2>
 <div id="refs" class="references csl-bib-body">
 <div id="ref-nash1950" class="csl-entry">
 <div class="csl-left-margin">1. </div><div class="csl-right-inline">Nash JF. Equilibrium points in n-person games. Proceedings of the National Academy of Sciences. 1950;36(1):48–9. doi:<a href="https://doi.org/10.1073/pnas.36.1.48">10.1073/pnas.36.1.48</a></div>
@@ -1311,6 +1792,9 @@ font-style: inherit;">3</span>)</span></code></pre></div></div>
 </div>
 <div id="ref-klepac2016" class="csl-entry">
 <div class="csl-left-margin">4. </div><div class="csl-right-inline">Klepac P, Megiddo I, Grenfell BT, Laxminarayan R. Self-enforcing regional vaccination agreements. Journal of the Royal Society Interface. 2016;13(114):20150907. doi:<a href="https://doi.org/10.1098/rsif.2015.0907">10.1098/rsif.2015.0907</a></div>
+</div>
+<div id="ref-klepac2011" class="csl-entry">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Klepac P, Laxminarayan R, Grenfell BT. Synthesizing epidemiological and economic optima for control of immunizing infections. Proceedings of the National Academy of Sciences. 2011;108(34):14366–70. doi:<a href="https://doi.org/10.1073/pnas.1101694108">10.1073/pnas.1101694108</a></div>
 </div>
 </div>
 
