@@ -10,7 +10,1921 @@
 <atom:link href="https://www.jonghoonk.com/blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Disease modeling for public health</description>
 <generator>quarto-1.9.36</generator>
-<lastBuildDate>Wed, 02 Sep 2026 15:00:00 GMT</lastBuildDate>
+<lastBuildDate>Thu, 17 Sep 2026 15:00:00 GMT</lastBuildDate>
+<item>
+  <title>How a Few Cases Abroad Can Reveal a Much Larger Outbreak</title>
+  <dc:creator>Jong-Hoon Kim</dc:creator>
+  <link>https://www.jonghoonk.com/blog/posts/exported_cases/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="three-travellers-thousands-of-cases" class="level2">
+<h2 class="anchored" data-anchor-id="three-travellers-thousands-of-cases">Three travellers, thousands of cases?</h2>
+<p>In January 2020, three confirmed cases detected in Thailand and Japan offered a window into a poorly observed outbreak in Wuhan. Imperial College London’s first COVID-19 report estimated 1,723 [95% CI: 427 – 4,471] clinically comparable cases with symptom onset by 12 January 2020. Five days later, its second report used seven exported cases to estimate approximately 4,000 cases [uncertainty range: 1,000 – 9,700] with onset by 18 January. <span class="citation" data-cites="imai2020report1 imai2020report2">(1,2)</span></p>
+<p>We first work through the Imperial reports: their observation model, travel probability, estimates and uncertainty intervals. We then examine the probability approximation and compare the formulae and assumptions with those of Nishiura and colleagues.</p>
+</section>
+<section id="imperials-observation-model" class="level2">
+<h2 class="anchored" data-anchor-id="imperials-observation-model">Imperial’s observation model</h2>
+<p>Let <img src="https://latex.codecogs.com/png.latex?N"> be the unknown source count of relevant cases, <img src="https://latex.codecogs.com/png.latex?x"> the observed number detected abroad, and <img src="https://latex.codecogs.com/png.latex?p"> the probability that any one relevant source case is detected abroad. If cases have independent, equal observation probabilities,</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AX%5Cmid%20N,p%5Csim%5Coperatorname%7BBinomial%7D(N,p),%0A%5Cqquad%20E%5BX%5D=Np.%0A"></p>
+<p>Equating the observed count to its expectation (the method of moments approach) gives a ratio estimate that scales the observed exports up to a source-case total:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cwidehat%20N=%5Cfrac%7Bx%7D%7Bp%7D.%0A"></p>
+<p>For the maximum likelihood approach, we specify a probability distribution for <img src="https://latex.codecogs.com/png.latex?X"> and choose the parameter that makes the observed count most probable. Under <img src="https://latex.codecogs.com/png.latex?X%5Csim%5Coperatorname%7BPoisson%7D(Np)">, the likelihood is maximized when the mean <img src="https://latex.codecogs.com/png.latex?Np"> equals <img src="https://latex.codecogs.com/png.latex?x">, which gives <img src="https://latex.codecogs.com/png.latex?%5Cwidehat%20N=x/p">. In this approximation, we allow <img src="https://latex.codecogs.com/png.latex?N"> to vary continuously, so the estimate can be fractional. The exact binomial model restricts <img src="https://latex.codecogs.com/png.latex?N"> to integers at least <img src="https://latex.codecogs.com/png.latex?x">. For <img src="https://latex.codecogs.com/png.latex?0%3Cp%3C1">, its unique maximum likelihood estimate is <img src="https://latex.codecogs.com/png.latex?%5Clfloor%20x/p%5Crfloor"> when <img src="https://latex.codecogs.com/png.latex?x/p"> is not an integer. If <img src="https://latex.codecogs.com/png.latex?x%3E0"> and <img src="https://latex.codecogs.com/png.latex?x/p"> is an integer, both <img src="https://latex.codecogs.com/png.latex?x/p-1"> and <img src="https://latex.codecogs.com/png.latex?x/p"> maximize the likelihood; our code returns the latter. For zero observed exports, the maximum is at <img src="https://latex.codecogs.com/png.latex?N=0">.</p>
+<div class="callout callout-style-default callout-note callout-titled" title="Why do you round down to get the MLE?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Why do you round down to get the MLE?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>If <img src="https://latex.codecogs.com/png.latex?x/p=37.9">, the unique binomial MLE is 37. The word “larger” applies only when two totals tie: if <img src="https://latex.codecogs.com/png.latex?x/p=38">, both 37 and 38 maximize the likelihood, and our convention returns 38. A tie does not assign a 50% probability to each total. It means that both give the same probability to the observed data.</p>
+<p>Matching the expected count as closely as possible does not always maximize the probability of the exact observed count. For example, suppose we observe one detection and <img src="https://latex.codecogs.com/png.latex?p=0.36">. Then <img src="https://latex.codecogs.com/png.latex?x/p=2.78">, which is closer to three than two, but:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1">candidate_totals <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb1-2">knitr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb1-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">total_N =</span> candidate_totals,</span>
+<span id="cb1-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">expected_detections =</span> candidate_totals <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.36</span>,</span>
+<span id="cb1-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">probability_of_one_detection =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> candidate_totals, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.36</span>)</span>
+<span id="cb1-6">), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">total_N</th>
+<th style="text-align: right;">expected_detections</th>
+<th style="text-align: right;">probability_of_one_detection</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0.72</td>
+<td style="text-align: right;">0.460800</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1.08</td>
+<td style="text-align: right;">0.442368</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>With two cases, the probability of exactly one detection is 0.4608, whereas the probability of zero detections is <img src="https://latex.codecogs.com/png.latex?0.64%5E2=0.4096">. Adding a third case can help produce exactly one detection if the original two produced zero; it can also spoil an outcome of exactly one by adding another detection. Both changes require detecting the third case, with the same probability 0.36. Because one detection was initially more likely than zero, more probability moves away from exactly one than moves into it. Thus the likelihood decreases from 0.4608 to 0.442368.</p>
+<p>More generally, comparing adjacent totals gives</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BL(N)%7D%7BL(N-1)%7D=%5Cfrac%7BN(1-p)%7D%7BN-x%7D,%5Cqquad%20N%3Ex.%0A"></p>
+<p>This ratio is above one when <img src="https://latex.codecogs.com/png.latex?N%3Cx/p">, equals one when <img src="https://latex.codecogs.com/png.latex?N=x/p">, and is below one when <img src="https://latex.codecogs.com/png.latex?N%3Ex/p">. That explains both rounding down for a noninteger ratio and the tie at an integer ratio. For the Imperial baseline, <img src="https://latex.codecogs.com/png.latex?3/p%5Capprox1%7B,%7D726.75">, so the unique total-<img src="https://latex.codecogs.com/png.latex?N"> binomial MLE is 1,726. These neighboring-count distinctions are tiny compared with the uncertainty interval.</p>
+</div>
+</div>
+</div>
+<section id="constructing-the-historical-probability" class="level3">
+<h3 class="anchored" data-anchor-id="constructing-the-historical-probability">Constructing the historical probability</h3>
+<p>The reports use <img src="https://latex.codecogs.com/png.latex?p%5Capprox%20FD/M"> with the following inputs. The product is not automatically bounded by one. An exact probability under a specified travel model uses the complement of the probability of no travel during the window, and must also account for detection after travel. We derive these steps below. <span class="citation" data-cites="imai2020report1 imai2020report2">(1,2)</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Symbol</th>
+<th style="text-align: left;">Meaning</th>
+<th style="text-align: left;">Baseline and units</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?F"></td>
+<td style="text-align: left;">Outbound international passenger flow</td>
+<td style="text-align: left;">3,301 passengers/day</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?M"></td>
+<td style="text-align: left;">Airport catchment population</td>
+<td style="text-align: left;">19,000,000 people</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?D"></td>
+<td style="text-align: left;">Mean infection-to-detection opportunity window</td>
+<td style="text-align: left;">10 days</td>
+</tr>
+</tbody>
+</table>
+<p>The window combines infection-to-onset and onset-to-detection time. The reports used an approximate 5–6-day incubation period and a further 4–5 days before detection. They assumed exported cases would remain abroad long enough to be detected. <span class="citation" data-cites="imai2020report1">(1)</span></p>
+<p>Dividing passenger flow by population gives a per-person daily travel quantity. Treating that quantity as a case’s travel probability requires assumptions about who travels, repeat trips, and whether cases resemble the catchment population. Under complete detection abroad, the baseline arithmetic is:</p>
+<p>The functions for the Imperial examples are defined in the expandable block below. This base-R teaching code assumes inputs follow the units and domains described in the text; routine type and input-validation checks are omitted. Brief checks remain where a calculation would be undefined or an interval could be cut short. Confidence limits are calculated by checking a grid of candidate case counts directly. The default upper limit, <code>max_N = 20000</code>, covers the examples below; increase it if an interval reaches the grid boundary. Run the definitions before the examples.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show all required base-R functions</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Observation probability; inputs use passengers/day, people, and days.</span></span>
+<span id="cb2-2">export_probability <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(daily_travellers, catchment_population,</span>
+<span id="cb2-3">                               window_days, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">detection =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb2-4">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">travel_multiplier =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb2-5">                               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">approximation =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"linear"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"poisson"</span>)) {</span>
+<span id="cb2-6">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Choose "linear" or "poisson"; the default is "linear".</span></span>
+<span id="cb2-7">  approximation <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">match.arg</span>(approximation)</span>
+<span id="cb2-8"></span>
+<span id="cb2-9">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Accumulate the per-person daily travel quantity over the window.</span></span>
+<span id="cb2-10">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># travel_multiplier = 1 assumes cases travel at the population-average rate.</span></span>
+<span id="cb2-11">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Under the constant-rate model, exposure = travel rate * window duration.</span></span>
+<span id="cb2-12">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Exposure is not itself guaranteed to be a probability: it can exceed 1.</span></span>
+<span id="cb2-13">  exposure <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> daily_travellers <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> catchment_population <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> window_days <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> travel_multiplier</span>
+<span id="cb2-14"></span>
+<span id="cb2-15">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># This is an if/else expression: "==" compares; "&lt;-" assigns the result.</span></span>
+<span id="cb2-16">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># If approximation is "linear", set travel_prob to exposure.</span></span>
+<span id="cb2-17">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Otherwise ("poisson"), set it to 1 - exp(-exposure).</span></span>
+<span id="cb2-18">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># The second formula is exact for constant-rate Poisson travel over a</span></span>
+<span id="cb2-19">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># fixed window; the first approximates it when exposure is small.</span></span>
+<span id="cb2-20">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># expm1(x) means exp(x) - 1, computed accurately even when x is near zero.</span></span>
+<span id="cb2-21">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Hence -expm1(-exposure) = 1 - exp(-exposure), without losing accuracy</span></span>
+<span id="cb2-22">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># through subtraction of nearly equal numbers. For example, in R,</span></span>
+<span id="cb2-23">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># exp(1e-20) - 1 gives 0, whereas expm1(1e-20) preserves about 1e-20.</span></span>
+<span id="cb2-24">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># At exposure = 0.1, the linear result is 0.1 and the Poisson result 0.09516.</span></span>
+<span id="cb2-25">  travel_prob <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (approximation <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"linear"</span>) exposure <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expm1</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>exposure)</span>
+<span id="cb2-26">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (travel_prob <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">stop</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Linear travel probability exceeds 1; review inputs or use an appropriate travel model."</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">call. =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>)</span>
+<span id="cb2-27"></span>
+<span id="cb2-28">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Travel and overseas detection are separate events. Multiply by the</span></span>
+<span id="cb2-29">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># probability of detection conditional on having traveled in the window.</span></span>
+<span id="cb2-30">  p <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> detection <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> travel_prob</span>
+<span id="cb2-31">  p</span>
+<span id="cb2-32">}</span>
+<span id="cb2-33"></span>
+<span id="cb2-34"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Assume x is a nonnegative integer, 0 &lt; p &lt;= 1, and 0 &lt; conf_level &lt; 1.</span></span>
+<span id="cb2-35"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Check candidate source totals directly; no search helpers are needed.</span></span>
+<span id="cb2-36"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># max_N is the largest total to examine (20,000 covers this post's examples).</span></span>
+<span id="cb2-37"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Increase max_N if the confidence interval reaches that boundary.</span></span>
+<span id="cb2-38">infer_binomial_size <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(x, p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">conf_level =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.95</span>,</span>
+<span id="cb2-39">                                <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">interval =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exact"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lr"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">max_N =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20000</span>) {</span>
+<span id="cb2-40">  interval <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">match.arg</span>(interval)</span>
+<span id="cb2-41">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A noninteger x/p has one MLE: floor(x/p), not the nearest integer.</span></span>
+<span id="cb2-42">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># For 0 &lt; p &lt; 1 and x &gt; 0, an integer x/p ties with x/p - 1; return x/p.</span></span>
+<span id="cb2-43">  estimate <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">floor</span>(x <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> p)</span>
+<span id="cb2-44">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (max_N <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> estimate) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">stop</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Increase max_N beyond the estimated total."</span>)</span>
+<span id="cb2-45">  N <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq.int</span>(x, max_N)</span>
+<span id="cb2-46"></span>
+<span id="cb2-47">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (interval <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exact"</span>) {</span>
+<span id="cb2-48">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Keep totals for which neither binomial tail is smaller than alpha/2.</span></span>
+<span id="cb2-49">    alpha <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> conf_level</span>
+<span id="cb2-50">    keep <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pbinom</span>(x <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> N, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lower.tail =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> alpha <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span></span>
+<span id="cb2-51">            <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pbinom</span>(x, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> N, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> p) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> alpha <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb2-52">    method <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Exact equal-tailed"</span></span>
+<span id="cb2-53">  } <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> {</span>
+<span id="cb2-54">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Keep totals whose log likelihood is sufficiently close to its maximum.</span></span>
+<span id="cb2-55">    log_likelihood <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(x, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> N, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb2-56">    best <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(x, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> estimate, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb2-57">    keep <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (best <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> log_likelihood) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">qchisq</span>(conf_level, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">df =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb2-58">    method <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Asymptotic likelihood-ratio"</span></span>
+<span id="cb2-59">  }</span>
+<span id="cb2-60"></span>
+<span id="cb2-61">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tail</span>(keep, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">stop</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Increase max_N: the interval reaches the grid boundary."</span>)</span>
+<span id="cb2-62">  limits <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">range</span>(N[keep])</span>
+<span id="cb2-63">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> x, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p =</span> p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">estimate =</span> estimate,</span>
+<span id="cb2-64">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lower =</span> limits[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">upper =</span> limits[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>],</span>
+<span id="cb2-65">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">conf_level =</span> conf_level, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> method)</span>
+<span id="cb2-66">}</span>
+<span id="cb2-67"></span>
+<span id="cb2-68"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Simulate binomial observations for a fixed hypothetical source count.</span></span>
+<span id="cb2-69">simulate_export_counts <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(total_cases, p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nsim =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>) {</span>
+<span id="cb2-70">  stats<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rbinom</span>(nsim, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> total_cases, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> p)</span>
+<span id="cb2-71">}</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">F <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3301</span>                 <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># passengers/day</span></span>
+<span id="cb3-2">M <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">19000000</span>            <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># people</span></span>
+<span id="cb3-3">D <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>                  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># days from infection to detection</span></span>
+<span id="cb3-4">p <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">export_probability</span>(F, M, D)</span>
+<span id="cb3-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p =</span> p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cases_per_detection =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> p,</span>
+<span id="cb3-6">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">three_exports =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seven_exports =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> p)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>            p cases_per_detection three_exports seven_exports
+1 0.001737368            575.5832      1726.749      4029.082</code></pre>
+</div>
+</div>
+<p>The probability is approximately 0.00173737, or 0.174%. The ratio estimates are 1,726.75 and 4,029.08. These illustrate the scale; they are not exact reproductions of the reports’ printed estimates. The function definitions above support the Imperial examples; the package comparison defines its additional function alongside the worked example.</p>
+</section>
+</section>
+<section id="what-the-reports-actually-estimated" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-reports-actually-estimated">What the reports actually estimated</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Item</th>
+<th style="text-align: left;">Report 1</th>
+<th style="text-align: left;">Report 2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Publication</td>
+<td style="text-align: left;">17 January 2020</td>
+<td style="text-align: left;">22 January 2020</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Exported cases</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Symptom onset through</td>
+<td style="text-align: left;">12 January</td>
+<td style="text-align: left;">18 January</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Published baseline estimate</td>
+<td style="text-align: left;">1,723</td>
+<td style="text-align: left;">4,000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Published baseline 95% interval</td>
+<td style="text-align: left;">427–4,471</td>
+<td style="text-align: left;">1,700–7,800</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Headline scenario envelope</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">1,000–9,700</td>
+</tr>
+</tbody>
+</table>
+<p>Report 2’s envelope spans the confidence intervals for its baseline, smaller-catchment, and shorter-window scenarios. It expresses sensitivity to selected assumptions alongside statistical uncertainty. The report also explicitly warns against estimating an epidemic growth rate from the two point estimates: reporting delays, onset information, and sparse observations prevent that interpretation. <span class="citation" data-cites="imai2020report2">(2)</span></p>
+<section id="why-a-negative-binomial-expression-appears" class="level3">
+<h3 class="anchored" data-anchor-id="why-a-negative-binomial-expression-appears">Why a negative-binomial expression appears</h3>
+<p>Report 2 introduces the negative-binomial distribution in its methods section as follows:</p>
+<blockquote class="blockquote">
+<p>Confidence intervals can be calculated from the observation that the number of cases detected overseas, X, is binomially distributed as Bin(p,N), where p = probability any one case will be detected overseas, and N is the total number of cases. N is therefore a negative binomially distributed function of X. <span class="citation" data-cites="imai2020report2">(2)</span></p>
+</blockquote>
+<p>Both methods sections mention a negative-binomial likelihood without specifying all implementation details. The derivation below explains the algebraic relationship behind this statement and distinguishes a likelihood from a probability distribution over the unknown total. First distinguish the total number of cases, <img src="https://latex.codecogs.com/png.latex?N">, from the number not detected overseas, <img src="https://latex.codecogs.com/png.latex?k">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ak=N-x,%5Cqquad%20N=k+x.%0A"></p>
+<p>With three observed exports, <img src="https://latex.codecogs.com/png.latex?k=1%7B,%7D723"> and <img src="https://latex.codecogs.com/png.latex?N=1%7B,%7D726"> describe the same possible outbreak. They are two ways to label its size, not competing estimates of the same count.</p>
+<p>Start with the binomial likelihood. Once we observe <img src="https://latex.codecogs.com/png.latex?x">, we hold <img src="https://latex.codecogs.com/png.latex?x"> and <img src="https://latex.codecogs.com/png.latex?p"> fixed and compare possible totals <img src="https://latex.codecogs.com/png.latex?N">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AL(N)=P(X=x%5Cmid%20N,p)=%5Cbinom%7BN%7D%7Bx%7Dp%5Ex(1-p)%5E%7BN-x%7D.%0A"></p>
+<p>Substituting <img src="https://latex.codecogs.com/png.latex?N=k+x"> changes only the label for the unknown count:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AL(k+x)=%5Cbinom%7Bk+x%7D%7Bx%7Dp%5Ex(1-p)%5Ek.%0A"></p>
+<p>Now compare this with the negative-binomial probability of <img src="https://latex.codecogs.com/png.latex?k"> failures before the <img src="https://latex.codecogs.com/png.latex?r">th success:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP(K=k)=%5Cbinom%7Bk+r-1%7D%7Br-1%7Dp%5Er(1-p)%5Ek.%0A"></p>
+<p>Setting <img src="https://latex.codecogs.com/png.latex?r=x+1"> makes this expression equal to the binomial likelihood multiplied by <img src="https://latex.codecogs.com/png.latex?p">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ag(k)=%5Cbinom%7Bk+x%7D%7Bx%7Dp%5E%7Bx+1%7D(1-p)%5Ek=pL(k+x).%0A"></p>
+<p>Why <img src="https://latex.codecogs.com/png.latex?x+1"> rather than <img src="https://latex.codecogs.com/png.latex?x">? The negative-binomial formula contains <img src="https://latex.codecogs.com/png.latex?r-1"> in its binomial coefficient. To match the observed count <img src="https://latex.codecogs.com/png.latex?x"> there, we need <img src="https://latex.codecogs.com/png.latex?r-1=x">. This is an algebraic match: with three observed exports, R therefore uses <code>size = 4</code>, but we have not observed a fourth export or sampled until one appeared.</p>
+<p>We have not changed the sampling model for the observed exports. It remains <img src="https://latex.codecogs.com/png.latex?X%5Cmid%20N,p%5Csim%5Coperatorname%7BBinomial%7D(N,p)">. The negative binomial formula appears because it is proportional to that likelihood when written in terms of <img src="https://latex.codecogs.com/png.latex?k">. The extra factor <img src="https://latex.codecogs.com/png.latex?p"> normalizes the values so that <img src="https://latex.codecogs.com/png.latex?%5Csum_%7Bk=0%7D%5E%7B%5Cinfty%7Dg(k)=1">.</p>
+<p>The identity can be checked directly in base R:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">x_observed <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span></span>
+<span id="cb5-2">p_known <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3301</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">19000000</span></span>
+<span id="cb5-3">k_candidates <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1722</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1723</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1724</span>)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Cases not detected overseas.</span></span>
+<span id="cb5-4">N_candidates <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> k_candidates <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> x_observed  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Total cases.</span></span>
+<span id="cb5-5"></span>
+<span id="cb5-6">binomial_likelihood <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(x_observed, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> N_candidates, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> p_known)</span>
+<span id="cb5-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># size = x + 1 matches the formula; it does not imply a fourth observed export.</span></span>
+<span id="cb5-8">negative_binomial_mass <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dnbinom</span>(k_candidates, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> x_observed <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb5-9">                                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> p_known)</span>
+<span id="cb5-10">knitr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb5-11">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">total_N =</span> N_candidates, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">not_detected_overseas_k =</span> k_candidates,</span>
+<span id="cb5-12">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p_times_L =</span> p_known <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> binomial_likelihood,</span>
+<span id="cb5-13">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">g =</span> negative_binomial_mass</span>
+<span id="cb5-14">), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">9</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">total_N</th>
+<th style="text-align: right;">not_detected_overseas_k</th>
+<th style="text-align: right;">p_times_L</th>
+<th style="text-align: right;">g</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1725</td>
+<td style="text-align: right;">1722</td>
+<td style="text-align: right;">0.000389581</td>
+<td style="text-align: right;">0.000389581</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1726</td>
+<td style="text-align: right;">1723</td>
+<td style="text-align: right;">0.000389582</td>
+<td style="text-align: right;">0.000389582</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">1727</td>
+<td style="text-align: right;">1724</td>
+<td style="text-align: right;">0.000389582</td>
+<td style="text-align: right;">0.000389582</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># TRUE means the two expressions agree to numerical precision.</span></span>
+<span id="cb6-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">isTRUE</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">all.equal</span>(negative_binomial_mass, p_known <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> binomial_likelihood))</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] TRUE</code></pre>
+</div>
+</div>
+<p>Multiplying every likelihood by the same positive constant preserves the ranking of candidate totals and all likelihood ratios. Consequently, the maximum at <img src="https://latex.codecogs.com/png.latex?k=1%7B,%7D723"> corresponds to the maximum at <img src="https://latex.codecogs.com/png.latex?N=1%7B,%7D726">. An interval for <img src="https://latex.codecogs.com/png.latex?k"> must likewise have <img src="https://latex.codecogs.com/png.latex?x"> added to both endpoints to express it as an interval for <img src="https://latex.codecogs.com/png.latex?N">, when using the same interval procedure.</p>
+<p>For example, the constant cancels when comparing any two candidate counts:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7Bg(k_1)%7D%7Bg(k_2)%7D%0A=%5Cfrac%7BpL(k_1+x)%7D%7BpL(k_2+x)%7D%0A=%5Cfrac%7BL(k_1+x)%7D%7BL(k_2+x)%7D.%0A"></p>
+<p>The reconstruction below uses these likelihood ratios; it does not calculate negative-binomial probability quantiles or Bayesian credible intervals.</p>
+<p>The inferred reconstruction matching the reports uses the mode of <img src="https://latex.codecogs.com/png.latex?g(k)">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ag(k)=%5Cbinom%7Bk+x%7D%7Bx%7Dp%5E%7Bx+1%7D(1-p)%5Ek,%0A%5Cqquad%20%5Cwidehat%20k=%5Cleft%5Clfloor%5Cfrac%7Bx(1-p)%7Dp%5Cright%5Crfloor.%0A"></p>
+<p>This produces 1,723 for three exports, matching Report 1’s printed total. However, in the algebra above, 1,723 represents <img src="https://latex.codecogs.com/png.latex?k">, and the corresponding total is 1,726. Matching the printed number does not establish how the authors implemented their calculation or justify treating <img src="https://latex.codecogs.com/png.latex?k"> as <img src="https://latex.codecogs.com/png.latex?N"> in a new analysis.</p>
+</section>
+<section id="reconstructing-the-reports-likelihood-ratio-intervals" class="level3">
+<h3 class="anchored" data-anchor-id="reconstructing-the-reports-likelihood-ratio-intervals">Reconstructing the reports’ likelihood-ratio intervals</h3>
+<p>With <img src="https://latex.codecogs.com/png.latex?p"> fixed, we compare candidate case counts by how likely they make the observed exports. Write <img src="https://latex.codecogs.com/png.latex?%5Cell(k)=%5Clog%20g(k)">. A likelihood-ratio interval retains candidates satisfying</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A2%5C%7B%5Cell(%5Cwidehat%20k)-%5Cell(k)%5C%7D%5Cleq%5Cchi%5E2_%7B1,0.95%7D%5Capprox3.84.%0A"></p>
+<p>The endpoints are where this log-likelihood drop reaches the cutoff. The foundational reference for the chi-squared likelihood-ratio approximation is Wilks (1938). Under suitable regularity conditions and in large samples, twice the log-likelihood drop has an approximate chi-squared distribution, with one degree of freedom when testing one scalar parameter. Retaining the parameter values that the test does not reject gives a likelihood-ratio confidence interval. <span class="citation" data-cites="wilks1938">(3)</span></p>
+<p>This is an approximate 95% confidence interval. With few observed exports and an integer-valued unknown total, Wilks’s general result does not by itself establish exact 95% coverage; the exact binomial interval below uses a separate construction.</p>
+<p>The following inferred reconstruction calculates an interval for <img src="https://latex.codecogs.com/png.latex?k">, uses a cutoff rounded to 3.84, and rounds continuous endpoints. It reproduces Report 1’s printed result, but the reports do not establish that these were their exact numerical conventions. <span class="citation" data-cites="imai2020report1 imai2020report2">(1,2)</span></p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">exports <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span></span>
+<span id="cb8-2">p_interval <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3301</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">19000000</span></span>
+<span id="cb8-3"></span>
+<span id="cb8-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># At integer k, this is dnbinom(k, size = exports + 1,</span></span>
+<span id="cb8-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#                             prob = p_interval, log = TRUE).</span></span>
+<span id="cb8-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># It equals the binomial log likelihood at N = k + exports, plus log(p).</span></span>
+<span id="cb8-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># That constant cancels when we subtract log likelihoods below.</span></span>
+<span id="cb8-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># lchoose also permits continuous endpoint searches.</span></span>
+<span id="cb8-9">log_likelihood <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(k) {</span>
+<span id="cb8-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lchoose</span>(k <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> exports, exports) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-11">    (exports <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(p_interval) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> k <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log1p</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>p_interval)</span>
+<span id="cb8-12">}</span>
+<span id="cb8-13">k_hat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">floor</span>(exports <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p_interval) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> p_interval)</span>
+<span id="cb8-14">cutoff <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">qchisq</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.95</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">df =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb8-15">boundary <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(k) {</span>
+<span id="cb8-16">  <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log_likelihood</span>(k_hat) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log_likelihood</span>(k)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> cutoff</span>
+<span id="cb8-17">}</span>
+<span id="cb8-18"></span>
+<span id="cb8-19"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Search brackets sufficient for the report's baseline inputs.</span></span>
+<span id="cb8-20">report_lower <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniroot</span>(boundary, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, k_hat))<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>root</span>
+<span id="cb8-21">report_upper <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniroot</span>(boundary, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(k_hat, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20000</span>))<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>root</span>
+<span id="cb8-22"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">estimate =</span> k_hat, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lower =</span> report_lower, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">upper =</span> report_upper))</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>estimate    lower    upper 
+    1723      427     4471 </code></pre>
+</div>
+</div>
+<p>This gives 1,723 (427–4,471). Repeating with seven exports gives approximately 4,022 (1,726–7,780), which rounds to Report 2’s 4,000 (1,700–7,800) at its printed precision. These reconstructed values describe <img src="https://latex.codecogs.com/png.latex?k"> in our derivation. To express them as total cases <img src="https://latex.codecogs.com/png.latex?N">, add the observed exports to the estimate and both endpoints.</p>
+<p>Report 2’s broader uncertainty range is a separate operation. Its baseline, smaller-catchment and shorter-window intervals are 1,700–7,800, 1,000–4,500 and 2,200–9,700. Taking the smallest lower endpoint and largest upper endpoint gives 1,000–9,700. This sensitivity envelope explores selected assumptions about <img src="https://latex.codecogs.com/png.latex?p">; it has no newly established 95% coverage interpretation. <span class="citation" data-cites="imai2020report2">(2)</span></p>
+</section>
+<section id="direct-binomial-likelihood-and-exact-tail-inversion" class="level3">
+<h3 class="anchored" data-anchor-id="direct-binomial-likelihood-and-exact-tail-inversion">Direct binomial likelihood and exact tail inversion</h3>
+<p>For the total source count, use</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AL(N)=%5Cbinom%20Nx%20p%5Ex(1-p)%5E%7BN-x%7D,%5Cqquad%20N%5Cgeq%20x.%0A"></p>
+<p>Applying the likelihood-ratio rule directly to integer <img src="https://latex.codecogs.com/png.latex?N"> gives an estimate of 1,726 and interval 431–4,474 for three exports. The expressions <img src="https://latex.codecogs.com/png.latex?g(k)"> and <img src="https://latex.codecogs.com/png.latex?L(N)"> give the same relative support to each possible outbreak: one labels it by <img src="https://latex.codecogs.com/png.latex?k">, while the other labels it by <img src="https://latex.codecogs.com/png.latex?N=k+x">. Adding three to the reconstruction’s rounded endpoints gives 430–4,474. The remaining one-case difference in the lower limit comes from the numerical conventions: the reconstruction rounds continuous endpoints and uses 3.84, whereas the direct calculation retains accepted integers and uses the unrounded chi-squared cutoff. It does not reflect a different model for the observed exports.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">binomial_lr <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">infer_binomial_size</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, p_interval, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">interval =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lr"</span>)</span>
+<span id="cb10-2">binomial_exact <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">infer_binomial_size</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, p_interval, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">interval =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exact"</span>)</span>
+<span id="cb10-3">knitr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb10-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">calculation =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Reconstruction matching Report 1 (k = N - x)"</span>,</span>
+<span id="cb10-5">                  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Direct binomial LR (total N)"</span>,</span>
+<span id="cb10-6">                  <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Exact equal-tailed binomial (total N)"</span>),</span>
+<span id="cb10-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">estimate =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(k_hat, binomial_lr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>estimate, binomial_exact<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>estimate),</span>
+<span id="cb10-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lower =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(report_lower), binomial_lr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>lower, binomial_exact<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>lower),</span>
+<span id="cb10-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">upper =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(report_upper), binomial_lr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>upper, binomial_exact<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>upper)</span>
+<span id="cb10-10">), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Three exports and the same fixed observation probability."</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Three exports and the same fixed observation probability.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">calculation</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">lower</th>
+<th style="text-align: right;">upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Reconstruction matching Report 1 (k = N - x)</td>
+<td style="text-align: right;">1723</td>
+<td style="text-align: right;">427</td>
+<td style="text-align: right;">4471</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Direct binomial LR (total N)</td>
+<td style="text-align: right;">1726</td>
+<td style="text-align: right;">431</td>
+<td style="text-align: right;">4474</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Exact equal-tailed binomial (total N)</td>
+<td style="text-align: right;">1726</td>
+<td style="text-align: right;">357</td>
+<td style="text-align: right;">5043</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The exact equal-tailed interval, 357–5,043, uses a different interval construction: exact binomial tail probabilities instead of the approximate chi-squared likelihood-ratio cutoff.</p>
+<p>With <code>interval = "exact"</code>, <code>infer_binomial_size()</code> inverts both binomial tails to construct this equal-tailed confidence interval. For <img src="https://latex.codecogs.com/png.latex?%5Calpha=0.05">, it retains integer values satisfying</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AP_N(X%5Cgeq%20x)%5Cgeq%5Calpha/2,%0A%5Cqquad%20P_N(X%5Cleq%20x)%5Cgeq%5Calpha/2.%0A"></p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">conditional <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">do.call</span>(rbind, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>), <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(x) {</span>
+<span id="cb11-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">infer_binomial_size</span>(x, p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">interval =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exact"</span>)</span>
+<span id="cb11-3">}))</span>
+<span id="cb11-4">knitr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(conditional[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"x"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"estimate"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lower"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"upper"</span>)],</span>
+<span id="cb11-5">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col.names =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Exports"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Total-N MLE"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"95% lower"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"95% upper"</span>),</span>
+<span id="cb11-6">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"New total-N binomial analysis, conditional on fixed p; not the published intervals."</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>New total-N binomial analysis, conditional on fixed p; not the published intervals.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Exports</th>
+<th style="text-align: right;">Total-N MLE</th>
+<th style="text-align: right;">95% lower</th>
+<th style="text-align: right;">95% upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2121</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1726</td>
+<td style="text-align: right;">357</td>
+<td style="text-align: right;">5043</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">4029</td>
+<td style="text-align: right;">1622</td>
+<td style="text-align: right;">8297</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>These intervals have at least nominal coverage under the stated model with known <img src="https://latex.codecogs.com/png.latex?p">. They exclude uncertainty in passenger flow, catchment size, delay distributions, and detection completeness. Zero exports yield an estimate of zero but a positive upper limit: the absence of detections does not establish the absence of cases.</p>
+</section>
+<section id="confidence-intervals-with-established-r-packages" class="level3">
+<h3 class="anchored" data-anchor-id="confidence-intervals-with-established-r-packages">Confidence intervals with established R packages</h3>
+<p>We can check our calculations with <code>bbmle</code>, <code>stats4</code>, and <code>stats</code>. For a direct comparison between implementations, we first give all three packages the same Poisson approximation, <img src="https://latex.codecogs.com/png.latex?X%5Csim%5Coperatorname%7BPoisson%7D(Np)">, with known <img src="https://latex.codecogs.com/png.latex?p"> and continuous positive <img src="https://latex.codecogs.com/png.latex?N">.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the package comparison function</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Install once if needed; this commented line does not run when rendering:</span></span>
+<span id="cb12-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># install.packages("bbmle")</span></span>
+<span id="cb12-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Compare likelihood-ratio intervals under X ~ Poisson(N * p).</span></span>
+<span id="cb12-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Inputs: positive observed count x, known detection probability p, confidence level.</span></span>
+<span id="cb12-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Output: estimates and interval endpoints on the total-case scale N.</span></span>
+<span id="cb12-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># This teaching example requires x &gt; 0; log(N) has no finite MLE when x = 0.</span></span>
+<span id="cb12-7">compare_poisson_intervals <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(x, p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">conf_level =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.95</span>) {</span>
+<span id="cb12-8">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Optimize log(N) so N stays positive; this model allows noninteger N.</span></span>
+<span id="cb12-9">  nll <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(log_N) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dpois</span>(x, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lambda =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(log_N) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> p, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb12-10">  log_N_hat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(x <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> p)</span>
+<span id="cb12-11"></span>
+<span id="cb12-12">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Our direct likelihood-ratio calculation, now using the SAME Poisson model.</span></span>
+<span id="cb12-13">  boundary <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(log_N) {</span>
+<span id="cb12-14">    <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">nll</span>(log_N) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">nll</span>(log_N_hat)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">qchisq</span>(conf_level, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb12-15">  }</span>
+<span id="cb12-16">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># These brackets cover the examples x = 3 and x = 7 at 95% confidence.</span></span>
+<span id="cb12-17">  manual_ci <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb12-18">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniroot</span>(boundary, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(log_N_hat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, log_N_hat), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">tol =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-10</span>)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>root,</span>
+<span id="cb12-19">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">uniroot</span>(boundary, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(log_N_hat, log_N_hat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">tol =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-10</span>)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>root</span>
+<span id="cb12-20">  ))</span>
+<span id="cb12-21"></span>
+<span id="cb12-22">  fit_bbmle <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> bbmle<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mle2</span>(nll, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">start =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log_N =</span> log_N_hat))</span>
+<span id="cb12-23">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># "spline" profiles the likelihood; "quad" would give a Wald approximation.</span></span>
+<span id="cb12-24">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Use the S4 generic in stats4 for mle2 and mle objects.</span></span>
+<span id="cb12-25">  ci_bbmle <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(stats4<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">confint</span>(fit_bbmle, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">level =</span> conf_level, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"spline"</span>,</span>
+<span id="cb12-26">                                         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">del =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">maxsteps =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>))</span>
+<span id="cb12-27"></span>
+<span id="cb12-28">  fit_stats4 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> stats4<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mle</span>(nll, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">start =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log_N =</span> log_N_hat))</span>
+<span id="cb12-29">  ci_stats4 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(stats4<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">confint</span>(stats4<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">profile</span>(fit_stats4, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">del =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">maxsteps =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>),</span>
+<span id="cb12-30">                                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">level =</span> conf_level))</span>
+<span id="cb12-31"></span>
+<span id="cb12-32">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># log(E[X]) = log(N) + log(p): log(p) is a known offset.</span></span>
+<span id="cb12-33">  fit_glm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> stats<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glm</span>(x <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">offset</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(p)), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">poisson</span>())</span>
+<span id="cb12-34">  ci_glm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(stats<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">confint</span>(stats<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">profile</span>(fit_glm, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">test =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"LRT"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">del =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>,</span>
+<span id="cb12-35">                                              <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">maxsteps =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">level =</span> conf_level))</span>
+<span id="cb12-36"></span>
+<span id="cb12-37">  limits <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rbind</span>(manual_ci, ci_bbmle, ci_stats4, ci_glm)</span>
+<span id="cb12-38">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb12-39">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Manual Poisson LR"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bbmle profile"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"stats4 profile"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Poisson GLM profile"</span>),</span>
+<span id="cb12-40">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">estimate =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(x <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> p, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(stats4<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(fit_bbmle)),</span>
+<span id="cb12-41">                 <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(stats4<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(fit_stats4)), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(fit_glm))),</span>
+<span id="cb12-42">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lower =</span> limits[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">upper =</span> limits[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">row.names =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span></span>
+<span id="cb12-43">  )</span>
+<span id="cb12-44">}</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Use the same report inputs for every calculation.</span></span>
+<span id="cb13-2">package_intervals <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">compare_poisson_intervals</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, p_interval)</span>
+<span id="cb13-3">comparison <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rbind</span>(</span>
+<span id="cb13-4">  package_intervals,</span>
+<span id="cb13-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Our integer-binomial LR"</span>,</span>
+<span id="cb13-6">             binomial_lr[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"estimate"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lower"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"upper"</span>)]),</span>
+<span id="cb13-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Our exact binomial tails"</span>,</span>
+<span id="cb13-8">             binomial_exact[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"estimate"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lower"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"upper"</span>)])</span>
+<span id="cb13-9">)</span>
+<span id="cb13-10">knitr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(comparison, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">row.names =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>,</span>
+<span id="cb13-11">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Three exports: Poisson package intervals compared with our calculations."</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Three exports: Poisson package intervals compared with our calculations.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">lower</th>
+<th style="text-align: right;">upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Manual Poisson LR</td>
+<td style="text-align: right;">1726.75</td>
+<td style="text-align: right;">429.42</td>
+<td style="text-align: right;">4477.63</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">bbmle profile</td>
+<td style="text-align: right;">1726.75</td>
+<td style="text-align: right;">429.42</td>
+<td style="text-align: right;">4477.61</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">stats4 profile</td>
+<td style="text-align: right;">1726.75</td>
+<td style="text-align: right;">429.42</td>
+<td style="text-align: right;">4477.62</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Poisson GLM profile</td>
+<td style="text-align: right;">1726.75</td>
+<td style="text-align: right;">429.42</td>
+<td style="text-align: right;">4477.62</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Our integer-binomial LR</td>
+<td style="text-align: right;">1726.00</td>
+<td style="text-align: right;">431.00</td>
+<td style="text-align: right;">4474.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Our exact binomial tails</td>
+<td style="text-align: right;">1726.00</td>
+<td style="text-align: right;">357.00</td>
+<td style="text-align: right;">5043.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Repeat the common Poisson comparison for Report 2's seven exports.</span></span>
+<span id="cb14-2">knitr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">compare_poisson_intervals</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>, p_interval), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>,</span>
+<span id="cb14-3">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Seven exports: the same Poisson model fitted four ways."</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Seven exports: the same Poisson model fitted four ways.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">lower</th>
+<th style="text-align: right;">upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Manual Poisson LR</td>
+<td style="text-align: right;">4029.08</td>
+<td style="text-align: right;">1731.23</td>
+<td style="text-align: right;">7792.08</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">bbmle profile</td>
+<td style="text-align: right;">4029.08</td>
+<td style="text-align: right;">1731.23</td>
+<td style="text-align: right;">7792.07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">stats4 profile</td>
+<td style="text-align: right;">4029.08</td>
+<td style="text-align: right;">1731.23</td>
+<td style="text-align: right;">7792.07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Poisson GLM profile</td>
+<td style="text-align: right;">4029.08</td>
+<td style="text-align: right;">1731.23</td>
+<td style="text-align: right;">7792.07</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Record the versions actually used to execute these examples.</span></span>
+<span id="cb15-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">R =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.character</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">getRversion</span>()),</span>
+<span id="cb15-3">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bbmle =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.character</span>(utils<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">packageVersion</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bbmle"</span>)))</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      R  bbmle
+1 4.5.3 1.0.26</code></pre>
+</div>
+</div>
+<p>For three exports, the Poisson calculations give approximately 1,726.75 cases (429.42–4,477.63). In validation for three and seven exports, the package endpoints differ from our direct Poisson roots by less than 0.05 cases. Agreement checks the numerical calculation, not the coverage of this approximate interval. All use the likelihood-ratio principle discussed above. <span class="citation" data-cites="wilks1938">(3)</span></p>
+<p>Our integer-binomial LR interval, 431–4,474, differs because it uses a different likelihood and integer candidates. The exact binomial interval, 357–5,043, also uses a different interval construction. The package examples are new Poisson analyses, not reproductions of Imperial’s printed negative-binomial calculation. A continuous optimizer cannot directly vary the <code>size</code> argument of <code>dbinom()</code> over noninteger totals; the integer-grid calculation remains appropriate for our direct binomial analysis.</p>
+<p>All these intervals hold <img src="https://latex.codecogs.com/png.latex?p"> fixed. They therefore exclude uncertainty in travel flow, the opportunity window, and overseas detection. The relationship between the Imperial and Nishiura point-estimate formulae is explained below.</p>
+</section>
+</section>
+<section id="from-escape-probability-to-overseas-detection" class="level2">
+<h2 class="anchored" data-anchor-id="from-escape-probability-to-overseas-detection">From escape probability to overseas detection</h2>
+<p>A daily probability multiplied by a duration can exceed one. The escape-probability calculation shows why this product is only a first-order approximation.</p>
+<section id="a-fixed-window-first-calculate-the-probability-of-no-travel" class="level3">
+<h3 class="anchored" data-anchor-id="a-fixed-window-first-calculate-the-probability-of-no-travel">A fixed window: first calculate the probability of no travel</h3>
+<p>Let <img src="https://latex.codecogs.com/png.latex?q"> be the daily probability of international travel, conditional on not yet having travelled. First suppose the available window is exactly <img src="https://latex.codecogs.com/png.latex?d"> whole days. If that conditional probability stays constant, the probability of remaining without travel for the entire window is</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AS(d)=P(%5Ctext%7Bno%20travel%20during%20%7Dd%5Ctext%7B%20days%7D)=(1-q)%5Ed.%0A"></p>
+<p>This is the no-travel, or escape, probability: the case escapes the travel event on every day. Its complement is the probability of travelling before detection ends the opportunity window:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ap_%7B%5Cmathrm%7Btravel%7D%7D=1-S(d)=1-(1-q)%5Ed.%0A"></p>
+<p>This expression is exact under the stated daily travel model and always lies between zero and one. Travel and overseas detection are separate events: if <img src="https://latex.codecogs.com/png.latex?s"> is the probability of detection conditional on travel during this window, then <img src="https://latex.codecogs.com/png.latex?p=s%5C,p_%7B%5Cmathrm%7Btravel%7D%7D">. The baseline calculation assumes <img src="https://latex.codecogs.com/png.latex?s=1"> for cases meeting the reports’ clinical definition. Expanding it shows where the approximation comes from:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A1-(1-q)%5Ed%0A=dq-%5Cfrac%7Bd(d-1)%7D%7B2%7Dq%5E2+%5Ccdots%5Capprox%20dq.%0A"></p>
+<p>Keeping only the first-order term gives the report’s multiplication when <img src="https://latex.codecogs.com/png.latex?q%5Capprox%20F/M">. The first row below uses the reports’ baseline <img src="https://latex.codecogs.com/png.latex?F">, <img src="https://latex.codecogs.com/png.latex?M">, and <img src="https://latex.codecogs.com/png.latex?D">, taken directly from the R variables defined above. For this comparison, the exact daily calculation treats the window as fixed at <img src="https://latex.codecogs.com/png.latex?d=D=10"> days; the reports themselves specify a mean window.</p>
+<div class="table-responsive">
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Report inputs and illustrative comparisons. The baseline uses d = D; exact travel probability is 1 minus the no-travel probability. Dashes mean no passenger flow or population was specified.</caption>
+<colgroup>
+<col style="width: 14%">
+<col style="width: 19%">
+<col style="width: 12%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 15%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Scenario</th>
+<th style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?F"> (passengers/day)</th>
+<th style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?M"> (people)</th>
+<th style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?q=F/M"></th>
+<th style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?d"> (days)</th>
+<th style="text-align: right;">First order <img src="https://latex.codecogs.com/png.latex?qd"></th>
+<th style="text-align: right;">Exact <img src="https://latex.codecogs.com/png.latex?1-(1-q)%5Ed"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Report baseline</td>
+<td style="text-align: left;">3,301</td>
+<td style="text-align: left;">19,000,000</td>
+<td style="text-align: right;">0.00017374</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">0.00173737</td>
+<td style="text-align: right;">0.00173601</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Illustration</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: right;">0.00100000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">0.01000000</td>
+<td style="text-align: right;">0.00995512</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Illustration</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: right;">0.05000000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">0.50000000</td>
+<td style="text-align: right;">0.40126306</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Illustration</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: right;">0.20000000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">2.00000000</td>
+<td style="text-align: right;">0.89262582</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<p>At the report baseline, the first-order probability is approximately 0.00173737 and the exact daily-model probability is 0.00173601. For the illustrative rows, <img src="https://latex.codecogs.com/png.latex?q=0.001"> also gives an excellent approximation; <img src="https://latex.codecogs.com/png.latex?q=0.05"> noticeably overstates the probability, and <img src="https://latex.codecogs.com/png.latex?q=0.20"> gives a product above one. The exact calculation remains bounded in each case.</p>
+</section>
+</section>
+<section id="nishiura-et-al.-2020" class="level2">
+<h2 class="anchored" data-anchor-id="nishiura-et-al.-2020">Nishiura et al.&nbsp;(2020)</h2>
+<p>Nishiura and colleagues also estimate outbreak size from detected exports, travel volume, a source population, and an opportunity window. Their calculation first estimates an infection risk and then multiplies it by the source population. Imperial instead first calculates the probability of detecting a source case overseas and then divides the observed exports by that probability. With matching inputs, these two routes give the same ratio estimate. Their different statistical interpretations still matter for uncertainty. <span class="citation" data-cites="nishiura2020 imai2020report1 imai2020report2">(1,2,4)</span></p>
+<p>The papers use <img src="https://latex.codecogs.com/png.latex?p"> for different probabilities. To keep them distinct, retain <img src="https://latex.codecogs.com/png.latex?p"> for Imperial’s overseas-detection probability and use <img src="https://latex.codecogs.com/png.latex?%5Cpi"> for Nishiura’s source-population infection risk. Likewise, use <img src="https://latex.codecogs.com/png.latex?M"> for the source population throughout; Nishiura calls that population <img src="https://latex.codecogs.com/png.latex?n">.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Quantity</th>
+<th style="text-align: left;">Imperial notation used here</th>
+<th style="text-align: left;">Nishiura notation and translation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Observed exported cases</td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?x"></td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?c">; set <img src="https://latex.codecogs.com/png.latex?c=x"> when comparing the same data</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Probability to estimate or supply</td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?p">: probability a source case is detected overseas; supplied by travel assumptions</td>
+<td style="text-align: left;">The paper’s <img src="https://latex.codecogs.com/png.latex?p">, written <img src="https://latex.codecogs.com/png.latex?%5Cpi"> here: source-population infection risk to estimate</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Source population</td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?M"></td>
+<td style="text-align: left;">The paper’s <img src="https://latex.codecogs.com/png.latex?n">, written <img src="https://latex.codecogs.com/png.latex?M"> here</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Daily departures from Wuhan</td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?F"></td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?F=ma/365">, from annual passenger volume <img src="https://latex.codecogs.com/png.latex?m"> and Wuhan share <img src="https://latex.codecogs.com/png.latex?a"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Opportunity window</td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?D"></td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?T"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Total source cases</td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?N"></td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?M%5Cpi"> in the harmonized notation</td>
+</tr>
+</tbody>
+</table>
+<p>Imperial’s calculation is</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ap%5Capprox%5Cfrac%7BFD%7D%7BM%7D,%5Cqquad%0A%5Cwidehat%20N_%7B%5Cmathrm%7BImperial%7D%7D=%5Cfrac%7Bx%7D%7Bp%7D%0A%5Capprox%5Cfrac%7BxM%7D%7BFD%7D.%0A"></p>
+<p>Nishiura’s Equation 1 estimates the infection risk as</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cwidehat%5Cpi=%5Cfrac%7B365c%7D%7BmaT%7D,%5Cqquad%0A%5Cwidehat%20N_%7B%5Cmathrm%7BNishiura%7D%7D=M%5Cwidehat%5Cpi%0A=%5Cfrac%7B365cM%7D%7BmaT%7D.%0A"></p>
+<p>Here <img src="https://latex.codecogs.com/png.latex?m=63.1"> million passengers per year is the 2017 passenger volume from China to the seven included destinations, and <img src="https://latex.codecogs.com/png.latex?a=0.021"> is the fraction originating in Wuhan. The paper calls this share <img src="https://latex.codecogs.com/png.latex?q">; we use <img src="https://latex.codecogs.com/png.latex?a"> to distinguish it from the daily travel probability used earlier. The share is <img src="https://latex.codecogs.com/png.latex?100a=2.1"> percent, not a daily travel probability. <span class="citation" data-cites="nishiura2020">(4, Eq. 1)</span></p>
+<p>To see the equivalence, convert annual passengers to daily departures and define the expected eligible traveller count <img src="https://latex.codecogs.com/png.latex?E">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AF=%5Cfrac%7Bma%7D%7B365%7D,%5Cqquad%20E=FT=%5Cfrac%7BmaT%7D%7B365%7D.%0A"></p>
+<p>Then Nishiura’s two steps reduce to</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cwidehat%5Cpi=%5Cfrac%7Bc%7D%7BE%7D,%5Cqquad%0A%5Cwidehat%20N=M%5Cwidehat%5Cpi=%5Cfrac%7BcM%7D%7BFT%7D.%0A"></p>
+<p>Setting <img src="https://latex.codecogs.com/png.latex?c=x"> and <img src="https://latex.codecogs.com/png.latex?T=D"> gives exactly the same arithmetic as Imperial’s first-order ratio <img src="https://latex.codecogs.com/png.latex?xM/(FD)">. The probabilities themselves remain different: <img src="https://latex.codecogs.com/png.latex?%5Cpi=N/M"> is the proportion of source residents counted as cases, whereas <img src="https://latex.codecogs.com/png.latex?p%5Capprox%20FD/M=E/M"> is the observation probability for each such case.</p>
+<p>The Imperial reports explicitly estimate symptomatic cases severe enough to require hospitalisation, excluding mild and asymptomatic infections. <span class="citation" data-cites="imai2020report1 imai2020report2">(1,2)</span> Nishiura et al.&nbsp;use infection terminology when introducing their balance equation on page 2:</p>
+<blockquote class="blockquote">
+<p>“…given the observed cumulative count of c exported cases, we have a balance equation of the cumulative risk of infection:” <span class="citation" data-cites="nishiura2020">(4)</span></p>
+</blockquote>
+<p>They also describe the estimated burden in the abstract:</p>
+<blockquote class="blockquote">
+<p>“The most plausible number of infections is in the order of thousands, …” <span class="citation" data-cites="nishiura2020">(4, abstract, p.&nbsp;1)</span></p>
+</blockquote>
+<p>If their estimates are interpreted as including <strong>all infections</strong>, that interpretation requires assumptions about the detection of mild and asymptomatic infections, because the observed numerator consists of diagnosed exported cases. The limitation concerns that broader interpretation; the quoted terminology alone does not establish that undiagnosed infections were accounted for.</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-imai2020report1" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Imai N, Dorigatti I, Cori A, Riley S, Ferguson NM. Report 1: Estimating the potential total number of novel coronavirus cases in <span>Wuhan City, China</span> [Internet]. Imperial College London; 2020 Jan. Available from: <a href="https://doi.org/10.25561/77149">https://doi.org/10.25561/77149</a> doi:<a href="https://doi.org/10.25561/77149">10.25561/77149</a></div>
+</div>
+<div id="ref-imai2020report2" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Imai N, Dorigatti I, Cori A, Donnelly C, Riley S, Ferguson NM. Report 2: Estimating the potential total number of novel coronavirus (2019-nCoV) cases in <span>Wuhan City, China</span> [Internet]. Imperial College London; 2020 Jan. Available from: <a href="https://doi.org/10.25561/77150">https://doi.org/10.25561/77150</a> doi:<a href="https://doi.org/10.25561/77150">10.25561/77150</a></div>
+</div>
+<div id="ref-wilks1938" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Wilks SS. The large-sample distribution of the likelihood ratio for testing composite hypotheses. The Annals of Mathematical Statistics. 1938;9(1):60–2. doi:<a href="https://doi.org/10.1214/aoms/1177732360">10.1214/aoms/1177732360</a></div>
+</div>
+<div id="ref-nishiura2020" class="csl-entry">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><span class="nocase">Nishiura H et al.</span> <span class="nocase">The Extent of Transmission of Novel Coronavirus in Wuhan, China, 2020</span>. Journal of Clinical Medicine. 2020. doi:<a href="https://doi.org/10.3390/jcm9020330">10.3390/jcm9020330</a></div>
+</div>
+</div>
+
+
+</section>
+
+ ]]></description>
+  <category>R</category>
+  <category>surveillance</category>
+  <category>statistical inference</category>
+  <category>COVID-19</category>
+  <guid>https://www.jonghoonk.com/blog/posts/exported_cases/</guid>
+  <pubDate>Thu, 17 Sep 2026 15:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Nash Equilibrium, Starting Simple</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
@@ -18617,512 +20531,6 @@ font-style: inherit;">"repos"</span>)))</span></code></pre></div></div>
   <category>API client</category>
   <category>R</category>
   <guid>https://www.jonghoonk.com/blog/posts/biz_sdk/</guid>
-  <pubDate>Thu, 23 Apr 2026 15:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Secrets Management: Keeping Credentials Out of Your Code</title>
-  <dc:creator>Jong-Hoon Kim</dc:creator>
-  <link>https://www.jonghoonk.com/blog/posts/biz_secrets/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<section id="why-secrets-management-is-non-negotiable" class="level2" data-number="1">
-<h2 data-number="1" class="anchored" data-anchor-id="why-secrets-management-is-non-negotiable"><span class="header-section-number">1</span> Why secrets management is non-negotiable</h2>
-<p>A developer pushes a database connection string to a public GitHub repository by accident. Within 15 minutes, a bot discovers it and begins exfiltrating patient data. This is not a hypothetical — it happens dozens of times per day across GitHub <span class="citation" data-cites="owasp2021">(1)</span>.</p>
-<p>Any health department client will conduct at minimum a basic security review before signing a contract. “Where are your database passwords stored?” is question one. “In the code” or “in a <code>.env</code> file in the repository” ends the conversation.</p>
-<p>Proper secrets management is both a security practice and a commercial requirement. It is also straightforward to implement.</p>
-</section>
-<section id="the-hierarchy-of-bad-to-good" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="the-hierarchy-of-bad-to-good"><span class="header-section-number">2</span> The hierarchy of bad to good</h2>
-<pre><code>❌ Hardcoded in source code:   password = "secret123"
-❌ In .env committed to git:   DATABASE_URL=postgresql://...
-⚠  In .env not committed:     ok for local dev only
-✓  Environment variable at runtime: -e DB_PASSWORD=...
-✓  AWS Secrets Manager:        retrieved at startup, rotated automatically
-✓  HashiCorp Vault:            enterprise-grade, audited, dynamic secrets</code></pre>
-</section>
-<section id="environment-variables-the-baseline" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="environment-variables-the-baseline"><span class="header-section-number">3</span> Environment variables: the baseline</h2>
-<p>The minimum safe approach: never put secrets in source code. Pass them as environment variables at runtime.</p>
-<p><strong>Docker run:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">docker</span> run <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-p</span> 8000:8000 <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb2-2">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-e</span> DATABASE_URL=<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"postgresql://user:pass@host:5432/db"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb2-3">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-e</span> API_SECRET_KEY=<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">openssl</span> rand <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-hex</span> 32<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb2-4">  dt-api:latest</span></code></pre></div></div>
-<p><strong>R code that reads them:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">db_url  <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Sys.getenv</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"DATABASE_URL"</span>,   <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">unset =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stop</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"DATABASE_URL not set"</span>))</span>
-<span id="cb3-2">api_key <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Sys.getenv</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"API_SECRET_KEY"</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">unset =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stop</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"API_SECRET_KEY not set"</span>))</span></code></pre></div></div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Demonstrate safe secret reading pattern in R</span></span>
-<span id="cb4-2">safe_get_env <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(key, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">required =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">TRUE</span>) {</span>
-<span id="cb4-3">  val <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Sys.getenv</span>(key, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">unset =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NA_character_</span>)</span>
-<span id="cb4-4">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">is.na</span>(val) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">||</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nchar</span>(val) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>) {</span>
-<span id="cb4-5">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> (required) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stop</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sprintf</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Required environment variable '%s' not set."</span>, key))</span>
-<span id="cb4-6">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(<span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span>)</span>
-<span id="cb4-7">  }</span>
-<span id="cb4-8">  val</span>
-<span id="cb4-9">}</span>
-<span id="cb4-10"></span>
-<span id="cb4-11"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Show what the pattern produces</span></span>
-<span id="cb4-12"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tryCatch</span>(</span>
-<span id="cb4-13">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">safe_get_env</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"DATABASE_URL"</span>),   <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># this env var is not set</span></span>
-<span id="cb4-14">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">error =</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(e) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Error (expected):"</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">conditionMessage</span>(e), <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">\n</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>)</span>
-<span id="cb4-15">)</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Error (expected): Required environment variable 'DATABASE_URL' not set. </code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Simulate a set variable</span></span>
-<span id="cb6-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Sys.setenv</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">DT_API_KEY_TEST =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"fake-key-for-demo-only"</span>)</span>
-<span id="cb6-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cat</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Key found:"</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nchar</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">safe_get_env</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"DT_API_KEY_TEST"</span>)), <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"chars</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">\n</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Key found: 22 chars</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Sys.unsetenv</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"DT_API_KEY_TEST"</span>)</span></code></pre></div></div>
-</div>
-</section>
-<section id="aws-secrets-manager" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="aws-secrets-manager"><span class="header-section-number">4</span> AWS Secrets Manager</h2>
-<p>For production, AWS Secrets Manager <span class="citation" data-cites="aws_sm">(2)</span> stores secrets encrypted at rest, controls access via IAM, and supports automatic rotation.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Store a secret (one-time)</span></span>
-<span id="cb9-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">aws</span> secretsmanager create-secret <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb9-3">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--name</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dt/prod/db-password"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb9-4">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--description</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"TimescaleDB password for prod environment"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb9-5">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--secret-string</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'{"username":"dtuser","password":"S3cur3P@ss"}'</span></span>
-<span id="cb9-6"></span>
-<span id="cb9-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Retrieve at runtime (in startup script)</span></span>
-<span id="cb9-8"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">SECRET</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">aws</span> secretsmanager get-secret-value <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb9-9">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--secret-id</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dt/prod/db-password"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb9-10">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--query</span> SecretString <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--output</span> text<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb9-11"></span>
-<span id="cb9-12"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">DB_USER</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$SECRET</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">python3</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"import sys,json; print(json.load(sys.stdin)['username'])"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb9-13"><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">DB_PASS</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$(</span><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">echo</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">$SECRET</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">|</span> <span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">python3</span> <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"import sys,json; print(json.load(sys.stdin)['password'])"</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">)</span></span>
-<span id="cb9-14"></span>
-<span id="cb9-15"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">export</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">DATABASE_URL</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"postgresql://</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${DB_USER}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">:</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">${DB_PASS}</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">@localhost:5432/dtdb"</span></span></code></pre></div></div>
-<p><strong>In R:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(aws.secretsmanager)</span>
-<span id="cb10-2"></span>
-<span id="cb10-3">get_db_creds <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">secret_name =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dt/prod/db-password"</span>) {</span>
-<span id="cb10-4">  raw <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_secret</span>(secret_name)</span>
-<span id="cb10-5">  creds <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> jsonlite<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">fromJSON</span>(raw<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>SecretString)</span>
-<span id="cb10-6">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">list</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">user =</span> creds<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>username, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">password =</span> creds<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>password)</span>
-<span id="cb10-7">}</span></code></pre></div></div>
-</section>
-<section id="automatic-rotation" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="automatic-rotation"><span class="header-section-number">5</span> Automatic rotation</h2>
-<p>Secrets Manager can rotate the database password automatically every 30–90 days. Set it up once:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">aws</span> secretsmanager rotate-secret <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb11-2">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--secret-id</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"dt/prod/db-password"</span> <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">\</span></span>
-<span id="cb11-3">  <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--rotation-rules</span> AutomaticallyAfterDays=30</span></code></pre></div></div>
-<p>When rotation fires, Secrets Manager calls a Lambda function that updates the RDS user’s password and stores the new value. Your application always calls <code>get_secret()</code> at startup — it never needs to know a rotation happened.</p>
-</section>
-<section id="scanning-for-leaked-secrets" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="scanning-for-leaked-secrets"><span class="header-section-number">6</span> Scanning for leaked secrets</h2>
-<p>Add <code>git-secrets</code> or <code>gitleaks</code> as a pre-commit hook to prevent accidental commits:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Install gitleaks</span></span>
-<span id="cb12-2"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">brew</span> install gitleaks    <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># or download binary</span></span>
-<span id="cb12-3"></span>
-<span id="cb12-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Scan the whole repo history</span></span>
-<span id="cb12-5"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">gitleaks</span> detect <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--source</span> . <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--log-opts</span> HEAD</span>
-<span id="cb12-6"></span>
-<span id="cb12-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Add as pre-commit hook</span></span>
-<span id="cb12-8"><span class="ex" style="color: null;
-background-color: null;
-font-style: inherit;">gitleaks</span> protect <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">--staged</span></span></code></pre></div></div>
-</section>
-<section id="the-secrets-audit-checklist" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="the-secrets-audit-checklist"><span class="header-section-number">7</span> The secrets audit checklist</h2>
-<div class="cell">
-<div class="cell-output-display">
-<table class="caption-top table table-sm table-striped small">
-<caption>Secrets management audit checklist</caption>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Item</th>
-<th style="text-align: left;">Priority</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">No secrets in source code (grep for common patterns)</td>
-<td style="text-align: left;">Critical</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">.env files in .gitignore</td>
-<td style="text-align: left;">Critical</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Secrets passed as environment variables or Secrets Manager</td>
-<td style="text-align: left;">Critical</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Different credentials per environment (dev ≠ prod)</td>
-<td style="text-align: left;">High</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Database users have minimum required permissions</td>
-<td style="text-align: left;">High</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">API keys have expiry dates and can be revoked</td>
-<td style="text-align: left;">High</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Rotation policy configured for long-lived secrets</td>
-<td style="text-align: left;">Medium</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Audit trail: who accessed which secret and when</td>
-<td style="text-align: left;">Medium</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<p>Every item marked “Critical” will be raised in a security review by a health department procurement team. Tick them off before your first enterprise client conversation.</p>
-</section>
-<section id="references" class="level2" data-number="8">
-<h2 data-number="8" class="anchored" data-anchor-id="references"><span class="header-section-number">8</span> References</h2>
-<div id="refs" class="references csl-bib-body">
-<div id="ref-owasp2021" class="csl-entry">
-<div class="csl-left-margin">1. </div><div class="csl-right-inline">OWASP Foundation. <span>OWASP</span> top ten 2021 [Internet]. 2021. Available from: <a href="https://owasp.org/Top10/">https://owasp.org/Top10/</a></div>
-</div>
-<div id="ref-aws_sm" class="csl-entry">
-<div class="csl-left-margin">2. </div><div class="csl-right-inline">Amazon Web Services. <span>AWS</span> secrets manager user guide [Internet]. 2024. Available from: <a href="https://docs.aws.amazon.com/secretsmanager/latest/userguide/">https://docs.aws.amazon.com/secretsmanager/latest/userguide/</a></div>
-</div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>business skills</category>
-  <category>security</category>
-  <category>secrets management</category>
-  <category>AWS</category>
-  <category>DevOps</category>
-  <guid>https://www.jonghoonk.com/blog/posts/biz_secrets/</guid>
   <pubDate>Thu, 23 Apr 2026 15:00:00 GMT</pubDate>
 </item>
 </channel>

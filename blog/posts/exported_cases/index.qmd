@@ -1,0 +1,581 @@
+---
+title: "How a Few Cases Abroad Can Reveal a Much Larger Outbreak"
+subtitle: "Exported cases, observation probabilities, and the assumptions behind an early estimate"
+author: "Jong-Hoon Kim"
+date: "2026-09-18"
+lang: en
+categories: [R, surveillance, statistical inference, COVID-19]
+description: "Estimating outbreak size from exported cases: Imperial Reports 1 and 2 compared with Nishiura et al., with base-R and package examples for confidence intervals."
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+comments: false
+format:
+  html:
+    css: styles.css
+    toc: true
+    toc-depth: 2
+    code-fold: false
+    code-copy: true
+execute:
+  echo: true
+  warning: true
+  message: false
+  error: false
+  cache: false
+  freeze: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+options(width = 85, digits = 7)
+```
+
+## Three travellers, thousands of cases?
+
+In January 2020, three confirmed cases detected in Thailand and Japan offered a window into a poorly observed outbreak in Wuhan. Imperial College London's first COVID-19 report estimated 1,723 [95% CI: 427 – 4,471] clinically comparable cases with symptom onset by 12 January 2020. Five days later, its second report used seven exported cases to estimate approximately 4,000 cases [uncertainty range: 1,000 – 9,700] with onset by 18 January. [@imai2020report1; @imai2020report2]
+
+We first work through the Imperial reports: their observation model, travel probability, estimates and uncertainty intervals. We then examine the probability approximation and compare the formulae and assumptions with those of Nishiura and colleagues.
+
+## Imperial's observation model
+
+Let $N$ be the unknown source count of relevant cases, $x$ the observed number detected abroad, and $p$ the probability that any one relevant source case is detected abroad. If cases have independent, equal observation probabilities,
+
+$$
+X\mid N,p\sim\operatorname{Binomial}(N,p),
+\qquad E[X]=Np.
+$$
+
+Equating the observed count to its expectation (the method of moments approach) gives a ratio estimate that scales the observed exports up to a source-case total:
+
+$$
+\widehat N=\frac{x}{p}.
+$$
+
+For the maximum likelihood approach, we specify a probability distribution for $X$ and choose the parameter that makes the observed count most probable. Under $X\sim\operatorname{Poisson}(Np)$, the likelihood is maximized when the mean $Np$ equals $x$, which gives $\widehat N=x/p$. In this approximation, we allow $N$ to vary continuously, so the estimate can be fractional. The exact binomial model restricts $N$ to integers at least $x$. For $0<p<1$, its unique maximum likelihood estimate is $\lfloor x/p\rfloor$ when $x/p$ is not an integer. If $x>0$ and $x/p$ is an integer, both $x/p-1$ and $x/p$ maximize the likelihood; our code returns the latter. For zero observed exports, the maximum is at $N=0$.
+
+::: {.callout-note collapse="true" title="Why do you round down to get the MLE?"}
+
+If $x/p=37.9$, the unique binomial MLE is 37. The word "larger" applies only when two totals tie: if $x/p=38$, both 37 and 38 maximize the likelihood, and our convention returns 38. A tie does not assign a 50% probability to each total. It means that both give the same probability to the observed data.
+
+Matching the expected count as closely as possible does not always maximize the probability of the exact observed count. For example, suppose we observe one detection and $p=0.36$. Then $x/p=2.78$, which is closer to three than two, but:
+
+```{r}
+#| label: integer-mle-intuition
+candidate_totals <- c(2, 3)
+knitr::kable(data.frame(
+  total_N = candidate_totals,
+  expected_detections = candidate_totals * 0.36,
+  probability_of_one_detection = dbinom(1, size = candidate_totals, prob = 0.36)
+), digits = 6)
+```
+
+With two cases, the probability of exactly one detection is 0.4608, whereas the probability of zero detections is $0.64^2=0.4096$. Adding a third case can help produce exactly one detection if the original two produced zero; it can also spoil an outcome of exactly one by adding another detection. Both changes require detecting the third case, with the same probability 0.36. Because one detection was initially more likely than zero, more probability moves away from exactly one than moves into it. Thus the likelihood decreases from 0.4608 to 0.442368.
+
+More generally, comparing adjacent totals gives
+
+$$
+\frac{L(N)}{L(N-1)}=\frac{N(1-p)}{N-x},\qquad N>x.
+$$
+
+This ratio is above one when $N<x/p$, equals one when $N=x/p$, and is below one when $N>x/p$. That explains both rounding down for a noninteger ratio and the tie at an integer ratio. For the Imperial baseline, $3/p\approx1{,}726.75$, so the unique total-$N$ binomial MLE is 1,726. These neighboring-count distinctions are tiny compared with the uncertainty interval.
+:::
+
+### Constructing the historical probability
+
+The reports use $p\approx FD/M$ with the following inputs. The product is not automatically bounded by one. An exact probability under a specified travel model uses the complement of the probability of no travel during the window, and must also account for detection after travel. We derive these steps below. [@imai2020report1, pp. 2, 5; @imai2020report2, pp. 2, 7]
+
+| Symbol | Meaning | Baseline and units |
+|:--|:--|:--|
+| $F$ | Outbound international passenger flow | 3,301 passengers/day |
+| $M$ | Airport catchment population | 19,000,000 people |
+| $D$ | Mean infection-to-detection opportunity window | 10 days |
+
+The window combines infection-to-onset and onset-to-detection time. The reports used an approximate 5–6-day incubation period and a further 4–5 days before detection. They assumed exported cases would remain abroad long enough to be detected. [@imai2020report1, p. 2]
+
+Dividing passenger flow by population gives a per-person daily travel quantity. Treating that quantity as a case's travel probability requires assumptions about who travels, repeat trips, and whether cases resemble the catchment population. Under complete detection abroad, the baseline arithmetic is:
+
+The functions for the Imperial examples are defined in the expandable block below. This base-R teaching code assumes inputs follow the units and domains described in the text; routine type and input-validation checks are omitted. Brief checks remain where a calculation would be undefined or an interval could be cut short. Confidence limits are calculated by checking a grid of candidate case counts directly. The default upper limit, `max_N = 20000`, covers the examples below; increase it if an interval reaches the grid boundary. Run the definitions before the examples.
+
+```{r}
+#| label: required-functions
+#| code-fold: true
+#| code-summary: "Show all required base-R functions"
+# Observation probability; inputs use passengers/day, people, and days.
+export_probability <- function(daily_travellers, catchment_population,
+                               window_days, detection = 1,
+                               travel_multiplier = 1,
+                               approximation = c("linear", "poisson")) {
+  # Choose "linear" or "poisson"; the default is "linear".
+  approximation <- match.arg(approximation)
+
+  # Accumulate the per-person daily travel quantity over the window.
+  # travel_multiplier = 1 assumes cases travel at the population-average rate.
+  # Under the constant-rate model, exposure = travel rate * window duration.
+  # Exposure is not itself guaranteed to be a probability: it can exceed 1.
+  exposure <- daily_travellers / catchment_population * window_days * travel_multiplier
+
+  # This is an if/else expression: "==" compares; "<-" assigns the result.
+  # If approximation is "linear", set travel_prob to exposure.
+  # Otherwise ("poisson"), set it to 1 - exp(-exposure).
+  # The second formula is exact for constant-rate Poisson travel over a
+  # fixed window; the first approximates it when exposure is small.
+  # expm1(x) means exp(x) - 1, computed accurately even when x is near zero.
+  # Hence -expm1(-exposure) = 1 - exp(-exposure), without losing accuracy
+  # through subtraction of nearly equal numbers. For example, in R,
+  # exp(1e-20) - 1 gives 0, whereas expm1(1e-20) preserves about 1e-20.
+  # At exposure = 0.1, the linear result is 0.1 and the Poisson result 0.09516.
+  travel_prob <- if (approximation == "linear") exposure else -expm1(-exposure)
+  if (travel_prob > 1) stop("Linear travel probability exceeds 1; review inputs or use an appropriate travel model.", call. = FALSE)
+
+  # Travel and overseas detection are separate events. Multiply by the
+  # probability of detection conditional on having traveled in the window.
+  p <- detection * travel_prob
+  p
+}
+
+# Assume x is a nonnegative integer, 0 < p <= 1, and 0 < conf_level < 1.
+# Check candidate source totals directly; no search helpers are needed.
+# max_N is the largest total to examine (20,000 covers this post's examples).
+# Increase max_N if the confidence interval reaches that boundary.
+infer_binomial_size <- function(x, p, conf_level = 0.95,
+                                interval = c("exact", "lr"), max_N = 20000) {
+  interval <- match.arg(interval)
+  # A noninteger x/p has one MLE: floor(x/p), not the nearest integer.
+  # For 0 < p < 1 and x > 0, an integer x/p ties with x/p - 1; return x/p.
+  estimate <- floor(x / p)
+  if (max_N <= estimate) stop("Increase max_N beyond the estimated total.")
+  N <- seq.int(x, max_N)
+
+  if (interval == "exact") {
+    # Keep totals for which neither binomial tail is smaller than alpha/2.
+    alpha <- 1 - conf_level
+    keep <- pbinom(x - 1, size = N, prob = p, lower.tail = FALSE) >= alpha / 2 &
+            pbinom(x, size = N, prob = p) >= alpha / 2
+    method <- "Exact equal-tailed"
+  } else {
+    # Keep totals whose log likelihood is sufficiently close to its maximum.
+    log_likelihood <- dbinom(x, size = N, prob = p, log = TRUE)
+    best <- dbinom(x, size = estimate, prob = p, log = TRUE)
+    keep <- 2 * (best - log_likelihood) <= qchisq(conf_level, df = 1)
+    method <- "Asymptotic likelihood-ratio"
+  }
+
+  if (tail(keep, 1)) stop("Increase max_N: the interval reaches the grid boundary.")
+  limits <- range(N[keep])
+  data.frame(x = x, p = p, estimate = estimate,
+             lower = limits[1], upper = limits[2],
+             conf_level = conf_level, method = method)
+}
+
+# Simulate binomial observations for a fixed hypothetical source count.
+simulate_export_counts <- function(total_cases, p, nsim = 1000) {
+  stats::rbinom(nsim, size = total_cases, prob = p)
+}
+```
+
+```{r}
+#| label: baseline
+F <- 3301                 # passengers/day
+M <- 19000000            # people
+D <- 10                  # days from infection to detection
+p <- export_probability(F, M, D)
+data.frame(p = p, cases_per_detection = 1 / p,
+           three_exports = 3 / p, seven_exports = 7 / p)
+```
+
+The probability is approximately 0.00173737, or 0.174%. The ratio estimates are 1,726.75 and 4,029.08. These illustrate the scale; they are not exact reproductions of the reports' printed estimates. The function definitions above support the Imperial examples; the package comparison defines its additional function alongside the worked example.
+
+## What the reports actually estimated
+
+| Item | Report 1 | Report 2 |
+|:--|:--|:--|
+| Publication | 17 January 2020 | 22 January 2020 |
+| Exported cases | 3 | 7 |
+| Symptom onset through | 12 January | 18 January |
+| Published baseline estimate | 1,723 | 4,000 |
+| Published baseline 95% interval | 427–4,471 | 1,700–7,800 |
+| Headline scenario envelope | — | 1,000–9,700 |
+
+Report 2's envelope spans the confidence intervals for its baseline, smaller-catchment, and shorter-window scenarios. It expresses sensitivity to selected assumptions alongside statistical uncertainty. The report also explicitly warns against estimating an epidemic growth rate from the two point estimates: reporting delays, onset information, and sparse observations prevent that interpretation. [@imai2020report2, pp. 2–3]
+
+### Why a negative-binomial expression appears
+
+Report 2 introduces the negative-binomial distribution in its methods section as follows:
+
+> Confidence intervals can be calculated from the observation that the number of cases detected overseas, X, is binomially distributed as Bin(p,N), where p = probability any one case will be detected overseas, and N is the total number of cases. N is therefore a negative binomially distributed function of X. [@imai2020report2, p. 7]
+
+Both methods sections mention a negative-binomial likelihood without specifying all implementation details. The derivation below explains the algebraic relationship behind this statement and distinguishes a likelihood from a probability distribution over the unknown total. First distinguish the total number of cases, $N$, from the number not detected overseas, $k$:
+
+$$
+k=N-x,\qquad N=k+x.
+$$
+
+With three observed exports, $k=1{,}723$ and $N=1{,}726$ describe the same possible outbreak. They are two ways to label its size, not competing estimates of the same count.
+
+Start with the binomial likelihood. Once we observe $x$, we hold $x$ and $p$ fixed and compare possible totals $N$:
+
+$$
+L(N)=P(X=x\mid N,p)=\binom{N}{x}p^x(1-p)^{N-x}.
+$$
+
+Substituting $N=k+x$ changes only the label for the unknown count:
+
+$$
+L(k+x)=\binom{k+x}{x}p^x(1-p)^k.
+$$
+
+Now compare this with the negative-binomial probability of $k$ failures before the $r$th success:
+
+$$
+P(K=k)=\binom{k+r-1}{r-1}p^r(1-p)^k.
+$$
+
+Setting $r=x+1$ makes this expression equal to the binomial likelihood multiplied by $p$:
+
+$$
+g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k=pL(k+x).
+$$
+
+Why $x+1$ rather than $x$? The negative-binomial formula contains $r-1$ in its binomial coefficient. To match the observed count $x$ there, we need $r-1=x$. This is an algebraic match: with three observed exports, R therefore uses `size = 4`, but we have not observed a fourth export or sampled until one appeared.
+
+We have not changed the sampling model for the observed exports. It remains $X\mid N,p\sim\operatorname{Binomial}(N,p)$. The negative binomial formula appears because it is proportional to that likelihood when written in terms of $k$. The extra factor $p$ normalizes the values so that $\sum_{k=0}^{\infty}g(k)=1$.
+
+The identity can be checked directly in base R:
+
+```{r}
+#| label: binomial-negative-binomial-identity
+x_observed <- 3
+p_known <- 3301 * 10 / 19000000
+k_candidates <- c(1722, 1723, 1724)  # Cases not detected overseas.
+N_candidates <- k_candidates + x_observed  # Total cases.
+
+binomial_likelihood <- dbinom(x_observed, size = N_candidates, prob = p_known)
+# size = x + 1 matches the formula; it does not imply a fourth observed export.
+negative_binomial_mass <- dnbinom(k_candidates, size = x_observed + 1,
+                                 prob = p_known)
+knitr::kable(data.frame(
+  total_N = N_candidates, not_detected_overseas_k = k_candidates,
+  p_times_L = p_known * binomial_likelihood,
+  g = negative_binomial_mass
+), digits = 9)
+# TRUE means the two expressions agree to numerical precision.
+isTRUE(all.equal(negative_binomial_mass, p_known * binomial_likelihood))
+```
+
+Multiplying every likelihood by the same positive constant preserves the ranking of candidate totals and all likelihood ratios. Consequently, the maximum at $k=1{,}723$ corresponds to the maximum at $N=1{,}726$. An interval for $k$ must likewise have $x$ added to both endpoints to express it as an interval for $N$, when using the same interval procedure.
+
+For example, the constant cancels when comparing any two candidate counts:
+
+$$
+\frac{g(k_1)}{g(k_2)}
+=\frac{pL(k_1+x)}{pL(k_2+x)}
+=\frac{L(k_1+x)}{L(k_2+x)}.
+$$
+
+The reconstruction below uses these likelihood ratios; it does not calculate negative-binomial probability quantiles or Bayesian credible intervals.
+
+The inferred reconstruction matching the reports uses the mode of $g(k)$:
+
+$$
+g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k,
+\qquad \widehat k=\left\lfloor\frac{x(1-p)}p\right\rfloor.
+$$
+
+This produces 1,723 for three exports, matching Report 1's printed total. However, in the algebra above, 1,723 represents $k$, and the corresponding total is 1,726. Matching the printed number does not establish how the authors implemented their calculation or justify treating $k$ as $N$ in a new analysis.
+
+### Reconstructing the reports' likelihood-ratio intervals
+
+With $p$ fixed, we compare candidate case counts by how likely they make the observed exports. Write $\ell(k)=\log g(k)$. A likelihood-ratio interval retains candidates satisfying
+
+$$
+2\{\ell(\widehat k)-\ell(k)\}\leq\chi^2_{1,0.95}\approx3.84.
+$$
+
+The endpoints are where this log-likelihood drop reaches the cutoff. The foundational reference for the chi-squared likelihood-ratio approximation is Wilks (1938). Under suitable regularity conditions and in large samples, twice the log-likelihood drop has an approximate chi-squared distribution, with one degree of freedom when testing one scalar parameter. Retaining the parameter values that the test does not reject gives a likelihood-ratio confidence interval. [@wilks1938]
+
+This is an approximate 95% confidence interval. With few observed exports and an integer-valued unknown total, Wilks's general result does not by itself establish exact 95% coverage; the exact binomial interval below uses a separate construction.
+
+The following inferred reconstruction calculates an interval for $k$, uses a cutoff rounded to 3.84, and rounds continuous endpoints. It reproduces Report 1's printed result, but the reports do not establish that these were their exact numerical conventions. [@imai2020report1, pp. 3, 5; @imai2020report2, p. 7]
+
+```{r}
+#| label: report-one-interval-reconstruction
+exports <- 3
+p_interval <- 3301 * 10 / 19000000
+
+# At integer k, this is dnbinom(k, size = exports + 1,
+#                             prob = p_interval, log = TRUE).
+# It equals the binomial log likelihood at N = k + exports, plus log(p).
+# That constant cancels when we subtract log likelihoods below.
+# lchoose also permits continuous endpoint searches.
+log_likelihood <- function(k) {
+  lchoose(k + exports, exports) +
+    (exports + 1) * log(p_interval) + k * log1p(-p_interval)
+}
+k_hat <- floor(exports * (1 - p_interval) / p_interval)
+cutoff <- round(qchisq(0.95, df = 1), 2)
+boundary <- function(k) {
+  2 * (log_likelihood(k_hat) - log_likelihood(k)) - cutoff
+}
+
+# Search brackets sufficient for the report's baseline inputs.
+report_lower <- uniroot(boundary, c(0, k_hat))$root
+report_upper <- uniroot(boundary, c(k_hat, 20000))$root
+round(c(estimate = k_hat, lower = report_lower, upper = report_upper))
+```
+
+This gives 1,723 (427--4,471). Repeating with seven exports gives approximately 4,022 (1,726--7,780), which rounds to Report 2's 4,000 (1,700--7,800) at its printed precision. These reconstructed values describe $k$ in our derivation. To express them as total cases $N$, add the observed exports to the estimate and both endpoints.
+
+Report 2's broader uncertainty range is a separate operation. Its baseline, smaller-catchment and shorter-window intervals are 1,700--7,800, 1,000--4,500 and 2,200--9,700. Taking the smallest lower endpoint and largest upper endpoint gives 1,000--9,700. This sensitivity envelope explores selected assumptions about $p$; it has no newly established 95% coverage interpretation. [@imai2020report2, pp. 2--3]
+
+### Direct binomial likelihood and exact tail inversion
+
+For the total source count, use
+
+$$
+L(N)=\binom Nx p^x(1-p)^{N-x},\qquad N\geq x.
+$$
+
+Applying the likelihood-ratio rule directly to integer $N$ gives an estimate of 1,726 and interval 431--4,474 for three exports. The expressions $g(k)$ and $L(N)$ give the same relative support to each possible outbreak: one labels it by $k$, while the other labels it by $N=k+x$. Adding three to the reconstruction's rounded endpoints gives 430--4,474. The remaining one-case difference in the lower limit comes from the numerical conventions: the reconstruction rounds continuous endpoints and uses 3.84, whereas the direct calculation retains accepted integers and uses the unrounded chi-squared cutoff. It does not reflect a different model for the observed exports.
+
+```{r}
+#| label: compare-interval-constructions
+binomial_lr <- infer_binomial_size(3, p_interval, interval = "lr")
+binomial_exact <- infer_binomial_size(3, p_interval, interval = "exact")
+knitr::kable(data.frame(
+  calculation = c("Reconstruction matching Report 1 (k = N - x)",
+                  "Direct binomial LR (total N)",
+                  "Exact equal-tailed binomial (total N)"),
+  estimate = c(k_hat, binomial_lr$estimate, binomial_exact$estimate),
+  lower = c(round(report_lower), binomial_lr$lower, binomial_exact$lower),
+  upper = c(round(report_upper), binomial_lr$upper, binomial_exact$upper)
+), caption = "Three exports and the same fixed observation probability.")
+```
+
+The exact equal-tailed interval, 357--5,043, uses a different interval construction: exact binomial tail probabilities instead of the approximate chi-squared likelihood-ratio cutoff.
+
+With `interval = "exact"`, `infer_binomial_size()` inverts both binomial tails to construct this equal-tailed confidence interval. For $\alpha=0.05$, it retains integer values satisfying
+
+$$
+P_N(X\geq x)\geq\alpha/2,
+\qquad P_N(X\leq x)\geq\alpha/2.
+$$
+
+```{r}
+#| label: conditional-intervals
+conditional <- do.call(rbind, lapply(c(0, 3, 7), function(x) {
+  infer_binomial_size(x, p, interval = "exact")
+}))
+knitr::kable(conditional[c("x", "estimate", "lower", "upper")],
+             col.names = c("Exports", "Total-N MLE", "95% lower", "95% upper"),
+             caption = "New total-N binomial analysis, conditional on fixed p; not the published intervals.")
+```
+
+These intervals have at least nominal coverage under the stated model with known $p$. They exclude uncertainty in passenger flow, catchment size, delay distributions, and detection completeness. Zero exports yield an estimate of zero but a positive upper limit: the absence of detections does not establish the absence of cases.
+
+### Confidence intervals with established R packages
+
+We can check our calculations with `bbmle`, `stats4`, and `stats`. For a direct comparison between implementations, we first give all three packages the same Poisson approximation, $X\sim\operatorname{Poisson}(Np)$, with known $p$ and continuous positive $N$.
+
+```{r}
+#| label: package-interval-functions
+#| code-fold: true
+#| code-summary: "Show the package comparison function"
+# Install once if needed; this commented line does not run when rendering:
+# install.packages("bbmle")
+# Compare likelihood-ratio intervals under X ~ Poisson(N * p).
+# Inputs: positive observed count x, known detection probability p, confidence level.
+# Output: estimates and interval endpoints on the total-case scale N.
+# This teaching example requires x > 0; log(N) has no finite MLE when x = 0.
+compare_poisson_intervals <- function(x, p, conf_level = 0.95) {
+  # Optimize log(N) so N stays positive; this model allows noninteger N.
+  nll <- function(log_N) -dpois(x, lambda = exp(log_N) * p, log = TRUE)
+  log_N_hat <- log(x / p)
+
+  # Our direct likelihood-ratio calculation, now using the SAME Poisson model.
+  boundary <- function(log_N) {
+    2 * (nll(log_N) - nll(log_N_hat)) - qchisq(conf_level, 1)
+  }
+  # These brackets cover the examples x = 3 and x = 7 at 95% confidence.
+  manual_ci <- exp(c(
+    uniroot(boundary, c(log_N_hat - 10, log_N_hat), tol = 1e-10)$root,
+    uniroot(boundary, c(log_N_hat, log_N_hat + 10), tol = 1e-10)$root
+  ))
+
+  fit_bbmle <- bbmle::mle2(nll, start = list(log_N = log_N_hat))
+  # "spline" profiles the likelihood; "quad" would give a Wald approximation.
+  # Use the S4 generic in stats4 for mle2 and mle objects.
+  ci_bbmle <- exp(stats4::confint(fit_bbmle, level = conf_level, method = "spline",
+                                         del = 0.05, maxsteps = 100))
+
+  fit_stats4 <- stats4::mle(nll, start = list(log_N = log_N_hat))
+  ci_stats4 <- exp(stats4::confint(stats4::profile(fit_stats4, del = 0.05, maxsteps = 100),
+                                 level = conf_level))
+
+  # log(E[X]) = log(N) + log(p): log(p) is a known offset.
+  fit_glm <- stats::glm(x ~ 1 + offset(log(p)), family = poisson())
+  ci_glm <- exp(stats::confint(stats::profile(fit_glm, test = "LRT", del = 0.05,
+                                              maxsteps = 100), level = conf_level))
+
+  limits <- rbind(manual_ci, ci_bbmle, ci_stats4, ci_glm)
+  data.frame(
+    method = c("Manual Poisson LR", "bbmle profile", "stats4 profile", "Poisson GLM profile"),
+    estimate = c(x / p, exp(stats4::coef(fit_bbmle)),
+                 exp(stats4::coef(fit_stats4)), exp(coef(fit_glm))),
+    lower = limits[, 1], upper = limits[, 2], row.names = NULL
+  )
+}
+
+```
+
+```{r}
+#| label: package-interval-comparison
+# Use the same report inputs for every calculation.
+package_intervals <- compare_poisson_intervals(3, p_interval)
+comparison <- rbind(
+  package_intervals,
+  data.frame(method = "Our integer-binomial LR",
+             binomial_lr[c("estimate", "lower", "upper")]),
+  data.frame(method = "Our exact binomial tails",
+             binomial_exact[c("estimate", "lower", "upper")])
+)
+knitr::kable(comparison, digits = 2, row.names = FALSE,
+             caption = "Three exports: Poisson package intervals compared with our calculations.")
+
+# Repeat the common Poisson comparison for Report 2's seven exports.
+knitr::kable(compare_poisson_intervals(7, p_interval), digits = 2,
+             caption = "Seven exports: the same Poisson model fitted four ways.")
+
+# Record the versions actually used to execute these examples.
+data.frame(R = as.character(getRversion()),
+           bbmle = as.character(utils::packageVersion("bbmle")))
+```
+
+For three exports, the Poisson calculations give approximately 1,726.75 cases (429.42--4,477.63). In validation for three and seven exports, the package endpoints differ from our direct Poisson roots by less than 0.05 cases. Agreement checks the numerical calculation, not the coverage of this approximate interval. All use the likelihood-ratio principle discussed above. [@wilks1938]
+
+Our integer-binomial LR interval, 431--4,474, differs because it uses a different likelihood and integer candidates. The exact binomial interval, 357--5,043, also uses a different interval construction. The package examples are new Poisson analyses, not reproductions of Imperial's printed negative-binomial calculation. A continuous optimizer cannot directly vary the `size` argument of `dbinom()` over noninteger totals; the integer-grid calculation remains appropriate for our direct binomial analysis.
+
+All these intervals hold $p$ fixed. They therefore exclude uncertainty in travel flow, the opportunity window, and overseas detection. The relationship between the Imperial and Nishiura point-estimate formulae is explained below.
+
+## From escape probability to overseas detection
+
+A daily probability multiplied by a duration can exceed one. The escape-probability calculation shows why this product is only a first-order approximation.
+
+### A fixed window: first calculate the probability of no travel
+
+Let $q$ be the daily probability of international travel, conditional on not yet having travelled. First suppose the available window is exactly $d$ whole days. If that conditional probability stays constant, the probability of remaining without travel for the entire window is
+
+$$
+S(d)=P(\text{no travel during }d\text{ days})=(1-q)^d.
+$$
+
+This is the no-travel, or escape, probability: the case escapes the travel event on every day. Its complement is the probability of travelling before detection ends the opportunity window:
+
+$$
+p_{\mathrm{travel}}=1-S(d)=1-(1-q)^d.
+$$
+
+This expression is exact under the stated daily travel model and always lies between zero and one. Travel and overseas detection are separate events: if $s$ is the probability of detection conditional on travel during this window, then $p=s\,p_{\mathrm{travel}}$. The baseline calculation assumes $s=1$ for cases meeting the reports' clinical definition. Expanding it shows where the approximation comes from:
+
+$$
+1-(1-q)^d
+=dq-\frac{d(d-1)}{2}q^2+\cdots\approx dq.
+$$
+
+Keeping only the first-order term gives the report's multiplication when $q\approx F/M$. The first row below uses the reports' baseline $F$, $M$, and $D$, taken directly from the R variables defined above. For this comparison, the exact daily calculation treats the window as fixed at $d=D=10$ days; the reports themselves specify a mean window.
+
+::: {.table-responsive}
+
+```{r}
+#| label: escape-examples
+#| echo: false
+daily_q <- c(F / M, 0.001, 0.05, 0.20)
+fixed_days <- c(D, 10, 10, 10)
+exact_travel <- -expm1(fixed_days * log1p(-daily_q))
+knitr::kable(
+  data.frame(
+    scenario = c("Report baseline", rep("Illustration", 3)),
+    flow = c(format(F, big.mark = ",", trim = TRUE), rep("-", 3)),
+    population = c(format(M, big.mark = ",", scientific = FALSE, trim = TRUE),
+                   rep("-", 3)),
+    daily_q, fixed_days,
+    linear = daily_q * fixed_days, exact = exact_travel
+  ),
+  col.names = c("Scenario", "$F$ (passengers/day)", "$M$ (people)",
+                "$q=F/M$", "$d$ (days)", "First order $qd$",
+                "Exact $1-(1-q)^d$"),
+  digits = c(0, 0, 0, 8, 0, 8, 8),
+  caption = paste0(
+    "Report inputs and illustrative comparisons. The baseline uses d = D; ",
+    "exact travel probability is 1 minus the no-travel probability. ",
+    "Dashes mean no passenger flow or population was specified."
+  )
+)
+```
+
+:::
+
+At the report baseline, the first-order probability is approximately 0.00173737 and the exact daily-model probability is 0.00173601. For the illustrative rows, $q=0.001$ also gives an excellent approximation; $q=0.05$ noticeably overstates the probability, and $q=0.20$ gives a product above one. The exact calculation remains bounded in each case.
+
+## Nishiura et al. (2020)
+
+Nishiura and colleagues also estimate outbreak size from detected exports, travel volume, a source population, and an opportunity window. Their calculation first estimates an infection risk and then multiplies it by the source population. Imperial instead first calculates the probability of detecting a source case overseas and then divides the observed exports by that probability. With matching inputs, these two routes give the same ratio estimate. Their different statistical interpretations still matter for uncertainty. [@nishiura2020; @imai2020report1; @imai2020report2]
+
+The papers use $p$ for different probabilities. To keep them distinct, retain $p$ for Imperial's overseas-detection probability and use $\pi$ for Nishiura's source-population infection risk. Likewise, use $M$ for the source population throughout; Nishiura calls that population $n$.
+
+| Quantity | Imperial notation used here | Nishiura notation and translation |
+|:--|:--|:--|
+| Observed exported cases | $x$ | $c$; set $c=x$ when comparing the same data |
+| Probability to estimate or supply | $p$: probability a source case is detected overseas; supplied by travel assumptions | The paper's $p$, written $\pi$ here: source-population infection risk to estimate |
+| Source population | $M$ | The paper's $n$, written $M$ here |
+| Daily departures from Wuhan | $F$ | $F=ma/365$, from annual passenger volume $m$ and Wuhan share $a$ |
+| Opportunity window | $D$ | $T$ |
+| Total source cases | $N$ | $M\pi$ in the harmonized notation |
+
+Imperial's calculation is
+
+$$
+p\approx\frac{FD}{M},\qquad
+\widehat N_{\mathrm{Imperial}}=\frac{x}{p}
+\approx\frac{xM}{FD}.
+$$
+
+Nishiura's Equation 1 estimates the infection risk as
+
+$$
+\widehat\pi=\frac{365c}{maT},\qquad
+\widehat N_{\mathrm{Nishiura}}=M\widehat\pi
+=\frac{365cM}{maT}.
+$$
+
+Here $m=63.1$ million passengers per year is the 2017 passenger volume from China to the seven included destinations, and $a=0.021$ is the fraction originating in Wuhan. The paper calls this share $q$; we use $a$ to distinguish it from the daily travel probability used earlier. The share is $100a=2.1$ percent, not a daily travel probability. [@nishiura2020, Eq. 1]
+
+To see the equivalence, convert annual passengers to daily departures and define the expected eligible traveller count $E$:
+
+$$
+F=\frac{ma}{365},\qquad E=FT=\frac{maT}{365}.
+$$
+
+Then Nishiura's two steps reduce to
+
+$$
+\widehat\pi=\frac{c}{E},\qquad
+\widehat N=M\widehat\pi=\frac{cM}{FT}.
+$$
+
+Setting $c=x$ and $T=D$ gives exactly the same arithmetic as Imperial's first-order ratio $xM/(FD)$. The probabilities themselves remain different: $\pi=N/M$ is the proportion of source residents counted as cases, whereas $p\approx FD/M=E/M$ is the observation probability for each such case.
+
+The Imperial reports explicitly estimate symptomatic cases severe enough to require hospitalisation, excluding mild and asymptomatic infections. [@imai2020report1, p. 2; @imai2020report2, p. 2] Nishiura et al. use infection terminology when introducing their balance equation on page 2:
+
+> "...given the observed cumulative count of c exported cases, we have a balance equation of the cumulative risk of infection:" [@nishiura2020, p. 2]
+
+They also describe the estimated burden in the abstract:
+
+> "The most plausible number of infections is in the order of thousands, ..." [@nishiura2020, abstract, p. 1]
+
+If their estimates are interpreted as including **all infections**, that interpretation requires assumptions about the detection of mild and asymptomatic infections, because the observed numerator consists of diagnosed exported cases. The limitation concerns that broader interpretation; the quoted terminology alone does not establish that undiagnosed infections were accounted for.
+
+## References
+
+::: {#refs}
+:::

@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-09-18">
+<meta name="description" content="Estimating outbreak size from exported cases: Imperial Reports 1 and 2 compared with Nishiura et al., with base-R and package examples for confidence intervals.">
+
+<title>How a Few Cases Abroad Can Reveal a Much Larger Outbreak – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-8db45f8ebac49db988cc8fbbd031b745.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-f7457c387bd3ea4c25919c43694cc813.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-8db45f8ebac49db988cc8fbbd031b745.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul class="collapse">
+  <li><a href="#three-travellers-thousands-of-cases" id="toc-three-travellers-thousands-of-cases" class="nav-link active" data-scroll-target="#three-travellers-thousands-of-cases">Three travellers, thousands of cases?</a></li>
+  <li><a href="#imperials-observation-model" id="toc-imperials-observation-model" class="nav-link" data-scroll-target="#imperials-observation-model">Imperial’s observation model</a></li>
+  <li><a href="#what-the-reports-actually-estimated" id="toc-what-the-reports-actually-estimated" class="nav-link" data-scroll-target="#what-the-reports-actually-estimated">What the reports actually estimated</a></li>
+  <li><a href="#from-escape-probability-to-overseas-detection" id="toc-from-escape-probability-to-overseas-detection" class="nav-link" data-scroll-target="#from-escape-probability-to-overseas-detection">From escape probability to overseas detection</a></li>
+  <li><a href="#nishiura-et-al.-2020" id="toc-nishiura-et-al.-2020" class="nav-link" data-scroll-target="#nishiura-et-al.-2020">Nishiura et al.&nbsp;(2020)</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">How a Few Cases Abroad Can Reveal a Much Larger Outbreak</h1>
+<p class="subtitle lead">Exported cases, observation probabilities, and the assumptions behind an early estimate</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">R</div>
+    <div class="quarto-category">surveillance</div>
+    <div class="quarto-category">statistical inference</div>
+    <div class="quarto-category">COVID-19</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Estimating outbreak size from exported cases: Imperial Reports 1 and 2 compared with Nishiura et al., with base-R and package examples for confidence intervals.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">September 18, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="three-travellers-thousands-of-cases" class="level2">
+<h2 class="anchored" data-anchor-id="three-travellers-thousands-of-cases">Three travellers, thousands of cases?</h2>
+<p>In January 2020, three confirmed cases detected in Thailand and Japan offered a window into a poorly observed outbreak in Wuhan. Imperial College London’s first COVID-19 report estimated 1,723 [95% CI: 427 – 4,471] clinically comparable cases with symptom onset by 12 January 2020. Five days later, its second report used seven exported cases to estimate approximately 4,000 cases [uncertainty range: 1,000 – 9,700] with onset by 18 January. <span class="citation" data-cites="imai2020report1 imai2020report2">(<a href="#ref-imai2020report1" role="doc-biblioref">1</a>,<a href="#ref-imai2020report2" role="doc-biblioref">2</a>)</span></p>
+<p>We first work through the Imperial reports: their observation model, travel probability, estimates and uncertainty intervals. We then examine the probability approximation and compare the formulae and assumptions with those of Nishiura and colleagues.</p>
+</section>
+<section id="imperials-observation-model" class="level2">
+<h2 class="anchored" data-anchor-id="imperials-observation-model">Imperial’s observation model</h2>
+<p>Let <span class="math inline">\(N\)</span> be the unknown source count of relevant cases, <span class="math inline">\(x\)</span> the observed number detected abroad, and <span class="math inline">\(p\)</span> the probability that any one relevant source case is detected abroad. If cases have independent, equal observation probabilities,</p>
+<p><span class="math display">\[
+X\mid N,p\sim\operatorname{Binomial}(N,p),
+\qquad E[X]=Np.
+\]</span></p>
+<p>Equating the observed count to its expectation (the method of moments approach) gives a ratio estimate that scales the observed exports up to a source-case total:</p>
+<p><span class="math display">\[
+\widehat N=\frac{x}{p}.
+\]</span></p>
+<p>For the maximum likelihood approach, we specify a probability distribution for <span class="math inline">\(X\)</span> and choose the parameter that makes the observed count most probable. Under <span class="math inline">\(X\sim\operatorname{Poisson}(Np)\)</span>, the likelihood is maximized when the mean <span class="math inline">\(Np\)</span> equals <span class="math inline">\(x\)</span>, which gives <span class="math inline">\(\widehat N=x/p\)</span>. In this approximation, we allow <span class="math inline">\(N\)</span> to vary continuously, so the estimate can be fractional. The exact binomial model restricts <span class="math inline">\(N\)</span> to integers at least <span class="math inline">\(x\)</span>. For <span class="math inline">\(0&lt;p&lt;1\)</span>, its unique maximum likelihood estimate is <span class="math inline">\(\lfloor x/p\rfloor\)</span> when <span class="math inline">\(x/p\)</span> is not an integer. If <span class="math inline">\(x&gt;0\)</span> and <span class="math inline">\(x/p\)</span> is an integer, both <span class="math inline">\(x/p-1\)</span> and <span class="math inline">\(x/p\)</span> maximize the likelihood; our code returns the latter. For zero observed exports, the maximum is at <span class="math inline">\(N=0\)</span>.</p>
+<div class="callout callout-style-default callout-note callout-titled" title="Why do you round down to get the MLE?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Why do you round down to get the MLE?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>If <span class="math inline">\(x/p=37.9\)</span>, the unique binomial MLE is 37. The word “larger” applies only when two totals tie: if <span class="math inline">\(x/p=38\)</span>, both 37 and 38 maximize the likelihood, and our convention returns 38. A tie does not assign a 50% probability to each total. It means that both give the same probability to the observed data.</p>
+<p>Matching the expected count as closely as possible does not always maximize the probability of the exact observed count. For example, suppose we observe one detection and <span class="math inline">\(p=0.36\)</span>. Then <span class="math inline">\(x/p=2.78\)</span>, which is closer to three than two, but:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>candidate_totals <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_N =</span> candidate_totals,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">expected_detections =</span> candidate_totals <span class="sc">*</span> <span class="fl">0.36</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">probability_of_one_detection =</span> <span class="fu">dbinom</span>(<span class="dv">1</span>, <span class="at">size =</span> candidate_totals, <span class="at">prob =</span> <span class="fl">0.36</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>), <span class="at">digits =</span> <span class="dv">6</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">total_N</th>
+<th style="text-align: right;">expected_detections</th>
+<th style="text-align: right;">probability_of_one_detection</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0.72</td>
+<td style="text-align: right;">0.460800</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1.08</td>
+<td style="text-align: right;">0.442368</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>With two cases, the probability of exactly one detection is 0.4608, whereas the probability of zero detections is <span class="math inline">\(0.64^2=0.4096\)</span>. Adding a third case can help produce exactly one detection if the original two produced zero; it can also spoil an outcome of exactly one by adding another detection. Both changes require detecting the third case, with the same probability 0.36. Because one detection was initially more likely than zero, more probability moves away from exactly one than moves into it. Thus the likelihood decreases from 0.4608 to 0.442368.</p>
+<p>More generally, comparing adjacent totals gives</p>
+<p><span class="math display">\[
+\frac{L(N)}{L(N-1)}=\frac{N(1-p)}{N-x},\qquad N&gt;x.
+\]</span></p>
+<p>This ratio is above one when <span class="math inline">\(N&lt;x/p\)</span>, equals one when <span class="math inline">\(N=x/p\)</span>, and is below one when <span class="math inline">\(N&gt;x/p\)</span>. That explains both rounding down for a noninteger ratio and the tie at an integer ratio. For the Imperial baseline, <span class="math inline">\(3/p\approx1{,}726.75\)</span>, so the unique total-<span class="math inline">\(N\)</span> binomial MLE is 1,726. These neighboring-count distinctions are tiny compared with the uncertainty interval.</p>
+</div>
+</div>
+</div>
+<section id="constructing-the-historical-probability" class="level3">
+<h3 class="anchored" data-anchor-id="constructing-the-historical-probability">Constructing the historical probability</h3>
+<p>The reports use <span class="math inline">\(p\approx FD/M\)</span> with the following inputs. The product is not automatically bounded by one. An exact probability under a specified travel model uses the complement of the probability of no travel during the window, and must also account for detection after travel. We derive these steps below. <span class="citation" data-cites="imai2020report1 imai2020report2">(<a href="#ref-imai2020report1" role="doc-biblioref">1</a>,<a href="#ref-imai2020report2" role="doc-biblioref">2</a>)</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Symbol</th>
+<th style="text-align: left;">Meaning</th>
+<th style="text-align: left;">Baseline and units</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><span class="math inline">\(F\)</span></td>
+<td style="text-align: left;">Outbound international passenger flow</td>
+<td style="text-align: left;">3,301 passengers/day</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="math inline">\(M\)</span></td>
+<td style="text-align: left;">Airport catchment population</td>
+<td style="text-align: left;">19,000,000 people</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="math inline">\(D\)</span></td>
+<td style="text-align: left;">Mean infection-to-detection opportunity window</td>
+<td style="text-align: left;">10 days</td>
+</tr>
+</tbody>
+</table>
+<p>The window combines infection-to-onset and onset-to-detection time. The reports used an approximate 5–6-day incubation period and a further 4–5 days before detection. They assumed exported cases would remain abroad long enough to be detected. <span class="citation" data-cites="imai2020report1">(<a href="#ref-imai2020report1" role="doc-biblioref">1</a>)</span></p>
+<p>Dividing passenger flow by population gives a per-person daily travel quantity. Treating that quantity as a case’s travel probability requires assumptions about who travels, repeat trips, and whether cases resemble the catchment population. Under complete detection abroad, the baseline arithmetic is:</p>
+<p>The functions for the Imperial examples are defined in the expandable block below. This base-R teaching code assumes inputs follow the units and domains described in the text; routine type and input-validation checks are omitted. Brief checks remain where a calculation would be undefined or an interval could be cut short. Confidence limits are calculated by checking a grid of candidate case counts directly. The default upper limit, <code>max_N = 20000</code>, covers the examples below; increase it if an interval reaches the grid boundary. Run the definitions before the examples.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show all required base-R functions</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Observation probability; inputs use passengers/day, people, and days.</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>export_probability <span class="ot">&lt;-</span> <span class="cf">function</span>(daily_travellers, catchment_population,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                               window_days, <span class="at">detection =</span> <span class="dv">1</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">travel_multiplier =</span> <span class="dv">1</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">approximation =</span> <span class="fu">c</span>(<span class="st">"linear"</span>, <span class="st">"poisson"</span>)) {</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Choose "linear" or "poisson"; the default is "linear".</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  approximation <span class="ot">&lt;-</span> <span class="fu">match.arg</span>(approximation)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Accumulate the per-person daily travel quantity over the window.</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># travel_multiplier = 1 assumes cases travel at the population-average rate.</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Under the constant-rate model, exposure = travel rate * window duration.</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Exposure is not itself guaranteed to be a probability: it can exceed 1.</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  exposure <span class="ot">&lt;-</span> daily_travellers <span class="sc">/</span> catchment_population <span class="sc">*</span> window_days <span class="sc">*</span> travel_multiplier</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># This is an if/else expression: "==" compares; "&lt;-" assigns the result.</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># If approximation is "linear", set travel_prob to exposure.</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Otherwise ("poisson"), set it to 1 - exp(-exposure).</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># The second formula is exact for constant-rate Poisson travel over a</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># fixed window; the first approximates it when exposure is small.</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  <span class="co"># expm1(x) means exp(x) - 1, computed accurately even when x is near zero.</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Hence -expm1(-exposure) = 1 - exp(-exposure), without losing accuracy</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># through subtraction of nearly equal numbers. For example, in R,</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># exp(1e-20) - 1 gives 0, whereas expm1(1e-20) preserves about 1e-20.</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>  <span class="co"># At exposure = 0.1, the linear result is 0.1 and the Poisson result 0.09516.</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  travel_prob <span class="ot">&lt;-</span> <span class="cf">if</span> (approximation <span class="sc">==</span> <span class="st">"linear"</span>) exposure <span class="cf">else</span> <span class="sc">-</span><span class="fu">expm1</span>(<span class="sc">-</span>exposure)</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (travel_prob <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="fu">stop</span>(<span class="st">"Linear travel probability exceeds 1; review inputs or use an appropriate travel model."</span>, <span class="at">call. =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Travel and overseas detection are separate events. Multiply by the</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  <span class="co"># probability of detection conditional on having traveled in the window.</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> detection <span class="sc">*</span> travel_prob</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>  p</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a><span class="co"># Assume x is a nonnegative integer, 0 &lt; p &lt;= 1, and 0 &lt; conf_level &lt; 1.</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Check candidate source totals directly; no search helpers are needed.</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="co"># max_N is the largest total to examine (20,000 covers this post's examples).</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Increase max_N if the confidence interval reaches that boundary.</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>infer_binomial_size <span class="ot">&lt;-</span> <span class="cf">function</span>(x, p, <span class="at">conf_level =</span> <span class="fl">0.95</span>,</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>                                <span class="at">interval =</span> <span class="fu">c</span>(<span class="st">"exact"</span>, <span class="st">"lr"</span>), <span class="at">max_N =</span> <span class="dv">20000</span>) {</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>  interval <span class="ot">&lt;-</span> <span class="fu">match.arg</span>(interval)</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>  <span class="co"># A noninteger x/p has one MLE: floor(x/p), not the nearest integer.</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>  <span class="co"># For 0 &lt; p &lt; 1 and x &gt; 0, an integer x/p ties with x/p - 1; return x/p.</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>  estimate <span class="ot">&lt;-</span> <span class="fu">floor</span>(x <span class="sc">/</span> p)</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (max_N <span class="sc">&lt;=</span> estimate) <span class="fu">stop</span>(<span class="st">"Increase max_N beyond the estimated total."</span>)</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>  N <span class="ot">&lt;-</span> <span class="fu">seq.int</span>(x, max_N)</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (interval <span class="sc">==</span> <span class="st">"exact"</span>) {</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Keep totals for which neither binomial tail is smaller than alpha/2.</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>    alpha <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> conf_level</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    keep <span class="ot">&lt;-</span> <span class="fu">pbinom</span>(x <span class="sc">-</span> <span class="dv">1</span>, <span class="at">size =</span> N, <span class="at">prob =</span> p, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>) <span class="sc">&gt;=</span> alpha <span class="sc">/</span> <span class="dv">2</span> <span class="sc">&amp;</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>            <span class="fu">pbinom</span>(x, <span class="at">size =</span> N, <span class="at">prob =</span> p) <span class="sc">&gt;=</span> alpha <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>    method <span class="ot">&lt;-</span> <span class="st">"Exact equal-tailed"</span></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Keep totals whose log likelihood is sufficiently close to its maximum.</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>    log_likelihood <span class="ot">&lt;-</span> <span class="fu">dbinom</span>(x, <span class="at">size =</span> N, <span class="at">prob =</span> p, <span class="at">log =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>    best <span class="ot">&lt;-</span> <span class="fu">dbinom</span>(x, <span class="at">size =</span> estimate, <span class="at">prob =</span> p, <span class="at">log =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>    keep <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (best <span class="sc">-</span> log_likelihood) <span class="sc">&lt;=</span> <span class="fu">qchisq</span>(conf_level, <span class="at">df =</span> <span class="dv">1</span>)</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>    method <span class="ot">&lt;-</span> <span class="st">"Asymptotic likelihood-ratio"</span></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">tail</span>(keep, <span class="dv">1</span>)) <span class="fu">stop</span>(<span class="st">"Increase max_N: the interval reaches the grid boundary."</span>)</span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>  limits <span class="ot">&lt;-</span> <span class="fu">range</span>(N[keep])</span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">x =</span> x, <span class="at">p =</span> p, <span class="at">estimate =</span> estimate,</span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>             <span class="at">lower =</span> limits[<span class="dv">1</span>], <span class="at">upper =</span> limits[<span class="dv">2</span>],</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>             <span class="at">conf_level =</span> conf_level, <span class="at">method =</span> method)</span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate binomial observations for a fixed hypothetical source count.</span></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>simulate_export_counts <span class="ot">&lt;-</span> <span class="cf">function</span>(total_cases, p, <span class="at">nsim =</span> <span class="dv">1000</span>) {</span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>  stats<span class="sc">::</span><span class="fu">rbinom</span>(nsim, <span class="at">size =</span> total_cases, <span class="at">prob =</span> p)</span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>F <span class="ot">&lt;-</span> <span class="dv">3301</span>                 <span class="co"># passengers/day</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="dv">19000000</span>            <span class="co"># people</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>D <span class="ot">&lt;-</span> <span class="dv">10</span>                  <span class="co"># days from infection to detection</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">export_probability</span>(F, M, D)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">p =</span> p, <span class="at">cases_per_detection =</span> <span class="dv">1</span> <span class="sc">/</span> p,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>           <span class="at">three_exports =</span> <span class="dv">3</span> <span class="sc">/</span> p, <span class="at">seven_exports =</span> <span class="dv">7</span> <span class="sc">/</span> p)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>            p cases_per_detection three_exports seven_exports
+1 0.001737368            575.5832      1726.749      4029.082</code></pre>
+</div>
+</div>
+<p>The probability is approximately 0.00173737, or 0.174%. The ratio estimates are 1,726.75 and 4,029.08. These illustrate the scale; they are not exact reproductions of the reports’ printed estimates. The function definitions above support the Imperial examples; the package comparison defines its additional function alongside the worked example.</p>
+</section>
+</section>
+<section id="what-the-reports-actually-estimated" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-reports-actually-estimated">What the reports actually estimated</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Item</th>
+<th style="text-align: left;">Report 1</th>
+<th style="text-align: left;">Report 2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Publication</td>
+<td style="text-align: left;">17 January 2020</td>
+<td style="text-align: left;">22 January 2020</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Exported cases</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Symptom onset through</td>
+<td style="text-align: left;">12 January</td>
+<td style="text-align: left;">18 January</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Published baseline estimate</td>
+<td style="text-align: left;">1,723</td>
+<td style="text-align: left;">4,000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Published baseline 95% interval</td>
+<td style="text-align: left;">427–4,471</td>
+<td style="text-align: left;">1,700–7,800</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Headline scenario envelope</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">1,000–9,700</td>
+</tr>
+</tbody>
+</table>
+<p>Report 2’s envelope spans the confidence intervals for its baseline, smaller-catchment, and shorter-window scenarios. It expresses sensitivity to selected assumptions alongside statistical uncertainty. The report also explicitly warns against estimating an epidemic growth rate from the two point estimates: reporting delays, onset information, and sparse observations prevent that interpretation. <span class="citation" data-cites="imai2020report2">(<a href="#ref-imai2020report2" role="doc-biblioref">2</a>)</span></p>
+<section id="why-a-negative-binomial-expression-appears" class="level3">
+<h3 class="anchored" data-anchor-id="why-a-negative-binomial-expression-appears">Why a negative-binomial expression appears</h3>
+<p>Report 2 introduces the negative-binomial distribution in its methods section as follows:</p>
+<blockquote class="blockquote">
+<p>Confidence intervals can be calculated from the observation that the number of cases detected overseas, X, is binomially distributed as Bin(p,N), where p = probability any one case will be detected overseas, and N is the total number of cases. N is therefore a negative binomially distributed function of X. <span class="citation" data-cites="imai2020report2">(<a href="#ref-imai2020report2" role="doc-biblioref">2</a>)</span></p>
+</blockquote>
+<p>Both methods sections mention a negative-binomial likelihood without specifying all implementation details. The derivation below explains the algebraic relationship behind this statement and distinguishes a likelihood from a probability distribution over the unknown total. First distinguish the total number of cases, <span class="math inline">\(N\)</span>, from the number not detected overseas, <span class="math inline">\(k\)</span>:</p>
+<p><span class="math display">\[
+k=N-x,\qquad N=k+x.
+\]</span></p>
+<p>With three observed exports, <span class="math inline">\(k=1{,}723\)</span> and <span class="math inline">\(N=1{,}726\)</span> describe the same possible outbreak. They are two ways to label its size, not competing estimates of the same count.</p>
+<p>Start with the binomial likelihood. Once we observe <span class="math inline">\(x\)</span>, we hold <span class="math inline">\(x\)</span> and <span class="math inline">\(p\)</span> fixed and compare possible totals <span class="math inline">\(N\)</span>:</p>
+<p><span class="math display">\[
+L(N)=P(X=x\mid N,p)=\binom{N}{x}p^x(1-p)^{N-x}.
+\]</span></p>
+<p>Substituting <span class="math inline">\(N=k+x\)</span> changes only the label for the unknown count:</p>
+<p><span class="math display">\[
+L(k+x)=\binom{k+x}{x}p^x(1-p)^k.
+\]</span></p>
+<p>Now compare this with the negative-binomial probability of <span class="math inline">\(k\)</span> failures before the <span class="math inline">\(r\)</span>th success:</p>
+<p><span class="math display">\[
+P(K=k)=\binom{k+r-1}{r-1}p^r(1-p)^k.
+\]</span></p>
+<p>Setting <span class="math inline">\(r=x+1\)</span> makes this expression equal to the binomial likelihood multiplied by <span class="math inline">\(p\)</span>:</p>
+<p><span class="math display">\[
+g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k=pL(k+x).
+\]</span></p>
+<p>Why <span class="math inline">\(x+1\)</span> rather than <span class="math inline">\(x\)</span>? The negative-binomial formula contains <span class="math inline">\(r-1\)</span> in its binomial coefficient. To match the observed count <span class="math inline">\(x\)</span> there, we need <span class="math inline">\(r-1=x\)</span>. This is an algebraic match: with three observed exports, R therefore uses <code>size = 4</code>, but we have not observed a fourth export or sampled until one appeared.</p>
+<p>We have not changed the sampling model for the observed exports. It remains <span class="math inline">\(X\mid N,p\sim\operatorname{Binomial}(N,p)\)</span>. The negative binomial formula appears because it is proportional to that likelihood when written in terms of <span class="math inline">\(k\)</span>. The extra factor <span class="math inline">\(p\)</span> normalizes the values so that <span class="math inline">\(\sum_{k=0}^{\infty}g(k)=1\)</span>.</p>
+<p>The identity can be checked directly in base R:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>x_observed <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>p_known <span class="ot">&lt;-</span> <span class="dv">3301</span> <span class="sc">*</span> <span class="dv">10</span> <span class="sc">/</span> <span class="dv">19000000</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>k_candidates <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1722</span>, <span class="dv">1723</span>, <span class="dv">1724</span>)  <span class="co"># Cases not detected overseas.</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>N_candidates <span class="ot">&lt;-</span> k_candidates <span class="sc">+</span> x_observed  <span class="co"># Total cases.</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>binomial_likelihood <span class="ot">&lt;-</span> <span class="fu">dbinom</span>(x_observed, <span class="at">size =</span> N_candidates, <span class="at">prob =</span> p_known)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># size = x + 1 matches the formula; it does not imply a fourth observed export.</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>negative_binomial_mass <span class="ot">&lt;-</span> <span class="fu">dnbinom</span>(k_candidates, <span class="at">size =</span> x_observed <span class="sc">+</span> <span class="dv">1</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">prob =</span> p_known)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_N =</span> N_candidates, <span class="at">not_detected_overseas_k =</span> k_candidates,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">p_times_L =</span> p_known <span class="sc">*</span> binomial_likelihood,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">g =</span> negative_binomial_mass</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>), <span class="at">digits =</span> <span class="dv">9</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">total_N</th>
+<th style="text-align: right;">not_detected_overseas_k</th>
+<th style="text-align: right;">p_times_L</th>
+<th style="text-align: right;">g</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1725</td>
+<td style="text-align: right;">1722</td>
+<td style="text-align: right;">0.000389581</td>
+<td style="text-align: right;">0.000389581</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1726</td>
+<td style="text-align: right;">1723</td>
+<td style="text-align: right;">0.000389582</td>
+<td style="text-align: right;">0.000389582</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">1727</td>
+<td style="text-align: right;">1724</td>
+<td style="text-align: right;">0.000389582</td>
+<td style="text-align: right;">0.000389582</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># TRUE means the two expressions agree to numerical precision.</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">isTRUE</span>(<span class="fu">all.equal</span>(negative_binomial_mass, p_known <span class="sc">*</span> binomial_likelihood))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] TRUE</code></pre>
+</div>
+</div>
+<p>Multiplying every likelihood by the same positive constant preserves the ranking of candidate totals and all likelihood ratios. Consequently, the maximum at <span class="math inline">\(k=1{,}723\)</span> corresponds to the maximum at <span class="math inline">\(N=1{,}726\)</span>. An interval for <span class="math inline">\(k\)</span> must likewise have <span class="math inline">\(x\)</span> added to both endpoints to express it as an interval for <span class="math inline">\(N\)</span>, when using the same interval procedure.</p>
+<p>For example, the constant cancels when comparing any two candidate counts:</p>
+<p><span class="math display">\[
+\frac{g(k_1)}{g(k_2)}
+=\frac{pL(k_1+x)}{pL(k_2+x)}
+=\frac{L(k_1+x)}{L(k_2+x)}.
+\]</span></p>
+<p>The reconstruction below uses these likelihood ratios; it does not calculate negative-binomial probability quantiles or Bayesian credible intervals.</p>
+<p>The inferred reconstruction matching the reports uses the mode of <span class="math inline">\(g(k)\)</span>:</p>
+<p><span class="math display">\[
+g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k,
+\qquad \widehat k=\left\lfloor\frac{x(1-p)}p\right\rfloor.
+\]</span></p>
+<p>This produces 1,723 for three exports, matching Report 1’s printed total. However, in the algebra above, 1,723 represents <span class="math inline">\(k\)</span>, and the corresponding total is 1,726. Matching the printed number does not establish how the authors implemented their calculation or justify treating <span class="math inline">\(k\)</span> as <span class="math inline">\(N\)</span> in a new analysis.</p>
+</section>
+<section id="reconstructing-the-reports-likelihood-ratio-intervals" class="level3">
+<h3 class="anchored" data-anchor-id="reconstructing-the-reports-likelihood-ratio-intervals">Reconstructing the reports’ likelihood-ratio intervals</h3>
+<p>With <span class="math inline">\(p\)</span> fixed, we compare candidate case counts by how likely they make the observed exports. Write <span class="math inline">\(\ell(k)=\log g(k)\)</span>. A likelihood-ratio interval retains candidates satisfying</p>
+<p><span class="math display">\[
+2\{\ell(\widehat k)-\ell(k)\}\leq\chi^2_{1,0.95}\approx3.84.
+\]</span></p>
+<p>The endpoints are where this log-likelihood drop reaches the cutoff. The foundational reference for the chi-squared likelihood-ratio approximation is Wilks (1938). Under suitable regularity conditions and in large samples, twice the log-likelihood drop has an approximate chi-squared distribution, with one degree of freedom when testing one scalar parameter. Retaining the parameter values that the test does not reject gives a likelihood-ratio confidence interval. <span class="citation" data-cites="wilks1938">(<a href="#ref-wilks1938" role="doc-biblioref">3</a>)</span></p>
+<p>This is an approximate 95% confidence interval. With few observed exports and an integer-valued unknown total, Wilks’s general result does not by itself establish exact 95% coverage; the exact binomial interval below uses a separate construction.</p>
+<p>The following inferred reconstruction calculates an interval for <span class="math inline">\(k\)</span>, uses a cutoff rounded to 3.84, and rounds continuous endpoints. It reproduces Report 1’s printed result, but the reports do not establish that these were their exact numerical conventions. <span class="citation" data-cites="imai2020report1 imai2020report2">(<a href="#ref-imai2020report1" role="doc-biblioref">1</a>,<a href="#ref-imai2020report2" role="doc-biblioref">2</a>)</span></p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>exports <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>p_interval <span class="ot">&lt;-</span> <span class="dv">3301</span> <span class="sc">*</span> <span class="dv">10</span> <span class="sc">/</span> <span class="dv">19000000</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># At integer k, this is dnbinom(k, size = exports + 1,</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">#                             prob = p_interval, log = TRUE).</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># It equals the binomial log likelihood at N = k + exports, plus log(p).</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># That constant cancels when we subtract log likelihoods below.</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># lchoose also permits continuous endpoint searches.</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>log_likelihood <span class="ot">&lt;-</span> <span class="cf">function</span>(k) {</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lchoose</span>(k <span class="sc">+</span> exports, exports) <span class="sc">+</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    (exports <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">log</span>(p_interval) <span class="sc">+</span> k <span class="sc">*</span> <span class="fu">log1p</span>(<span class="sc">-</span>p_interval)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>k_hat <span class="ot">&lt;-</span> <span class="fu">floor</span>(exports <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p_interval) <span class="sc">/</span> p_interval)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>cutoff <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">qchisq</span>(<span class="fl">0.95</span>, <span class="at">df =</span> <span class="dv">1</span>), <span class="dv">2</span>)</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>boundary <span class="ot">&lt;-</span> <span class="cf">function</span>(k) {</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">log_likelihood</span>(k_hat) <span class="sc">-</span> <span class="fu">log_likelihood</span>(k)) <span class="sc">-</span> cutoff</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Search brackets sufficient for the report's baseline inputs.</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>report_lower <span class="ot">&lt;-</span> <span class="fu">uniroot</span>(boundary, <span class="fu">c</span>(<span class="dv">0</span>, k_hat))<span class="sc">$</span>root</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>report_upper <span class="ot">&lt;-</span> <span class="fu">uniroot</span>(boundary, <span class="fu">c</span>(k_hat, <span class="dv">20000</span>))<span class="sc">$</span>root</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(<span class="at">estimate =</span> k_hat, <span class="at">lower =</span> report_lower, <span class="at">upper =</span> report_upper))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>estimate    lower    upper 
+    1723      427     4471 </code></pre>
+</div>
+</div>
+<p>This gives 1,723 (427–4,471). Repeating with seven exports gives approximately 4,022 (1,726–7,780), which rounds to Report 2’s 4,000 (1,700–7,800) at its printed precision. These reconstructed values describe <span class="math inline">\(k\)</span> in our derivation. To express them as total cases <span class="math inline">\(N\)</span>, add the observed exports to the estimate and both endpoints.</p>
+<p>Report 2’s broader uncertainty range is a separate operation. Its baseline, smaller-catchment and shorter-window intervals are 1,700–7,800, 1,000–4,500 and 2,200–9,700. Taking the smallest lower endpoint and largest upper endpoint gives 1,000–9,700. This sensitivity envelope explores selected assumptions about <span class="math inline">\(p\)</span>; it has no newly established 95% coverage interpretation. <span class="citation" data-cites="imai2020report2">(<a href="#ref-imai2020report2" role="doc-biblioref">2</a>)</span></p>
+</section>
+<section id="direct-binomial-likelihood-and-exact-tail-inversion" class="level3">
+<h3 class="anchored" data-anchor-id="direct-binomial-likelihood-and-exact-tail-inversion">Direct binomial likelihood and exact tail inversion</h3>
+<p>For the total source count, use</p>
+<p><span class="math display">\[
+L(N)=\binom Nx p^x(1-p)^{N-x},\qquad N\geq x.
+\]</span></p>
+<p>Applying the likelihood-ratio rule directly to integer <span class="math inline">\(N\)</span> gives an estimate of 1,726 and interval 431–4,474 for three exports. The expressions <span class="math inline">\(g(k)\)</span> and <span class="math inline">\(L(N)\)</span> give the same relative support to each possible outbreak: one labels it by <span class="math inline">\(k\)</span>, while the other labels it by <span class="math inline">\(N=k+x\)</span>. Adding three to the reconstruction’s rounded endpoints gives 430–4,474. The remaining one-case difference in the lower limit comes from the numerical conventions: the reconstruction rounds continuous endpoints and uses 3.84, whereas the direct calculation retains accepted integers and uses the unrounded chi-squared cutoff. It does not reflect a different model for the observed exports.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>binomial_lr <span class="ot">&lt;-</span> <span class="fu">infer_binomial_size</span>(<span class="dv">3</span>, p_interval, <span class="at">interval =</span> <span class="st">"lr"</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>binomial_exact <span class="ot">&lt;-</span> <span class="fu">infer_binomial_size</span>(<span class="dv">3</span>, p_interval, <span class="at">interval =</span> <span class="st">"exact"</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">calculation =</span> <span class="fu">c</span>(<span class="st">"Reconstruction matching Report 1 (k = N - x)"</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"Direct binomial LR (total N)"</span>,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"Exact equal-tailed binomial (total N)"</span>),</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimate =</span> <span class="fu">c</span>(k_hat, binomial_lr<span class="sc">$</span>estimate, binomial_exact<span class="sc">$</span>estimate),</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower =</span> <span class="fu">c</span>(<span class="fu">round</span>(report_lower), binomial_lr<span class="sc">$</span>lower, binomial_exact<span class="sc">$</span>lower),</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper =</span> <span class="fu">c</span>(<span class="fu">round</span>(report_upper), binomial_lr<span class="sc">$</span>upper, binomial_exact<span class="sc">$</span>upper)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>), <span class="at">caption =</span> <span class="st">"Three exports and the same fixed observation probability."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Three exports and the same fixed observation probability.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">calculation</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">lower</th>
+<th style="text-align: right;">upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Reconstruction matching Report 1 (k = N - x)</td>
+<td style="text-align: right;">1723</td>
+<td style="text-align: right;">427</td>
+<td style="text-align: right;">4471</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Direct binomial LR (total N)</td>
+<td style="text-align: right;">1726</td>
+<td style="text-align: right;">431</td>
+<td style="text-align: right;">4474</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Exact equal-tailed binomial (total N)</td>
+<td style="text-align: right;">1726</td>
+<td style="text-align: right;">357</td>
+<td style="text-align: right;">5043</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The exact equal-tailed interval, 357–5,043, uses a different interval construction: exact binomial tail probabilities instead of the approximate chi-squared likelihood-ratio cutoff.</p>
+<p>With <code>interval = "exact"</code>, <code>infer_binomial_size()</code> inverts both binomial tails to construct this equal-tailed confidence interval. For <span class="math inline">\(\alpha=0.05\)</span>, it retains integer values satisfying</p>
+<p><span class="math display">\[
+P_N(X\geq x)\geq\alpha/2,
+\qquad P_N(X\leq x)\geq\alpha/2.
+\]</span></p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>conditional <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">7</span>), <span class="cf">function</span>(x) {</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">infer_binomial_size</span>(x, p, <span class="at">interval =</span> <span class="st">"exact"</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>}))</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(conditional[<span class="fu">c</span>(<span class="st">"x"</span>, <span class="st">"estimate"</span>, <span class="st">"lower"</span>, <span class="st">"upper"</span>)],</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>             <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Exports"</span>, <span class="st">"Total-N MLE"</span>, <span class="st">"95% lower"</span>, <span class="st">"95% upper"</span>),</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"New total-N binomial analysis, conditional on fixed p; not the published intervals."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>New total-N binomial analysis, conditional on fixed p; not the published intervals.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Exports</th>
+<th style="text-align: right;">Total-N MLE</th>
+<th style="text-align: right;">95% lower</th>
+<th style="text-align: right;">95% upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2121</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1726</td>
+<td style="text-align: right;">357</td>
+<td style="text-align: right;">5043</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">4029</td>
+<td style="text-align: right;">1622</td>
+<td style="text-align: right;">8297</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>These intervals have at least nominal coverage under the stated model with known <span class="math inline">\(p\)</span>. They exclude uncertainty in passenger flow, catchment size, delay distributions, and detection completeness. Zero exports yield an estimate of zero but a positive upper limit: the absence of detections does not establish the absence of cases.</p>
+</section>
+<section id="confidence-intervals-with-established-r-packages" class="level3">
+<h3 class="anchored" data-anchor-id="confidence-intervals-with-established-r-packages">Confidence intervals with established R packages</h3>
+<p>We can check our calculations with <code>bbmle</code>, <code>stats4</code>, and <code>stats</code>. For a direct comparison between implementations, we first give all three packages the same Poisson approximation, <span class="math inline">\(X\sim\operatorname{Poisson}(Np)\)</span>, with known <span class="math inline">\(p\)</span> and continuous positive <span class="math inline">\(N\)</span>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the package comparison function</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install once if needed; this commented line does not run when rendering:</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># install.packages("bbmle")</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare likelihood-ratio intervals under X ~ Poisson(N * p).</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Inputs: positive observed count x, known detection probability p, confidence level.</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Output: estimates and interval endpoints on the total-case scale N.</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co"># This teaching example requires x &gt; 0; log(N) has no finite MLE when x = 0.</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>compare_poisson_intervals <span class="ot">&lt;-</span> <span class="cf">function</span>(x, p, <span class="at">conf_level =</span> <span class="fl">0.95</span>) {</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Optimize log(N) so N stays positive; this model allows noninteger N.</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  nll <span class="ot">&lt;-</span> <span class="cf">function</span>(log_N) <span class="sc">-</span><span class="fu">dpois</span>(x, <span class="at">lambda =</span> <span class="fu">exp</span>(log_N) <span class="sc">*</span> p, <span class="at">log =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  log_N_hat <span class="ot">&lt;-</span> <span class="fu">log</span>(x <span class="sc">/</span> p)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Our direct likelihood-ratio calculation, now using the SAME Poisson model.</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  boundary <span class="ot">&lt;-</span> <span class="cf">function</span>(log_N) {</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">nll</span>(log_N) <span class="sc">-</span> <span class="fu">nll</span>(log_N_hat)) <span class="sc">-</span> <span class="fu">qchisq</span>(conf_level, <span class="dv">1</span>)</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># These brackets cover the examples x = 3 and x = 7 at 95% confidence.</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  manual_ci <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">c</span>(</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">uniroot</span>(boundary, <span class="fu">c</span>(log_N_hat <span class="sc">-</span> <span class="dv">10</span>, log_N_hat), <span class="at">tol =</span> <span class="fl">1e-10</span>)<span class="sc">$</span>root,</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">uniroot</span>(boundary, <span class="fu">c</span>(log_N_hat, log_N_hat <span class="sc">+</span> <span class="dv">10</span>), <span class="at">tol =</span> <span class="fl">1e-10</span>)<span class="sc">$</span>root</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>  fit_bbmle <span class="ot">&lt;-</span> bbmle<span class="sc">::</span><span class="fu">mle2</span>(nll, <span class="at">start =</span> <span class="fu">list</span>(<span class="at">log_N =</span> log_N_hat))</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># "spline" profiles the likelihood; "quad" would give a Wald approximation.</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Use the S4 generic in stats4 for mle2 and mle objects.</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>  ci_bbmle <span class="ot">&lt;-</span> <span class="fu">exp</span>(stats4<span class="sc">::</span><span class="fu">confint</span>(fit_bbmle, <span class="at">level =</span> conf_level, <span class="at">method =</span> <span class="st">"spline"</span>,</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>                                         <span class="at">del =</span> <span class="fl">0.05</span>, <span class="at">maxsteps =</span> <span class="dv">100</span>))</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>  fit_stats4 <span class="ot">&lt;-</span> stats4<span class="sc">::</span><span class="fu">mle</span>(nll, <span class="at">start =</span> <span class="fu">list</span>(<span class="at">log_N =</span> log_N_hat))</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>  ci_stats4 <span class="ot">&lt;-</span> <span class="fu">exp</span>(stats4<span class="sc">::</span><span class="fu">confint</span>(stats4<span class="sc">::</span><span class="fu">profile</span>(fit_stats4, <span class="at">del =</span> <span class="fl">0.05</span>, <span class="at">maxsteps =</span> <span class="dv">100</span>),</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">level =</span> conf_level))</span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># log(E[X]) = log(N) + log(p): log(p) is a known offset.</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>  fit_glm <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">glm</span>(x <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">offset</span>(<span class="fu">log</span>(p)), <span class="at">family =</span> <span class="fu">poisson</span>())</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>  ci_glm <span class="ot">&lt;-</span> <span class="fu">exp</span>(stats<span class="sc">::</span><span class="fu">confint</span>(stats<span class="sc">::</span><span class="fu">profile</span>(fit_glm, <span class="at">test =</span> <span class="st">"LRT"</span>, <span class="at">del =</span> <span class="fl">0.05</span>,</span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">maxsteps =</span> <span class="dv">100</span>), <span class="at">level =</span> conf_level))</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>  limits <span class="ot">&lt;-</span> <span class="fu">rbind</span>(manual_ci, ci_bbmle, ci_stats4, ci_glm)</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"Manual Poisson LR"</span>, <span class="st">"bbmle profile"</span>, <span class="st">"stats4 profile"</span>, <span class="st">"Poisson GLM profile"</span>),</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">estimate =</span> <span class="fu">c</span>(x <span class="sc">/</span> p, <span class="fu">exp</span>(stats4<span class="sc">::</span><span class="fu">coef</span>(fit_bbmle)),</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">exp</span>(stats4<span class="sc">::</span><span class="fu">coef</span>(fit_stats4)), <span class="fu">exp</span>(<span class="fu">coef</span>(fit_glm))),</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">lower =</span> limits[, <span class="dv">1</span>], <span class="at">upper =</span> limits[, <span class="dv">2</span>], <span class="at">row.names =</span> <span class="cn">NULL</span></span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Use the same report inputs for every calculation.</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>package_intervals <span class="ot">&lt;-</span> <span class="fu">compare_poisson_intervals</span>(<span class="dv">3</span>, p_interval)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>comparison <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  package_intervals,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">method =</span> <span class="st">"Our integer-binomial LR"</span>,</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>             binomial_lr[<span class="fu">c</span>(<span class="st">"estimate"</span>, <span class="st">"lower"</span>, <span class="st">"upper"</span>)]),</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">method =</span> <span class="st">"Our exact binomial tails"</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>             binomial_exact[<span class="fu">c</span>(<span class="st">"estimate"</span>, <span class="st">"lower"</span>, <span class="st">"upper"</span>)])</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(comparison, <span class="at">digits =</span> <span class="dv">2</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"Three exports: Poisson package intervals compared with our calculations."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Three exports: Poisson package intervals compared with our calculations.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">lower</th>
+<th style="text-align: right;">upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Manual Poisson LR</td>
+<td style="text-align: right;">1726.75</td>
+<td style="text-align: right;">429.42</td>
+<td style="text-align: right;">4477.63</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">bbmle profile</td>
+<td style="text-align: right;">1726.75</td>
+<td style="text-align: right;">429.42</td>
+<td style="text-align: right;">4477.61</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">stats4 profile</td>
+<td style="text-align: right;">1726.75</td>
+<td style="text-align: right;">429.42</td>
+<td style="text-align: right;">4477.62</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Poisson GLM profile</td>
+<td style="text-align: right;">1726.75</td>
+<td style="text-align: right;">429.42</td>
+<td style="text-align: right;">4477.62</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Our integer-binomial LR</td>
+<td style="text-align: right;">1726.00</td>
+<td style="text-align: right;">431.00</td>
+<td style="text-align: right;">4474.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Our exact binomial tails</td>
+<td style="text-align: right;">1726.00</td>
+<td style="text-align: right;">357.00</td>
+<td style="text-align: right;">5043.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Repeat the common Poisson comparison for Report 2's seven exports.</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">compare_poisson_intervals</span>(<span class="dv">7</span>, p_interval), <span class="at">digits =</span> <span class="dv">2</span>,</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"Seven exports: the same Poisson model fitted four ways."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Seven exports: the same Poisson model fitted four ways.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">lower</th>
+<th style="text-align: right;">upper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Manual Poisson LR</td>
+<td style="text-align: right;">4029.08</td>
+<td style="text-align: right;">1731.23</td>
+<td style="text-align: right;">7792.08</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">bbmle profile</td>
+<td style="text-align: right;">4029.08</td>
+<td style="text-align: right;">1731.23</td>
+<td style="text-align: right;">7792.07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">stats4 profile</td>
+<td style="text-align: right;">4029.08</td>
+<td style="text-align: right;">1731.23</td>
+<td style="text-align: right;">7792.07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Poisson GLM profile</td>
+<td style="text-align: right;">4029.08</td>
+<td style="text-align: right;">1731.23</td>
+<td style="text-align: right;">7792.07</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Record the versions actually used to execute these examples.</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">R =</span> <span class="fu">as.character</span>(<span class="fu">getRversion</span>()),</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>           <span class="at">bbmle =</span> <span class="fu">as.character</span>(utils<span class="sc">::</span><span class="fu">packageVersion</span>(<span class="st">"bbmle"</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      R  bbmle
+1 4.5.3 1.0.26</code></pre>
+</div>
+</div>
+<p>For three exports, the Poisson calculations give approximately 1,726.75 cases (429.42–4,477.63). In validation for three and seven exports, the package endpoints differ from our direct Poisson roots by less than 0.05 cases. Agreement checks the numerical calculation, not the coverage of this approximate interval. All use the likelihood-ratio principle discussed above. <span class="citation" data-cites="wilks1938">(<a href="#ref-wilks1938" role="doc-biblioref">3</a>)</span></p>
+<p>Our integer-binomial LR interval, 431–4,474, differs because it uses a different likelihood and integer candidates. The exact binomial interval, 357–5,043, also uses a different interval construction. The package examples are new Poisson analyses, not reproductions of Imperial’s printed negative-binomial calculation. A continuous optimizer cannot directly vary the <code>size</code> argument of <code>dbinom()</code> over noninteger totals; the integer-grid calculation remains appropriate for our direct binomial analysis.</p>
+<p>All these intervals hold <span class="math inline">\(p\)</span> fixed. They therefore exclude uncertainty in travel flow, the opportunity window, and overseas detection. The relationship between the Imperial and Nishiura point-estimate formulae is explained below.</p>
+</section>
+</section>
+<section id="from-escape-probability-to-overseas-detection" class="level2">
+<h2 class="anchored" data-anchor-id="from-escape-probability-to-overseas-detection">From escape probability to overseas detection</h2>
+<p>A daily probability multiplied by a duration can exceed one. The escape-probability calculation shows why this product is only a first-order approximation.</p>
+<section id="a-fixed-window-first-calculate-the-probability-of-no-travel" class="level3">
+<h3 class="anchored" data-anchor-id="a-fixed-window-first-calculate-the-probability-of-no-travel">A fixed window: first calculate the probability of no travel</h3>
+<p>Let <span class="math inline">\(q\)</span> be the daily probability of international travel, conditional on not yet having travelled. First suppose the available window is exactly <span class="math inline">\(d\)</span> whole days. If that conditional probability stays constant, the probability of remaining without travel for the entire window is</p>
+<p><span class="math display">\[
+S(d)=P(\text{no travel during }d\text{ days})=(1-q)^d.
+\]</span></p>
+<p>This is the no-travel, or escape, probability: the case escapes the travel event on every day. Its complement is the probability of travelling before detection ends the opportunity window:</p>
+<p><span class="math display">\[
+p_{\mathrm{travel}}=1-S(d)=1-(1-q)^d.
+\]</span></p>
+<p>This expression is exact under the stated daily travel model and always lies between zero and one. Travel and overseas detection are separate events: if <span class="math inline">\(s\)</span> is the probability of detection conditional on travel during this window, then <span class="math inline">\(p=s\,p_{\mathrm{travel}}\)</span>. The baseline calculation assumes <span class="math inline">\(s=1\)</span> for cases meeting the reports’ clinical definition. Expanding it shows where the approximation comes from:</p>
+<p><span class="math display">\[
+1-(1-q)^d
+=dq-\frac{d(d-1)}{2}q^2+\cdots\approx dq.
+\]</span></p>
+<p>Keeping only the first-order term gives the report’s multiplication when <span class="math inline">\(q\approx F/M\)</span>. The first row below uses the reports’ baseline <span class="math inline">\(F\)</span>, <span class="math inline">\(M\)</span>, and <span class="math inline">\(D\)</span>, taken directly from the R variables defined above. For this comparison, the exact daily calculation treats the window as fixed at <span class="math inline">\(d=D=10\)</span> days; the reports themselves specify a mean window.</p>
+<div class="table-responsive">
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Report inputs and illustrative comparisons. The baseline uses d = D; exact travel probability is 1 minus the no-travel probability. Dashes mean no passenger flow or population was specified.</caption>
+<colgroup>
+<col style="width: 14%">
+<col style="width: 19%">
+<col style="width: 12%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 15%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Scenario</th>
+<th style="text-align: left;"><span class="math inline">\(F\)</span> (passengers/day)</th>
+<th style="text-align: left;"><span class="math inline">\(M\)</span> (people)</th>
+<th style="text-align: right;"><span class="math inline">\(q=F/M\)</span></th>
+<th style="text-align: right;"><span class="math inline">\(d\)</span> (days)</th>
+<th style="text-align: right;">First order <span class="math inline">\(qd\)</span></th>
+<th style="text-align: right;">Exact <span class="math inline">\(1-(1-q)^d\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Report baseline</td>
+<td style="text-align: left;">3,301</td>
+<td style="text-align: left;">19,000,000</td>
+<td style="text-align: right;">0.00017374</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">0.00173737</td>
+<td style="text-align: right;">0.00173601</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Illustration</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: right;">0.00100000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">0.01000000</td>
+<td style="text-align: right;">0.00995512</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Illustration</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: right;">0.05000000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">0.50000000</td>
+<td style="text-align: right;">0.40126306</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Illustration</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: right;">0.20000000</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">2.00000000</td>
+<td style="text-align: right;">0.89262582</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<p>At the report baseline, the first-order probability is approximately 0.00173737 and the exact daily-model probability is 0.00173601. For the illustrative rows, <span class="math inline">\(q=0.001\)</span> also gives an excellent approximation; <span class="math inline">\(q=0.05\)</span> noticeably overstates the probability, and <span class="math inline">\(q=0.20\)</span> gives a product above one. The exact calculation remains bounded in each case.</p>
+</section>
+</section>
+<section id="nishiura-et-al.-2020" class="level2">
+<h2 class="anchored" data-anchor-id="nishiura-et-al.-2020">Nishiura et al.&nbsp;(2020)</h2>
+<p>Nishiura and colleagues also estimate outbreak size from detected exports, travel volume, a source population, and an opportunity window. Their calculation first estimates an infection risk and then multiplies it by the source population. Imperial instead first calculates the probability of detecting a source case overseas and then divides the observed exports by that probability. With matching inputs, these two routes give the same ratio estimate. Their different statistical interpretations still matter for uncertainty. <span class="citation" data-cites="nishiura2020 imai2020report1 imai2020report2">(<a href="#ref-imai2020report1" role="doc-biblioref">1</a>,<a href="#ref-imai2020report2" role="doc-biblioref">2</a>,<a href="#ref-nishiura2020" role="doc-biblioref">4</a>)</span></p>
+<p>The papers use <span class="math inline">\(p\)</span> for different probabilities. To keep them distinct, retain <span class="math inline">\(p\)</span> for Imperial’s overseas-detection probability and use <span class="math inline">\(\pi\)</span> for Nishiura’s source-population infection risk. Likewise, use <span class="math inline">\(M\)</span> for the source population throughout; Nishiura calls that population <span class="math inline">\(n\)</span>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Quantity</th>
+<th style="text-align: left;">Imperial notation used here</th>
+<th style="text-align: left;">Nishiura notation and translation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Observed exported cases</td>
+<td style="text-align: left;"><span class="math inline">\(x\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(c\)</span>; set <span class="math inline">\(c=x\)</span> when comparing the same data</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Probability to estimate or supply</td>
+<td style="text-align: left;"><span class="math inline">\(p\)</span>: probability a source case is detected overseas; supplied by travel assumptions</td>
+<td style="text-align: left;">The paper’s <span class="math inline">\(p\)</span>, written <span class="math inline">\(\pi\)</span> here: source-population infection risk to estimate</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Source population</td>
+<td style="text-align: left;"><span class="math inline">\(M\)</span></td>
+<td style="text-align: left;">The paper’s <span class="math inline">\(n\)</span>, written <span class="math inline">\(M\)</span> here</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Daily departures from Wuhan</td>
+<td style="text-align: left;"><span class="math inline">\(F\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(F=ma/365\)</span>, from annual passenger volume <span class="math inline">\(m\)</span> and Wuhan share <span class="math inline">\(a\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Opportunity window</td>
+<td style="text-align: left;"><span class="math inline">\(D\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(T\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Total source cases</td>
+<td style="text-align: left;"><span class="math inline">\(N\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(M\pi\)</span> in the harmonized notation</td>
+</tr>
+</tbody>
+</table>
+<p>Imperial’s calculation is</p>
+<p><span class="math display">\[
+p\approx\frac{FD}{M},\qquad
+\widehat N_{\mathrm{Imperial}}=\frac{x}{p}
+\approx\frac{xM}{FD}.
+\]</span></p>
+<p>Nishiura’s Equation 1 estimates the infection risk as</p>
+<p><span class="math display">\[
+\widehat\pi=\frac{365c}{maT},\qquad
+\widehat N_{\mathrm{Nishiura}}=M\widehat\pi
+=\frac{365cM}{maT}.
+\]</span></p>
+<p>Here <span class="math inline">\(m=63.1\)</span> million passengers per year is the 2017 passenger volume from China to the seven included destinations, and <span class="math inline">\(a=0.021\)</span> is the fraction originating in Wuhan. The paper calls this share <span class="math inline">\(q\)</span>; we use <span class="math inline">\(a\)</span> to distinguish it from the daily travel probability used earlier. The share is <span class="math inline">\(100a=2.1\)</span> percent, not a daily travel probability. <span class="citation" data-cites="nishiura2020">(<a href="#ref-nishiura2020" role="doc-biblioref">4</a>, Eq. 1)</span></p>
+<p>To see the equivalence, convert annual passengers to daily departures and define the expected eligible traveller count <span class="math inline">\(E\)</span>:</p>
+<p><span class="math display">\[
+F=\frac{ma}{365},\qquad E=FT=\frac{maT}{365}.
+\]</span></p>
+<p>Then Nishiura’s two steps reduce to</p>
+<p><span class="math display">\[
+\widehat\pi=\frac{c}{E},\qquad
+\widehat N=M\widehat\pi=\frac{cM}{FT}.
+\]</span></p>
+<p>Setting <span class="math inline">\(c=x\)</span> and <span class="math inline">\(T=D\)</span> gives exactly the same arithmetic as Imperial’s first-order ratio <span class="math inline">\(xM/(FD)\)</span>. The probabilities themselves remain different: <span class="math inline">\(\pi=N/M\)</span> is the proportion of source residents counted as cases, whereas <span class="math inline">\(p\approx FD/M=E/M\)</span> is the observation probability for each such case.</p>
+<p>The Imperial reports explicitly estimate symptomatic cases severe enough to require hospitalisation, excluding mild and asymptomatic infections. <span class="citation" data-cites="imai2020report1 imai2020report2">(<a href="#ref-imai2020report1" role="doc-biblioref">1</a>,<a href="#ref-imai2020report2" role="doc-biblioref">2</a>)</span> Nishiura et al.&nbsp;use infection terminology when introducing their balance equation on page 2:</p>
+<blockquote class="blockquote">
+<p>“…given the observed cumulative count of c exported cases, we have a balance equation of the cumulative risk of infection:” <span class="citation" data-cites="nishiura2020">(<a href="#ref-nishiura2020" role="doc-biblioref">4</a>)</span></p>
+</blockquote>
+<p>They also describe the estimated burden in the abstract:</p>
+<blockquote class="blockquote">
+<p>“The most plausible number of infections is in the order of thousands, …” <span class="citation" data-cites="nishiura2020">(<a href="#ref-nishiura2020" role="doc-biblioref">4</a>, abstract, p.&nbsp;1)</span></p>
+</blockquote>
+<p>If their estimates are interpreted as including <strong>all infections</strong>, that interpretation requires assumptions about the detection of mild and asymptomatic infections, because the observed numerator consists of diagnosed exported cases. The limitation concerns that broader interpretation; the quoted terminology alone does not establish that undiagnosed infections were accounted for.</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-imai2020report1" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Imai N, Dorigatti I, Cori A, Riley S, Ferguson NM. Report 1: Estimating the potential total number of novel coronavirus cases in <span>Wuhan City, China</span> [Internet]. Imperial College London; 2020 Jan. Available from: <a href="https://doi.org/10.25561/77149">https://doi.org/10.25561/77149</a> doi:<a href="https://doi.org/10.25561/77149">10.25561/77149</a></div>
+</div>
+<div id="ref-imai2020report2" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Imai N, Dorigatti I, Cori A, Donnelly C, Riley S, Ferguson NM. Report 2: Estimating the potential total number of novel coronavirus (2019-nCoV) cases in <span>Wuhan City, China</span> [Internet]. Imperial College London; 2020 Jan. Available from: <a href="https://doi.org/10.25561/77150">https://doi.org/10.25561/77150</a> doi:<a href="https://doi.org/10.25561/77150">10.25561/77150</a></div>
+</div>
+<div id="ref-wilks1938" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Wilks SS. The large-sample distribution of the likelihood ratio for testing composite hypotheses. The Annals of Mathematical Statistics. 1938;9(1):60–2. doi:<a href="https://doi.org/10.1214/aoms/1177732360">10.1214/aoms/1177732360</a></div>
+</div>
+<div id="ref-nishiura2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><span class="nocase">Nishiura H et al.</span> <span class="nocase">The Extent of Transmission of Novel Coronavirus in Wuhan, China, 2020</span>. Journal of Clinical Medicine. 2020. doi:<a href="https://doi.org/10.3390/jcm9020330">10.3390/jcm9020330</a></div>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
