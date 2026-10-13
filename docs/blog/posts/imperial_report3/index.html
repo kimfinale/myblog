@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-10-06">
+<meta name="description" content="Reconstructing Imperial’s third COVID-19 report in R: how outbreak size informed transmissibility, what its uncertainty intervals mean, and which assumptions shaped the results.">
+
+<title>From Outbreak Size to Transmissibility: Imperial’s Third COVID-19 Report – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-8db45f8ebac49db988cc8fbbd031b745.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-f7457c387bd3ea4c25919c43694cc813.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-8db45f8ebac49db988cc8fbbd031b745.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul class="collapse">
+  <li><a href="#a-new-question-could-the-outbreak-sustain-itself" id="toc-a-new-question-could-the-outbreak-sustain-itself" class="nav-link active" data-scroll-target="#a-new-question-could-the-outbreak-sustain-itself">A new question: could the outbreak sustain itself?</a></li>
+  <li><a href="#what-imperial-knewand-what-it-assumed" id="toc-what-imperial-knewand-what-it-assumed" class="nav-link" data-scroll-target="#what-imperial-knewand-what-it-assumed">What Imperial knew—and what it assumed</a></li>
+  <li><a href="#how-the-report-turned-a-case-count-into-a-reproduction-number" id="toc-how-the-report-turned-a-case-count-into-a-reproduction-number" class="nav-link" data-scroll-target="#how-the-report-turned-a-case-count-into-a-reproduction-number">How the report turned a case count into a reproduction number</a></li>
+  <li><a href="#a-stochastic-model-represents-possible-histories" id="toc-a-stochastic-model-represents-possible-histories" class="nav-link" data-scroll-target="#a-stochastic-model-represents-possible-histories">A stochastic model represents possible histories</a></li>
+  <li><a href="#building-the-model-in-r" id="toc-building-the-model-in-r" class="nav-link" data-scroll-target="#building-the-model-in-r">Building the model in R</a></li>
+  <li><a href="#the-one-date-the-report-did-not-give" id="toc-the-one-date-the-report-did-not-give" class="nav-link" data-scroll-target="#the-one-date-the-report-did-not-give">The one date the report did not give</a></li>
+  <li><a href="#reproducing-figure-1" id="toc-reproducing-figure-1" class="nav-link" data-scroll-target="#reproducing-figure-1">Reproducing Figure 1</a></li>
+  <li><a href="#why-a-proportion-of-simulations-yields-a-confidence-interval" id="toc-why-a-proportion-of-simulations-yields-a-confidence-interval" class="nav-link" data-scroll-target="#why-a-proportion-of-simulations-yields-a-confidence-interval">Why a proportion of simulations yields a confidence interval</a></li>
+  <li><a href="#reproducing-the-table-1-estimates" id="toc-reproducing-the-table-1-estimates" class="nav-link" data-scroll-target="#reproducing-the-table-1-estimates">Reproducing the Table 1 estimates</a></li>
+  <li><a href="#checking-the-coverage-claim" id="toc-checking-the-coverage-claim" class="nav-link" data-scroll-target="#checking-the-coverage-claim">Checking the coverage claim</a></li>
+  <li><a href="#the-bayesian-counterpart-riou-and-althaus" id="toc-the-bayesian-counterpart-riou-and-althaus" class="nav-link" data-scroll-target="#the-bayesian-counterpart-riou-and-althaus">The Bayesian counterpart: Riou and Althaus</a></li>
+  <li><a href="#reading-the-headline-estimate-carefully" id="toc-reading-the-headline-estimate-carefully" class="nav-link" data-scroll-target="#reading-the-headline-estimate-carefully">Reading the headline estimate carefully</a></li>
+  <li><a href="#what-the-result-meant-for-public-health" id="toc-what-the-result-meant-for-public-health" class="nav-link" data-scroll-target="#what-the-result-meant-for-public-health">What the result meant for public health</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">From Outbreak Size to Transmissibility: Imperial’s Third COVID-19 Report</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">R</div>
+    <div class="quarto-category">COVID-19</div>
+    <div class="quarto-category">epidemiology</div>
+    <div class="quarto-category">reproduction number</div>
+    <div class="quarto-category">stochastic simulation</div>
+    <div class="quarto-category">statistical inference</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Reconstructing Imperial’s third COVID-19 report in R: how outbreak size informed transmissibility, what its uncertainty intervals mean, and which assumptions shaped the results.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">October 6, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="a-new-question-could-the-outbreak-sustain-itself" class="level2">
+<h2 class="anchored" data-anchor-id="a-new-question-could-the-outbreak-sustain-itself">A new question: could the outbreak sustain itself?</h2>
+<p>In the <a href="https://www.jonghoonk.com/blog/posts/exported_cases/">previous post</a>, we saw how a few cases detected abroad revealed a much larger outbreak in Wuhan. Imperial College London’s first two reports used travel data and overseas detections to estimate its size. Report 2 estimated 4,000 cases with symptom onset by 18 January 2020, with an uncertainty range of 1,000–9,700. <span class="citation" data-cites="imai2020report2">(<a href="#ref-imai2020report2" role="doc-biblioref">1</a>)</span></p>
+<p>The third report, published on 25 January 2020, used those estimates to ask whether human-to-human transmission could sustain the outbreak. <a href="https://www.imperial.ac.uk/mrc-global-infectious-disease-analysis/disease-areas/covid-19/report-3-transmissibility-of-covid-19/">Imperial’s report summary</a></p>
+<p>The central quantity was the basic reproduction number, <span class="math inline">\(R_0\)</span>: the average number of new infections caused by one infected person in a fully susceptible population before control measures. Under stable conditions, chains shrink on average when <span class="math inline">\(R_0&lt;1\)</span> and can grow when <span class="math inline">\(R_0&gt;1\)</span>. Individual chains can still die out by chance. <span class="citation" data-cites="lloydsmith2005">(<a href="#ref-lloydsmith2005" role="doc-biblioref">2</a>)</span></p>
+<p>We will read the report in its January 2020 setting, distinguish evidence from assumptions, and reconstruct its simulation in R. We will compare the results with Figure 1 and Table 1, examine the intervals’ statistical meaning, and contrast the approach with Riou and Althaus’s Bayesian analysis, published five days later.</p>
+</section>
+<section id="what-imperial-knewand-what-it-assumed" class="level2">
+<h2 class="anchored" data-anchor-id="what-imperial-knewand-what-it-assumed">What Imperial knew—and what it assumed</h2>
+<p>The analysis combined an inferred outbreak size with assumptions about transmission. <span class="citation" data-cites="imai2020report2 imai2020report3">(<a href="#ref-imai2020report2" role="doc-biblioref">1</a>,<a href="#ref-imai2020report3" role="doc-biblioref">3</a>)</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Input</th>
+<th style="text-align: left;">Report’s starting point</th>
+<th style="text-align: left;">Evidential status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Outbreak size</td>
+<td style="text-align: left;">4,000 cases by 18 January; alternatives of 1,000 and 9,700</td>
+<td style="text-align: left;">Previous estimate from exported cases</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Initial animal-to-human cases</td>
+<td style="text-align: left;">Scenarios spanning 40–200</td>
+<td style="text-align: left;">Unknown quantity explored through assumptions</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Generation time</td>
+<td style="text-align: left;">Baseline mean of 8.4 days</td>
+<td style="text-align: left;">Borrowed from SARS</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Individual transmission</td>
+<td style="text-align: left;">Substantial variation, following SARS</td>
+<td style="text-align: left;">Assumed for the new virus</td>
+</tr>
+</tbody>
+</table>
+<p>The inferred case total was uncertain because travel, detection and reporting were imperfect. Using its point estimate as a fixed input leaves that uncertainty unaccounted for.</p>
+<p>The total also combines initial animal-to-human infections with subsequent human-to-human infections. Outbreak size alone cannot separate them; the assumed number of initial cases determines how much onward transmission the model must explain.</p>
+<!-- The table's generation time is the interval between infection of a person and infection of someone they infect. The incubation period instead runs from infection to symptom onset within one person; the serial interval runs between symptom onsets in two linked cases. These clocks answer different questions. [@wallinga2007] -->
+</section>
+<section id="how-the-report-turned-a-case-count-into-a-reproduction-number" class="level2">
+<h2 class="anchored" data-anchor-id="how-the-report-turned-a-case-count-into-a-reproduction-number">How the report turned a case count into a reproduction number</h2>
+<p>Figure 1 shows 5,000 simulated epidemics starting from 40 animal-to-human infections in December 2019, with SARS-like generation time and variation in infectiousness. The red curve is the median cumulative count; the grey band is the central 95% range. Light grey lines show individual trajectories, and dotted lines mark 18 January and 4,000 cases. <span class="citation" data-cites="imai2020report3">(<a href="#ref-imai2020report3" role="doc-biblioref">3</a>)</span></p>
+<p>For each candidate <span class="math inline">\(R_0\)</span>, the report recorded the proportion of simulations reaching at least 4,000 cases by 18 January and defined three estimates. <span class="citation" data-cites="imai2020report3">(<a href="#ref-imai2020report3" role="doc-biblioref">3</a>)</span></p>
+<ul>
+<li><strong>Best case (most optimistic):</strong> the <span class="math inline">\(R_0\)</span> at which 5% reach the target. Smaller values rarely produce an outbreak this large.</li>
+<li><strong>Central estimate:</strong> the <span class="math inline">\(R_0\)</span> at which 50% reach the target. At this value, the median in Figure 1 passes through the dotted lines’ intersection.</li>
+<li><strong>Worst case (most pessimistic):</strong> the <span class="math inline">\(R_0\)</span> at which 95% reach the target. Larger values usually exceed it.</li>
+</ul>
+<p>Repeating this rule across seed counts from 40 to 200 and alternative outbreak sizes produced Table 1. Although the report did not describe it in statistical terms, the rule can be understood as test inversion: its best and worst cases form an approximately 90% confidence interval under fixed assumptions. We will examine that interpretation below.</p>
+</section>
+<section id="a-stochastic-model-represents-possible-histories" class="level2">
+<h2 class="anchored" data-anchor-id="a-stochastic-model-represents-possible-histories">A stochastic model represents possible histories</h2>
+<p>Five infected people might cause 0, 0, 1, 1 and 8 subsequent infections—an average of two, with substantial individual variation. A stochastic model represents the different outbreak histories this variation can produce. Even with a known <span class="math inline">\(R_0\)</span>, histories would differ; observing one history leaves uncertainty about the <span class="math inline">\(R_0\)</span> that generated it.</p>
+<p>Imperial compared these possible histories with the inferred outbreak size. Fitting a growth curve through the first two reports’ totals would have been unreliable: Report 2 warned that sparse observations, reporting delays and incomplete onset information prevented a dependable growth-rate estimate. <span class="citation" data-cites="imai2020report2 imai2020report3">(<a href="#ref-imai2020report2" role="doc-biblioref">1</a>,<a href="#ref-imai2020report3" role="doc-biblioref">3</a>)</span></p>
+</section>
+<section id="building-the-model-in-r" class="level2">
+<h2 class="anchored" data-anchor-id="building-the-model-in-r">Building the model in R</h2>
+<p>Reconstructing the model requires several choices the report left unstated.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Ingredient</th>
+<th style="text-align: left;">Stated in Report 3</th>
+<th style="text-align: left;">Used here</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Zoonotic (seed) cases</td>
+<td style="text-align: left;">40 in the baseline; 80 to 200 also explored</td>
+<td style="text-align: left;">40 and 200</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Timing of the seed cases</td>
+<td style="text-align: left;">“December 2019”</td>
+<td style="text-align: left;">A single day, calibrated below</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Offspring distribution</td>
+<td style="text-align: left;">Negative binomial with <span class="math inline">\(k=0.16\)</span>, as estimated for SARS</td>
+<td style="text-align: left;">Same</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Generation time</td>
+<td style="text-align: left;">Mean 8.4 days, as estimated for SARS</td>
+<td style="text-align: left;">Gamma distribution, mean 8.4 and SD 3.8 days</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Outbreak-size target</td>
+<td style="text-align: left;">4,000 cases with symptom onset by 18 January</td>
+<td style="text-align: left;">4,000 cumulative infections by the end of 18 January</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Number of simulations</td>
+<td style="text-align: left;">5,000</td>
+<td style="text-align: left;">5,000 for the figure; 2,000 per <span class="math inline">\(R_0\)</span> value for estimation</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Depletion of susceptibles</td>
+<td style="text-align: left;">Not mentioned</td>
+<td style="text-align: left;">None; a pure branching process</td>
+</tr>
+</tbody>
+</table>
+<p>Lipsitch and colleagues’ SARS analysis supplied the generation-time mean and standard deviation; Report 3 cited only the mean. <span class="citation" data-cites="lipsitch2003">(<a href="#ref-lipsitch2003" role="doc-biblioref">4</a>)</span> Lloyd-Smith and colleagues supplied the SARS dispersion estimate, <span class="math inline">\(k=0.16\)</span>. <span class="citation" data-cites="lloydsmith2005">(<a href="#ref-lloydsmith2005" role="doc-biblioref">2</a>)</span> A few thousand infections would barely deplete Wuhan’s susceptible population of roughly eleven million.</p>
+<div class="callout callout-style-default callout-note callout-titled" title="Runtime">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Runtime
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Rendering runs several hundred thousand simulations and may take several minutes. Reduce <code>n_sims_grid</code>, <code>n_sims_fig</code>, <code>n_sims_cov</code> and <code>n_obs</code> for a quicker run.</p>
+</div>
+</div>
+<section id="a-branching-process-with-superspreading" class="level3">
+<h3 class="anchored" data-anchor-id="a-branching-process-with-superspreading">A branching process with superspreading</h3>
+<p>Following the SARS literature, the report models each person’s number of secondary infections, <span class="math inline">\(Z_i\)</span>, as negative binomial with mean <span class="math inline">\(R_0\)</span> and dispersion <span class="math inline">\(k\)</span>:</p>
+<p><span class="math display">\[
+\Pr(Z=z)=\frac{\Gamma(z+k)}{z!\,\Gamma(k)}
+\left(\frac{k}{k+R_0}\right)^{k}\left(\frac{R_0}{k+R_0}\right)^{z},
+\qquad
+\operatorname{Var}(Z)=R_0+\frac{R_0^{2}}{k}.
+\]</span></p>
+<p>Small <span class="math inline">\(k\)</span> produces large variance: most people infect nobody, while a few infect many. <span class="citation" data-cites="lloydsmith2005">(<a href="#ref-lloydsmith2005" role="doc-biblioref">2</a>)</span> Secondary infections occur after gamma-distributed generation intervals with the SARS mean and standard deviation. Starting with 40 seed infections, the process continues through the observation window.</p>
+<p>Two probabilities describe the process: <span class="math inline">\(\Pr(Z=0)\)</span>, the chance of infecting nobody, and <span class="math inline">\(q\)</span>, the chance that a single case’s chain eventually dies out. The latter is the smallest solution of</p>
+<p><span class="math display">\[
+q=\left(1+\frac{R_0\,(1-q)}{k}\right)^{-k},
+\]</span></p>
+<p>where the right-hand side is the probability generating function of <span class="math inline">\(Z\)</span> evaluated at <span class="math inline">\(q\)</span>. <span class="citation" data-cites="lloydsmith2005">(<a href="#ref-lloydsmith2005" role="doc-biblioref">2</a>)</span> I discussed this extinction probability in a <a href="https://www.jonghoonk.com/blog/posts/Probabily_outbreak/index.html">previous post</a>.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>target_date  <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="st">"2020-01-18"</span>)  <span class="co"># date of Report 2's outbreak-size estimate</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>target_cases <span class="ot">&lt;-</span> <span class="dv">4000</span>                    <span class="co"># Report 2's central estimate</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>report_date  <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="st">"2020-01-25"</span>)  <span class="co"># Report 3's publication date; end of plot</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>R0_baseline <span class="ot">&lt;-</span> <span class="fl">2.6</span>    <span class="co"># Report 3's central estimate for 40 zoonotic cases</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>k_sars      <span class="ot">&lt;-</span> <span class="fl">0.16</span>   <span class="co"># offspring dispersion estimated for SARS</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>gt_mean     <span class="ot">&lt;-</span> <span class="fl">8.4</span>    <span class="co"># SARS generation time, mean in days</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>gt_sd       <span class="ot">&lt;-</span> <span class="fl">3.8</span>    <span class="co"># SARS generation time, SD in days</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Gamma distribution with the stated mean and SD</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>gt_shape <span class="ot">&lt;-</span> (gt_mean <span class="sc">/</span> gt_sd)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>gt_rate  <span class="ot">&lt;-</span> gt_mean <span class="sc">/</span> gt_sd<span class="sc">^</span><span class="dv">2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>p_zero <span class="ot">&lt;-</span> <span class="fu">dnbinom</span>(<span class="dv">0</span>, <span class="at">size =</span> k_sars, <span class="at">mu =</span> R0_baseline)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>offspring_pgf <span class="ot">&lt;-</span> <span class="cf">function</span>(s, R0, k) (<span class="dv">1</span> <span class="sc">+</span> R0 <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> s) <span class="sc">/</span> k)<span class="sc">^</span>(<span class="sc">-</span>k)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>extinction_prob <span class="ot">&lt;-</span> <span class="fu">uniroot</span>(<span class="cf">function</span>(q) <span class="fu">offspring_pgf</span>(q, R0_baseline, k_sars) <span class="sc">-</span> q,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                           <span class="at">interval =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span> <span class="sc">-</span> <span class="fl">1e-9</span>), <span class="at">tol =</span> <span class="fl">1e-10</span>)<span class="sc">$</span>root</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(<span class="at">proportion_infecting_nobody        =</span> p_zero,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">single_chain_extinction_prob  =</span> extinction_prob,</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        <span class="at">expected_surviving_chains_of_40 =</span> <span class="dv">40</span> <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> extinction_prob)), <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>    proportion_infecting_nobody    single_chain_extinction_prob 
+                          0.634                           0.787 
+expected_surviving_chains_of_40 
+                          8.505 </code></pre>
+</div>
+</div>
+<p>At <span class="math inline">\(R_0=2.6\)</span> and <span class="math inline">\(k=0.16\)</span>, about 63% of people infect nobody, and a single-case chain dies out with probability 0.79. Only about 9 of the 40 seeds are expected to start persistent chains. Their survival and the timing of large clusters drive the variation shown in Figure 1’s grey band.</p>
+</section>
+<section id="the-simulator" class="level3">
+<h3 class="anchored" data-anchor-id="the-simulator">The simulator</h3>
+<p>For each generation, the simulator draws offspring counts and infection times, discards infections beyond the observation window, and tallies the rest by day. Descendants always occur after their parents, so discarding late infections cannot remove an earlier descendant.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>simulate_outbreak <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, k, n_seed, n_days,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                              <span class="at">max_cases =</span> <span class="cn">Inf</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                              gt_shape, gt_rate) {</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Cumulative infections at the end of each day 0, 1, ..., n_days - 1.</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Day 0 is the day on which all n_seed zoonotic infections occur.</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Stops early once max_cases infections have accumulated (for threshold checks).</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  daily <span class="ot">&lt;-</span> <span class="fu">numeric</span>(n_days)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  daily[<span class="dv">1</span>] <span class="ot">&lt;-</span> n_seed</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  n_total <span class="ot">&lt;-</span> n_seed</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  infection_times <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span>, n_seed)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">while</span> (<span class="fu">length</span>(infection_times) <span class="sc">&gt;</span> <span class="dv">0</span> <span class="sc">&amp;&amp;</span> n_total <span class="sc">&lt;</span> max_cases) {</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    offspring <span class="ot">&lt;-</span> <span class="fu">rnbinom</span>(<span class="fu">length</span>(infection_times), <span class="at">size =</span> k, <span class="at">mu =</span> R0)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    n_offspring <span class="ot">&lt;-</span> <span class="fu">sum</span>(offspring)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (n_offspring <span class="sc">==</span> <span class="dv">0</span>) <span class="cf">break</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    new_times <span class="ot">&lt;-</span> <span class="fu">rep</span>(infection_times, <span class="at">times =</span> offspring) <span class="sc">+</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>      <span class="fu">rgamma</span>(n_offspring, <span class="at">shape =</span> gt_shape, <span class="at">rate =</span> gt_rate)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    new_times <span class="ot">&lt;-</span> new_times[new_times <span class="sc">&lt;</span> n_days]   <span class="co"># outside the window: ignore</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">length</span>(new_times) <span class="sc">==</span> <span class="dv">0</span>) <span class="cf">break</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    daily <span class="ot">&lt;-</span> daily <span class="sc">+</span> <span class="fu">tabulate</span>(<span class="fu">floor</span>(new_times) <span class="sc">+</span> <span class="dv">1</span>, <span class="at">nbins =</span> n_days)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    n_total <span class="ot">&lt;-</span> n_total <span class="sc">+</span> <span class="fu">length</span>(new_times)</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    infection_times <span class="ot">&lt;-</span> new_times</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cumsum</span>(daily)</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Most later calculations need only the final size. The helper stops each simulation once it reaches a cap: smaller sizes are exact, while larger values mean “at least the cap” and suffice for threshold comparisons.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>days_in_window <span class="ot">&lt;-</span> <span class="cf">function</span>(start, end) <span class="fu">as.integer</span>(end <span class="sc">-</span> start) <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>final_sizes <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, seed_date, n_seed, n_sims, <span class="at">cap =</span> target_cases, <span class="at">k =</span> k_sars) {</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Cumulative infections on target_date in n_sims simulated epidemics.</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Exact below `cap`; a value at or above `cap` means "at least cap".</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  n_days <span class="ot">&lt;-</span> <span class="fu">days_in_window</span>(seed_date, target_date)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">replicate</span>(n_sims, {</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">simulate_outbreak</span>(R0, k, n_seed, n_days, <span class="at">max_cases =</span> cap,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                      <span class="at">gt_shape =</span> gt_shape, <span class="at">gt_rate =</span> gt_rate)[n_days]</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>proportion_reaching_target <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, seed_date, n_seed, n_sims) {</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>(<span class="fu">final_sizes</span>(R0, seed_date, n_seed, n_sims) <span class="sc">&gt;=</span> target_cases)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="the-one-date-the-report-did-not-give" class="level2">
+<h2 class="anchored" data-anchor-id="the-one-date-the-report-did-not-give">The one date the report did not give</h2>
+<p>The caption places the 40 zoonotic infections in December 2019 but gives no exact date. We test seeding dates from 20 November to 20 December at <span class="math inline">\(R_0=2.6\)</span> and choose the date for which the proportion reaching 4,000 infections by 18 January is closest to 50%. This calibrates our model to the report’s central estimate.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20200125</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>n_sims_cal <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>candidate_dates <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"2019-11-20"</span>), <span class="fu">as.Date</span>(<span class="st">"2019-12-20"</span>), <span class="at">by =</span> <span class="st">"day"</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>calibration <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">candidate =</span> candidate_dates,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">proportion_reaching =</span> <span class="fu">vapply</span>(<span class="fu">seq_along</span>(candidate_dates), <span class="cf">function</span>(i) {</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">proportion_reaching_target</span>(R0_baseline, <span class="at">seed_date =</span> candidate_dates[i],</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>                          <span class="at">n_seed =</span> <span class="dv">40</span>, <span class="at">n_sims =</span> n_sims_cal)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  }, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>seed_date <span class="ot">&lt;-</span> calibration<span class="sc">$</span>candidate[<span class="fu">which.min</span>(<span class="fu">abs</span>(calibration<span class="sc">$</span>proportion_reaching <span class="sc">-</span> <span class="fl">0.5</span>))]</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>seed_date</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "2019-12-14"</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>show_dates <span class="ot">&lt;-</span> seed_date <span class="sc">+</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">14</span>, <span class="sc">-</span><span class="dv">7</span>, <span class="sc">-</span><span class="dv">3</span>, <span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">7</span>, <span class="dv">14</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>calibration <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(candidate <span class="sc">%in%</span> show_dates) <span class="sc">%&gt;%</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">candidate =</span> <span class="fu">fmt_date</span>(candidate),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">proportion_reaching =</span> <span class="fu">fmt_pct</span>(proportion_reaching)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Seeding date"</span>, <span class="st">"Proportion reaching 4,000 by 18 Jan"</span>),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>               <span class="at">align =</span> <span class="fu">c</span>(<span class="st">"l"</span>, <span class="st">"r"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="tbl-calibration" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-calibration-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Proportion of 1,000 simulated epidemics (R0 = 2.6, 40 zoonotic cases, SARS-like generation time and dispersion) that reach 4,000 cumulative infections by 18 January 2020, for a selection of seeding dates. The adopted date is the one whose proportion is closest to 50%.
+</figcaption>
+<div aria-describedby="tbl-calibration-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output-display">
+<table class="cell caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Seeding date</th>
+<th style="text-align: right;">Proportion reaching 4,000 by 18 Jan</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">30 November 2019</td>
+<td style="text-align: right;">98%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">7 December 2019</td>
+<td style="text-align: right;">89%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">11 December 2019</td>
+<td style="text-align: right;">76%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">14 December 2019</td>
+<td style="text-align: right;">50%</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">17 December 2019</td>
+<td style="text-align: right;">21%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<p>The calibrated date is 14 December 2019, the only input tuned to the report’s result. The 40-seed central estimate therefore matches by construction. The endpoints and the 200-seed estimates provide comparisons that were not directly calibrated, although they use this fitted date.</p>
+<p>The report counted cases by symptom onset; our model counts infections. An incubation period of roughly five days would place the seeds’ symptom onsets about five days after infection. The earliest onset in Wuhan’s first published clinical series was 1 December 2019. <span class="citation" data-cites="huang2020">(<a href="#ref-huang2020" role="doc-biblioref">5</a>)</span> Our fitted date is an effective timing parameter for this reconstruction, rather than an estimate of the spillover date.</p>
+</section>
+<section id="reproducing-figure-1" class="level2">
+<h2 class="anchored" data-anchor-id="reproducing-figure-1">Reproducing Figure 1</h2>
+<p>With that date fixed, we simulate 5,000 trajectories at <span class="math inline">\(R_0=2.6\)</span> through 25 January and summarise the daily counts.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>n_sims_fig <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>n_days_fig <span class="ot">&lt;-</span> <span class="fu">days_in_window</span>(seed_date, report_date)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>trajectories <span class="ot">&lt;-</span> <span class="fu">replicate</span>(n_sims_fig, {</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">simulate_outbreak</span>(R0_baseline, k_sars, <span class="at">n_seed =</span> <span class="dv">40</span>, <span class="at">n_days =</span> n_days_fig,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>                    <span class="at">gt_shape =</span> gt_shape, <span class="at">gt_rate =</span> gt_rate)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Day 0 holds the 40 seeds plus any secondary infections that occur within</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># the first day, so the count can slightly exceed 40.</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">dim</span>(trajectories) <span class="sc">==</span> <span class="fu">c</span>(n_days_fig, n_sims_fig),</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>          <span class="fu">all</span>(trajectories[<span class="dv">1</span>, ] <span class="sc">&gt;=</span> <span class="dv">40</span>),</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>          <span class="fu">all</span>(<span class="fu">diff</span>(trajectories[, <span class="dv">1</span>]) <span class="sc">&gt;=</span> <span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>dates_fig <span class="ot">&lt;-</span> seed_date <span class="sc">+</span> (<span class="fu">seq_len</span>(n_days_fig) <span class="sc">-</span> <span class="dv">1</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>band <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">date   =</span> dates_fig,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">median =</span> <span class="fu">unname</span>(<span class="fu">apply</span>(trajectories, <span class="dv">1</span>, median)),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower  =</span> <span class="fu">unname</span>(<span class="fu">apply</span>(trajectories, <span class="dv">1</span>, quantile, <span class="at">probs =</span> <span class="fl">0.025</span>)),</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper  =</span> <span class="fu">unname</span>(<span class="fu">apply</span>(trajectories, <span class="dv">1</span>, quantile, <span class="at">probs =</span> <span class="fl">0.975</span>))</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>at_target        <span class="ot">&lt;-</span> trajectories[dates_fig <span class="sc">==</span> target_date, ]</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>median_at_target <span class="ot">&lt;-</span> <span class="fu">median</span>(at_target)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>proportion_at_target  <span class="ot">&lt;-</span> <span class="fu">mean</span>(at_target <span class="sc">&gt;=</span> target_cases)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">median_on_18_jan =</span> median_at_target, <span class="at">proportion_at_or_above_4000 =</span> proportion_at_target)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           median_on_18_jan proportion_at_or_above_4000 
+                  3852.0000                      0.4698 </code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>shown <span class="ot">&lt;-</span> <span class="fu">sample</span>(n_sims_fig, <span class="dv">60</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>sample_paths <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(trajectories[, shown])</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>sample_paths<span class="sc">$</span>date <span class="ot">&lt;-</span> dates_fig</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>sample_paths <span class="ot">&lt;-</span> <span class="fu">pivot_longer</span>(sample_paths, <span class="at">cols =</span> <span class="sc">-</span>date,</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>                             <span class="at">names_to =</span> <span class="st">"simulation"</span>, <span class="at">values_to =</span> <span class="st">"cumulative"</span>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">data =</span> band, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">ymin =</span> lower, <span class="at">ymax =</span> upper),</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> <span class="st">"grey82"</span>) <span class="sc">+</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> sample_paths,</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>            <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> cumulative, <span class="at">group =</span> simulation),</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>            <span class="at">colour =</span> <span class="st">"grey50"</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> band, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> median),</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>            <span class="at">colour =</span> <span class="st">"firebrick"</span>, <span class="at">linewidth =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> target_date, <span class="at">linetype =</span> <span class="st">"dotted"</span>) <span class="sc">+</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> target_cases, <span class="at">linetype =</span> <span class="st">"dotted"</span>) <span class="sc">+</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">max</span>(band<span class="sc">$</span>upper) <span class="sc">*</span> <span class="fl">1.02</span>)) <span class="sc">+</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_date</span>(<span class="at">date_breaks =</span> <span class="st">"1 week"</span>, <span class="at">labels =</span> label_day_month) <span class="sc">+</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> fmt_count) <span class="sc">+</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Cumulative infections"</span>,</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Simulated epidemics in Wuhan: 40 zoonotic cases, R0 = 2.6"</span>,</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Median (red), 95% range (grey band), 60 of 5,000 individual trajectories (grey lines)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-report3-figure1" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Line chart of cumulative infections against date from the seeding day to 25 January 2020. A red median curve rises slowly through December and steeply in January, passing close to 4,000 on 18 January where a vertical and a horizontal dotted line cross. A grey band widens around it, and many thin grey individual trajectories spread from near zero to well above the band.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-report3-figure1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-report3-figure1-1.png" class="img-fluid figure-img" alt="Line chart of cumulative infections against date from the seeding day to 25 January 2020. A red median curve rises slowly through December and steeply in January, passing close to 4,000 on 18 January where a vertical and a horizontal dotted line cross. A grey band widens around it, and many thin grey individual trajectories spread from near zero to well above the band." width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-report3-figure1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Reproduction of Report 3’s Figure 1 under the assumptions stated in this post. Red: median cumulative infections across 5,000 simulated epidemics with 40 zoonotic cases, R0 = 2.6, negative binomial offspring with k = 0.16, and a gamma generation time with mean 8.4 and SD 3.8 days. Grey band: 2.5th to 97.5th percentile. Grey lines: 60 randomly chosen individual trajectories. Dotted lines: 18 January 2020 and 4,000 cumulative cases.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>On 18 January, the median is 3,852 infections, 47% of simulations reach 4,000, and the grey band spans 916 to 9,554. Identical assumptions produce widely different histories: some outbreaks remain small because early chains die out or large clusters occur late.</p>
+</section>
+<section id="why-a-proportion-of-simulations-yields-a-confidence-interval" class="level2">
+<h2 class="anchored" data-anchor-id="why-a-proportion-of-simulations-yields-a-confidence-interval">Why a proportion of simulations yields a confidence interval</h2>
+<p>The idea is to rule out values of <span class="math inline">\(R_0\)</span> that make the observed outbreak size implausible. For each candidate, we ask: would 4,000 cases be unusually large or unusually small?</p>
+<section id="test-each-candidate-value" class="level3">
+<h3 class="anchored" data-anchor-id="test-each-candidate-value">Test each candidate value</h3>
+<p>Fix the seed count and timing, generation-time distribution and dispersion <span class="math inline">\(k\)</span>. Let <span class="math inline">\(N\)</span> be the simulated infection count on 18 January. For a candidate <span class="math inline">\(R_0=r\)</span>, reject it if either</p>
+<p><span class="math display">\[
+\Pr_r(N\ge4000)&lt;0.05
+\qquad\text{or}\qquad
+\Pr_r(N\le4000)&lt;0.05.
+\]</span></p>
+<p>The two tests rule out different explanations:</p>
+<ul>
+<li><strong>Too little transmission:</strong> fewer than 5% of epidemics reach 4,000 cases, so the observed outbreak is unusually large for this <span class="math inline">\(R_0\)</span>.</li>
+<li><strong>Too much transmission:</strong> fewer than 5% have 4,000 cases or fewer, so the observed outbreak is unusually small for this <span class="math inline">\(R_0\)</span>.</li>
+</ul>
+<p>Keep the candidates that pass both tests. In this model, increasing <span class="math inline">\(R_0\)</span> shifts outbreak sizes upward, so the retained values form an interval. This construction is called <strong>test inversion</strong>. <span class="citation" data-cites="casella2002">(<a href="#ref-casella2002" role="doc-biblioref">6</a>)</span></p>
+</section>
+<section id="keep-the-assumptions-in-view" class="level3">
+<h3 class="anchored" data-anchor-id="keep-the-assumptions-in-view">Keep the assumptions in view</h3>
+<ul>
+<li><p><strong>Fixed inputs:</strong> the interval reflects random variation between epidemics under the chosen seed count, timing and transmission assumptions. Combining endpoints across scenarios does not automatically preserve the 90% coverage guarantee.</p></li>
+<li><p><strong>An estimated target:</strong> 4,000 was inferred from seven exported cases. Treating it as exact omits uncertainty in that inference. Imperial explored sensitivity by repeating the analysis at 1,000 and 9,700 cases.</p></li>
+<li><p><strong>Numerical error:</strong> for an estimated proportion <span class="math inline">\(\hat p\)</span> from <span class="math inline">\(n\)</span> independent simulations, the estimated binomial standard error is</p>
+<p><span class="math display">\[
+\widehat{\operatorname{SE}}(\hat p)
+= \sqrt{\frac{\hat p(1-\hat p)}{n}}.
+\]</span></p>
+<p>With <span class="math inline">\(n=2{,}000\)</span> and <span class="math inline">\(\hat p=0.05\)</span>, this gives</p>
+<p><span class="math display">\[
+\widehat{\operatorname{SE}}(\hat p)
+= \sqrt{\frac{0.05(1-0.05)}{2{,}000}}
+\approx 0.00487.
+\]</span></p>
+<p>In other words, about 0.49 percentage points. This measures random variation from the finite number of simulations. A finite <span class="math inline">\(R_0\)</span> grid adds interpolation error.</p></li>
+</ul>
+<p>After comparing Table 1, we will check coverage by simulating epidemics at a known <span class="math inline">\(R_0\)</span> and counting how often their intervals contain it.</p>
+</section>
+</section>
+<section id="reproducing-the-table-1-estimates" class="level2">
+<h2 class="anchored" data-anchor-id="reproducing-the-table-1-estimates">Reproducing the Table 1 estimates</h2>
+<p>We compute the proportion curve over an <span class="math inline">\(R_0\)</span> grid for 40 seeds, the baseline, and 200 seeds, the scenario that supplied the headline range’s lower endpoint.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>R0_grid     <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">seq</span>(<span class="fl">0.8</span>, <span class="fl">4.5</span>, <span class="at">by =</span> <span class="fl">0.1</span>), <span class="dv">1</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>n_sims_grid <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>proportion_curve <span class="ot">&lt;-</span> <span class="cf">function</span>(n_seed) {</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">vapply</span>(R0_grid, proportion_reaching_target, <span class="fu">numeric</span>(<span class="dv">1</span>),</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">seed_date =</span> seed_date, <span class="at">n_seed =</span> n_seed, <span class="at">n_sims =</span> n_sims_grid)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>curves <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">n_seed =</span> <span class="dv">40</span>,  <span class="at">R0 =</span> R0_grid, <span class="at">proportion_reaching =</span> <span class="fu">proportion_curve</span>(<span class="dv">40</span>)),</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">n_seed =</span> <span class="dv">200</span>, <span class="at">R0 =</span> R0_grid, <span class="at">proportion_reaching =</span> <span class="fu">proportion_curve</span>(<span class="dv">200</span>))</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>We linearly interpolate between grid points to find the 5%, 50% and 95% crossings, then round to one decimal as the report did.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>R0_at_proportion <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, proportion, p) {</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># R0 at which the nondecreasing proportion curve first reaches p, by linear</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># interpolation between grid points. -Inf: already at or above p at the</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># smallest grid value. Inf: never reaches p within the grid.</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  i <span class="ot">&lt;-</span> <span class="fu">which</span>(proportion <span class="sc">&gt;=</span> p)[<span class="dv">1</span>]</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.na</span>(i)) <span class="fu">return</span>(<span class="cn">Inf</span>)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (i <span class="sc">==</span> <span class="dv">1</span>) <span class="fu">return</span>(<span class="sc">-</span><span class="cn">Inf</span>)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  R0[i <span class="sc">-</span> <span class="dv">1</span>] <span class="sc">+</span> (p <span class="sc">-</span> proportion[i <span class="sc">-</span> <span class="dv">1</span>]) <span class="sc">/</span> (proportion[i] <span class="sc">-</span> proportion[i <span class="sc">-</span> <span class="dv">1</span>]) <span class="sc">*</span> (R0[i] <span class="sc">-</span> R0[i <span class="sc">-</span> <span class="dv">1</span>])</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>estimates <span class="ot">&lt;-</span> curves <span class="sc">%&gt;%</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(n_seed) <span class="sc">%&gt;%</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">best_case  =</span> <span class="fu">R0_at_proportion</span>(R0, proportion_reaching, <span class="fl">0.05</span>),</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>            <span class="at">central    =</span> <span class="fu">R0_at_proportion</span>(R0, proportion_reaching, <span class="fl">0.50</span>),</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>            <span class="at">worst_case =</span> <span class="fu">R0_at_proportion</span>(R0, proportion_reaching, <span class="fl">0.95</span>),</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>estimates</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 2 x 4
+  n_seed best_case central worst_case
+   &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;      &lt;dbl&gt;
+1     40      2.15    2.62       3.35
+2    200      1.50    1.69       1.94</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>imperial <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_seed     =</span> <span class="fu">c</span>(<span class="dv">40</span>, <span class="dv">200</span>),</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">best_case  =</span> <span class="fu">c</span>(<span class="fl">2.1</span>, <span class="fl">1.5</span>),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">central    =</span> <span class="fu">c</span>(<span class="fl">2.6</span>, <span class="fl">1.7</span>),</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">worst_case =</span> <span class="fu">c</span>(<span class="fl">3.5</span>, <span class="fl">2.0</span>)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>comparison <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">mutate</span>(imperial,  <span class="at">source =</span> <span class="st">"Report 3, Table 1"</span>),</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">mutate</span>(estimates, <span class="at">source =</span> <span class="st">"This simulation"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(n_seed, source) <span class="sc">%&gt;%</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">c</span>(best_case, central, worst_case), fmt1)) <span class="sc">%&gt;%</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(n_seed, source, best_case, central, worst_case)</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(comparison,</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>             <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Zoonotic cases"</span>, <span class="st">"Source"</span>, <span class="st">"Best case (5%)"</span>,</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>                           <span class="st">"Central (50%)"</span>, <span class="st">"Worst case (95%)"</span>),</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>             <span class="at">align =</span> <span class="fu">c</span>(<span class="st">"r"</span>, <span class="st">"l"</span>, <span class="st">"r"</span>, <span class="st">"r"</span>, <span class="st">"r"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="tbl-compare" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-compare-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2: Best-case, central and worst-case R0 for the 4,000-case target on 18 January 2020: Report 3’s Table 1 and this reconstruction. The 40-seed central estimate is calibrated through the seeding date; the other five estimates are comparisons using that same date.
+</figcaption>
+<div aria-describedby="tbl-compare-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output-display">
+<table class="cell caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 22%">
+<col style="width: 18%">
+<col style="width: 17%">
+<col style="width: 21%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Zoonotic cases</th>
+<th style="text-align: left;">Source</th>
+<th style="text-align: right;">Best case (5%)</th>
+<th style="text-align: right;">Central (50%)</th>
+<th style="text-align: right;">Worst case (95%)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">Report 3, Table 1</td>
+<td style="text-align: right;">2.1</td>
+<td style="text-align: right;">2.6</td>
+<td style="text-align: right;">3.5</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">40</td>
+<td style="text-align: left;">This simulation</td>
+<td style="text-align: right;">2.1</td>
+<td style="text-align: right;">2.6</td>
+<td style="text-align: right;">3.3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">200</td>
+<td style="text-align: left;">Report 3, Table 1</td>
+<td style="text-align: right;">1.5</td>
+<td style="text-align: right;">1.7</td>
+<td style="text-align: right;">2.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">200</td>
+<td style="text-align: left;">This simulation</td>
+<td style="text-align: right;">1.5</td>
+<td style="text-align: right;">1.7</td>
+<td style="text-align: right;">1.9</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>seed_levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"40 zoonotic cases"</span>, <span class="st">"200 zoonotic cases"</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>curves_plot <span class="ot">&lt;-</span> curves <span class="sc">%&gt;%</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">seeds =</span> <span class="fu">factor</span>(<span class="fu">paste</span>(n_seed, <span class="st">"zoonotic cases"</span>), <span class="at">levels =</span> seed_levels))</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>imperial_points <span class="ot">&lt;-</span> imperial <span class="sc">%&gt;%</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>n_seed, <span class="at">names_to =</span> <span class="st">"estimate"</span>, <span class="at">values_to =</span> <span class="st">"R0"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">proportion_reaching =</span> <span class="fu">unname</span>(<span class="fu">c</span>(<span class="at">best_case =</span> <span class="fl">0.05</span>, <span class="at">central =</span> <span class="fl">0.5</span>,</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>                                   <span class="at">worst_case =</span> <span class="fl">0.95</span>)[estimate]),</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>         <span class="at">seeds =</span> <span class="fu">factor</span>(<span class="fu">paste</span>(n_seed, <span class="st">"zoonotic cases"</span>), <span class="at">levels =</span> seed_levels))</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(curves_plot, <span class="fu">aes</span>(<span class="at">x =</span> R0, <span class="at">y =</span> proportion_reaching, <span class="at">colour =</span> seeds)) <span class="sc">+</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="fu">c</span>(<span class="fl">0.05</span>, <span class="fl">0.5</span>, <span class="fl">0.95</span>), <span class="at">linetype =</span> <span class="st">"dotted"</span>,</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="fl">1.3</span>) <span class="sc">+</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> imperial_points, <span class="at">shape =</span> <span class="dv">4</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">stroke =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"40 zoonotic cases"</span>  <span class="ot">=</span> <span class="st">"firebrick"</span>,</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>                                 <span class="st">"200 zoonotic cases"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>),</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>                      <span class="at">name =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> fmt_pct, <span class="at">breaks =</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">by =</span> <span class="fl">0.25</span>)) <span class="sc">+</span></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(R[<span class="dv">0</span>]),</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Proportion of simulations </span><span class="sc">\n</span><span class="st"> reaching 4,000 infections by 18 Jan"</span>,</span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"How the best-case, central and worst-case estimates are read off"</span>,</span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Dotted lines: 5%, 50% and 95%. Crosses: Report 3, Table 1"</span>) <span class="sc">+</span></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-proportion-curves" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Two S-shaped curves rising from near zero to one as R0 increases from 0.8 to 4.5. The blue curve for 200 zoonotic cases rises earlier and more steeply than the red curve for 40 cases. Three horizontal dotted lines at 5, 50 and 95 percent cut each curve; crosses near the intersections show Imperial's published values.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-proportion-curves-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-proportion-curves-1.png" class="img-fluid figure-img" alt="Two S-shaped curves rising from near zero to one as R0 increases from 0.8 to 4.5. The blue curve for 200 zoonotic cases rises earlier and more steeply than the red curve for 40 cases. Three horizontal dotted lines at 5, 50 and 95 percent cut each curve; crosses near the intersections show Imperial's published values." width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-proportion-curves-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Proportion reaching 4,000 infections by 18 January 2020 for 40 (red) and 200 (blue) seed cases, with 2,000 simulations per point. Dotted lines mark the 5%, 50% and 95% levels; crosses show Report 3’s Table 1 estimates.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>For 40 seeds, our endpoints are 2.1 and 3.3, compared with the report’s 2.1 and 3.5. For 200 seeds, we obtain 1.5, 1.7 and 1.9, compared with 1.5, 1.7 and 2.0. The report’s headline 1.5–3.5 joins the best case for 200 seeds to the worst case for 40.</p>
+<p>Exact agreement is unlikely: rounding, Monte Carlo error, and our choices about seed timing and generation-time shape all affect the estimates. These comparisons assess the reconstruction as a whole; they cannot isolate the cause of a discrepancy.</p>
+<p>The interval narrows from 40 to 200 seeds because more independent chains average out individual superspreading events. Imperial also obtained a narrower range by assuming less heterogeneity, <span class="math inline">\(k=0.64\)</span>, without greatly changing the central estimate. <span class="citation" data-cites="imai2020report3">(<a href="#ref-imai2020report3" role="doc-biblioref">3</a>)</span></p>
+</section>
+<section id="checking-the-coverage-claim" class="level2">
+<h2 class="anchored" data-anchor-id="checking-the-coverage-claim">Checking the coverage claim</h2>
+<p>The approximate interval interpretation suggests coverage near 90% under the fixed model. To check it, we simulate outbreak-size distributions on a coarser <span class="math inline">\(R_0\)</span> grid, recording sizes up to a cap. We then generate epidemics at <span class="math inline">\(R_0=2.6\)</span> and build each interval from the estimated 5% and 95% crossings of the proportion reaching its observed size.</p>
+<p>Sizes at or above the cap are treated as equal to it. Capping can affect coverage for those epidemics, so their proportion bounds the resulting error and is reported below.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>R0_true     <span class="ot">&lt;-</span> <span class="fl">2.6</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>n_obs       <span class="ot">&lt;-</span> <span class="dv">400</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>n_sims_cov  <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>size_cap    <span class="ot">&lt;-</span> <span class="dv">30000</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>R0_grid_cov <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">seq</span>(<span class="fl">1.0</span>, <span class="fl">4.6</span>, <span class="at">by =</span> <span class="fl">0.2</span>), <span class="dv">1</span>)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Full distribution of sizes on 18 January at each grid value, 40 seeds</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>sizes_cov <span class="ot">&lt;-</span> <span class="fu">lapply</span>(R0_grid_cov, <span class="cf">function</span>(R0) {</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">final_sizes</span>(R0, <span class="at">seed_date =</span> seed_date, <span class="at">n_seed =</span> <span class="dv">40</span>,</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">n_sims =</span> n_sims_cov, <span class="at">cap =</span> size_cap)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>proportion_at <span class="ot">&lt;-</span> <span class="cf">function</span>(sizes, n) <span class="fu">vapply</span>(sizes, <span class="cf">function</span>(s) <span class="fu">mean</span>(s <span class="sc">&gt;=</span> n), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Sizes on 18 January of epidemics generated under the known R0</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>observed <span class="ot">&lt;-</span> <span class="fu">final_sizes</span>(R0_true, <span class="at">seed_date =</span> seed_date, <span class="at">n_seed =</span> <span class="dv">40</span>, <span class="at">n_sims =</span> n_obs, <span class="at">cap =</span> size_cap)</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>proportion_at_cap <span class="ot">&lt;-</span> <span class="fu">mean</span>(observed <span class="sc">&gt;=</span> size_cap)</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>observed     <span class="ot">&lt;-</span> <span class="fu">pmin</span>(observed, size_cap)</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>interval_for <span class="ot">&lt;-</span> <span class="cf">function</span>(n) {</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>  S <span class="ot">&lt;-</span> <span class="fu">proportion_at</span>(sizes_cov, n)</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">lower  =</span> <span class="fu">R0_at_proportion</span>(R0_grid_cov, S, <span class="fl">0.05</span>),</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">centre =</span> <span class="fu">R0_at_proportion</span>(R0_grid_cov, S, <span class="fl">0.50</span>),</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">upper  =</span> <span class="fu">R0_at_proportion</span>(R0_grid_cov, S, <span class="fl">0.95</span>))</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>intervals <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">t</span>(<span class="fu">vapply</span>(observed, interval_for, <span class="fu">numeric</span>(<span class="dv">3</span>))))</span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>intervals<span class="sc">$</span>observed <span class="ot">&lt;-</span> observed</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>intervals<span class="sc">$</span>covered  <span class="ot">&lt;-</span> intervals<span class="sc">$</span>lower <span class="sc">&lt;=</span> R0_true <span class="sc">&amp;</span> intervals<span class="sc">$</span>upper <span class="sc">&gt;=</span> R0_true</span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">coverage     =</span> <span class="fu">mean</span>(intervals<span class="sc">$</span>covered),</span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">missed_below =</span> <span class="fu">mean</span>(intervals<span class="sc">$</span>upper <span class="sc">&lt;</span> R0_true),</span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">missed_above =</span> <span class="fu">mean</span>(intervals<span class="sc">$</span>lower <span class="sc">&gt;</span> R0_true),</span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a>  <span class="at">proportion_at_cap =</span> proportion_at_cap)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         coverage      missed_below      missed_above proportion_at_cap 
+            0.895             0.060             0.045             0.000 </code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>n_show <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>shown_intervals <span class="ot">&lt;-</span> intervals[<span class="fu">seq_len</span>(n_show), ] <span class="sc">%&gt;%</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(observed) <span class="sc">%&gt;%</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">rank   =</span> <span class="fu">row_number</span>(),</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">lower_plot  =</span> <span class="fu">pmax</span>(lower,  <span class="fu">min</span>(R0_grid_cov)),</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">upper_plot  =</span> <span class="fu">pmin</span>(upper,  <span class="fu">max</span>(R0_grid_cov)),</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">centre_plot =</span> <span class="fu">pmin</span>(<span class="fu">pmax</span>(centre, <span class="fu">min</span>(R0_grid_cov)), <span class="fu">max</span>(R0_grid_cov)),</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">status =</span> <span class="fu">ifelse</span>(covered, <span class="st">"Contains the true R0"</span>, <span class="st">"Misses the true R0"</span>))</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(shown_intervals) <span class="sc">+</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> R0_true, <span class="at">linetype =</span> <span class="st">"dotted"</span>) <span class="sc">+</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_segment</span>(<span class="fu">aes</span>(<span class="at">x =</span> lower_plot, <span class="at">xend =</span> upper_plot, <span class="at">y =</span> rank, <span class="at">yend =</span> rank,</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>                   <span class="at">colour =</span> status), <span class="at">linewidth =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> centre_plot, <span class="at">y =</span> rank, <span class="at">colour =</span> status), <span class="at">size =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Contains the true R0"</span> <span class="ot">=</span> <span class="st">"steelblue"</span>,</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>                                 <span class="st">"Misses the true R0"</span>   <span class="ot">=</span> <span class="st">"firebrick"</span>),</span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>                      <span class="at">name =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">xlim =</span> <span class="fu">range</span>(R0_grid_cov)) <span class="sc">+</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">expression</span>(R[<span class="dv">0</span>]),</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Simulated epidemics, ordered by size on 18 January"</span>,</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Intervals built by the report's rule from 100 epidemics with R0 = 2.6"</span>,</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Segment: best case to worst case. Dot: central estimate."</span>) <span class="sc">+</span></span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>,</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.y =</span> <span class="fu">element_blank</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-coverage" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Horizontal segments stacked vertically, shifting to the right as the simulated outbreak size increases from bottom to top. A vertical dotted line at 2.6 passes through most segments, which are blue. A few red segments at the bottom lie entirely to the left of the line and a few at the top lie entirely to its right.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-coverage-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-coverage-1.png" class="img-fluid figure-img" alt="Horizontal segments stacked vertically, shifting to the right as the simulated outbreak size increases from bottom to top. A vertical dotted line at 2.6 passes through most segments, which are blue. A few red segments at the bottom lie entirely to the left of the line and a few at the top lie entirely to its right." width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-coverage-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Nominal 90% intervals from 100 simulated epidemics at R0 = 2.6 (dotted line), ordered by size on 18 January. Segments join the best and worst cases; dots mark central estimates. Blue intervals contain the true value; red intervals miss it. Intervals extending beyond the grid are drawn to its edge.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Across 400 epidemics, 90% of intervals contain the true value; 6% fall entirely below it and 4% entirely above. The nominal proportions are 90%, 5% and 5%. At this sample size, coverage near 90% has a binomial standard error of about 1.5 percentage points, in addition to grid and simulation error. 0% of epidemics reached the cap. Misses correspond to unusually small or large outbreaks under the true model.</p>
+<p>The intervals are asymmetric, as in Table 1. Large outbreaks tend to produce longer intervals because the right-skewed size distribution allows a broad range of <span class="math inline">\(R_0\)</span> values to generate them.</p>
+</section>
+<section id="the-bayesian-counterpart-riou-and-althaus" class="level2">
+<h2 class="anchored" data-anchor-id="the-bayesian-counterpart-riou-and-althaus">The Bayesian counterpart: Riou and Althaus</h2>
+<p>A related analysis appeared in Eurosurveillance onOn 30 January 2020, five days after Report 3. The authors used the same model class but averaged over uncertain inputs and accepted a range of outbreak sizes. <span class="citation" data-cites="riou2020">(<a href="#ref-riou2020" role="doc-biblioref">7</a>)</span></p>
+<p><strong>The model.</strong> Offspring counts are negative binomial with mean <span class="math inline">\(R_0\)</span> and dispersion <span class="math inline">\(k\)</span>. Generation times are gamma-distributed with shape 2 and mean <span class="math inline">\(D\)</span>, giving greater relative spread than our SARS-based distribution. Epidemics with <span class="math inline">\(n\)</span> index cases are assembled from <span class="math inline">\(n\)</span> single-chain simulations sampled with replacement and assigned staggered start dates.</p>
+<p><strong>Priors on a grid.</strong> They assigned equal prior weight to the parameter grid points below, with <span class="math inline">\(k\)</span> spaced uniformly on a logarithmic scale.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;">Range</th>
+<th style="text-align: left;">Grid</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><span class="math inline">\(R_0\)</span></td>
+<td style="text-align: left;">0.8 to 5.0</td>
+<td style="text-align: left;">22 equidistant values</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Dispersion <span class="math inline">\(k\)</span></td>
+<td style="text-align: left;">0.01 to 10</td>
+<td style="text-align: left;">20 values, equidistant on a log10 scale</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Mean generation time <span class="math inline">\(D\)</span></td>
+<td style="text-align: left;">7 to 14 days</td>
+<td style="text-align: left;">8 equidistant values</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Index cases <span class="math inline">\(n\)</span></td>
+<td style="text-align: left;">1 to 50</td>
+<td style="text-align: left;">6 equidistant values</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Onset date of each index case</td>
+<td style="text-align: left;">20 November to 4 December 2019</td>
+<td style="text-align: left;">Uniform, drawn separately for each index case</td>
+</tr>
+</tbody>
+</table>
+<p>They simulated 1,000 chains for each of 3,520 combinations of <span class="math inline">\(R_0\)</span>, <span class="math inline">\(k\)</span> and <span class="math inline">\(D\)</span>—3.52 million chains—and assembled 2,112,000 epidemics across the grid including <span class="math inline">\(n\)</span>.</p>
+<p><strong>Acceptance against Report 2’s range.</strong> They retained epidemics with 1,000–9,700 cumulative infections on 18 January, using Report 2’s uncertainty range. Parameter combinations were weighted by their proportion of accepted simulations to approximate a posterior. <span class="citation" data-cites="riou2020">(<a href="#ref-riou2020" role="doc-biblioref">7</a>)</span> This is a form of rejection-based approximate Bayesian computation. <span class="citation" data-cites="sunnaker2013">(<a href="#ref-sunnaker2013" role="doc-biblioref">8</a>)</span> The acceptance window allows uncertainty in outbreak size, although it does not explicitly model the exported-case observations.</p>
+<p><strong>Results.</strong> The posterior median of <span class="math inline">\(R_0\)</span> was 2.2, with a 90% highest-density interval of 1.4–3.8. For <span class="math inline">\(k\)</span>, the median was 0.54 and the 90% interval was 0.014–6.95: outbreak size alone weakly constrained superspreading. The authors found transmissibility compatible with SARS and pandemic influenza and warned of possible global spread. Their analysis still depended on Report 2’s range and its assumption that all infected travellers from Wuhan had been detected. <span class="citation" data-cites="riou2020">(<a href="#ref-riou2020" role="doc-biblioref">7</a>)</span></p>
+<p><strong>How the two analyses relate.</strong></p>
+<ul>
+<li>Both use a negative binomial branching process with gamma generation times. Adapting our simulator to draw inputs from the Bern grids and apply their acceptance window would give a related Bayesian analysis.</li>
+<li>Imperial fixed uncertain inputs and produced conditional intervals for each scenario. Riou and Althaus averaged across inputs and accepted outbreak sizes, producing a marginal posterior for <span class="math inline">\(R_0\)</span>.</li>
+<li>Their estimates overlap substantially: 2.2 (1.4–3.8), compared with Imperial’s baseline 2.6 (2.1–3.5) and headline range of 1.5–3.5. Different seed, timing and acceptance assumptions can shift the results; this comparison alone cannot explain the lower median.</li>
+<li>The broad posterior for <span class="math inline">\(k\)</span> shows how little one cumulative count reveals about transmission heterogeneity. Imperial supplied that information by analogy with SARS.</li>
+</ul>
+</section>
+<section id="reading-the-headline-estimate-carefully" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-headline-estimate-carefully">Reading the headline estimate carefully</h2>
+<p>The preferred scenario gave <span class="math inline">\(R_0=2.6\)</span> and endpoints of 2.1–3.5, conditional on 40 seed cases and the 4,000-case target. The headline 1.5–3.5 also spanned alternative seed counts; outbreak-size and transmission assumptions were varied separately. <span class="citation" data-cites="imai2020report3">(<a href="#ref-imai2020report3" role="doc-biblioref">3</a>)</span></p>
+<p>That headline range is not a single 95% confidence interval. It combines approximately 90% conditional intervals across scenarios. Reading it requires asking which observations constrain the estimate, which assumptions support it, and how changing those assumptions changes the result.</p>
+</section>
+<section id="what-the-result-meant-for-public-health" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-result-meant-for-public-health">What the result meant for public health</h2>
+<p>Imperial concluded that sustained human-to-human transmission was occurring and that control required blocking well over 60% of transmission. <a href="https://www.imperial.ac.uk/mrc-global-infectious-disease-analysis/disease-areas/covid-19/report-3-transmissibility-of-covid-19/">Imperial’s report summary</a></p>
+<p>Under a simple proportional reduction, preventing a fraction <span class="math inline">\(p\)</span> of transmission gives</p>
+<p><span class="math display">\[
+R_{\mathrm{eff}}=(1-p)R_0.
+\]</span></p>
+<p>For <span class="math inline">\(R_0=2.6\)</span>, bringing the effective reproduction number below one requires</p>
+<p><span class="math display">\[
+p&gt;1-\frac{1}{2.6}\approx0.615.
+\]</span></p>
+<p>This threshold describes the reduction needed; assessing whether an intervention achieves it requires separate evidence. The effective reproduction number reflects current susceptibility, behaviour and control measures, so transmission must be reassessed as conditions change. <span class="citation" data-cites="wallinga2007">(<a href="#ref-wallinga2007" role="doc-biblioref">9</a>)</span></p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-imai2020report2" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Imai N, Dorigatti I, Cori A, Donnelly CA, Riley S, Ferguson NM. Report 2: Estimating the potential total number of novel coronavirus (2019-nCoV) cases in <span>Wuhan City, China</span> [Internet]. Imperial College London; 2020 Jan. Available from: <a href="https://doi.org/10.25561/77150">https://doi.org/10.25561/77150</a> doi:<a href="https://doi.org/10.25561/77150">10.25561/77150</a></div>
+</div>
+<div id="ref-lloydsmith2005" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Lloyd-Smith JO, Schreiber SJ, Kopp PE, Getz WM. Superspreading and the effect of individual variation on disease emergence. Nature. 2005;438(7066):355–9. doi:<a href="https://doi.org/10.1038/nature04153">10.1038/nature04153</a></div>
+</div>
+<div id="ref-imai2020report3" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Imai N, Cori A, Dorigatti I, Baguelin M, Donnelly CA, Riley S, et al. Report 3: Transmissibility of <span class="nocase">2019-nCoV</span> [Internet]. Imperial College London; 2020 Jan. Available from: <a href="https://doi.org/10.25561/77148">https://doi.org/10.25561/77148</a> doi:<a href="https://doi.org/10.25561/77148">10.25561/77148</a></div>
+</div>
+<div id="ref-lipsitch2003" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline">Lipsitch M, Cohen T, Cooper B, Robins JM, Ma S, James L, et al. Transmission dynamics and control of severe acute respiratory syndrome. Science. 2003;300(5627):1966–70. doi:<a href="https://doi.org/10.1126/science.1086616">10.1126/science.1086616</a></div>
+</div>
+<div id="ref-huang2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Huang C, Wang Y, Li X, Ren L, Zhao J, Hu Y, et al. Clinical features of patients infected with 2019 novel coronavirus in <span>Wuhan, China</span>. The Lancet. 2020;395(10223):497–506. doi:<a href="https://doi.org/10.1016/S0140-6736(20)30183-5">10.1016/S0140-6736(20)30183-5</a></div>
+</div>
+<div id="ref-casella2002" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline">Casella G, Berger RL. Statistical inference. 2nd ed. Pacific Grove, CA: Duxbury; 2002.</div>
+</div>
+<div id="ref-riou2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline">Riou J, Althaus CL. Pattern of early human-to-human transmission of <span>Wuhan</span> 2019 novel coronavirus (<span class="nocase">2019-nCoV</span>), <span>December</span> 2019 to <span>January</span> 2020. Eurosurveillance. 2020;25(4):2000058. doi:<a href="https://doi.org/10.2807/1560-7917.ES.2020.25.4.2000058">10.2807/1560-7917.ES.2020.25.4.2000058</a></div>
+</div>
+<div id="ref-sunnaker2013" class="csl-entry" role="listitem">
+<div class="csl-left-margin">8. </div><div class="csl-right-inline">Sunnåker M, Busetto AG, Numminen E, Corander J, Foll M, Dessimoz C. Approximate <span>Bayesian</span> computation. PLoS Computational Biology. 2013;9(1):e1002803. doi:<a href="https://doi.org/10.1371/journal.pcbi.1002803">10.1371/journal.pcbi.1002803</a></div>
+</div>
+<div id="ref-wallinga2007" class="csl-entry" role="listitem">
+<div class="csl-left-margin">9. </div><div class="csl-right-inline">Wallinga J, Lipsitch M. How generation intervals shape the relationship between growth rates and reproductive numbers. Proceedings of the Royal Society B: Biological Sciences. 2007;274(1609):599–604. doi:<a href="https://doi.org/10.1098/rspb.2006.3754">10.1098/rspb.2006.3754</a></div>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

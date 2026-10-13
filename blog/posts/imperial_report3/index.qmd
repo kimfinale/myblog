@@ -1,0 +1,638 @@
+---
+title: "From Outbreak Size to Transmissibility: Imperial's Third COVID-19 Report"
+author: "Jong-Hoon Kim"
+date: "2026-10-06"
+lang: en
+categories: [R, COVID-19, epidemiology, reproduction number, stochastic simulation, statistical inference]
+description: "Reconstructing Imperial's third COVID-19 report in R: how outbreak size informed transmissibility, what its uncertainty intervals mean, and which assumptions shaped the results."
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+comments: false
+format:
+  html:
+    css: styles.css
+    toc: true
+    toc-depth: 2
+    code-fold: false
+    code-copy: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+options(width = 85)
+theme_set(theme_minimal(base_size = 12))
+
+# Small formatting helpers. Month names are taken from R's built-in English
+# vectors so that the output does not depend on the system locale.
+fmt1 <- function(x) sprintf("%.1f", x)
+fmt_count <- function(x) {
+  out <- format(round(x), big.mark = ",", scientific = FALSE, trim = TRUE)
+  out[is.na(x)] <- ""
+  out
+}
+fmt_pct <- function(x) {
+  out <- paste0(round(100 * x), "%")
+  out[is.na(x)] <- ""
+  out
+}
+fmt_date <- function(d) {
+  paste(as.integer(format(d, "%d")), month.name[as.integer(format(d, "%m"))],
+        format(d, "%Y"))
+}
+label_day_month <- function(d) {
+  if (is.numeric(d)) d <- as.Date(d, origin = "1970-01-01")
+  out <- paste(as.integer(format(d, "%d")), month.abb[as.integer(format(d, "%m"))])
+  out[is.na(d)] <- ""
+  out
+}
+```
+
+## A new question: could the outbreak sustain itself?
+
+In the [previous post](https://www.jonghoonk.com/blog/posts/exported_cases/), we saw how a few cases detected abroad revealed a much larger outbreak in Wuhan. Imperial College London's first two reports used travel data and overseas detections to estimate its size. Report 2 estimated 4,000 cases with symptom onset by 18 January 2020, with an uncertainty range of 1,000–9,700. [@imai2020report2]
+
+The third report, published on 25 January 2020, used those estimates to ask whether human-to-human transmission could sustain the outbreak. [Imperial's report summary](https://www.imperial.ac.uk/mrc-global-infectious-disease-analysis/disease-areas/covid-19/report-3-transmissibility-of-covid-19/)
+
+The central quantity was the basic reproduction number, $R_0$: the average number of new infections caused by one infected person in a fully susceptible population before control measures. Under stable conditions, chains shrink on average when $R_0<1$ and can grow when $R_0>1$. Individual chains can still die out by chance. [@lloydsmith2005]
+
+We will read the report in its January 2020 setting, distinguish evidence from assumptions, and reconstruct its simulation in R. We will compare the results with Figure 1 and Table 1, examine the intervals' statistical meaning, and contrast the approach with Riou and Althaus's Bayesian analysis, published five days later.
+
+## What Imperial knew—and what it assumed
+
+The analysis combined an inferred outbreak size with assumptions about transmission. [@imai2020report2; @imai2020report3]
+
+| Input | Report's starting point | Evidential status |
+|:--|:--|:--|
+| Outbreak size | 4,000 cases by 18 January; alternatives of 1,000 and 9,700 | Previous estimate from exported cases |
+| Initial animal-to-human cases | Scenarios spanning 40–200 | Unknown quantity explored through assumptions |
+| Generation time | Baseline mean of 8.4 days | Borrowed from SARS |
+| Individual transmission | Substantial variation, following SARS | Assumed for the new virus |
+
+The inferred case total was uncertain because travel, detection and reporting were imperfect. Using its point estimate as a fixed input leaves that uncertainty unaccounted for.
+
+The total also combines initial animal-to-human infections with subsequent human-to-human infections. Outbreak size alone cannot separate them; the assumed number of initial cases determines how much onward transmission the model must explain.
+
+<!-- The table's generation time is the interval between infection of a person and infection of someone they infect. The incubation period instead runs from infection to symptom onset within one person; the serial interval runs between symptom onsets in two linked cases. These clocks answer different questions. [@wallinga2007] -->
+
+## How the report turned a case count into a reproduction number
+
+Figure 1 shows 5,000 simulated epidemics starting from 40 animal-to-human infections in December 2019, with SARS-like generation time and variation in infectiousness. The red curve is the median cumulative count; the grey band is the central 95% range. Light grey lines show individual trajectories, and dotted lines mark 18 January and 4,000 cases. [@imai2020report3]
+
+For each candidate $R_0$, the report recorded the proportion of simulations reaching at least 4,000 cases by 18 January and defined three estimates. [@imai2020report3]
+
+- **Best case (most optimistic):** the $R_0$ at which 5% reach the target. Smaller values rarely produce an outbreak this large.
+- **Central estimate:** the $R_0$ at which 50% reach the target. At this value, the median in Figure 1 passes through the dotted lines' intersection.
+- **Worst case (most pessimistic):** the $R_0$ at which 95% reach the target. Larger values usually exceed it.
+
+Repeating this rule across seed counts from 40 to 200 and alternative outbreak sizes produced Table 1. Although the report did not describe it in statistical terms, the rule can be understood as test inversion: its best and worst cases form an approximately 90% confidence interval under fixed assumptions. We will examine that interpretation below.
+
+## A stochastic model represents possible histories
+
+Five infected people might cause 0, 0, 1, 1 and 8 subsequent infections—an average of two, with substantial individual variation. A stochastic model represents the different outbreak histories this variation can produce. Even with a known $R_0$, histories would differ; observing one history leaves uncertainty about the $R_0$ that generated it.
+
+Imperial compared these possible histories with the inferred outbreak size. Fitting a growth curve through the first two reports' totals would have been unreliable: Report 2 warned that sparse observations, reporting delays and incomplete onset information prevented a dependable growth-rate estimate. [@imai2020report2; @imai2020report3]
+
+## Building the model in R
+
+Reconstructing the model requires several choices the report left unstated.
+
+| Ingredient | Stated in Report 3 | Used here |
+|:--|:--|:--|
+| Zoonotic (seed) cases | 40 in the baseline; 80 to 200 also explored | 40 and 200 |
+| Timing of the seed cases | "December 2019" | A single day, calibrated below |
+| Offspring distribution | Negative binomial with $k=0.16$, as estimated for SARS | Same |
+| Generation time | Mean 8.4 days, as estimated for SARS | Gamma distribution, mean 8.4 and SD 3.8 days |
+| Outbreak-size target | 4,000 cases with symptom onset by 18 January | 4,000 cumulative infections by the end of 18 January |
+| Number of simulations | 5,000 | 5,000 for the figure; 2,000 per $R_0$ value for estimation |
+| Depletion of susceptibles | Not mentioned | None; a pure branching process |
+
+Lipsitch and colleagues' SARS analysis supplied the generation-time mean and standard deviation; Report 3 cited only the mean. [@lipsitch2003] Lloyd-Smith and colleagues supplied the SARS dispersion estimate, $k=0.16$. [@lloydsmith2005] A few thousand infections would barely deplete Wuhan's susceptible population of roughly eleven million.
+
+::: {.callout-note title="Runtime"}
+Rendering runs several hundred thousand simulations and may take several minutes. Reduce `n_sims_grid`, `n_sims_fig`, `n_sims_cov` and `n_obs` for a quicker run.
+:::
+
+### A branching process with superspreading
+
+Following the SARS literature, the report models each person's number of secondary infections, $Z_i$, as negative binomial with mean $R_0$ and dispersion $k$:
+
+$$
+\Pr(Z=z)=\frac{\Gamma(z+k)}{z!\,\Gamma(k)}
+\left(\frac{k}{k+R_0}\right)^{k}\left(\frac{R_0}{k+R_0}\right)^{z},
+\qquad
+\operatorname{Var}(Z)=R_0+\frac{R_0^{2}}{k}.
+$$
+
+Small $k$ produces large variance: most people infect nobody, while a few infect many. [@lloydsmith2005] Secondary infections occur after gamma-distributed generation intervals with the SARS mean and standard deviation. Starting with 40 seed infections, the process continues through the observation window.
+
+Two probabilities describe the process: $\Pr(Z=0)$, the chance of infecting nobody, and $q$, the chance that a single case's chain eventually dies out. The latter is the smallest solution of
+
+$$
+q=\left(1+\frac{R_0\,(1-q)}{k}\right)^{-k},
+$$
+
+where the right-hand side is the probability generating function of $Z$ evaluated at $q$. [@lloydsmith2005] I discussed this extinction probability in a [previous post](https://www.jonghoonk.com/blog/posts/Probabily_outbreak/index.html).
+
+```{r}
+#| label: parameters
+target_date  <- as.Date("2020-01-18")  # date of Report 2's outbreak-size estimate
+target_cases <- 4000                    # Report 2's central estimate
+report_date  <- as.Date("2020-01-25")  # Report 3's publication date; end of plot
+
+R0_baseline <- 2.6    # Report 3's central estimate for 40 zoonotic cases
+k_sars      <- 0.16   # offspring dispersion estimated for SARS
+gt_mean     <- 8.4    # SARS generation time, mean in days
+gt_sd       <- 3.8    # SARS generation time, SD in days
+
+# Gamma distribution with the stated mean and SD
+gt_shape <- (gt_mean / gt_sd)^2
+gt_rate  <- gt_mean / gt_sd^2
+```
+
+```{r}
+#| label: offspring-facts
+p_zero <- dnbinom(0, size = k_sars, mu = R0_baseline)
+
+offspring_pgf <- function(s, R0, k) (1 + R0 * (1 - s) / k)^(-k)
+extinction_prob <- uniroot(function(q) offspring_pgf(q, R0_baseline, k_sars) - q,
+                           interval = c(0, 1 - 1e-9), tol = 1e-10)$root
+
+round(c(proportion_infecting_nobody        = p_zero,
+        single_chain_extinction_prob  = extinction_prob,
+        expected_surviving_chains_of_40 = 40 * (1 - extinction_prob)), 3)
+```
+
+At $R_0=2.6$ and $k=0.16$, about `r round(100 * p_zero)`% of people infect nobody, and a single-case chain dies out with probability `r round(extinction_prob, 2)`. Only about `r round(40 * (1 - extinction_prob))` of the 40 seeds are expected to start persistent chains. Their survival and the timing of large clusters drive the variation shown in Figure 1's grey band.
+
+### The simulator
+
+For each generation, the simulator draws offspring counts and infection times, discards infections beyond the observation window, and tallies the rest by day. Descendants always occur after their parents, so discarding late infections cannot remove an earlier descendant.
+
+```{r}
+#| label: simulator
+simulate_outbreak <- function(R0, k, n_seed, n_days,
+                              max_cases = Inf,
+                              gt_shape, gt_rate) {
+  # Cumulative infections at the end of each day 0, 1, ..., n_days - 1.
+  # Day 0 is the day on which all n_seed zoonotic infections occur.
+  # Stops early once max_cases infections have accumulated (for threshold checks).
+  daily <- numeric(n_days)
+  daily[1] <- n_seed
+  n_total <- n_seed
+  infection_times <- rep(0, n_seed)
+
+  while (length(infection_times) > 0 && n_total < max_cases) {
+    offspring <- rnbinom(length(infection_times), size = k, mu = R0)
+    n_offspring <- sum(offspring)
+    if (n_offspring == 0) break
+    new_times <- rep(infection_times, times = offspring) +
+      rgamma(n_offspring, shape = gt_shape, rate = gt_rate)
+    new_times <- new_times[new_times < n_days]   # outside the window: ignore
+    if (length(new_times) == 0) break
+    daily <- daily + tabulate(floor(new_times) + 1, nbins = n_days)
+    n_total <- n_total + length(new_times)
+    infection_times <- new_times
+  }
+  cumsum(daily)
+}
+```
+
+Most later calculations need only the final size. The helper stops each simulation once it reaches a cap: smaller sizes are exact, while larger values mean "at least the cap" and suffice for threshold comparisons.
+
+```{r}
+#| label: helpers
+days_in_window <- function(start, end) as.integer(end - start) + 1
+
+final_sizes <- function(R0, seed_date, n_seed, n_sims, cap = target_cases, k = k_sars) {
+  # Cumulative infections on target_date in n_sims simulated epidemics.
+  # Exact below `cap`; a value at or above `cap` means "at least cap".
+  n_days <- days_in_window(seed_date, target_date)
+  replicate(n_sims, {
+    simulate_outbreak(R0, k, n_seed, n_days, max_cases = cap,
+                      gt_shape = gt_shape, gt_rate = gt_rate)[n_days]
+  })
+}
+
+proportion_reaching_target <- function(R0, seed_date, n_seed, n_sims) {
+  mean(final_sizes(R0, seed_date, n_seed, n_sims) >= target_cases)
+}
+```
+
+## The one date the report did not give
+
+The caption places the 40 zoonotic infections in December 2019 but gives no exact date. We test seeding dates from 20 November to 20 December at $R_0=2.6$ and choose the date for which the proportion reaching 4,000 infections by 18 January is closest to 50%. This calibrates our model to the report's central estimate.
+
+```{r}
+#| label: calibrate-seed-date
+set.seed(20200125)
+n_sims_cal <- 1000
+candidate_dates <- seq(as.Date("2019-11-20"), as.Date("2019-12-20"), by = "day")
+
+calibration <- data.frame(
+  candidate = candidate_dates,
+  proportion_reaching = vapply(seq_along(candidate_dates), function(i) {
+    proportion_reaching_target(R0_baseline, seed_date = candidate_dates[i],
+                          n_seed = 40, n_sims = n_sims_cal)
+  }, numeric(1))
+)
+
+seed_date <- calibration$candidate[which.min(abs(calibration$proportion_reaching - 0.5))]
+seed_date
+```
+
+```{r}
+#| label: tbl-calibration
+#| tbl-cap: "Proportion of 1,000 simulated epidemics (R0 = 2.6, 40 zoonotic cases, SARS-like generation time and dispersion) that reach 4,000 cumulative infections by 18 January 2020, for a selection of seeding dates. The adopted date is the one whose proportion is closest to 50%."
+show_dates <- seed_date + c(-14, -7, -3, 0, 3, 7, 14)
+calibration %>%
+  filter(candidate %in% show_dates) %>%
+  mutate(candidate = fmt_date(candidate),
+         proportion_reaching = fmt_pct(proportion_reaching)) %>%
+  knitr::kable(col.names = c("Seeding date", "Proportion reaching 4,000 by 18 Jan"),
+               align = c("l", "r"))
+```
+
+The calibrated date is `r fmt_date(seed_date)`, the only input tuned to the report's result. The 40-seed central estimate therefore matches by construction. The endpoints and the 200-seed estimates provide comparisons that were not directly calibrated, although they use this fitted date.
+
+The report counted cases by symptom onset; our model counts infections. An incubation period of roughly five days would place the seeds' symptom onsets about five days after infection. The earliest onset in Wuhan's first published clinical series was 1 December 2019. [@huang2020] Our fitted date is an effective timing parameter for this reconstruction, rather than an estimate of the spillover date.
+
+## Reproducing Figure 1
+
+With that date fixed, we simulate 5,000 trajectories at $R_0=2.6$ through 25 January and summarise the daily counts.
+
+```{r}
+#| label: run-figure1
+n_sims_fig <- 5000
+n_days_fig <- days_in_window(seed_date, report_date)
+
+trajectories <- replicate(n_sims_fig, {
+  simulate_outbreak(R0_baseline, k_sars, n_seed = 40, n_days = n_days_fig,
+                    gt_shape = gt_shape, gt_rate = gt_rate)
+})
+
+# Day 0 holds the 40 seeds plus any secondary infections that occur within
+# the first day, so the count can slightly exceed 40.
+stopifnot(dim(trajectories) == c(n_days_fig, n_sims_fig),
+          all(trajectories[1, ] >= 40),
+          all(diff(trajectories[, 1]) >= 0))
+```
+
+```{r}
+#| label: summarise-figure1
+dates_fig <- seed_date + (seq_len(n_days_fig) - 1)
+
+band <- data.frame(
+  date   = dates_fig,
+  median = unname(apply(trajectories, 1, median)),
+  lower  = unname(apply(trajectories, 1, quantile, probs = 0.025)),
+  upper  = unname(apply(trajectories, 1, quantile, probs = 0.975))
+)
+
+at_target        <- trajectories[dates_fig == target_date, ]
+median_at_target <- median(at_target)
+proportion_at_target  <- mean(at_target >= target_cases)
+c(median_on_18_jan = median_at_target, proportion_at_or_above_4000 = proportion_at_target)
+```
+
+```{r}
+#| label: fig-report3-figure1
+#| fig-cap: "Reproduction of Report 3's Figure 1 under the assumptions stated in this post. Red: median cumulative infections across 5,000 simulated epidemics with 40 zoonotic cases, R0 = 2.6, negative binomial offspring with k = 0.16, and a gamma generation time with mean 8.4 and SD 3.8 days. Grey band: 2.5th to 97.5th percentile. Grey lines: 60 randomly chosen individual trajectories. Dotted lines: 18 January 2020 and 4,000 cumulative cases."
+#| fig-alt: "Line chart of cumulative infections against date from the seeding day to 25 January 2020. A red median curve rises slowly through December and steeply in January, passing close to 4,000 on 18 January where a vertical and a horizontal dotted line cross. A grey band widens around it, and many thin grey individual trajectories spread from near zero to well above the band."
+#| fig-width: 8
+#| fig-height: 5
+shown <- sample(n_sims_fig, 60)
+sample_paths <- as.data.frame(trajectories[, shown])
+sample_paths$date <- dates_fig
+sample_paths <- pivot_longer(sample_paths, cols = -date,
+                             names_to = "simulation", values_to = "cumulative")
+
+ggplot() +
+  geom_ribbon(data = band, aes(x = date, ymin = lower, ymax = upper),
+              fill = "grey82") +
+  geom_line(data = sample_paths,
+            aes(x = date, y = cumulative, group = simulation),
+            colour = "grey50", linewidth = 0.3, alpha = 0.7) +
+  geom_line(data = band, aes(x = date, y = median),
+            colour = "firebrick", linewidth = 1.2) +
+  geom_vline(xintercept = target_date, linetype = "dotted") +
+  geom_hline(yintercept = target_cases, linetype = "dotted") +
+  coord_cartesian(ylim = c(0, max(band$upper) * 1.02)) +
+  scale_x_date(date_breaks = "1 week", labels = label_day_month) +
+  scale_y_continuous(labels = fmt_count) +
+  labs(x = NULL, y = "Cumulative infections",
+       title = "Simulated epidemics in Wuhan: 40 zoonotic cases, R0 = 2.6",
+       subtitle = "Median (red), 95% range (grey band), 60 of 5,000 individual trajectories (grey lines)")
+```
+
+On 18 January, the median is `r fmt_count(median_at_target)` infections, `r fmt_pct(proportion_at_target)` of simulations reach 4,000, and the grey band spans `r fmt_count(band$lower[band$date == target_date])` to `r fmt_count(band$upper[band$date == target_date])`. Identical assumptions produce widely different histories: some outbreaks remain small because early chains die out or large clusters occur late.
+
+## Why a proportion of simulations yields a confidence interval
+
+The idea is to rule out values of $R_0$ that make the observed outbreak size implausible. For each candidate, we ask: would 4,000 cases be unusually large or unusually small?
+
+### Test each candidate value
+
+Fix the seed count and timing, generation-time distribution and dispersion $k$. Let $N$ be the simulated infection count on 18 January. For a candidate $R_0=r$, reject it if either
+
+$$
+\Pr_r(N\ge4000)<0.05
+\qquad\text{or}\qquad
+\Pr_r(N\le4000)<0.05.
+$$
+
+The two tests rule out different explanations:
+
+- **Too little transmission:** fewer than 5% of epidemics reach 4,000 cases, so the observed outbreak is unusually large for this $R_0$.
+- **Too much transmission:** fewer than 5% have 4,000 cases or fewer, so the observed outbreak is unusually small for this $R_0$.
+
+Keep the candidates that pass both tests. In this model, increasing $R_0$ shifts outbreak sizes upward, so the retained values form an interval. This construction is called **test inversion**. [@casella2002]
+
+### Keep the assumptions in view
+
+- **Fixed inputs:** the interval reflects random variation between epidemics under the chosen seed count, timing and transmission assumptions. Combining endpoints across scenarios does not automatically preserve the 90% coverage guarantee.
+- **An estimated target:** 4,000 was inferred from seven exported cases. Treating it as exact omits uncertainty in that inference. Imperial explored sensitivity by repeating the analysis at 1,000 and 9,700 cases.
+- **Numerical error:** for an estimated proportion $\hat p$ from $n$ independent simulations, the estimated binomial standard error is
+
+  $$
+  \widehat{\operatorname{SE}}(\hat p)
+  = \sqrt{\frac{\hat p(1-\hat p)}{n}}.
+  $$
+
+  With $n=2{,}000$ and $\hat p=0.05$, this gives
+
+  $$
+  \widehat{\operatorname{SE}}(\hat p)
+  = \sqrt{\frac{0.05(1-0.05)}{2{,}000}}
+  \approx 0.00487.
+  $$
+
+  In other words, about 0.49 percentage points. This measures random variation from the finite number of simulations. A finite $R_0$ grid adds interpolation error.
+
+After comparing Table 1, we will check coverage by simulating epidemics at a known $R_0$ and counting how often their intervals contain it.
+
+## Reproducing the Table 1 estimates
+
+We compute the proportion curve over an $R_0$ grid for 40 seeds, the baseline, and 200 seeds, the scenario that supplied the headline range's lower endpoint.
+
+```{r}
+#| label: estimate-R0
+R0_grid     <- round(seq(0.8, 4.5, by = 0.1), 1)
+n_sims_grid <- 2000
+
+proportion_curve <- function(n_seed) {
+  vapply(R0_grid, proportion_reaching_target, numeric(1),
+         seed_date = seed_date, n_seed = n_seed, n_sims = n_sims_grid)
+}
+
+curves <- bind_rows(
+  data.frame(n_seed = 40,  R0 = R0_grid, proportion_reaching = proportion_curve(40)),
+  data.frame(n_seed = 200, R0 = R0_grid, proportion_reaching = proportion_curve(200))
+)
+```
+
+We linearly interpolate between grid points to find the 5%, 50% and 95% crossings, then round to one decimal as the report did.
+
+```{r}
+#| label: estimates
+R0_at_proportion <- function(R0, proportion, p) {
+  # R0 at which the nondecreasing proportion curve first reaches p, by linear
+  # interpolation between grid points. -Inf: already at or above p at the
+  # smallest grid value. Inf: never reaches p within the grid.
+  i <- which(proportion >= p)[1]
+  if (is.na(i)) return(Inf)
+  if (i == 1) return(-Inf)
+  R0[i - 1] + (p - proportion[i - 1]) / (proportion[i] - proportion[i - 1]) * (R0[i] - R0[i - 1])
+}
+
+estimates <- curves %>%
+  group_by(n_seed) %>%
+  summarise(best_case  = R0_at_proportion(R0, proportion_reaching, 0.05),
+            central    = R0_at_proportion(R0, proportion_reaching, 0.50),
+            worst_case = R0_at_proportion(R0, proportion_reaching, 0.95),
+            .groups = "drop")
+estimates
+```
+
+```{r}
+#| label: tbl-compare
+#| tbl-cap: "Best-case, central and worst-case R0 for the 4,000-case target on 18 January 2020: Report 3's Table 1 and this reconstruction. The 40-seed central estimate is calibrated through the seeding date; the other five estimates are comparisons using that same date."
+imperial <- data.frame(
+  n_seed     = c(40, 200),
+  best_case  = c(2.1, 1.5),
+  central    = c(2.6, 1.7),
+  worst_case = c(3.5, 2.0)
+)
+
+comparison <- bind_rows(mutate(imperial,  source = "Report 3, Table 1"),
+                        mutate(estimates, source = "This simulation")) %>%
+  arrange(n_seed, source) %>%
+  mutate(across(c(best_case, central, worst_case), fmt1)) %>%
+  select(n_seed, source, best_case, central, worst_case)
+
+knitr::kable(comparison,
+             col.names = c("Zoonotic cases", "Source", "Best case (5%)",
+                           "Central (50%)", "Worst case (95%)"),
+             align = c("r", "l", "r", "r", "r"))
+```
+
+```{r}
+#| label: fig-proportion-curves
+#| fig-cap: "Proportion reaching 4,000 infections by 18 January 2020 for 40 (red) and 200 (blue) seed cases, with 2,000 simulations per point. Dotted lines mark the 5%, 50% and 95% levels; crosses show Report 3's Table 1 estimates."
+#| fig-alt: "Two S-shaped curves rising from near zero to one as R0 increases from 0.8 to 4.5. The blue curve for 200 zoonotic cases rises earlier and more steeply than the red curve for 40 cases. Three horizontal dotted lines at 5, 50 and 95 percent cut each curve; crosses near the intersections show Imperial's published values."
+#| fig-width: 8
+#| fig-height: 5
+seed_levels <- c("40 zoonotic cases", "200 zoonotic cases")
+
+curves_plot <- curves %>%
+  mutate(seeds = factor(paste(n_seed, "zoonotic cases"), levels = seed_levels))
+
+imperial_points <- imperial %>%
+  pivot_longer(-n_seed, names_to = "estimate", values_to = "R0") %>%
+  mutate(proportion_reaching = unname(c(best_case = 0.05, central = 0.5,
+                                   worst_case = 0.95)[estimate]),
+         seeds = factor(paste(n_seed, "zoonotic cases"), levels = seed_levels))
+
+ggplot(curves_plot, aes(x = R0, y = proportion_reaching, colour = seeds)) +
+  geom_hline(yintercept = c(0.05, 0.5, 0.95), linetype = "dotted",
+             colour = "grey50") +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 1.3) +
+  geom_point(data = imperial_points, shape = 4, size = 3.2, stroke = 1.1) +
+  scale_colour_manual(values = c("40 zoonotic cases"  = "firebrick",
+                                 "200 zoonotic cases" = "steelblue"),
+                      name = NULL) +
+  scale_y_continuous(labels = fmt_pct, breaks = seq(0, 1, by = 0.25)) +
+  labs(x = expression(R[0]),
+       y = "Proportion of simulations \n reaching 4,000 infections by 18 Jan",
+       title = "How the best-case, central and worst-case estimates are read off",
+       subtitle = "Dotted lines: 5%, 50% and 95%. Crosses: Report 3, Table 1") +
+  theme(legend.position = "top")
+```
+
+```{r}
+#| label: pull-estimates
+#| include: false
+est40  <- estimates[estimates$n_seed == 40, ]
+est200 <- estimates[estimates$n_seed == 200, ]
+```
+
+For 40 seeds, our endpoints are `r fmt1(est40$best_case)` and `r fmt1(est40$worst_case)`, compared with the report's 2.1 and 3.5. For 200 seeds, we obtain `r fmt1(est200$best_case)`, `r fmt1(est200$central)` and `r fmt1(est200$worst_case)`, compared with 1.5, 1.7 and 2.0. The report's headline 1.5–3.5 joins the best case for 200 seeds to the worst case for 40.
+
+Exact agreement is unlikely: rounding, Monte Carlo error, and our choices about seed timing and generation-time shape all affect the estimates. These comparisons assess the reconstruction as a whole; they cannot isolate the cause of a discrepancy.
+
+The interval narrows from 40 to 200 seeds because more independent chains average out individual superspreading events. Imperial also obtained a narrower range by assuming less heterogeneity, $k=0.64$, without greatly changing the central estimate. [@imai2020report3]
+
+## Checking the coverage claim
+
+The approximate interval interpretation suggests coverage near 90% under the fixed model. To check it, we simulate outbreak-size distributions on a coarser $R_0$ grid, recording sizes up to a cap. We then generate epidemics at $R_0=2.6$ and build each interval from the estimated 5% and 95% crossings of the proportion reaching its observed size.
+
+Sizes at or above the cap are treated as equal to it. Capping can affect coverage for those epidemics, so their proportion bounds the resulting error and is reported below.
+
+```{r}
+#| label: coverage-check
+R0_true     <- 2.6
+n_obs       <- 400
+n_sims_cov  <- 1000
+size_cap    <- 30000
+R0_grid_cov <- round(seq(1.0, 4.6, by = 0.2), 1)
+
+# Full distribution of sizes on 18 January at each grid value, 40 seeds
+sizes_cov <- lapply(R0_grid_cov, function(R0) {
+  final_sizes(R0, seed_date = seed_date, n_seed = 40,
+              n_sims = n_sims_cov, cap = size_cap)
+})
+proportion_at <- function(sizes, n) vapply(sizes, function(s) mean(s >= n), numeric(1))
+
+# Sizes on 18 January of epidemics generated under the known R0
+observed <- final_sizes(R0_true, seed_date = seed_date, n_seed = 40, n_sims = n_obs, cap = size_cap)
+proportion_at_cap <- mean(observed >= size_cap)
+observed     <- pmin(observed, size_cap)
+
+interval_for <- function(n) {
+  S <- proportion_at(sizes_cov, n)
+  c(lower  = R0_at_proportion(R0_grid_cov, S, 0.05),
+    centre = R0_at_proportion(R0_grid_cov, S, 0.50),
+    upper  = R0_at_proportion(R0_grid_cov, S, 0.95))
+}
+
+intervals <- as.data.frame(t(vapply(observed, interval_for, numeric(3))))
+intervals$observed <- observed
+intervals$covered  <- intervals$lower <= R0_true & intervals$upper >= R0_true
+
+c(coverage     = mean(intervals$covered),
+  missed_below = mean(intervals$upper < R0_true),
+  missed_above = mean(intervals$lower > R0_true),
+  proportion_at_cap = proportion_at_cap)
+```
+
+```{r}
+#| label: fig-coverage
+#| fig-cap: "Nominal 90% intervals from 100 simulated epidemics at R0 = 2.6 (dotted line), ordered by size on 18 January. Segments join the best and worst cases; dots mark central estimates. Blue intervals contain the true value; red intervals miss it. Intervals extending beyond the grid are drawn to its edge."
+#| fig-alt: "Horizontal segments stacked vertically, shifting to the right as the simulated outbreak size increases from bottom to top. A vertical dotted line at 2.6 passes through most segments, which are blue. A few red segments at the bottom lie entirely to the left of the line and a few at the top lie entirely to its right."
+#| fig-width: 8
+#| fig-height: 6
+n_show <- 100
+shown_intervals <- intervals[seq_len(n_show), ] %>%
+  arrange(observed) %>%
+  mutate(rank   = row_number(),
+         lower_plot  = pmax(lower,  min(R0_grid_cov)),
+         upper_plot  = pmin(upper,  max(R0_grid_cov)),
+         centre_plot = pmin(pmax(centre, min(R0_grid_cov)), max(R0_grid_cov)),
+         status = ifelse(covered, "Contains the true R0", "Misses the true R0"))
+
+ggplot(shown_intervals) +
+  geom_vline(xintercept = R0_true, linetype = "dotted") +
+  geom_segment(aes(x = lower_plot, xend = upper_plot, y = rank, yend = rank,
+                   colour = status), linewidth = 0.6) +
+  geom_point(aes(x = centre_plot, y = rank, colour = status), size = 1) +
+  scale_colour_manual(values = c("Contains the true R0" = "steelblue",
+                                 "Misses the true R0"   = "firebrick"),
+                      name = NULL) +
+  coord_cartesian(xlim = range(R0_grid_cov)) +
+  labs(x = expression(R[0]),
+       y = "Simulated epidemics, ordered by size on 18 January",
+       title = "Intervals built by the report's rule from 100 epidemics with R0 = 2.6",
+       subtitle = "Segment: best case to worst case. Dot: central estimate.") +
+  theme(legend.position = "top",
+        axis.text.y = element_blank())
+```
+
+```{r}
+#| label: pull-coverage
+#| include: false
+coverage_pct   <- fmt_pct(mean(intervals$covered))
+miss_below_pct <- fmt_pct(mean(intervals$upper < R0_true))
+miss_above_pct <- fmt_pct(mean(intervals$lower > R0_true))
+cap_pct        <- fmt_pct(proportion_at_cap)
+```
+
+Across `r n_obs` epidemics, `r coverage_pct` of intervals contain the true value; `r miss_below_pct` fall entirely below it and `r miss_above_pct` entirely above. The nominal proportions are 90%, 5% and 5%. At this sample size, coverage near 90% has a binomial standard error of about 1.5 percentage points, in addition to grid and simulation error. `r cap_pct` of epidemics reached the cap. Misses correspond to unusually small or large outbreaks under the true model.
+
+The intervals are asymmetric, as in Table 1. Large outbreaks tend to produce longer intervals because the right-skewed size distribution allows a broad range of $R_0$ values to generate them.
+
+## The Bayesian counterpart: Riou and Althaus
+
+A related analysis appeared in Eurosurveillance onOn 30 January 2020, five days after Report 3. The authors used the same model class but averaged over uncertain inputs and accepted a range of outbreak sizes. [@riou2020]
+
+**The model.** Offspring counts are negative binomial with mean $R_0$ and dispersion $k$. Generation times are gamma-distributed with shape 2 and mean $D$, giving greater relative spread than our SARS-based distribution. Epidemics with $n$ index cases are assembled from $n$ single-chain simulations sampled with replacement and assigned staggered start dates.
+
+**Priors on a grid.** They assigned equal prior weight to the parameter grid points below, with $k$ spaced uniformly on a logarithmic scale.
+
+| Parameter | Range | Grid |
+|:--|:--|:--|
+| $R_0$ | 0.8 to 5.0 | 22 equidistant values |
+| Dispersion $k$ | 0.01 to 10 | 20 values, equidistant on a log10 scale |
+| Mean generation time $D$ | 7 to 14 days | 8 equidistant values |
+| Index cases $n$ | 1 to 50 | 6 equidistant values |
+| Onset date of each index case | 20 November to 4 December 2019 | Uniform, drawn separately for each index case |
+
+They simulated 1,000 chains for each of 3,520 combinations of $R_0$, $k$ and $D$—3.52 million chains—and assembled 2,112,000 epidemics across the grid including $n$.
+
+**Acceptance against Report 2's range.** They retained epidemics with 1,000–9,700 cumulative infections on 18 January, using Report 2's uncertainty range. Parameter combinations were weighted by their proportion of accepted simulations to approximate a posterior. [@riou2020] This is a form of rejection-based approximate Bayesian computation. [@sunnaker2013] The acceptance window allows uncertainty in outbreak size, although it does not explicitly model the exported-case observations.
+
+**Results.** The posterior median of $R_0$ was 2.2, with a 90% highest-density interval of 1.4–3.8. For $k$, the median was 0.54 and the 90% interval was 0.014–6.95: outbreak size alone weakly constrained superspreading. The authors found transmissibility compatible with SARS and pandemic influenza and warned of possible global spread. Their analysis still depended on Report 2's range and its assumption that all infected travellers from Wuhan had been detected. [@riou2020]
+
+**How the two analyses relate.**
+
+- Both use a negative binomial branching process with gamma generation times. Adapting our simulator to draw inputs from the Bern grids and apply their acceptance window would give a related Bayesian analysis.
+- Imperial fixed uncertain inputs and produced conditional intervals for each scenario. Riou and Althaus averaged across inputs and accepted outbreak sizes, producing a marginal posterior for $R_0$.
+- Their estimates overlap substantially: 2.2 (1.4–3.8), compared with Imperial's baseline 2.6 (2.1–3.5) and headline range of 1.5–3.5. Different seed, timing and acceptance assumptions can shift the results; this comparison alone cannot explain the lower median.
+- The broad posterior for $k$ shows how little one cumulative count reveals about transmission heterogeneity. Imperial supplied that information by analogy with SARS.
+
+## Reading the headline estimate carefully
+
+The preferred scenario gave $R_0=2.6$ and endpoints of 2.1–3.5, conditional on 40 seed cases and the 4,000-case target. The headline 1.5–3.5 also spanned alternative seed counts; outbreak-size and transmission assumptions were varied separately. [@imai2020report3]
+
+That headline range is not a single 95% confidence interval. It combines approximately 90% conditional intervals across scenarios. Reading it requires asking which observations constrain the estimate, which assumptions support it, and how changing those assumptions changes the result.
+
+## What the result meant for public health
+
+Imperial concluded that sustained human-to-human transmission was occurring and that control required blocking well over 60% of transmission. [Imperial's report summary](https://www.imperial.ac.uk/mrc-global-infectious-disease-analysis/disease-areas/covid-19/report-3-transmissibility-of-covid-19/)
+
+Under a simple proportional reduction, preventing a fraction $p$ of transmission gives
+
+$$
+R_{\mathrm{eff}}=(1-p)R_0.
+$$
+
+For $R_0=2.6$, bringing the effective reproduction number below one requires
+
+$$
+p>1-\frac{1}{2.6}\approx0.615.
+$$
+
+This threshold describes the reduction needed; assessing whether an intervention achieves it requires separate evidence. The effective reproduction number reflects current susceptibility, behaviour and control measures, so transmission must be reassessed as conditions change. [@wallinga2007]
+
+
+## References
+
+::: {#refs}
+:::
