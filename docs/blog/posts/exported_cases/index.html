@@ -10,7 +10,7 @@
 <meta name="dcterms.date" content="2026-09-18">
 <meta name="description" content="Estimating outbreak size from exported cases: Imperial Reports 1 and 2 compared with Nishiura et al., with base-R and package examples for confidence intervals.">
 
-<title>How a Few Cases Abroad Can Reveal a Much Larger Outbreak – Disease modeling for public health</title>
+<title>From Exported Cases to Outbreak Size: Imperial’s First Two COVID-19 Reports – Disease modeling for public health</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -403,7 +403,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">How a Few Cases Abroad Can Reveal a Much Larger Outbreak</h1>
+<h1 class="title">From Exported Cases to Outbreak Size: Imperial’s First Two COVID-19 Reports</h1>
 <p class="subtitle lead">Exported cases, observation probabilities, and the assumptions behind an early estimate</p>
   <div class="quarto-categories">
     <div class="quarto-category">R</div>
@@ -476,12 +476,15 @@ X\mid N,p\sim\operatorname{Binomial}(N,p),
 <p>If <span class="math inline">\(x/p=37.9\)</span>, the unique binomial MLE is 37. The word “larger” applies only when two totals tie: if <span class="math inline">\(x/p=38\)</span>, both 37 and 38 maximize the likelihood, and our convention returns 38. A tie does not assign a 50% probability to each total. It means that both give the same probability to the observed data.</p>
 <p>Matching the expected count as closely as possible does not always maximize the probability of the exact observed count. For example, suppose we observe one detection and <span class="math inline">\(p=0.36\)</span>. Then <span class="math inline">\(x/p=2.78\)</span>, which is closer to three than two, but:</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>candidate_totals <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_N =</span> candidate_totals,</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">expected_detections =</span> candidate_totals <span class="sc">*</span> <span class="fl">0.36</span>,</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">probability_of_one_detection =</span> <span class="fu">dbinom</span>(<span class="dv">1</span>, <span class="at">size =</span> candidate_totals, <span class="at">prob =</span> <span class="fl">0.36</span>)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>), <span class="at">digits =</span> <span class="dv">6</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>
@@ -624,12 +627,15 @@ X\mid N,p\sim\operatorname{Binomial}(N,p),
 </details>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>F <span class="ot">&lt;-</span> <span class="dv">3301</span>                 <span class="co"># passengers/day</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="dv">19000000</span>            <span class="co"># people</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>D <span class="ot">&lt;-</span> <span class="dv">10</span>                  <span class="co"># days from infection to detection</span></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">export_probability</span>(F, M, D)</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">p =</span> p, <span class="at">cases_per_detection =</span> <span class="dv">1</span> <span class="sc">/</span> p,</span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>           <span class="at">three_exports =</span> <span class="dv">3</span> <span class="sc">/</span> p, <span class="at">seven_exports =</span> <span class="dv">7</span> <span class="sc">/</span> p)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>            p cases_per_detection three_exports seven_exports
 1 0.001737368            575.5832      1726.749      4029.082</code></pre>
@@ -713,6 +719,8 @@ g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k=pL(k+x).
 <p>We have not changed the sampling model for the observed exports. It remains <span class="math inline">\(X\mid N,p\sim\operatorname{Binomial}(N,p)\)</span>. The negative binomial formula appears because it is proportional to that likelihood when written in terms of <span class="math inline">\(k\)</span>. The extra factor <span class="math inline">\(p\)</span> normalizes the values so that <span class="math inline">\(\sum_{k=0}^{\infty}g(k)=1\)</span>.</p>
 <p>The identity can be checked directly in base R:</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>x_observed <span class="ot">&lt;-</span> <span class="dv">3</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>p_known <span class="ot">&lt;-</span> <span class="dv">3301</span> <span class="sc">*</span> <span class="dv">10</span> <span class="sc">/</span> <span class="dv">19000000</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>k_candidates <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1722</span>, <span class="dv">1723</span>, <span class="dv">1724</span>)  <span class="co"># Cases not detected overseas.</span></span>
@@ -727,6 +735,7 @@ g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k=pL(k+x).
 <span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">p_times_L =</span> p_known <span class="sc">*</span> binomial_likelihood,</span>
 <span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">g =</span> negative_binomial_mass</span>
 <span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>), <span class="at">digits =</span> <span class="dv">9</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>
@@ -759,8 +768,11 @@ g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k=pL(k+x).
 </tbody>
 </table>
 </div>
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># TRUE means the two expressions agree to numerical precision.</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">isTRUE</span>(<span class="fu">all.equal</span>(negative_binomial_mass, p_known <span class="sc">*</span> binomial_likelihood))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] TRUE</code></pre>
 </div>
@@ -790,6 +802,8 @@ g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k,
 <p>This is an approximate 95% confidence interval. With few observed exports and an integer-valued unknown total, Wilks’s general result does not by itself establish exact 95% coverage; the exact binomial interval below uses a separate construction.</p>
 <p>The following inferred reconstruction calculates an interval for <span class="math inline">\(k\)</span>, uses a cutoff rounded to 3.84, and rounds continuous endpoints. It reproduces Report 1’s printed result, but the reports do not establish that these were their exact numerical conventions. <span class="citation" data-cites="imai2020report1 imai2020report2">(<a href="#ref-imai2020report1" role="doc-biblioref">1</a>,<a href="#ref-imai2020report2" role="doc-biblioref">2</a>)</span></p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>exports <span class="ot">&lt;-</span> <span class="dv">3</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>p_interval <span class="ot">&lt;-</span> <span class="dv">3301</span> <span class="sc">*</span> <span class="dv">10</span> <span class="sc">/</span> <span class="dv">19000000</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -812,6 +826,7 @@ g(k)=\binom{k+x}{x}p^{x+1}(1-p)^k,
 <span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>report_lower <span class="ot">&lt;-</span> <span class="fu">uniroot</span>(boundary, <span class="fu">c</span>(<span class="dv">0</span>, k_hat))<span class="sc">$</span>root</span>
 <span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>report_upper <span class="ot">&lt;-</span> <span class="fu">uniroot</span>(boundary, <span class="fu">c</span>(k_hat, <span class="dv">20000</span>))<span class="sc">$</span>root</span>
 <span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(<span class="at">estimate =</span> k_hat, <span class="at">lower =</span> report_lower, <span class="at">upper =</span> report_upper))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>estimate    lower    upper 
     1723      427     4471 </code></pre>
@@ -828,6 +843,8 @@ L(N)=\binom Nx p^x(1-p)^{N-x},\qquad N\geq x.
 \]</span></p>
 <p>Applying the likelihood-ratio rule directly to integer <span class="math inline">\(N\)</span> gives an estimate of 1,726 and interval 431–4,474 for three exports. The expressions <span class="math inline">\(g(k)\)</span> and <span class="math inline">\(L(N)\)</span> give the same relative support to each possible outbreak: one labels it by <span class="math inline">\(k\)</span>, while the other labels it by <span class="math inline">\(N=k+x\)</span>. Adding three to the reconstruction’s rounded endpoints gives 430–4,474. The remaining one-case difference in the lower limit comes from the numerical conventions: the reconstruction rounds continuous endpoints and uses 3.84, whereas the direct calculation retains accepted integers and uses the unrounded chi-squared cutoff. It does not reflect a different model for the observed exports.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>binomial_lr <span class="ot">&lt;-</span> <span class="fu">infer_binomial_size</span>(<span class="dv">3</span>, p_interval, <span class="at">interval =</span> <span class="st">"lr"</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>binomial_exact <span class="ot">&lt;-</span> <span class="fu">infer_binomial_size</span>(<span class="dv">3</span>, p_interval, <span class="at">interval =</span> <span class="st">"exact"</span>)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
@@ -838,6 +855,7 @@ L(N)=\binom Nx p^x(1-p)^{N-x},\qquad N\geq x.
 <span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower =</span> <span class="fu">c</span>(<span class="fu">round</span>(report_lower), binomial_lr<span class="sc">$</span>lower, binomial_exact<span class="sc">$</span>lower),</span>
 <span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper =</span> <span class="fu">c</span>(<span class="fu">round</span>(report_upper), binomial_lr<span class="sc">$</span>upper, binomial_exact<span class="sc">$</span>upper)</span>
 <span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>), <span class="at">caption =</span> <span class="st">"Three exports and the same fixed observation probability."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Three exports and the same fixed observation probability.</caption>
@@ -879,12 +897,15 @@ P_N(X\geq x)\geq\alpha/2,
 \qquad P_N(X\leq x)\geq\alpha/2.
 \]</span></p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>conditional <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">7</span>), <span class="cf">function</span>(x) {</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">infer_binomial_size</span>(x, p, <span class="at">interval =</span> <span class="st">"exact"</span>)</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>}))</span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(conditional[<span class="fu">c</span>(<span class="st">"x"</span>, <span class="st">"estimate"</span>, <span class="st">"lower"</span>, <span class="st">"upper"</span>)],</span>
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>             <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Exports"</span>, <span class="st">"Total-N MLE"</span>, <span class="st">"95% lower"</span>, <span class="st">"95% upper"</span>),</span>
 <span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"New total-N binomial analysis, conditional on fixed p; not the published intervals."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>New total-N binomial analysis, conditional on fixed p; not the published intervals.</caption>
@@ -974,6 +995,8 @@ P_N(X\geq x)\geq\alpha/2,
 </details>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Use the same report inputs for every calculation.</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>package_intervals <span class="ot">&lt;-</span> <span class="fu">compare_poisson_intervals</span>(<span class="dv">3</span>, p_interval)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>comparison <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
@@ -985,6 +1008,7 @@ P_N(X\geq x)\geq\alpha/2,
 <span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(comparison, <span class="at">digits =</span> <span class="dv">2</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
 <span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"Three exports: Poisson package intervals compared with our calculations."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Three exports: Poisson package intervals compared with our calculations.</caption>
@@ -1036,9 +1060,12 @@ P_N(X\geq x)\geq\alpha/2,
 </tbody>
 </table>
 </div>
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Repeat the common Poisson comparison for Report 2's seven exports.</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">compare_poisson_intervals</span>(<span class="dv">7</span>, p_interval), <span class="at">digits =</span> <span class="dv">2</span>,</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"Seven exports: the same Poisson model fitted four ways."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Seven exports: the same Poisson model fitted four ways.</caption>
@@ -1078,9 +1105,12 @@ P_N(X\geq x)\geq\alpha/2,
 </tbody>
 </table>
 </div>
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Record the versions actually used to execute these examples.</span></span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">R =</span> <span class="fu">as.character</span>(<span class="fu">getRversion</span>()),</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>           <span class="at">bbmle =</span> <span class="fu">as.character</span>(utils<span class="sc">::</span><span class="fu">packageVersion</span>(<span class="st">"bbmle"</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>      R  bbmle
 1 4.5.3 1.0.26</code></pre>

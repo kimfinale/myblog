@@ -164,6 +164,8 @@
 <p><img src="https://latex.codecogs.com/png.latex?%0Aq=%5Cleft(1+%5Cfrac%7BR_0%5C,(1-q)%7D%7Bk%7D%5Cright)%5E%7B-k%7D,%0A"></p>
 <p>where the right-hand side is the probability generating function of <img src="https://latex.codecogs.com/png.latex?Z"> evaluated at <img src="https://latex.codecogs.com/png.latex?q">. <span class="citation" data-cites="lloydsmith2005">(2)</span> I discussed this extinction probability in a <a href="https://www.jonghoonk.com/blog/posts/Probabily_outbreak/index.html">previous post</a>.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1">target_date  <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -240,8 +242,11 @@ background-color: null;
 font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span></span></code></pre></div></div>
+</details>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">p_zero <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -331,6 +336,7 @@ background-color: null;
 font-style: inherit;">-</span> extinction_prob)), <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">3</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>    proportion_infecting_nobody    single_chain_extinction_prob 
                           0.634                           0.787 
@@ -344,6 +350,8 @@ expected_surviving_chains_of_40
 <h3 class="anchored" data-anchor-id="the-simulator">The simulator</h3>
 <p>For each generation, the simulator draws offspring counts and infection times, discards infections beyond the observation window, and tallies the rest by day. Descendants always occur after their parents, so discarding late infections cannot remove an earlier descendant.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">simulate_outbreak <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
@@ -493,9 +501,12 @@ font-style: inherit;">&lt;-</span> new_times</span>
 background-color: null;
 font-style: inherit;">cumsum</span>(daily)</span>
 <span id="cb4-25">}</span></code></pre></div></div>
+</details>
 </div>
 <p>Most later calculations need only the final size. The helper stops each simulation once it reaches a cap: smaller sizes are exact, while larger values mean “at least the cap” and suffice for threshold comparisons.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">days_in_window <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
@@ -562,6 +573,7 @@ font-style: inherit;">final_sizes</span>(R0, seed_date, n_seed, n_sims) <span cl
 background-color: null;
 font-style: inherit;">&gt;=</span> target_cases)</span>
 <span id="cb5-15">}</span></code></pre></div></div>
+</details>
 </div>
 </section>
 </section>
@@ -569,6 +581,8 @@ font-style: inherit;">&gt;=</span> target_cases)</span>
 <h2 class="anchored" data-anchor-id="the-one-date-the-report-did-not-give">The one date the report did not give</h2>
 <p>The caption places the 40 zoonotic infections in December 2019 but gives no exact date. We test seeding dates from 20 November to 20 December at <img src="https://latex.codecogs.com/png.latex?R_0=2.6"> and choose the date for which the proportion reaching 4,000 infections by 18 January is closest to 50%. This calibrates our model to the report’s central estimate.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
@@ -650,11 +664,14 @@ font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0.5</span>))]</span>
 <span id="cb6-14">seed_date</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "2019-12-14"</code></pre>
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">show_dates <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> seed_date <span class="sc" style="color: #5E5E5E;
@@ -728,6 +745,7 @@ background-color: null;
 font-style: inherit;">"l"</span>, <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"r"</span>))</span></code></pre></div></div>
+</details>
 <div id="tbl-calibration" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-calibration-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -777,6 +795,8 @@ Table&nbsp;1: Proportion of 1,000 simulated epidemics (R0 = 2.6, 40 zoonotic cas
 <h2 class="anchored" data-anchor-id="reproducing-figure-1">Reproducing Figure 1</h2>
 <p>With that date fixed, we simulate 5,000 trajectories at <img src="https://latex.codecogs.com/png.latex?R_0=2.6"> through 25 January and summarise the daily counts.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">n_sims_fig <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
@@ -844,8 +864,11 @@ background-color: null;
 font-style: inherit;">&gt;=</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>))</span></code></pre></div></div>
+</details>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">dates_fig <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> seed_date <span class="sc" style="color: #5E5E5E;
@@ -927,12 +950,15 @@ background-color: null;
 font-style: inherit;">median_on_18_jan =</span> median_at_target, <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">proportion_at_or_above_4000 =</span> proportion_at_target)</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>           median_on_18_jan proportion_at_or_above_4000 
                   3852.0000                      0.4698 </code></pre>
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">shown <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -1125,6 +1151,7 @@ background-color: null;
 font-style: inherit;">subtitle =</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"Median (red), 95% range (grey band), 60 of 5,000 individual trajectories (grey lines)"</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <div id="fig-report3-figure1" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Line chart of cumulative infections against date from the seeding day to 25 January 2020. A red median curve rises slowly through December and steeply in January, passing close to 4,000 on 18 January where a vertical and a horizontal dotted line cross. A grey band widens around it, and many thin grey individual trajectories spread from near zero to well above the band.">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1172,6 +1199,8 @@ Figure&nbsp;1: Reproduction of Report 3’s Figure 1 under the assumptions state
 <h2 class="anchored" data-anchor-id="reproducing-the-table-1-estimates">Reproducing the Table 1 estimates</h2>
 <p>We compute the proportion curve over an <img src="https://latex.codecogs.com/png.latex?R_0"> grid for 40 seeds, the baseline, and 200 seeds, the scenario that supplied the headline range’s lower endpoint.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">R0_grid     <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -1253,9 +1282,12 @@ font-style: inherit;">proportion_curve</span>(<span class="dv" style="color: #AD
 background-color: null;
 font-style: inherit;">200</span>))</span>
 <span id="cb13-12">)</span></code></pre></div></div>
+</details>
 </div>
 <p>We linearly interpolate between grid points to find the 5%, 50% and 95% crossings, then round to one decimal as the report did.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1">R0_at_proportion <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
@@ -1374,6 +1406,7 @@ font-style: inherit;">.groups =</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"drop"</span>)</span>
 <span id="cb14-17">estimates</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 2 x 4
   n_seed best_case central worst_case
@@ -1383,6 +1416,8 @@ font-style: inherit;">"drop"</span>)</span>
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1">imperial <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -1500,6 +1535,7 @@ background-color: null;
 font-style: inherit;">"r"</span>, <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"r"</span>))</span></code></pre></div></div>
+</details>
 <div id="tbl-compare" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-compare-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -1561,6 +1597,8 @@ Table&nbsp;2: Best-case, central and worst-case R0 for the 4,000-case target on 
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1">seed_levels <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -1801,6 +1839,7 @@ background-color: null;
 font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"top"</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <div id="fig-proportion-curves" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Two S-shaped curves rising from near zero to one as R0 increases from 0.8 to 4.5. The blue curve for 200 zoonotic cases rises earlier and more steeply than the red curve for 40 cases. Three horizontal dotted lines at 5, 50 and 95 percent cut each curve; crosses near the intersections show Imperial's published values.">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1823,6 +1862,8 @@ Figure&nbsp;2: Proportion reaching 4,000 infections by 18 January 2020 for 40 (r
 <p>The approximate interval interpretation suggests coverage near 90% under the fixed model. To check it, we simulate outbreak-size distributions on a coarser <img src="https://latex.codecogs.com/png.latex?R_0"> grid, recording sizes up to a cap. We then generate epidemics at <img src="https://latex.codecogs.com/png.latex?R_0=2.6"> and build each interval from the estimated 5% and 95% crossings of the proportion reaching its observed size.</p>
 <p>Sizes at or above the cap are treated as equal to it. Capping can affect coverage for those epidemics, so their proportion bounds the resulting error and is reported below.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1">R0_true     <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fl" style="color: #AD0000;
@@ -2038,12 +2079,15 @@ font-style: inherit;">&gt;</span> R0_true),</span>
 <span id="cb18-33">  <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">proportion_at_cap =</span> proportion_at_cap)</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>         coverage      missed_below      missed_above proportion_at_cap 
             0.895             0.060             0.045             0.000 </code></pre>
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1">n_show <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
@@ -2232,6 +2276,7 @@ background-color: null;
 font-style: inherit;">axis.text.y =</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">element_blank</span>())</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <div id="fig-coverage" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Horizontal segments stacked vertically, shifting to the right as the simulated outbreak size increases from bottom to top. A vertical dotted line at 2.6 passes through most segments, which are blue. A few red segments at the bottom lie entirely to the left of the line and a few at the top lie entirely to its right.">
 <figure class="quarto-float quarto-float-fig figure">
@@ -2365,7 +2410,7 @@ Figure&nbsp;3: Nominal 90% intervals from 100 simulated epidemics at R0 = 2.6 (d
   <pubDate>Mon, 05 Oct 2026 15:00:00 GMT</pubDate>
 </item>
 <item>
-  <title>How a Few Cases Abroad Can Reveal a Much Larger Outbreak</title>
+  <title>From Exported Cases to Outbreak Size: Imperial’s First Two COVID-19 Reports</title>
   <dc:creator>Jong-Hoon Kim</dc:creator>
   <link>https://www.jonghoonk.com/blog/posts/exported_cases/</link>
   <description><![CDATA[ 
@@ -2401,6 +2446,8 @@ Figure&nbsp;3: Nominal 90% intervals from 100 simulated epidemics at R0 = 2.6 (d
 <p>If <img src="https://latex.codecogs.com/png.latex?x/p=37.9">, the unique binomial MLE is 37. The word “larger” applies only when two totals tie: if <img src="https://latex.codecogs.com/png.latex?x/p=38">, both 37 and 38 maximize the likelihood, and our convention returns 38. A tie does not assign a 50% probability to each total. It means that both give the same probability to the observed data.</p>
 <p>Matching the expected count as closely as possible does not always maximize the probability of the exact observed count. For example, suppose we observe one detection and <img src="https://latex.codecogs.com/png.latex?p=0.36">. Then <img src="https://latex.codecogs.com/png.latex?x/p=2.78">, which is closer to three than two, but:</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1">candidate_totals <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -2445,6 +2492,7 @@ background-color: null;
 font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">6</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>
@@ -2905,6 +2953,8 @@ font-style: inherit;">prob =</span> p)</span>
 </details>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">F <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
@@ -2955,6 +3005,7 @@ background-color: null;
 font-style: inherit;">7</span> <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">/</span> p)</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>            p cases_per_detection three_exports seven_exports
 1 0.001737368            575.5832      1726.749      4029.082</code></pre>
@@ -3028,6 +3079,8 @@ font-style: inherit;">/</span> p)</span></code></pre></div></div>
 <p>We have not changed the sampling model for the observed exports. It remains <img src="https://latex.codecogs.com/png.latex?X%5Cmid%20N,p%5Csim%5Coperatorname%7BBinomial%7D(N,p)">. The negative binomial formula appears because it is proportional to that likelihood when written in terms of <img src="https://latex.codecogs.com/png.latex?k">. The extra factor <img src="https://latex.codecogs.com/png.latex?p"> normalizes the values so that <img src="https://latex.codecogs.com/png.latex?%5Csum_%7Bk=0%7D%5E%7B%5Cinfty%7Dg(k)=1">.</p>
 <p>The identity can be checked directly in base R:</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">x_observed <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
@@ -3118,6 +3171,7 @@ background-color: null;
 font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">9</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>
@@ -3150,6 +3204,8 @@ font-style: inherit;">9</span>)</span></code></pre></div></div>
 </tbody>
 </table>
 </div>
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># TRUE means the two expressions agree to numerical precision.</span></span>
@@ -3160,6 +3216,7 @@ background-color: null;
 font-style: inherit;">all.equal</span>(negative_binomial_mass, p_known <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> binomial_likelihood))</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] TRUE</code></pre>
 </div>
@@ -3180,6 +3237,8 @@ font-style: inherit;">*</span> binomial_likelihood))</span></code></pre></div></
 <p>This is an approximate 95% confidence interval. With few observed exports and an integer-valued unknown total, Wilks’s general result does not by itself establish exact 95% coverage; the exact binomial interval below uses a separate construction.</p>
 <p>The following inferred reconstruction calculates an interval for <img src="https://latex.codecogs.com/png.latex?k">, uses a cutoff rounded to 3.84, and rounds continuous endpoints. It reproduces Report 1’s printed result, but the reports do not establish that these were their exact numerical conventions. <span class="citation" data-cites="imai2020report1 imai2020report2">(1,2)</span></p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">exports <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
@@ -3330,6 +3389,7 @@ background-color: null;
 font-style: inherit;">lower =</span> report_lower, <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">upper =</span> report_upper))</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>estimate    lower    upper 
     1723      427     4471 </code></pre>
@@ -3344,6 +3404,8 @@ font-style: inherit;">upper =</span> report_upper))</span></code></pre></div></d
 <p><img src="https://latex.codecogs.com/png.latex?%0AL(N)=%5Cbinom%20Nx%20p%5Ex(1-p)%5E%7BN-x%7D,%5Cqquad%20N%5Cgeq%20x.%0A"></p>
 <p>Applying the likelihood-ratio rule directly to integer <img src="https://latex.codecogs.com/png.latex?N"> gives an estimate of 1,726 and interval 431–4,474 for three exports. The expressions <img src="https://latex.codecogs.com/png.latex?g(k)"> and <img src="https://latex.codecogs.com/png.latex?L(N)"> give the same relative support to each possible outbreak: one labels it by <img src="https://latex.codecogs.com/png.latex?k">, while the other labels it by <img src="https://latex.codecogs.com/png.latex?N=k+x">. Adding three to the reconstruction’s rounded endpoints gives 430–4,474. The remaining one-case difference in the lower limit comes from the numerical conventions: the reconstruction rounds continuous endpoints and uses 3.84, whereas the direct calculation retains accepted integers and uses the unrounded chi-squared cutoff. It does not reflect a different model for the observed exports.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">binomial_lr <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -3422,6 +3484,7 @@ background-color: null;
 font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"Three exports and the same fixed observation probability."</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Three exports and the same fixed observation probability.</caption>
@@ -3460,6 +3523,8 @@ font-style: inherit;">"Three exports and the same fixed observation probability.
 <p>With <code>interval = "exact"</code>, <code>infer_binomial_size()</code> inverts both binomial tails to construct this equal-tailed confidence interval. For <img src="https://latex.codecogs.com/png.latex?%5Calpha=0.05">, it retains integer values satisfying</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0AP_N(X%5Cgeq%20x)%5Cgeq%5Calpha/2,%0A%5Cqquad%20P_N(X%5Cleq%20x)%5Cgeq%5Calpha/2.%0A"></p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">conditional <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
@@ -3519,6 +3584,7 @@ background-color: null;
 font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"New total-N binomial analysis, conditional on fixed p; not the published intervals."</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>New total-N binomial analysis, conditional on fixed p; not the published intervals.</caption>
@@ -3887,6 +3953,8 @@ font-style: inherit;">NULL</span></span>
 </details>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># Use the same report inputs for every calculation.</span></span>
@@ -3954,6 +4022,7 @@ background-color: null;
 font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"Three exports: Poisson package intervals compared with our calculations."</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Three exports: Poisson package intervals compared with our calculations.</caption>
@@ -4005,6 +4074,8 @@ font-style: inherit;">"Three exports: Poisson package intervals compared with ou
 </tbody>
 </table>
 </div>
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># Repeat the common Poisson comparison for Report 2's seven exports.</span></span>
@@ -4026,6 +4097,7 @@ background-color: null;
 font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"Seven exports: the same Poisson model fitted four ways."</span>)</span></code></pre></div></div>
+</details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Seven exports: the same Poisson model fitted four ways.</caption>
@@ -4065,6 +4137,8 @@ font-style: inherit;">"Seven exports: the same Poisson model fitted four ways."<
 </tbody>
 </table>
 </div>
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># Record the versions actually used to execute these examples.</span></span>
@@ -4088,6 +4162,7 @@ background-color: null;
 font-style: inherit;">packageVersion</span>(<span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"bbmle"</span>)))</span></code></pre></div></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>      R  bbmle
 1 4.5.3 1.0.26</code></pre>

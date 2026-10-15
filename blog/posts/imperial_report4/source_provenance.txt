@@ -1,0 +1,77 @@
+Traveller follow-up data for the draft about Imperial COVID-19 Report 4
+
+Retrieval date: 2026-10-13 (Asia/Seoul client date)
+Primary report: Dorigatti I, Okell L, Cori A, et al. Report 4: Severity of
+2019-novel coronavirus (nCoV). Imperial College London, 10 February 2020.
+Report DOI: https://doi.org/10.25561/77154
+Report PDF: https://www.imperial.ac.uk/media/imperial-college/medicine/mrc-gida/2020-02-10-COVID19-Report-4.pdf
+Official appendix listing: https://www.imperial.ac.uk/mrc-global-infectious-disease-analysis/disease-areas/covid-19/report-4-severity-of-covid-19/
+Original appendix filename: international_cases_2020_08_02.csv
+The report identifies this 290-case line list in Methods B (page 8) and
+Data Sources B (page 12). Direct downloads of the official CSV returned
+HTTP 403 during retrieval. The archived copy below is used instead.
+
+Archive repository: https://github.com/midas-network/COVID-19
+File source commit: 945c7e100c0ee97b15ddc7bf3b8d33995402878d
+Commit date: 2020-02-13T23:56:18Z
+Commit: https://github.com/midas-network/COVID-19/commit/945c7e100c0ee97b15ddc7bf3b8d33995402878d
+Exact immutable download URL: https://raw.githubusercontent.com/midas-network/COVID-19/945c7e100c0ee97b15ddc7bf3b8d33995402878d/data/cases/global/line_listings_imperial_college/international_cases_2020_08_02.csv
+Source CSV SHA256: e3b1e564b011cbef428031a2c4e91fa50b84db0ead44b1f496d1ef0c17a7586a
+Original source bytes saved locally to:
+.quarto/report4-sources/international_cases_2020_08_02.csv
+This directory is ignored by the repository's /.quarto/ rule. The original
+CSV is not part of this post's committed data. The source commit pins the
+archive file; it does not imply the February 2020 authors' analysis code
+or a verified byte-for-byte match to a currently retrievable Imperial file.
+
+Published derivative: traveller-followup.tsv
+Encoding: UTF-8, without BOM; tab separated; LF line endings; header row.
+Missing outcome times use literal NA. Boolean values use TRUE and FALSE.
+One row represents one recorded traveller case. No identifier, source URL
+for an individual, date, age, sex, nationality, or location is retained.
+Rows are sorted by the four retained fields rather than source record order.
+This file contains historical follow-up observations, not simulated cases.
+
+Transformation
+1. Parse relevant source dates using day/month/year, treating blank and NA
+   fields as missing.
+2. Use date_onset_symptoms_dd_mm_yyyy when observed.
+3. If onset is missing, use the earliest available value among
+   date_hospitalized_dd_mm_yyyy, date_report_dd_mm_yyyy, and
+   date_confirmed_dd_mm_yyyy. This reproduces the latest-possible-onset
+   imputation described in Report 4, page 8. No onset is imputed from travel.
+4. Set followup_days to 2020-02-08 minus the observed or imputed onset date.
+5. A death or recovery dated on or before 2020-02-08 defines outcome as
+   death or recovery, respectively. Other records are unresolved at cutoff.
+6. Set outcome_days to the event date minus the onset date for observed
+   deaths and recoveries; use NA for unresolved records.
+7. Set onset_imputed to TRUE only when step 3 was required.
+8. Remove all other source fields and discard source row order.
+
+Calendar-day convention
+The retained times are integer differences between calendar dates, not
+inclusive day counts. A case with onset on 8 February has followup_days=0.
+No subdaily event times or exact censoring times are available in the source.
+For a likelihood treating each reported event date as the interval
+[outcome_days, outcome_days + 1), an inclusive end-of-8-February cutoff
+corresponds to unresolved survival through followup_days + 1. The TSV
+preserves the requested unadjusted date difference so the downstream
+analysis can state its chosen within-day convention. A calculation using
+survival at followup_days instead places censoring at the start of the
+cutoff date and is a distinct approximation.
+
+Validation
+Rows: 290
+Observed onset: 149
+Imputed onset: 141
+Deaths by cutoff: 2
+Recoveries by cutoff: 36
+Unresolved at cutoff: 252
+Recovered cases with observed onset: 29
+Follow-up ages: 0 to 39 days; all nonnegative
+All observed event ages are nonnegative and no later than followup_days.
+The 29 observed onset-to-recovery intervals are consistent with the smaller
+sample mentioned in Methods A and Table 2 (page 7), while Table 1 describes
+36 recovered cases; the report does not explicitly document that selection.
+Fixed delay parameters and these data alone do not
+reproduce the report's posterior integration or published intervals.

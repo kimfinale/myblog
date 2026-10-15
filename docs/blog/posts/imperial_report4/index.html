@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jong-Hoon Kim">
+<meta name="dcterms.date" content="2026-10-13">
+<meta name="description" content="Reading Imperial’s fourth COVID-19 report: how delayed outcomes and incomplete case detection shaped early fatality estimates, with R reconstructions using the original traveller data.">
+
+<title>From Reported Deaths to Fatality Risk: Imperial’s Fourth COVID-19 Report – Disease modeling for public health</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-dark-f418161beb48e0141c760e455f12af2c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-8db45f8ebac49db988cc8fbbd031b745.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-dark-f7457c387bd3ea4c25919c43694cc813.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../../site_libs/bootstrap/bootstrap-8db45f8ebac49db988cc8fbbd031b745.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="quarto:status" content="draft">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top"><div id="quarto-draft-alert" class="alert alert-warning"><i class="bi bi-pencil-square"></i>Draft</div>
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Disease modeling for public health</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../index.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog/index.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../research/index.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/kimfinale"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/jong-hoon-kim-6447325/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/tarzanthoreau"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul class="collapse">
+  <li><a href="#after-transmissibility-a-question-about-severity" id="toc-after-transmissibility-a-question-about-severity" class="nav-link active" data-scroll-target="#after-transmissibility-a-question-about-severity">After transmissibility, a question about severity</a></li>
+  <li><a href="#same-virus-different-denominators" id="toc-same-virus-different-denominators" class="nav-link" data-scroll-target="#same-virus-different-denominators">Same virus, different denominators</a></li>
+  <li><a href="#why-deaths-divided-by-cases-is-unfinished-arithmetic" id="toc-why-deaths-divided-by-cases-is-unfinished-arithmetic" class="nav-link" data-scroll-target="#why-deaths-divided-by-cases-is-unfinished-arithmetic">Why deaths divided by cases is unfinished arithmetic</a></li>
+  <li><a href="#the-delay-distribution-and-its-sampling-direction" id="toc-the-delay-distribution-and-its-sampling-direction" class="nav-link" data-scroll-target="#the-delay-distribution-and-its-sampling-direction">The delay distribution and its sampling direction</a></li>
+  <li><a href="#reconstructing-the-hubei-calculation" id="toc-reconstructing-the-hubei-calculation" class="nav-link" data-scroll-target="#reconstructing-the-hubei-calculation">Reconstructing the Hubei calculation</a></li>
+  <li><a href="#what-the-traveller-follow-up-contributes" id="toc-what-the-traveller-follow-up-contributes" class="nav-link" data-scroll-target="#what-the-traveller-follow-up-contributes">What the traveller follow-up contributes</a></li>
+  <li><a href="#following-a-fixed-case-cohort-forward" id="toc-following-a-fixed-case-cohort-forward" class="nav-link" data-scroll-target="#following-a-fixed-case-cohort-forward">Following a fixed case cohort forward</a></li>
+  <li><a href="#repatriation-flights-supply-a-different-denominator" id="toc-repatriation-flights-supply-a-different-denominator" class="nav-link" data-scroll-target="#repatriation-flights-supply-a-different-denominator">Repatriation flights supply a different denominator</a></li>
+  <li><a href="#what-can-be-reproduced-from-the-report" id="toc-what-can-be-reproduced-from-the-report" class="nav-link" data-scroll-target="#what-can-be-reproduced-from-the-report">What can be reproduced from the report?</a></li>
+  <li><a href="#what-later-evidence-added" id="toc-what-later-evidence-added" class="nav-link" data-scroll-target="#what-later-evidence-added">What later evidence added</a></li>
+  <li><a href="#reading-the-severity-estimate-carefully" id="toc-reading-the-severity-estimate-carefully" class="nav-link" data-scroll-target="#reading-the-severity-estimate-carefully">Reading the severity estimate carefully</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">From Reported Deaths to Fatality Risk: Imperial’s Fourth COVID-19 Report</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">R</div>
+    <div class="quarto-category">COVID-19</div>
+    <div class="quarto-category">epidemiology</div>
+    <div class="quarto-category">case fatality ratio</div>
+    <div class="quarto-category">survival analysis</div>
+    <div class="quarto-category">statistical inference</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Reading Imperial’s fourth COVID-19 report: how delayed outcomes and incomplete case detection shaped early fatality estimates, with R reconstructions using the original traveller data.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jong-Hoon Kim </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">October 13, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="after-transmissibility-a-question-about-severity" class="level2">
+<h2 class="anchored" data-anchor-id="after-transmissibility-a-question-about-severity">After transmissibility, a question about severity</h2>
+<p>The <a href="https://www.jonghoonk.com/blog/posts/imperial_report3/">previous post</a> examined Imperial College London’s third COVID-19 report: how an inferred outbreak size could inform the reproduction number. The fourth report, published on 10 February 2020, asked how often infection would lead to death. <span class="citation" data-cites="imai2020report3 dorigatti2020report4">(<a href="#ref-imai2020report3" role="doc-biblioref">1</a>,<a href="#ref-dorigatti2020report4" role="doc-biblioref">2</a>)</span></p>
+<p>The apparent calculation is simple: divide deaths by cases. The difficulty is deciding which cases belong in the denominator and how many have been followed long enough for their outcomes to be known. These are two different statistical problems, and their corrections can move the estimate in opposite directions. <span class="citation" data-cites="lipsitch2015">(<a href="#ref-lipsitch2015" role="doc-biblioref">3</a>)</span></p>
+<p>We will reconstruct the main calculations in R, examine the likelihood for individual follow-up, and distinguish the report’s published estimates from calculations that hold uncertain inputs fixed. The setting throughout is the evidence available in early February 2020.</p>
+</section>
+<section id="same-virus-different-denominators" class="level2">
+<h2 class="anchored" data-anchor-id="same-virus-different-denominators">Same virus, different denominators</h2>
+<p>Let <span class="math inline">\(c\)</span> be the probability that a person meeting a specified case definition ultimately dies from the disease. That is a <strong>case fatality ratio</strong>, or CFR. The <strong>infection fatality ratio</strong>, or IFR, instead includes every infected person, including people with mild or no symptoms who never become detected cases. A reported CFR therefore needs its case definition attached. <span class="citation" data-cites="lipsitch2015">(<a href="#ref-lipsitch2015" role="doc-biblioref">3</a>)</span></p>
+<p>Report 4 used three surveillance groups. Its Table 1 reported the following estimates; the final two rows are what we would normally call IFR estimates, although the report used the phrase CFR for all infections. <span class="citation" data-cites="dorigatti2020report4">(<a href="#ref-dorigatti2020report4" role="doc-biblioref">2</a>, Table 1)</span></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Population and method</th>
+<th style="text-align: right;">Central estimate</th>
+<th style="text-align: left;">Reported 95% interval</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Hubei detected cases, aggregate model</td>
+<td style="text-align: right;">18% (posterior mode)</td>
+<td style="text-align: left;">11–81%, credible</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Travellers, parametric model with deaths and recoveries</td>
+<td style="text-align: right;">5.1% (maximum likelihood)</td>
+<td style="text-align: left;">1.1–38%, credible</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Travellers, parametric model using deaths only</td>
+<td style="text-align: right;">5.6% (posterior mode)</td>
+<td style="text-align: left;">2.0–85%, credible</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Travellers, CASEFAT non-parametric method</td>
+<td style="text-align: right;">1.2%</td>
+<td style="text-align: left;">0.9–26%, confidence</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">All infections, 14-day PCR detection window</td>
+<td style="text-align: right;">0.9%</td>
+<td style="text-align: left;">0.5–4.0%, confidence</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">All infections, 7-day PCR detection window</td>
+<td style="text-align: right;">0.8%</td>
+<td style="text-align: left;">0.4–3.0%, confidence</td>
+</tr>
+</tbody>
+</table>
+<p>The table preserves the report’s labels for the central estimates and intervals. A credible interval describes posterior uncertainty under a model and prior; a confidence interval belongs to a procedure whose repeated-sampling coverage is assessed under its assumptions. They should not all be relabelled as confidence intervals.</p>
+<p>The differences between rows do not by themselves identify geographical differences in biological severity or healthcare quality. Surveillance systems find different parts of the illness spectrum, and the populations they observe can differ in age, exposure and access to care. <span class="citation" data-cites="lipsitch2015">(<a href="#ref-lipsitch2015" role="doc-biblioref">3</a>)</span></p>
+</section>
+<section id="why-deaths-divided-by-cases-is-unfinished-arithmetic" class="level2">
+<h2 class="anchored" data-anchor-id="why-deaths-divided-by-cases-is-unfinished-arithmetic">Why deaths divided by cases is unfinished arithmetic</h2>
+<p>Suppose a patient developed symptoms <span class="math inline">\(a\)</span> days ago. Write <span class="math inline">\(F_D(a)\)</span> for the probability that a fatal outcome would already have occurred by that age, conditional on the patient eventually dying. Then</p>
+<p><span class="math display">\[
+\Pr(\text{death observed by age }a)=cF_D(a).
+\]</span></p>
+<p>Even if every case and death is detected, this probability is smaller than <span class="math inline">\(c\)</span> while <span class="math inline">\(F_D(a)&lt;1\)</span>. During a growing epidemic, a large fraction of cases are recent, so many eventual deaths have yet to occur. <span class="citation" data-cites="ghani2005">(<a href="#ref-ghani2005" role="doc-biblioref">4</a>)</span></p>
+<p>Incomplete case detection creates a separate denominator problem. If severe illness is easier to detect than mild infection, detected cases are not a representative sample of all infections. Waiting for their outcomes resolves the follow-up problem but does not make their CFR equal to the IFR. <span class="citation" data-cites="lipsitch2015">(<a href="#ref-lipsitch2015" role="doc-biblioref">3</a>)</span></p>
+<section id="three-ways-the-observation-window-matters" class="level3">
+<h3 class="anchored" data-anchor-id="three-ways-the-observation-window-matters">Three ways the observation window matters</h3>
+<p>It helps to distinguish the patient follow-up data from a list containing only completed deaths:</p>
+<ul>
+<li><strong>Right censoring:</strong> a known patient has an unresolved outcome when follow-up ends.</li>
+<li><strong>Right truncation:</strong> a death-only dataset excludes patients whose fatal intervals have not finished by the collection cutoff.</li>
+<li><strong>Dynamical bias:</strong> looking backward from deaths during epidemic growth overrepresents short delays, because recent symptom onsets are more numerous.</li>
+</ul>
+<p>These distinctions are stated explicitly in later work on epidemiological delays. We use that terminology to explain the earlier report. <span class="citation" data-cites="charniga2024">(<a href="#ref-charniga2024" role="doc-biblioref">5</a>)</span></p>
+</section>
+</section>
+<section id="the-delay-distribution-and-its-sampling-direction" class="level2">
+<h2 class="anchored" data-anchor-id="the-delay-distribution-and-its-sampling-direction">The delay distribution and its sampling direction</h2>
+<p>Let <span class="math inline">\(f_D(u)\)</span> be the forward density of onset-to-death delays among fatal cases, and let <span class="math inline">\(O(t)\)</span> be symptom-onset incidence. Among deaths occurring at date <span class="math inline">\(d\)</span>, the density of the elapsed delay is proportional to</p>
+<p><span class="math display">\[
+g_D(u\mid d)
+=\frac{f_D(u)O(d-u)}{\int_0^\infty f_D(v)O(d-v)\,dv}.
+\]</span></p>
+<p>Under exponential growth, <span class="math inline">\(O(t)=O_0e^{rt}\)</span>, so</p>
+<p><span class="math display">\[
+g_D(u\mid d)
+=\frac{f_D(u)e^{-ru}}{\int_0^\infty f_D(v)e^{-rv}\,dv}.
+\]</span></p>
+<p>The factor <span class="math inline">\(e^{-ru}\)</span> reduces the relative weight of long delays. If onset recording began only at <span class="math inline">\(T_{\min}\)</span>, the upper integration limit becomes <span class="math inline">\(d-T_{\min}\)</span> and the density is restricted to that interval. Our illustration below isolates the growth effect and does not impose this additional truncation. <span class="citation" data-cites="dorigatti2020report4 charniga2024">(<a href="#ref-dorigatti2020report4" role="doc-biblioref">2</a>, Methods A,<a href="#ref-charniga2024" role="doc-biblioref">5</a>)</span></p>
+<section id="a-gamma-distribution-makes-the-correction-explicit" class="level3">
+<h3 class="anchored" data-anchor-id="a-gamma-distribution-makes-the-correction-explicit">A gamma distribution makes the correction explicit</h3>
+<p>For a gamma delay with mean <span class="math inline">\(m\)</span> and coefficient of variation <span class="math inline">\(v=\operatorname{SD}/m\)</span>,</p>
+<p><span class="math display">\[
+\alpha=\frac{1}{v^2},\qquad
+\beta=\frac{1}{mv^2},
+\]</span></p>
+<p>where <span class="math inline">\(\alpha\)</span> is the shape and <span class="math inline">\(\beta\)</span> the rate. Multiplying its density by <span class="math inline">\(e^{-ru}\)</span> changes the rate to <span class="math inline">\(\beta+r\)</span>. The backward mean therefore becomes</p>
+<p><span class="math display">\[
+m_{\mathrm{back}}=\frac{\alpha}{\beta+r}
+=\frac{m}{1+rmv^2}.
+\]</span></p>
+<p>Report 4’s Table 2 gives modes of 22.3 days and 0.42 for the onset-to-death mean and coefficient of variation, and 22.2 days and 0.45 for onset-to-recovery. These are estimates of distribution parameters. An uncertainty interval for <span class="math inline">\(m\)</span> is not an interval containing a specified proportion of patients’ delays. <span class="citation" data-cites="dorigatti2020report4">(<a href="#ref-dorigatti2020report4" role="doc-biblioref">2</a>, Table 2)</span></p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>growth_rate <span class="ot">&lt;-</span> <span class="fl">0.14</span>  <span class="co"># per day; Report 4's aggregate-analysis assumption</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>death_mean  <span class="ot">&lt;-</span> <span class="fl">22.3</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>death_cv    <span class="ot">&lt;-</span> <span class="fl">0.42</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>recovery_mean <span class="ot">&lt;-</span> <span class="fl">22.2</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>recovery_cv   <span class="ot">&lt;-</span> <span class="fl">0.45</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>death_shape <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> death_cv<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>death_rate  <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> (death_mean <span class="sc">*</span> death_cv<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>recovery_shape <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> recovery_cv<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>recovery_rate  <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> (recovery_mean <span class="sc">*</span> recovery_cv<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>backward_mean <span class="ot">&lt;-</span> death_shape <span class="sc">/</span> (death_rate <span class="sc">+</span> growth_rate)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(<span class="at">forward_mean_days =</span> death_mean,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>        <span class="at">backward_mean_days =</span> backward_mean), <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code> forward_mean_days backward_mean_days 
+             22.30              14.38 </code></pre>
+</div>
+</div>
+<p>The forward mean is 22.3 days, while the mean obtained by sampling backward from deaths in this growing epidemic is 14.38 days. A mean calculated from completed deaths cannot be used as a forward delay without considering how those deaths were sampled.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>delay_days <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">70</span>, <span class="at">by =</span> <span class="fl">0.1</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>delay_plot <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">days =</span> delay_days,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>             <span class="at">density =</span> <span class="fu">dgamma</span>(delay_days, death_shape, <span class="at">rate =</span> death_rate),</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>             <span class="at">distribution =</span> <span class="st">"Forward: follow onsets to deaths"</span>),</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">days =</span> delay_days,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>             <span class="at">density =</span> <span class="fu">dgamma</span>(delay_days, death_shape,</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>                              <span class="at">rate =</span> death_rate <span class="sc">+</span> growth_rate),</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>             <span class="at">distribution =</span> <span class="st">"Backward: look from deaths to onsets"</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(delay_plot, <span class="fu">aes</span>(days, density, <span class="at">colour =</span> distribution)) <span class="sc">+</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"steelblue"</span>, <span class="st">"firebrick"</span>), <span class="at">name =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Days from symptom onset to death"</span>, <span class="at">y =</span> <span class="st">"Probability density"</span>,</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"The sampling direction changes the observed delay"</span>) <span class="sc">+</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div id="fig-forward-backward-delay" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Two gamma densities against days since symptom onset. The backward density peaks earlier than the forward density because short delays receive more weight during epidemic growth.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-forward-backward-delay-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-forward-backward-delay-1.png" class="img-fluid figure-img" alt="Two gamma densities against days since symptom onset. The backward density peaks earlier than the forward density because short delays receive more weight during epidemic growth." width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-forward-backward-delay-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Forward onset-to-death density and its exponentially tilted backward density, using fixed Report 4 parameter modes and growth rate 0.14/day. This illustrates the sampling effect; it is not a posterior fit to the original 26 deaths.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="reconstructing-the-hubei-calculation" class="level2">
+<h2 class="anchored" data-anchor-id="reconstructing-the-hubei-calculation">Reconstructing the Hubei calculation</h2>
+<p>In this calculation, <span class="math inline">\(C(t)\)</span> is onset incidence among the chosen detected-case stratum, and <span class="math inline">\(c\)</span> is its CFR. Expected death incidence is the convolution</p>
+<p><span class="math display">\[
+E[D(t)]=c\int_0^\infty C(t-u)f_D(u)\,du.
+\]</span></p>
+<p>With exponential incidence, this reduces to</p>
+<p><span class="math display">\[
+E[D(t)]=czC(t),\qquad
+z=\int_0^\infty e^{-ru}f_D(u)\,du
+=(1+rmv^2)^{-1/v^2}.
+\]</span></p>
+<p>Thus the death-to-onset incidence ratio estimates <span class="math inline">\(cz\)</span>. The factor <span class="math inline">\(z\)</span> is the Laplace transform of the delay distribution at growth rate <span class="math inline">\(r\)</span>. Dividing the observed ratio by <span class="math inline">\(z\)</span> gives a point estimate of <span class="math inline">\(c\)</span> when the growth rate and delay parameters are held fixed.</p>
+<section id="first-align-the-reporting-clocks" class="level3">
+<h3 class="anchored" data-anchor-id="first-align-the-reporting-clocks">First align the reporting clocks</h3>
+<p>The comparison in Report 4 uses 45 newly reported deaths on 1 February and 3,156 newly reported cases on 5 February, allowing four days’ difference between death and case reporting delays. These are daily counts, not cumulative totals. <span class="citation" data-cites="dorigatti2020report4">(<a href="#ref-dorigatti2020report4" role="doc-biblioref">2</a>, Methods C)</span></p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>reported_deaths <span class="ot">&lt;-</span> <span class="dv">45</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>reported_cases  <span class="ot">&lt;-</span> <span class="dv">3156</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>observed_ratio <span class="ot">&lt;-</span> reported_deaths <span class="sc">/</span> reported_cases</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>delay_factor <span class="ot">&lt;-</span> <span class="cf">function</span>(r, mean_delay, cv) {</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  (<span class="dv">1</span> <span class="sc">+</span> r <span class="sc">*</span> mean_delay <span class="sc">*</span> cv<span class="sc">^</span><span class="dv">2</span>)<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> cv<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>z <span class="ot">&lt;-</span> <span class="fu">delay_factor</span>(growth_rate, death_mean, death_cv)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>cfr_plugin <span class="ot">&lt;-</span> observed_ratio <span class="sc">/</span> z</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Independent numerical integration checks the closed-form delay correction.</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>z_integrated <span class="ot">&lt;-</span> <span class="fu">integrate</span>(<span class="cf">function</span>(u) {</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">exp</span>(<span class="sc">-</span>growth_rate <span class="sc">*</span> u) <span class="sc">*</span> <span class="fu">dgamma</span>(u, death_shape, <span class="at">rate =</span> death_rate)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>}, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="cn">Inf</span>)<span class="sc">$</span>value</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">abs</span>(z <span class="sc">-</span> z_integrated) <span class="sc">&lt;</span> <span class="fl">1e-8</span>, cfr_plugin <span class="sc">&gt;</span> <span class="dv">0</span>, cfr_plugin <span class="sc">&lt;</span> <span class="dv">1</span>)</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">Quantity =</span> <span class="fu">c</span>(<span class="st">"Aligned daily death/case ratio"</span>, <span class="st">"Delay factor z"</span>, <span class="st">"Fixed-input CFR"</span>),</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">Value =</span> <span class="fu">c</span>(<span class="fu">fmt_pct</span>(observed_ratio, <span class="dv">2</span>), <span class="fu">sprintf</span>(<span class="st">"%.4f"</span>, z), <span class="fu">fmt_pct</span>(cfr_plugin, <span class="dv">2</span>))</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>), <span class="at">align =</span> <span class="fu">c</span>(<span class="st">"l"</span>, <span class="st">"r"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Quantity</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Aligned daily death/case ratio</td>
+<td style="text-align: right;">1.43%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Delay factor z</td>
+<td style="text-align: right;">0.0832</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Fixed-input CFR</td>
+<td style="text-align: right;">17.15%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The correction raises the aligned ratio from 1.43% to 17.15%. This is close to the reported 18%, but it is a <strong>fixed-input reconstruction</strong>. Substituting marginal parameter modes into a formula does not reproduce the mode of a posterior that integrates over those parameters, or its 11–81% credible interval.</p>
+</section>
+<section id="how-strongly-does-the-answer-depend-on-the-delay" class="level3">
+<h3 class="anchored" data-anchor-id="how-strongly-does-the-answer-depend-on-the-delay">How strongly does the answer depend on the delay?</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>sensitivity <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">r =</span> <span class="fu">seq</span>(<span class="fl">0.05</span>, <span class="fl">0.18</span>, <span class="at">by =</span> <span class="fl">0.001</span>),</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                           <span class="at">mean_days =</span> <span class="fu">c</span>(<span class="dv">18</span>, <span class="fl">22.3</span>, <span class="dv">30</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>sensitivity<span class="sc">$</span>cfr <span class="ot">&lt;-</span> <span class="fu">with</span>(sensitivity,</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  observed_ratio <span class="sc">/</span> <span class="fu">delay_factor</span>(r, mean_days, death_cv))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>sensitivity<span class="sc">$</span>mean_label <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">paste</span>(sensitivity<span class="sc">$</span>mean_days, <span class="st">"days"</span>),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                                <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"18 days"</span>, <span class="st">"22.3 days"</span>, <span class="st">"30 days"</span>))</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sensitivity, <span class="fu">aes</span>(r, cfr, <span class="at">colour =</span> mean_label)) <span class="sc">+</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> growth_rate, <span class="at">linetype =</span> <span class="st">"dotted"</span>) <span class="sc">+</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">labels =</span> axis_pct) <span class="sc">+</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"grey50"</span>, <span class="st">"firebrick"</span>, <span class="st">"steelblue"</span>),</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>                      <span class="at">name =</span> <span class="st">"Mean onset-to-death delay"</span>) <span class="sc">+</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Exponential growth rate per day"</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Inferred CFR</span><span class="sc">\n</span><span class="st">among detected cases"</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Longer delays imply more outcomes still to come"</span>) <span class="sc">+</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div id="fig-cfr-sensitivity" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Three increasing curves show higher inferred case fatality ratios at higher growth rates and longer mean onset-to-death delays. A dotted line marks growth rate 0.14 per day.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-cfr-sensitivity-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-cfr-sensitivity-1.png" class="img-fluid figure-img" alt="Three increasing curves show higher inferred case fatality ratios at higher growth rates and longer mean onset-to-death delays. A dotted line marks growth rate 0.14 per day." width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cfr-sensitivity-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Fixed-input Hubei CFR calculated from 45/3,156, for three assumed mean delays and varying epidemic growth. The coefficient of variation is held at 0.42. These are sensitivity scenarios, not posterior intervals.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>For the same observed ratio, faster growth or longer delays generally imply more eventual deaths that have not yet appeared. The plot concerns inference under different assumptions; changing an assumed delay does not itself change the biological fatality risk.</p>
+</section>
+</section>
+<section id="what-the-traveller-follow-up-contributes" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-traveller-follow-up-contributes">What the traveller follow-up contributes</h2>
+<p>The original traveller dataset is available in a <a href="https://raw.githubusercontent.com/midas-network/COVID-19/945c7e100c0ee97b15ddc7bf3b8d33995402878d/data/cases/global/line_listings_imperial_college/international_cases_2020_08_02.csv">pinned MIDAS archive</a>. The local <a href="traveller-followup.tsv">follow-up table</a> retains elapsed times, outcome categories and an onset-imputation flag. Its transformation and source checksum are documented in <a href="source_provenance.txt">the provenance file</a>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>travellers <span class="ot">&lt;-</span> <span class="fu">read.delim</span>(<span class="st">"traveller-followup.tsv"</span>, <span class="at">na.strings =</span> <span class="st">"NA"</span>,</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                        <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">nrow</span>(travellers) <span class="sc">==</span> <span class="dv">290</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>          <span class="fu">sum</span>(travellers<span class="sc">$</span>onset_imputed) <span class="sc">==</span> <span class="dv">141</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>          <span class="fu">sum</span>(travellers<span class="sc">$</span>outcome <span class="sc">==</span> <span class="st">"death"</span>) <span class="sc">==</span> <span class="dv">2</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>          <span class="fu">sum</span>(travellers<span class="sc">$</span>outcome <span class="sc">==</span> <span class="st">"recovery"</span>) <span class="sc">==</span> <span class="dv">36</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>          <span class="fu">sum</span>(travellers<span class="sc">$</span>outcome <span class="sc">==</span> <span class="st">"unresolved"</span>) <span class="sc">==</span> <span class="dv">252</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>          <span class="fu">all</span>(travellers<span class="sc">$</span>followup_days <span class="sc">&gt;=</span> <span class="dv">0</span>))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">as.data.frame</span>(<span class="fu">table</span>(travellers<span class="sc">$</span>outcome)),</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>             <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Outcome recorded by 8 February"</span>, <span class="st">"Cases"</span>),</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>             <span class="at">align =</span> <span class="fu">c</span>(<span class="st">"l"</span>, <span class="st">"r"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Outcome recorded by 8 February</th>
+<th style="text-align: right;">Cases</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">death</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">recovery</td>
+<td style="text-align: right;">36</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">unresolved</td>
+<td style="text-align: right;">252</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>For 141 cases, onset is imputed as the earliest recorded healthcare contact, report or confirmation date. This follows the report’s approach but substitutes the latest plausible onset for an unknown earlier date. The implied follow-up can therefore be too short. Of the 36 recoveries, 29 have an observed onset date, which helps explain the different recovery counts used for case follow-up and delay estimation.</p>
+<section id="death-recovery-and-an-unresolved-outcome-enter-differently" class="level3">
+<h3 class="anchored" data-anchor-id="death-recovery-and-an-unresolved-outcome-enter-differently">Death, recovery and an unresolved outcome enter differently</h3>
+<p>For a patient who remains unresolved at follow-up age <span class="math inline">\(a\)</span>, the likelihood contribution is</p>
+<p><span class="math display">\[
+L_U(c;a)=c\{1-F_D(a)\}+(1-c)\{1-F_R(a)\}.
+\]</span></p>
+<p>The patient may eventually die, with probability <span class="math inline">\(c\)</span>, or recover, with probability <span class="math inline">\(1-c\)</span>. Either possibility must have a delay long enough for the outcome still to be unobserved. A recorded death during the day <span class="math inline">\([a,a+1)\)</span> contributes</p>
+<p><span class="math display">\[
+L_D(c;a)=c\{F_D(a+1)-F_D(a)\},
+\]</span></p>
+<p>and a recovery contributes</p>
+<p><span class="math display">\[
+L_R(c;a)=(1-c)\{F_R(a+1)-F_R(a)\}.
+\]</span></p>
+<p>The full likelihood multiplies these contributions over patients. This mixture model considers two eventual outcomes; the probabilities above are contributions to that likelihood, rather than hazards conditional on still being unresolved. <span class="citation" data-cites="ghani2005">(<a href="#ref-ghani2005" role="doc-biblioref">4</a>)</span></p>
+<p>For the R demonstration, dates are treated as day bins, and follow-up ends after 8 February. Hence an unresolved case has censoring age <code>followup_days + 1</code>. We fix both gamma distributions at the values above. The event-day factors in braces are then constant in <span class="math inline">\(c\)</span> and can be dropped when finding the likelihood’s shape in <span class="math inline">\(c\)</span>. They would be needed for joint estimation of the delay parameters.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>travellers<span class="sc">$</span>surv_death <span class="ot">&lt;-</span> <span class="fu">pgamma</span>(travellers<span class="sc">$</span>followup_days <span class="sc">+</span> <span class="dv">1</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                              death_shape, <span class="at">rate =</span> death_rate, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>travellers<span class="sc">$</span>surv_recovery <span class="ot">&lt;-</span> <span class="fu">pgamma</span>(travellers<span class="sc">$</span>followup_days <span class="sc">+</span> <span class="dv">1</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>                                 recovery_shape, <span class="at">rate =</span> recovery_rate,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>loglik_c <span class="ot">&lt;-</span> <span class="cf">function</span>(c, cases, <span class="at">include_recovery =</span> <span class="cn">TRUE</span>) {</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  dead <span class="ot">&lt;-</span> cases<span class="sc">$</span>outcome <span class="sc">==</span> <span class="st">"death"</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (include_recovery) {</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    recovered <span class="ot">&lt;-</span> cases<span class="sc">$</span>outcome <span class="sc">==</span> <span class="st">"recovery"</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    unresolved <span class="ot">&lt;-</span> cases<span class="sc">$</span>outcome <span class="sc">==</span> <span class="st">"unresolved"</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(dead) <span class="sc">*</span> <span class="fu">log</span>(c) <span class="sc">+</span> <span class="fu">sum</span>(recovered) <span class="sc">*</span> <span class="fu">log1p</span>(<span class="sc">-</span>c) <span class="sc">+</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>      <span class="fu">sum</span>(<span class="fu">log</span>(c <span class="sc">*</span> cases<span class="sc">$</span>surv_death[unresolved] <span class="sc">+</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>                (<span class="dv">1</span> <span class="sc">-</span> c) <span class="sc">*</span> cases<span class="sc">$</span>surv_recovery[unresolved]))</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Coarsen recoveries and unresolved cases to "not dead by the cutoff".</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(dead) <span class="sc">*</span> <span class="fu">log</span>(c) <span class="sc">+</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>      <span class="fu">sum</span>(<span class="fu">log1p</span>(<span class="sc">-</span>c <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> cases<span class="sc">$</span>surv_death[<span class="sc">!</span>dead])))</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>c_grid <span class="ot">&lt;-</span> (<span class="fu">seq_len</span>(<span class="dv">20000</span>) <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> <span class="dv">20000</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>ll_both <span class="ot">&lt;-</span> <span class="fu">vapply</span>(c_grid, loglik_c, <span class="fu">numeric</span>(<span class="dv">1</span>), <span class="at">cases =</span> travellers)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>ll_death <span class="ot">&lt;-</span> <span class="fu">vapply</span>(c_grid, loglik_c, <span class="fu">numeric</span>(<span class="dv">1</span>), <span class="at">cases =</span> travellers,</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>                  <span class="at">include_recovery =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>grid_posterior <span class="ot">&lt;-</span> <span class="cf">function</span>(log_likelihood) {</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  weight <span class="ot">&lt;-</span> <span class="fu">exp</span>(log_likelihood <span class="sc">-</span> <span class="fu">max</span>(log_likelihood))</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  weight <span class="sc">/</span> <span class="fu">sum</span>(weight)  <span class="co"># uniform prior on c between 0 and 1</span></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>posterior_both <span class="ot">&lt;-</span> <span class="fu">grid_posterior</span>(ll_both)</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>posterior_death <span class="ot">&lt;-</span> <span class="fu">grid_posterior</span>(ll_death)</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>summarise_grid <span class="ot">&lt;-</span> <span class="cf">function</span>(weight) {</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>  q <span class="ot">&lt;-</span> <span class="cf">function</span>(p) c_grid[<span class="fu">which</span>(<span class="fu">cumsum</span>(weight) <span class="sc">&gt;=</span> p)[<span class="dv">1</span>]]</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">mode =</span> c_grid[<span class="fu">which.max</span>(weight)], <span class="at">lower =</span> <span class="fu">q</span>(<span class="fl">0.025</span>), <span class="at">upper =</span> <span class="fu">q</span>(<span class="fl">0.975</span>))</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>traveller_results <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Deaths and recoveries"</span> <span class="ot">=</span> <span class="fu">summarise_grid</span>(posterior_both),</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Deaths only"</span> <span class="ot">=</span> <span class="fu">summarise_grid</span>(posterior_death)</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">apply</span>(traveller_results, <span class="dv">2</span>, fmt_pct),</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>             <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Conditional mode"</span>, <span class="st">"Lower 95% bound"</span>, <span class="st">"Upper 95% bound"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Conditional mode</th>
+<th style="text-align: left;">Lower 95% bound</th>
+<th style="text-align: left;">Upper 95% bound</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">5.9%</td>
+<td style="text-align: left;">1.8%</td>
+<td style="text-align: left;">19.1%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">3.8%</td>
+<td style="text-align: left;">1.2%</td>
+<td style="text-align: left;">13.4%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p><code>vapply()</code> evaluates one candidate CFR at a time; <code>numeric(1)</code> checks that each evaluation returns one log-likelihood value. Normalising those likelihood weights implements a Bayesian update with the uniform prior specified in our example.</p>
+<p>These intervals are <strong>conditional credible intervals from this demonstration</strong>. Report 4 integrated over delay uncertainty on a multi-parameter grid. Fixing those delays, choosing an explicit day-bin convention and adding our stated prior will not recover its marginal posterior intervals.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>posterior_plot <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">cfr =</span> c_grid, <span class="at">density =</span> posterior_both <span class="sc">*</span> <span class="fu">length</span>(c_grid),</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>             <span class="at">method =</span> <span class="st">"Deaths and recoveries"</span>),</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">cfr =</span> c_grid, <span class="at">density =</span> posterior_death <span class="sc">*</span> <span class="fu">length</span>(c_grid),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>             <span class="at">method =</span> <span class="st">"Deaths only"</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(posterior_plot, <span class="fu">aes</span>(cfr, density, <span class="at">colour =</span> method)) <span class="sc">+</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> axis_pct) <span class="sc">+</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"steelblue"</span>, <span class="st">"firebrick"</span>), <span class="at">name =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.3</span>)) <span class="sc">+</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"CFR among detected traveller cases"</span>, <span class="at">y =</span> <span class="st">"Posterior density"</span>,</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Follow-up outcomes constrain the CFR"</span>,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Conditional on fixed delay distributions and a uniform CFR prior"</span>) <span class="sc">+</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div id="fig-traveller-posterior" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Two posterior density curves for the traveller case fatality ratio, comparing a model that uses recovery outcomes with one that retains death outcomes only. Both show uncertainty despite using 290 case records.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-traveller-posterior-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-traveller-posterior-1.png" class="img-fluid figure-img" alt="Two posterior density curves for the traveller case fatality ratio, comparing a model that uses recovery outcomes with one that retains death outcomes only. Both show uncertainty despite using 290 case records." width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-traveller-posterior-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Conditional traveller CFR posterior densities under fixed gamma delay parameters, an inclusive 8 February cutoff and a uniform CFR prior. The original 290-case dataset supplies the outcomes. These curves are new calculations, not Report 4’s marginal posteriors.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The observed fractions are 0.69% for deaths divided by all cases and 5.26% for deaths divided by completed outcomes. The first treats unresolved patients as if none will die. The second selects patients whose outcomes have already occurred; that selection depends on the relative death and recovery delays. Neither fraction supplies the general solution to incomplete follow-up. <span class="citation" data-cites="ghani2005">(<a href="#ref-ghani2005" role="doc-biblioref">4</a>)</span></p>
+</section>
+</section>
+<section id="following-a-fixed-case-cohort-forward" class="level2">
+<h2 class="anchored" data-anchor-id="following-a-fixed-case-cohort-forward">Following a fixed case cohort forward</h2>
+<p>The same delay distribution can turn a candidate CFR into an expected death trajectory. For a fixed cohort with onset dates <span class="math inline">\(o_i\)</span>, the expected cumulative number of deaths by date <span class="math inline">\(t\)</span> is</p>
+<p><span class="math display">\[
+E[D_{\mathrm{cum}}(t)\mid\{o_i\},c]
+=c\sum_i F_D(t-o_i),
+\]</span></p>
+<p>where <span class="math inline">\(F_D(a)=0\)</span> for <span class="math inline">\(a&lt;0\)</span>. This is the discrete-cohort version of the projection rule behind Report 4’s Figure 2. No cases acquired after the cohort cutoff are added. <span class="citation" data-cites="dorigatti2020report4">(<a href="#ref-dorigatti2020report4" role="doc-biblioref">2</a>, Methods E)</span></p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>cutoff <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="st">"2020-02-08"</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>onset_dates <span class="ot">&lt;-</span> cutoff <span class="sc">-</span> travellers<span class="sc">$</span>followup_days</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>projection_dates <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"2020-01-21"</span>), <span class="fu">as.Date</span>(<span class="st">"2020-02-29"</span>), <span class="at">by =</span> <span class="st">"day"</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>cohort_cfr <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.01</span>, <span class="fl">0.03</span>, <span class="fl">0.05</span>, <span class="fl">0.07</span>, <span class="fl">0.09</span>, <span class="fl">0.11</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>expected_fatal_fraction <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="fu">seq_along</span>(projection_dates), <span class="cf">function</span>(j) {</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  ages <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(projection_dates[j] <span class="sc">-</span> onset_dates) <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>(<span class="fu">pgamma</span>(<span class="fu">pmax</span>(ages, <span class="dv">0</span>), death_shape, <span class="at">rate =</span> death_rate))</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>projection <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(cohort_cfr, <span class="cf">function</span>(c) {</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">date =</span> projection_dates,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>             <span class="at">expected_deaths =</span> c <span class="sc">*</span> expected_fatal_fraction,</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>             <span class="at">cfr =</span> <span class="fu">factor</span>(<span class="fu">fmt_pct</span>(c, <span class="dv">0</span>), <span class="at">levels =</span> <span class="fu">fmt_pct</span>(cohort_cfr, <span class="dv">0</span>)))</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>}))</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>death_rows <span class="ot">&lt;-</span> travellers<span class="sc">$</span>outcome <span class="sc">==</span> <span class="st">"death"</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>observed_death_dates <span class="ot">&lt;-</span> <span class="fu">sort</span>(onset_dates[death_rows] <span class="sc">+</span> travellers<span class="sc">$</span>outcome_days[death_rows])</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>observed_points <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">date =</span> observed_death_dates,</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>                              <span class="at">cumulative_deaths =</span> <span class="fu">seq_along</span>(observed_death_dates))</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(projection, <span class="fu">aes</span>(date, expected_deaths, <span class="at">colour =</span> cfr)) <span class="sc">+</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> observed_points, <span class="fu">aes</span>(date, cumulative_deaths),</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>             <span class="at">inherit.aes =</span> <span class="cn">FALSE</span>, <span class="at">colour =</span> <span class="st">"black"</span>, <span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> cutoff, <span class="at">linetype =</span> <span class="st">"dotted"</span>) <span class="sc">+</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_date</span>(<span class="at">date_breaks =</span> <span class="st">"1 week"</span>, <span class="at">date_labels =</span> <span class="st">"%d %b"</span>) <span class="sc">+</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_brewer</span>(<span class="at">palette =</span> <span class="st">"Dark2"</span>, <span class="at">name =</span> <span class="st">"Candidate CFR"</span>) <span class="sc">+</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Calendar date"</span>, <span class="at">y =</span> <span class="st">"Expected cumulative</span><span class="sc">\n</span><span class="st">number of deaths"</span>,</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"A fixed cohort provides a check as outcomes accumulate"</span>) <span class="sc">+</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div id="fig-cohort-projection" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Expected cumulative-death curves rise over calendar time, with higher candidate case fatality ratios producing higher curves. Two observed-death points are shown before the cohort cutoff.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-cohort-projection-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="index_files/figure-html/fig-cohort-projection-1.png" class="img-fluid figure-img" alt="Expected cumulative-death curves rise over calendar time, with higher candidate case fatality ratios producing higher curves. Two observed-death points are shown before the cohort cutoff." width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cohort-projection-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Expected cumulative deaths in the 290-case traveller cohort under candidate CFRs, using observed or imputed onsets and the fixed gamma death-delay distribution. Points show the two deaths recorded by 8 February. This reconstructs the projection rule rather than the exact published Figure 2.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>These are expected counts conditional on the cohort’s onset dates and the candidate CFR, evaluated at the end of each plotted day. They do not show a prediction interval or condition on each patient’s already observed recovery or survival history. Forecasting the remaining deaths among unresolved patients would require that additional conditioning. The full 290-case cohort and explicit day-bin convention also make this a reconstruction of the method rather than an exact reproduction of the published graph.</p>
+</section>
+<section id="repatriation-flights-supply-a-different-denominator" class="level2">
+<h2 class="anchored" data-anchor-id="repatriation-flights-supply-a-different-denominator">Repatriation flights supply a different denominator</h2>
+<p>To estimate infection prevalence, Report 4 pooled four flights with ten positive passengers. The tabulated passenger counts sum to 740, including an assumed 200 for one flight; the text rounds this total to approximately 750. <span class="citation" data-cites="dorigatti2020report4">(<a href="#ref-dorigatti2020report4" role="doc-biblioref">2</a>, Table 3)</span></p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>flights <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">flight =</span> <span class="fu">c</span>(<span class="st">"Japan 1"</span>, <span class="st">"Japan 2"</span>, <span class="st">"Japan 3"</span>, <span class="st">"Germany"</span>),</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">passengers =</span> <span class="fu">c</span>(<span class="dv">206</span>, <span class="dv">210</span>, <span class="dv">200</span>, <span class="dv">124</span>),</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">positive =</span> <span class="fu">c</span>(<span class="dv">4</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>screened <span class="ot">&lt;-</span> <span class="fu">sum</span>(flights<span class="sc">$</span>passengers)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>positive <span class="ot">&lt;-</span> <span class="fu">sum</span>(flights<span class="sc">$</span>positive)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>prevalence_fit <span class="ot">&lt;-</span> <span class="fu">binom.test</span>(positive, screened)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>prevalence <span class="ot">&lt;-</span> positive <span class="sc">/</span> screened</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>prevalence_ci <span class="ot">&lt;-</span> <span class="fu">unname</span>(prevalence_fit<span class="sc">$</span>conf.int)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">Quantity =</span> <span class="fu">c</span>(<span class="st">"Passengers"</span>, <span class="st">"Positive tests"</span>, <span class="st">"Detected prevalence"</span>, <span class="st">"Exact 95% interval"</span>),</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">Value =</span> <span class="fu">c</span>(screened, positive, <span class="fu">fmt_pct</span>(prevalence, <span class="dv">2</span>),</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>            <span class="fu">paste</span>(<span class="fu">fmt_pct</span>(prevalence_ci, <span class="dv">2</span>), <span class="at">collapse =</span> <span class="st">" to "</span>))</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>), <span class="at">align =</span> <span class="fu">c</span>(<span class="st">"l"</span>, <span class="st">"r"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Quantity</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Passengers</td>
+<td style="text-align: right;">740</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Positive tests</td>
+<td style="text-align: right;">10</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Detected prevalence</td>
+<td style="text-align: right;">1.35%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Exact 95% interval</td>
+<td style="text-align: right;">0.65% to 2.47%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The exact binomial interval describes sampling uncertainty under an exchangeable passenger-testing model. It does not account for the assumed passenger count, imperfect PCR sensitivity or differences between repatriated residents and Wuhan’s population.</p>
+<section id="prevalence-is-a-stock-incidence-is-a-flow" class="level3">
+<h3 class="anchored" data-anchor-id="prevalence-is-a-stock-incidence-is-a-flow">Prevalence is a stock; incidence is a flow</h3>
+<p>A positive PCR result captures infections across several onset dates. For the denominator expansion, <span class="math inline">\(C(t)\)</span> now represents underlying incidence on the onset-time scale, rather than the detected-case stratum used above. Let <span class="math inline">\(w\)</span> be the detectable window in days, starting <span class="math inline">\(l\)</span> days before onset; let <span class="math inline">\(N\)</span> be population size and <span class="math inline">\(y(t)\)</span> detectable prevalence. The window model gives</p>
+<p><span class="math display">\[
+y(t)=\frac{1}{N}\int_{-l}^{w-l}C(t-u)\,du.
+\]</span></p>
+<p>For exponential onset incidence,</p>
+<p><span class="math display">\[
+y(t)=\frac{C(t+l)}{rN}\{1-e^{-rw}\},
+\qquad
+C(t)=\frac{Nry(t)e^{-rl}}{1-e^{-rw}}.
+\]</span></p>
+<p>The integral has units of days, so the factor <span class="math inline">\(1/r\)</span> is necessary. As <span class="math inline">\(r\to0\)</span>, the expression becomes the familiar relation <span class="math inline">\(y(t)\approx wC(t)/N\)</span>. Faster growth changes the effective length of the window because older onset cohorts were smaller. Applying this onset-based window to asymptomatic infections also requires a notional onset clock; an infection-time model would avoid that particular approximation.</p>
+</section>
+<section id="check-both-the-arithmetic-and-its-date-label" class="level3">
+<h3 class="anchored" data-anchor-id="check-both-the-arithmetic-and-its-date-label">Check both the arithmetic and its date label</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>wuhan_population <span class="ot">&lt;-</span> <span class="fl">11e6</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>presymptomatic_days <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>wuhan_reported_cases <span class="ot">&lt;-</span> <span class="dv">1242</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>published_hubei_cfr <span class="ot">&lt;-</span> <span class="fl">0.18</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>effective_window <span class="ot">&lt;-</span> <span class="cf">function</span>(r, window_days) {</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">abs</span>(r) <span class="sc">&lt;</span> <span class="fl">1e-10</span>) window_days <span class="cf">else</span> <span class="sc">-</span><span class="fu">expm1</span>(<span class="sc">-</span>r <span class="sc">*</span> window_days) <span class="sc">/</span> r</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>window_days <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">14</span>, <span class="dv">7</span>)</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>window_effective <span class="ot">&lt;-</span> <span class="fu">vapply</span>(window_days, <span class="cf">function</span>(w) {</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">effective_window</span>(growth_rate, w)</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">effective_window</span>(<span class="dv">0</span>, <span class="dv">14</span>) <span class="sc">==</span> <span class="dv">14</span>)</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="co"># C(t + l) is the incidence directly obtained before shifting back by l days.</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>incidence_shifted <span class="ot">&lt;-</span> wuhan_population <span class="sc">*</span> prevalence <span class="sc">/</span> window_effective</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>incidence_same_day <span class="ot">&lt;-</span> incidence_shifted <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span>growth_rate <span class="sc">*</span> presymptomatic_days)</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>scaling_shifted <span class="ot">&lt;-</span> incidence_shifted <span class="sc">/</span> wuhan_reported_cases</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>ifr_arithmetic <span class="ot">&lt;-</span> published_hubei_cfr <span class="sc">/</span> scaling_shifted</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>infection_results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Detectable days"</span> <span class="ot">=</span> window_days,</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Incidence C(t)"</span> <span class="ot">=</span> <span class="fu">fmt_count</span>(incidence_same_day),</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Incidence C(t + 1)"</span> <span class="ot">=</span> <span class="fu">fmt_count</span>(incidence_shifted),</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Report-style factor"</span> <span class="ot">=</span> <span class="fu">sprintf</span>(<span class="st">"%.1f"</span>, scaling_shifted),</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>  <span class="st">"18% divided by factor"</span> <span class="ot">=</span> <span class="fu">fmt_pct</span>(ifr_arithmetic, <span class="dv">2</span>),</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(infection_results, <span class="at">align =</span> <span class="fu">c</span>(<span class="st">"r"</span>, <span class="st">"r"</span>, <span class="st">"r"</span>, <span class="st">"r"</span>, <span class="st">"r"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 16%">
+<col style="width: 20%">
+<col style="width: 21%">
+<col style="width: 23%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Detectable days</th>
+<th style="text-align: right;">Incidence C(t)</th>
+<th style="text-align: right;">Incidence C(t + 1)</th>
+<th style="text-align: right;">Report-style factor</th>
+<th style="text-align: right;">18% divided by factor</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">21,058</td>
+<td style="text-align: right;">24,223</td>
+<td style="text-align: right;">19.5</td>
+<td style="text-align: right;">0.92%</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">28,962</td>
+<td style="text-align: right;">33,314</td>
+<td style="text-align: right;">26.8</td>
+<td style="text-align: right;">0.67%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The shifted calculation gives roughly 24,000 and 33,000 daily onsets, close to the report’s arithmetic. Under the literal window definition, those are values of <span class="math inline">\(C(t+1)\)</span>; <span class="math inline">\(C(t)\)</span> is one day’s growth smaller. The tabulated factor is therefore a report-style arithmetic reconstruction, rather than a demonstrated estimate from fully aligned populations and dates. The distinction matters when comparing with case reports after an assumed reporting delay.</p>
+<p>Dividing 18% by the shifted scaling factor yields 0.92% for 14 days and 0.67% for seven days. The latter differs from the published 0.8%. We retain that difference: the report does not specify enough numerical detail to reproduce every reported summary by dividing rounded central estimates.</p>
+</section>
+<section id="what-the-scaling-assumes-about-deaths" class="level3">
+<h3 class="anchored" data-anchor-id="what-the-scaling-assumes-about-deaths">What the scaling assumes about deaths</h3>
+<p>Let <span class="math inline">\(U=I/C_{\mathrm{detected}}\)</span> be the ratio of all infections to detected cases, and <span class="math inline">\(a_D\)</span> the fraction of fatal infections whose deaths are recorded. Write <span class="math inline">\(R_{\mathrm{rep}}\)</span> for the delay-adjusted recorded-death/reported-case ratio. Once the time periods and populations align,</p>
+<p><span class="math display">\[
+R_{\mathrm{rep}}
+\approx a_DU\,\mathrm{IFR},
+\qquad
+\mathrm{IFR}\approx\frac{R_{\mathrm{rep}}}{a_DU}.
+\]</span></p>
+<p>When fatal infections are detected and included in the case series, complete death reporting makes <span class="math inline">\(R_{\mathrm{rep}}\)</span> equal to the detected-case CFR. The simple division by <span class="math inline">\(U\)</span> assumes this condition and <span class="math inline">\(a_D=1\)</span>. It also transfers an ascertainment estimate from Wuhan to the Hubei CFR calculation. Different death reporting, test sensitivity, population composition or timing would change the relationship. These assumptions enter the interpretation of the estimate, beyond the passenger sample’s binomial uncertainty.</p>
+</section>
+</section>
+<section id="what-can-be-reproduced-from-the-report" class="level2">
+<h2 class="anchored" data-anchor-id="what-can-be-reproduced-from-the-report">What can be reproduced from the report?</h2>
+<p>The aggregate calculation, flight totals and traveller follow-up provide useful checks on the order of magnitude and the mechanisms of inference. Reproducing all published intervals requires the joint delay posterior, its prior bounds and the numerical grid. The report does not fully specify those ingredients.</p>
+<p>There are also details that need care when implementing its printed equations:</p>
+<ul>
+<li>The backward-delay weighting must be <span class="math inline">\(e^{-ru}\)</span>, as follows from <span class="math inline">\(O(d-u)\)</span> and the stated gamma mean transformation; an intermediate display prints the opposite sign.</li>
+<li>The aggregate likelihood is described as binomial, while its printed posterior kernel has Poisson form.</li>
+<li>The evaluated prevalence integral needs <span class="math inline">\(1/r\)</span>, and its numerical incidence appears to use the one-day-shifted quantity shown above.</li>
+</ul>
+<p>These are reasons to derive the expressions and state implementation choices. They do not justify choosing parameters solely to force a match to the published numbers.</p>
+</section>
+<section id="what-later-evidence-added" class="level2">
+<h2 class="anchored" data-anchor-id="what-later-evidence-added">What later evidence added</h2>
+<p>Verity and colleagues’ expanded analysis, published online on 30 March 2020, estimated a mean onset-to-death interval of 17.8 days and an overall IFR for China of 0.66% (95% credible interval 0.39–1.33%). It incorporated substantially more information and age-specific analysis. Those are later estimates, rather than inputs available to the 10 February report. <span class="citation" data-cites="verity2020">(<a href="#ref-verity2020" role="doc-biblioref">6</a>)</span></p>
+<p>The <a href="https://github.com/mrc-ide/COVID19_CFR_submission">associated code repository</a> reproduces that later journal analysis. Its availability does not establish that it implements Report 4’s earlier numerical grid.</p>
+</section>
+<section id="reading-the-severity-estimate-carefully" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-severity-estimate-carefully">Reading the severity estimate carefully</h2>
+<p>Report 3 inferred transmission from the outbreak size. Report 4 inferred eventual clinical outcomes from incomplete follow-up, then used infection screening to enlarge the denominator. In both cases, the observation process connects the model to the quantity we want to estimate.</p>
+<p>A severity estimate needs a population, a case definition, a follow-up window and assumptions about detection. The calculations here show why both the delay distribution and the ascertainment mechanism belong alongside the reported percentage. More complete follow-up and representative infection surveys resolve different parts of that uncertainty.</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<div id="refs" class="references csl-bib-body" role="list">
+<div id="ref-imai2020report3" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Imai N, Cori A, Dorigatti I, Baguelin M, Donnelly CA, Riley S, et al. Report 3: Transmissibility of 2019-<span class="nocase">nCoV</span> [Internet]. Imperial College London; 2020. Available from: <a href="https://doi.org/10.25561/77148">https://doi.org/10.25561/77148</a> doi:<a href="https://doi.org/10.25561/77148">10.25561/77148</a></div>
+</div>
+<div id="ref-dorigatti2020report4" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline"><span class="nocase">Dorigatti I, Okell L, Cori A, Imai N, Baguelin M, et al.</span> Report 4: Severity of 2019-novel coronavirus (<span class="nocase">nCoV</span>) [Internet]. Imperial College London; 2020. Available from: <a href="https://www.imperial.ac.uk/media/imperial-college/medicine/mrc-gida/2020-02-10-COVID19-Report-4.pdf">https://www.imperial.ac.uk/media/imperial-college/medicine/mrc-gida/2020-02-10-COVID19-Report-4.pdf</a> doi:<a href="https://doi.org/10.25561/77154">10.25561/77154</a></div>
+</div>
+<div id="ref-lipsitch2015" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline"><span class="nocase">Lipsitch M, Donnelly CA, Fraser C, Blake IM, Cori A, Dorigatti I, et al.</span> Potential biases in estimating absolute and relative case-fatality risks during outbreaks. PLOS Neglected Tropical Diseases. 2015;9(7):e0003846. doi:<a href="https://doi.org/10.1371/journal.pntd.0003846">10.1371/journal.pntd.0003846</a></div>
+</div>
+<div id="ref-ghani2005" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><span class="nocase">Ghani AC, Donnelly CA, Cox DR, Griffin JT, Fraser C, et al.</span> Methods for estimating the case fatality ratio for a novel, emerging infectious disease. American Journal of Epidemiology. 2005;162(5):479–86. doi:<a href="https://doi.org/10.1093/aje/kwi230">10.1093/aje/kwi230</a></div>
+</div>
+<div id="ref-charniga2024" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline"><span class="nocase">Charniga K, Park SW, Akhmetzhanov AR, Cori A, Dushoff J, Funk S, et al.</span> Best practices for estimating and reporting epidemiological delay distributions of infectious diseases. PLOS Computational Biology. 2024;20(10):e1012520. doi:<a href="https://doi.org/10.1371/journal.pcbi.1012520">10.1371/journal.pcbi.1012520</a></div>
+</div>
+<div id="ref-verity2020" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline"><span class="nocase">Verity R, Okell LC, Dorigatti I, Winskill P, Whittaker C, Imai N, et al.</span> Estimates of the severity of coronavirus disease 2019: A model-based analysis. The Lancet Infectious Diseases. 2020;20(6):669–77. doi:<a href="https://doi.org/10.1016/S1473-3099(20)30243-7">10.1016/S1473-3099(20)30243-7</a></div>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.jonghoonk\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

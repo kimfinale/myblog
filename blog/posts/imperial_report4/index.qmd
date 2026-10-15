@@ -1,0 +1,534 @@
+---
+title: "From Reported Deaths to Fatality Risk: Imperial's Fourth COVID-19 Report"
+author: "Jong-Hoon Kim"
+date: "2026-10-13"
+draft: true
+lang: en
+categories: [R, COVID-19, epidemiology, case fatality ratio, survival analysis, statistical inference]
+description: "Reading Imperial's fourth COVID-19 report: how delayed outcomes and incomplete case detection shaped early fatality estimates, with R reconstructions using the original traveller data."
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+comments: false
+format:
+  html:
+    css: styles.css
+    toc: true
+    toc-depth: 2
+    code-fold: true
+    code-summary: "Show code"
+    code-copy: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(ggplot2)
+options(width = 85)
+theme_set(theme_minimal(base_size = 12))
+fmt_pct <- function(x, digits = 1) paste0(formatC(100 * x, format = "f", digits = digits), "%")
+fmt_count <- function(x) format(round(x), big.mark = ",", scientific = FALSE, trim = TRUE)
+axis_pct <- function(x) fmt_pct(x, digits = 0)
+```
+
+## After transmissibility, a question about severity
+
+The [previous post](https://www.jonghoonk.com/blog/posts/imperial_report3/) examined Imperial College London's third COVID-19 report: how an inferred outbreak size could inform the reproduction number. The fourth report, published on 10 February 2020, asked how often infection would lead to death. [@imai2020report3; @dorigatti2020report4]
+
+The apparent calculation is simple: divide deaths by cases. The difficulty is deciding which cases belong in the denominator and how many have been followed long enough for their outcomes to be known. These are two different statistical problems, and their corrections can move the estimate in opposite directions. [@lipsitch2015]
+
+We will reconstruct the main calculations in R, examine the likelihood for individual follow-up, and distinguish the report's published estimates from calculations that hold uncertain inputs fixed. The setting throughout is the evidence available in early February 2020.
+
+## Same virus, different denominators
+
+Let $c$ be the probability that a person meeting a specified case definition ultimately dies from the disease. That is a **case fatality ratio**, or CFR. The **infection fatality ratio**, or IFR, instead includes every infected person, including people with mild or no symptoms who never become detected cases. A reported CFR therefore needs its case definition attached. [@lipsitch2015]
+
+Report 4 used three surveillance groups. Its Table 1 reported the following estimates; the final two rows are what we would normally call IFR estimates, although the report used the phrase CFR for all infections. [@dorigatti2020report4, Table 1]
+
+| Population and method | Central estimate | Reported 95% interval |
+|:--|--:|:--|
+| Hubei detected cases, aggregate model | 18% (posterior mode) | 11–81%, credible |
+| Travellers, parametric model with deaths and recoveries | 5.1% (maximum likelihood) | 1.1–38%, credible |
+| Travellers, parametric model using deaths only | 5.6% (posterior mode) | 2.0–85%, credible |
+| Travellers, CASEFAT non-parametric method | 1.2% | 0.9–26%, confidence |
+| All infections, 14-day PCR detection window | 0.9% | 0.5–4.0%, confidence |
+| All infections, 7-day PCR detection window | 0.8% | 0.4–3.0%, confidence |
+
+The table preserves the report's labels for the central estimates and intervals. A credible interval describes posterior uncertainty under a model and prior; a confidence interval belongs to a procedure whose repeated-sampling coverage is assessed under its assumptions. They should not all be relabelled as confidence intervals.
+
+The differences between rows do not by themselves identify geographical differences in biological severity or healthcare quality. Surveillance systems find different parts of the illness spectrum, and the populations they observe can differ in age, exposure and access to care. [@lipsitch2015]
+
+## Why deaths divided by cases is unfinished arithmetic
+
+Suppose a patient developed symptoms $a$ days ago. Write $F_D(a)$ for the probability that a fatal outcome would already have occurred by that age, conditional on the patient eventually dying. Then
+
+$$
+\Pr(\text{death observed by age }a)=cF_D(a).
+$$
+
+Even if every case and death is detected, this probability is smaller than $c$ while $F_D(a)<1$. During a growing epidemic, a large fraction of cases are recent, so many eventual deaths have yet to occur. [@ghani2005]
+
+Incomplete case detection creates a separate denominator problem. If severe illness is easier to detect than mild infection, detected cases are not a representative sample of all infections. Waiting for their outcomes resolves the follow-up problem but does not make their CFR equal to the IFR. [@lipsitch2015]
+
+### Three ways the observation window matters
+
+It helps to distinguish the patient follow-up data from a list containing only completed deaths:
+
+- **Right censoring:** a known patient has an unresolved outcome when follow-up ends.
+- **Right truncation:** a death-only dataset excludes patients whose fatal intervals have not finished by the collection cutoff.
+- **Dynamical bias:** looking backward from deaths during epidemic growth overrepresents short delays, because recent symptom onsets are more numerous.
+
+These distinctions are stated explicitly in later work on epidemiological delays. We use that terminology to explain the earlier report. [@charniga2024]
+
+## The delay distribution and its sampling direction
+
+Let $f_D(u)$ be the forward density of onset-to-death delays among fatal cases, and let $O(t)$ be symptom-onset incidence. Among deaths occurring at date $d$, the density of the elapsed delay is proportional to
+
+$$
+g_D(u\mid d)
+=\frac{f_D(u)O(d-u)}{\int_0^\infty f_D(v)O(d-v)\,dv}.
+$$
+
+Under exponential growth, $O(t)=O_0e^{rt}$, so
+
+$$
+g_D(u\mid d)
+=\frac{f_D(u)e^{-ru}}{\int_0^\infty f_D(v)e^{-rv}\,dv}.
+$$
+
+The factor $e^{-ru}$ reduces the relative weight of long delays. If onset recording began only at $T_{\min}$, the upper integration limit becomes $d-T_{\min}$ and the density is restricted to that interval. Our illustration below isolates the growth effect and does not impose this additional truncation. [@dorigatti2020report4, Methods A; @charniga2024]
+
+### A gamma distribution makes the correction explicit
+
+For a gamma delay with mean $m$ and coefficient of variation $v=\operatorname{SD}/m$,
+
+$$
+\alpha=\frac{1}{v^2},\qquad
+\beta=\frac{1}{mv^2},
+$$
+
+where $\alpha$ is the shape and $\beta$ the rate. Multiplying its density by $e^{-ru}$ changes the rate to $\beta+r$. The backward mean therefore becomes
+
+$$
+m_{\mathrm{back}}=\frac{\alpha}{\beta+r}
+=\frac{m}{1+rmv^2}.
+$$
+
+Report 4's Table 2 gives modes of 22.3 days and 0.42 for the onset-to-death mean and coefficient of variation, and 22.2 days and 0.45 for onset-to-recovery. These are estimates of distribution parameters. An uncertainty interval for $m$ is not an interval containing a specified proportion of patients' delays. [@dorigatti2020report4, Table 2]
+
+```{r}
+#| label: delay-parameters
+growth_rate <- 0.14  # per day; Report 4's aggregate-analysis assumption
+death_mean  <- 22.3
+death_cv    <- 0.42
+recovery_mean <- 22.2
+recovery_cv   <- 0.45
+
+death_shape <- 1 / death_cv^2
+death_rate  <- 1 / (death_mean * death_cv^2)
+recovery_shape <- 1 / recovery_cv^2
+recovery_rate  <- 1 / (recovery_mean * recovery_cv^2)
+backward_mean <- death_shape / (death_rate + growth_rate)
+
+round(c(forward_mean_days = death_mean,
+        backward_mean_days = backward_mean), 2)
+```
+
+The forward mean is 22.3 days, while the mean obtained by sampling backward from deaths in this growing epidemic is `r sprintf("%.2f", backward_mean)` days. A mean calculated from completed deaths cannot be used as a forward delay without considering how those deaths were sampled.
+
+```{r}
+#| label: fig-forward-backward-delay
+#| fig-width: 8
+#| fig-height: 4.5
+#| fig-cap: "Forward onset-to-death density and its exponentially tilted backward density, using fixed Report 4 parameter modes and growth rate 0.14/day. This illustrates the sampling effect; it is not a posterior fit to the original 26 deaths."
+#| fig-alt: "Two gamma densities against days since symptom onset. The backward density peaks earlier than the forward density because short delays receive more weight during epidemic growth."
+delay_days <- seq(0, 70, by = 0.1)
+delay_plot <- rbind(
+  data.frame(days = delay_days,
+             density = dgamma(delay_days, death_shape, rate = death_rate),
+             distribution = "Forward: follow onsets to deaths"),
+  data.frame(days = delay_days,
+             density = dgamma(delay_days, death_shape,
+                              rate = death_rate + growth_rate),
+             distribution = "Backward: look from deaths to onsets")
+)
+ggplot(delay_plot, aes(days, density, colour = distribution)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = c("steelblue", "firebrick"), name = NULL) +
+  labs(x = "Days from symptom onset to death", y = "Probability density",
+       title = "The sampling direction changes the observed delay") +
+  theme(legend.position = "top")
+```
+
+## Reconstructing the Hubei calculation
+
+In this calculation, $C(t)$ is onset incidence among the chosen detected-case stratum, and $c$ is its CFR. Expected death incidence is the convolution
+
+$$
+E[D(t)]=c\int_0^\infty C(t-u)f_D(u)\,du.
+$$
+
+With exponential incidence, this reduces to
+
+$$
+E[D(t)]=czC(t),\qquad
+z=\int_0^\infty e^{-ru}f_D(u)\,du
+=(1+rmv^2)^{-1/v^2}.
+$$
+
+Thus the death-to-onset incidence ratio estimates $cz$. The factor $z$ is the Laplace transform of the delay distribution at growth rate $r$. Dividing the observed ratio by $z$ gives a point estimate of $c$ when the growth rate and delay parameters are held fixed.
+
+### First align the reporting clocks
+
+The comparison in Report 4 uses 45 newly reported deaths on 1 February and 3,156 newly reported cases on 5 February, allowing four days' difference between death and case reporting delays. These are daily counts, not cumulative totals. [@dorigatti2020report4, Methods C]
+
+```{r}
+#| label: aggregate-reconstruction
+reported_deaths <- 45
+reported_cases  <- 3156
+observed_ratio <- reported_deaths / reported_cases
+
+delay_factor <- function(r, mean_delay, cv) {
+  (1 + r * mean_delay * cv^2)^(-1 / cv^2)
+}
+z <- delay_factor(growth_rate, death_mean, death_cv)
+cfr_plugin <- observed_ratio / z
+
+# Independent numerical integration checks the closed-form delay correction.
+z_integrated <- integrate(function(u) {
+  exp(-growth_rate * u) * dgamma(u, death_shape, rate = death_rate)
+}, lower = 0, upper = Inf)$value
+stopifnot(abs(z - z_integrated) < 1e-8, cfr_plugin > 0, cfr_plugin < 1)
+
+knitr::kable(data.frame(
+  Quantity = c("Aligned daily death/case ratio", "Delay factor z", "Fixed-input CFR"),
+  Value = c(fmt_pct(observed_ratio, 2), sprintf("%.4f", z), fmt_pct(cfr_plugin, 2))
+), align = c("l", "r"))
+```
+
+The correction raises the aligned ratio from `r fmt_pct(observed_ratio, 2)` to `r fmt_pct(cfr_plugin, 2)`. This is close to the reported 18%, but it is a **fixed-input reconstruction**. Substituting marginal parameter modes into a formula does not reproduce the mode of a posterior that integrates over those parameters, or its 11–81% credible interval.
+
+### How strongly does the answer depend on the delay?
+
+```{r}
+#| label: fig-cfr-sensitivity
+#| fig-width: 8
+#| fig-height: 4.5
+#| fig-cap: "Fixed-input Hubei CFR calculated from 45/3,156, for three assumed mean delays and varying epidemic growth. The coefficient of variation is held at 0.42. These are sensitivity scenarios, not posterior intervals."
+#| fig-alt: "Three increasing curves show higher inferred case fatality ratios at higher growth rates and longer mean onset-to-death delays. A dotted line marks growth rate 0.14 per day."
+sensitivity <- expand.grid(r = seq(0.05, 0.18, by = 0.001),
+                           mean_days = c(18, 22.3, 30))
+sensitivity$cfr <- with(sensitivity,
+  observed_ratio / delay_factor(r, mean_days, death_cv))
+sensitivity$mean_label <- factor(paste(sensitivity$mean_days, "days"),
+                                levels = c("18 days", "22.3 days", "30 days"))
+ggplot(sensitivity, aes(r, cfr, colour = mean_label)) +
+  geom_line(linewidth = 0.9) +
+  geom_vline(xintercept = growth_rate, linetype = "dotted") +
+  scale_y_continuous(labels = axis_pct) +
+  scale_colour_manual(values = c("grey50", "firebrick", "steelblue"),
+                      name = "Mean onset-to-death delay") +
+  labs(x = "Exponential growth rate per day",
+       y = "Inferred CFR\namong detected cases",
+       title = "Longer delays imply more outcomes still to come") +
+  theme(legend.position = "top")
+```
+
+For the same observed ratio, faster growth or longer delays generally imply more eventual deaths that have not yet appeared. The plot concerns inference under different assumptions; changing an assumed delay does not itself change the biological fatality risk.
+
+## What the traveller follow-up contributes
+
+The original traveller dataset is available in a [pinned MIDAS archive](https://raw.githubusercontent.com/midas-network/COVID-19/945c7e100c0ee97b15ddc7bf3b8d33995402878d/data/cases/global/line_listings_imperial_college/international_cases_2020_08_02.csv). The local [follow-up table](traveller-followup.tsv) retains elapsed times, outcome categories and an onset-imputation flag. Its transformation and source checksum are documented in [the provenance file](source_provenance.txt).
+
+```{r}
+#| label: traveller-data
+travellers <- read.delim("traveller-followup.tsv", na.strings = "NA",
+                        stringsAsFactors = FALSE)
+stopifnot(nrow(travellers) == 290,
+          sum(travellers$onset_imputed) == 141,
+          sum(travellers$outcome == "death") == 2,
+          sum(travellers$outcome == "recovery") == 36,
+          sum(travellers$outcome == "unresolved") == 252,
+          all(travellers$followup_days >= 0))
+
+knitr::kable(as.data.frame(table(travellers$outcome)),
+             col.names = c("Outcome recorded by 8 February", "Cases"),
+             align = c("l", "r"))
+```
+
+For `r sum(travellers$onset_imputed)` cases, onset is imputed as the earliest recorded healthcare contact, report or confirmation date. This follows the report's approach but substitutes the latest plausible onset for an unknown earlier date. The implied follow-up can therefore be too short. Of the 36 recoveries, 29 have an observed onset date, which helps explain the different recovery counts used for case follow-up and delay estimation.
+
+### Death, recovery and an unresolved outcome enter differently
+
+For a patient who remains unresolved at follow-up age $a$, the likelihood contribution is
+
+$$
+L_U(c;a)=c\{1-F_D(a)\}+(1-c)\{1-F_R(a)\}.
+$$
+
+The patient may eventually die, with probability $c$, or recover, with probability $1-c$. Either possibility must have a delay long enough for the outcome still to be unobserved. A recorded death during the day $[a,a+1)$ contributes
+
+$$
+L_D(c;a)=c\{F_D(a+1)-F_D(a)\},
+$$
+
+and a recovery contributes
+
+$$
+L_R(c;a)=(1-c)\{F_R(a+1)-F_R(a)\}.
+$$
+
+The full likelihood multiplies these contributions over patients. This mixture model considers two eventual outcomes; the probabilities above are contributions to that likelihood, rather than hazards conditional on still being unresolved. [@ghani2005]
+
+For the R demonstration, dates are treated as day bins, and follow-up ends after 8 February. Hence an unresolved case has censoring age `followup_days + 1`. We fix both gamma distributions at the values above. The event-day factors in braces are then constant in $c$ and can be dropped when finding the likelihood's shape in $c$. They would be needed for joint estimation of the delay parameters.
+
+```{r}
+#| label: traveller-likelihood
+travellers$surv_death <- pgamma(travellers$followup_days + 1,
+                              death_shape, rate = death_rate, lower.tail = FALSE)
+travellers$surv_recovery <- pgamma(travellers$followup_days + 1,
+                                 recovery_shape, rate = recovery_rate,
+                                 lower.tail = FALSE)
+
+loglik_c <- function(c, cases, include_recovery = TRUE) {
+  dead <- cases$outcome == "death"
+  if (include_recovery) {
+    recovered <- cases$outcome == "recovery"
+    unresolved <- cases$outcome == "unresolved"
+    sum(dead) * log(c) + sum(recovered) * log1p(-c) +
+      sum(log(c * cases$surv_death[unresolved] +
+                (1 - c) * cases$surv_recovery[unresolved]))
+  } else {
+    # Coarsen recoveries and unresolved cases to "not dead by the cutoff".
+    sum(dead) * log(c) +
+      sum(log1p(-c * (1 - cases$surv_death[!dead])))
+  }
+}
+
+c_grid <- (seq_len(20000) - 0.5) / 20000
+ll_both <- vapply(c_grid, loglik_c, numeric(1), cases = travellers)
+ll_death <- vapply(c_grid, loglik_c, numeric(1), cases = travellers,
+                  include_recovery = FALSE)
+
+grid_posterior <- function(log_likelihood) {
+  weight <- exp(log_likelihood - max(log_likelihood))
+  weight / sum(weight)  # uniform prior on c between 0 and 1
+}
+posterior_both <- grid_posterior(ll_both)
+posterior_death <- grid_posterior(ll_death)
+
+summarise_grid <- function(weight) {
+  q <- function(p) c_grid[which(cumsum(weight) >= p)[1]]
+  c(mode = c_grid[which.max(weight)], lower = q(0.025), upper = q(0.975))
+}
+traveller_results <- rbind(
+  "Deaths and recoveries" = summarise_grid(posterior_both),
+  "Deaths only" = summarise_grid(posterior_death)
+)
+knitr::kable(apply(traveller_results, 2, fmt_pct),
+             col.names = c("Conditional mode", "Lower 95% bound", "Upper 95% bound"))
+```
+
+`vapply()` evaluates one candidate CFR at a time; `numeric(1)` checks that each evaluation returns one log-likelihood value. Normalising those likelihood weights implements a Bayesian update with the uniform prior specified in our example.
+
+These intervals are **conditional credible intervals from this demonstration**. Report 4 integrated over delay uncertainty on a multi-parameter grid. Fixing those delays, choosing an explicit day-bin convention and adding our stated prior will not recover its marginal posterior intervals.
+
+```{r}
+#| label: fig-traveller-posterior
+#| fig-width: 8
+#| fig-height: 4.5
+#| fig-cap: "Conditional traveller CFR posterior densities under fixed gamma delay parameters, an inclusive 8 February cutoff and a uniform CFR prior. The original 290-case dataset supplies the outcomes. These curves are new calculations, not Report 4's marginal posteriors."
+#| fig-alt: "Two posterior density curves for the traveller case fatality ratio, comparing a model that uses recovery outcomes with one that retains death outcomes only. Both show uncertainty despite using 290 case records."
+posterior_plot <- rbind(
+  data.frame(cfr = c_grid, density = posterior_both * length(c_grid),
+             method = "Deaths and recoveries"),
+  data.frame(cfr = c_grid, density = posterior_death * length(c_grid),
+             method = "Deaths only")
+)
+ggplot(posterior_plot, aes(cfr, density, colour = method)) +
+  geom_line(linewidth = 1) +
+  scale_x_continuous(labels = axis_pct) +
+  scale_colour_manual(values = c("steelblue", "firebrick"), name = NULL) +
+  coord_cartesian(xlim = c(0, 0.3)) +
+  labs(x = "CFR among detected traveller cases", y = "Posterior density",
+       title = "Follow-up outcomes constrain the CFR",
+       subtitle = "Conditional on fixed delay distributions and a uniform CFR prior") +
+  theme(legend.position = "top")
+```
+
+The observed fractions are `r fmt_pct(2 / 290, 2)` for deaths divided by all cases and `r fmt_pct(2 / (2 + 36), 2)` for deaths divided by completed outcomes. The first treats unresolved patients as if none will die. The second selects patients whose outcomes have already occurred; that selection depends on the relative death and recovery delays. Neither fraction supplies the general solution to incomplete follow-up. [@ghani2005]
+
+## Following a fixed case cohort forward
+
+The same delay distribution can turn a candidate CFR into an expected death trajectory. For a fixed cohort with onset dates $o_i$, the expected cumulative number of deaths by date $t$ is
+
+$$
+E[D_{\mathrm{cum}}(t)\mid\{o_i\},c]
+=c\sum_i F_D(t-o_i),
+$$
+
+where $F_D(a)=0$ for $a<0$. This is the discrete-cohort version of the projection rule behind Report 4's Figure 2. No cases acquired after the cohort cutoff are added. [@dorigatti2020report4, Methods E]
+
+```{r}
+#| label: fig-cohort-projection
+#| fig-width: 8
+#| fig-height: 4.5
+#| fig-cap: "Expected cumulative deaths in the 290-case traveller cohort under candidate CFRs, using observed or imputed onsets and the fixed gamma death-delay distribution. Points show the two deaths recorded by 8 February. This reconstructs the projection rule rather than the exact published Figure 2."
+#| fig-alt: "Expected cumulative-death curves rise over calendar time, with higher candidate case fatality ratios producing higher curves. Two observed-death points are shown before the cohort cutoff."
+cutoff <- as.Date("2020-02-08")
+onset_dates <- cutoff - travellers$followup_days
+projection_dates <- seq(as.Date("2020-01-21"), as.Date("2020-02-29"), by = "day")
+cohort_cfr <- c(0.01, 0.03, 0.05, 0.07, 0.09, 0.11)
+expected_fatal_fraction <- vapply(seq_along(projection_dates), function(j) {
+  ages <- as.numeric(projection_dates[j] - onset_dates) + 1
+  sum(pgamma(pmax(ages, 0), death_shape, rate = death_rate))
+}, numeric(1))
+projection <- do.call(rbind, lapply(cohort_cfr, function(c) {
+  data.frame(date = projection_dates,
+             expected_deaths = c * expected_fatal_fraction,
+             cfr = factor(fmt_pct(c, 0), levels = fmt_pct(cohort_cfr, 0)))
+}))
+death_rows <- travellers$outcome == "death"
+observed_death_dates <- sort(onset_dates[death_rows] + travellers$outcome_days[death_rows])
+observed_points <- data.frame(date = observed_death_dates,
+                              cumulative_deaths = seq_along(observed_death_dates))
+ggplot(projection, aes(date, expected_deaths, colour = cfr)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(data = observed_points, aes(date, cumulative_deaths),
+             inherit.aes = FALSE, colour = "black", size = 2) +
+  geom_vline(xintercept = cutoff, linetype = "dotted") +
+  scale_x_date(date_breaks = "1 week", date_labels = "%d %b") +
+  scale_colour_brewer(palette = "Dark2", name = "Candidate CFR") +
+  labs(x = "Calendar date", y = "Expected cumulative\nnumber of deaths",
+       title = "A fixed cohort provides a check as outcomes accumulate") +
+  theme(legend.position = "top")
+```
+
+These are expected counts conditional on the cohort's onset dates and the candidate CFR, evaluated at the end of each plotted day. They do not show a prediction interval or condition on each patient's already observed recovery or survival history. Forecasting the remaining deaths among unresolved patients would require that additional conditioning. The full 290-case cohort and explicit day-bin convention also make this a reconstruction of the method rather than an exact reproduction of the published graph.
+
+## Repatriation flights supply a different denominator
+
+To estimate infection prevalence, Report 4 pooled four flights with ten positive passengers. The tabulated passenger counts sum to 740, including an assumed 200 for one flight; the text rounds this total to approximately 750. [@dorigatti2020report4, Table 3]
+
+```{r}
+#| label: repatriation-data
+flights <- data.frame(
+  flight = c("Japan 1", "Japan 2", "Japan 3", "Germany"),
+  passengers = c(206, 210, 200, 124),
+  positive = c(4, 2, 2, 2)
+)
+screened <- sum(flights$passengers)
+positive <- sum(flights$positive)
+prevalence_fit <- binom.test(positive, screened)
+prevalence <- positive / screened
+prevalence_ci <- unname(prevalence_fit$conf.int)
+knitr::kable(data.frame(
+  Quantity = c("Passengers", "Positive tests", "Detected prevalence", "Exact 95% interval"),
+  Value = c(screened, positive, fmt_pct(prevalence, 2),
+            paste(fmt_pct(prevalence_ci, 2), collapse = " to "))
+), align = c("l", "r"))
+```
+
+The exact binomial interval describes sampling uncertainty under an exchangeable passenger-testing model. It does not account for the assumed passenger count, imperfect PCR sensitivity or differences between repatriated residents and Wuhan's population.
+
+### Prevalence is a stock; incidence is a flow
+
+A positive PCR result captures infections across several onset dates. For the denominator expansion, $C(t)$ now represents underlying incidence on the onset-time scale, rather than the detected-case stratum used above. Let $w$ be the detectable window in days, starting $l$ days before onset; let $N$ be population size and $y(t)$ detectable prevalence. The window model gives
+
+$$
+y(t)=\frac{1}{N}\int_{-l}^{w-l}C(t-u)\,du.
+$$
+
+For exponential onset incidence,
+
+$$
+y(t)=\frac{C(t+l)}{rN}\{1-e^{-rw}\},
+\qquad
+C(t)=\frac{Nry(t)e^{-rl}}{1-e^{-rw}}.
+$$
+
+The integral has units of days, so the factor $1/r$ is necessary. As $r\to0$, the expression becomes the familiar relation $y(t)\approx wC(t)/N$. Faster growth changes the effective length of the window because older onset cohorts were smaller. Applying this onset-based window to asymptomatic infections also requires a notional onset clock; an infection-time model would avoid that particular approximation.
+
+### Check both the arithmetic and its date label
+
+```{r}
+#| label: infection-denominator
+wuhan_population <- 11e6
+presymptomatic_days <- 1
+wuhan_reported_cases <- 1242
+published_hubei_cfr <- 0.18
+
+effective_window <- function(r, window_days) {
+  if (abs(r) < 1e-10) window_days else -expm1(-r * window_days) / r
+}
+window_days <- c(14, 7)
+window_effective <- vapply(window_days, function(w) {
+  effective_window(growth_rate, w)
+}, numeric(1))
+stopifnot(effective_window(0, 14) == 14)
+
+# C(t + l) is the incidence directly obtained before shifting back by l days.
+incidence_shifted <- wuhan_population * prevalence / window_effective
+incidence_same_day <- incidence_shifted * exp(-growth_rate * presymptomatic_days)
+scaling_shifted <- incidence_shifted / wuhan_reported_cases
+ifr_arithmetic <- published_hubei_cfr / scaling_shifted
+
+infection_results <- data.frame(
+  "Detectable days" = window_days,
+  "Incidence C(t)" = fmt_count(incidence_same_day),
+  "Incidence C(t + 1)" = fmt_count(incidence_shifted),
+  "Report-style factor" = sprintf("%.1f", scaling_shifted),
+  "18% divided by factor" = fmt_pct(ifr_arithmetic, 2),
+  check.names = FALSE
+)
+knitr::kable(infection_results, align = c("r", "r", "r", "r", "r"))
+```
+
+The shifted calculation gives roughly 24,000 and 33,000 daily onsets, close to the report's arithmetic. Under the literal window definition, those are values of $C(t+1)$; $C(t)$ is one day's growth smaller. The tabulated factor is therefore a report-style arithmetic reconstruction, rather than a demonstrated estimate from fully aligned populations and dates. The distinction matters when comparing with case reports after an assumed reporting delay.
+
+Dividing 18% by the shifted scaling factor yields `r fmt_pct(ifr_arithmetic[1], 2)` for 14 days and `r fmt_pct(ifr_arithmetic[2], 2)` for seven days. The latter differs from the published 0.8%. We retain that difference: the report does not specify enough numerical detail to reproduce every reported summary by dividing rounded central estimates.
+
+### What the scaling assumes about deaths
+
+Let $U=I/C_{\mathrm{detected}}$ be the ratio of all infections to detected cases, and $a_D$ the fraction of fatal infections whose deaths are recorded. Write $R_{\mathrm{rep}}$ for the delay-adjusted recorded-death/reported-case ratio. Once the time periods and populations align,
+
+$$
+R_{\mathrm{rep}}
+\approx a_DU\,\mathrm{IFR},
+\qquad
+\mathrm{IFR}\approx\frac{R_{\mathrm{rep}}}{a_DU}.
+$$
+
+When fatal infections are detected and included in the case series, complete death reporting makes $R_{\mathrm{rep}}$ equal to the detected-case CFR. The simple division by $U$ assumes this condition and $a_D=1$. It also transfers an ascertainment estimate from Wuhan to the Hubei CFR calculation. Different death reporting, test sensitivity, population composition or timing would change the relationship. These assumptions enter the interpretation of the estimate, beyond the passenger sample's binomial uncertainty.
+
+## What can be reproduced from the report?
+
+The aggregate calculation, flight totals and traveller follow-up provide useful checks on the order of magnitude and the mechanisms of inference. Reproducing all published intervals requires the joint delay posterior, its prior bounds and the numerical grid. The report does not fully specify those ingredients.
+
+There are also details that need care when implementing its printed equations:
+
+- The backward-delay weighting must be $e^{-ru}$, as follows from $O(d-u)$ and the stated gamma mean transformation; an intermediate display prints the opposite sign.
+- The aggregate likelihood is described as binomial, while its printed posterior kernel has Poisson form.
+- The evaluated prevalence integral needs $1/r$, and its numerical incidence appears to use the one-day-shifted quantity shown above.
+
+These are reasons to derive the expressions and state implementation choices. They do not justify choosing parameters solely to force a match to the published numbers.
+
+## What later evidence added
+
+Verity and colleagues' expanded analysis, published online on 30 March 2020, estimated a mean onset-to-death interval of 17.8 days and an overall IFR for China of 0.66% (95% credible interval 0.39–1.33%). It incorporated substantially more information and age-specific analysis. Those are later estimates, rather than inputs available to the 10 February report. [@verity2020]
+
+The [associated code repository](https://github.com/mrc-ide/COVID19_CFR_submission) reproduces that later journal analysis. Its availability does not establish that it implements Report 4's earlier numerical grid.
+
+## Reading the severity estimate carefully
+
+Report 3 inferred transmission from the outbreak size. Report 4 inferred eventual clinical outcomes from incomplete follow-up, then used infection screening to enlarge the denominator. In both cases, the observation process connects the model to the quantity we want to estimate.
+
+A severity estimate needs a population, a case definition, a follow-up window and assumptions about detection. The calculations here show why both the delay distribution and the ascertainment mechanism belong alongside the reported percentage. More complete follow-up and representative infection surveys resolve different parts of that uncertainty.
+
+## References
+
+::: {#refs}
+:::

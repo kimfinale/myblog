@@ -603,6 +603,8 @@ q=\left(1+\frac{R_0\,(1-q)}{k}\right)^{-k},
 \]</span></p>
 <p>where the right-hand side is the probability generating function of <span class="math inline">\(Z\)</span> evaluated at <span class="math inline">\(q\)</span>. <span class="citation" data-cites="lloydsmith2005">(<a href="#ref-lloydsmith2005" role="doc-biblioref">2</a>)</span> I discussed this extinction probability in a <a href="https://www.jonghoonk.com/blog/posts/Probabily_outbreak/index.html">previous post</a>.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>target_date  <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="st">"2020-01-18"</span>)  <span class="co"># date of Report 2's outbreak-size estimate</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>target_cases <span class="ot">&lt;-</span> <span class="dv">4000</span>                    <span class="co"># Report 2's central estimate</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>report_date  <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="st">"2020-01-25"</span>)  <span class="co"># Report 3's publication date; end of plot</span></span>
@@ -615,8 +617,11 @@ q=\left(1+\frac{R_0\,(1-q)}{k}\right)^{-k},
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Gamma distribution with the stated mean and SD</span></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>gt_shape <span class="ot">&lt;-</span> (gt_mean <span class="sc">/</span> gt_sd)<span class="sc">^</span><span class="dv">2</span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>gt_rate  <span class="ot">&lt;-</span> gt_mean <span class="sc">/</span> gt_sd<span class="sc">^</span><span class="dv">2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>p_zero <span class="ot">&lt;-</span> <span class="fu">dnbinom</span>(<span class="dv">0</span>, <span class="at">size =</span> k_sars, <span class="at">mu =</span> R0_baseline)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>offspring_pgf <span class="ot">&lt;-</span> <span class="cf">function</span>(s, R0, k) (<span class="dv">1</span> <span class="sc">+</span> R0 <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> s) <span class="sc">/</span> k)<span class="sc">^</span>(<span class="sc">-</span>k)</span>
@@ -626,6 +631,7 @@ q=\left(1+\frac{R_0\,(1-q)}{k}\right)^{-k},
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(<span class="at">proportion_infecting_nobody        =</span> p_zero,</span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">single_chain_extinction_prob  =</span> extinction_prob,</span>
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        <span class="at">expected_surviving_chains_of_40 =</span> <span class="dv">40</span> <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> extinction_prob)), <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>    proportion_infecting_nobody    single_chain_extinction_prob 
                           0.634                           0.787 
@@ -639,6 +645,8 @@ expected_surviving_chains_of_40
 <h3 class="anchored" data-anchor-id="the-simulator">The simulator</h3>
 <p>For each generation, the simulator draws offspring counts and infection times, discards infections beyond the observation window, and tallies the rest by day. Descendants always occur after their parents, so discarding late infections cannot remove an earlier descendant.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>simulate_outbreak <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, k, n_seed, n_days,</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                              <span class="at">max_cases =</span> <span class="cn">Inf</span>,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                              gt_shape, gt_rate) {</span>
@@ -664,9 +672,12 @@ expected_surviving_chains_of_40
 <span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>  }</span>
 <span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cumsum</span>(daily)</span>
 <span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 </div>
 <p>Most later calculations need only the final size. The helper stops each simulation once it reaches a cap: smaller sizes are exact, while larger values mean “at least the cap” and suffice for threshold comparisons.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>days_in_window <span class="ot">&lt;-</span> <span class="cf">function</span>(start, end) <span class="fu">as.integer</span>(end <span class="sc">-</span> start) <span class="sc">+</span> <span class="dv">1</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>final_sizes <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, seed_date, n_seed, n_sims, <span class="at">cap =</span> target_cases, <span class="at">k =</span> k_sars) {</span>
@@ -682,6 +693,7 @@ expected_surviving_chains_of_40
 <span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>proportion_reaching_target <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, seed_date, n_seed, n_sims) {</span>
 <span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mean</span>(<span class="fu">final_sizes</span>(R0, seed_date, n_seed, n_sims) <span class="sc">&gt;=</span> target_cases)</span>
 <span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 </div>
 </section>
 </section>
@@ -689,6 +701,8 @@ expected_surviving_chains_of_40
 <h2 class="anchored" data-anchor-id="the-one-date-the-report-did-not-give">The one date the report did not give</h2>
 <p>The caption places the 40 zoonotic infections in December 2019 but gives no exact date. We test seeding dates from 20 November to 20 December at <span class="math inline">\(R_0=2.6\)</span> and choose the date for which the proportion reaching 4,000 infections by 18 January is closest to 50%. This calibrates our model to the report’s central estimate.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20200125</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>n_sims_cal <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>candidate_dates <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"2019-11-20"</span>), <span class="fu">as.Date</span>(<span class="st">"2019-12-20"</span>), <span class="at">by =</span> <span class="st">"day"</span>)</span>
@@ -703,11 +717,14 @@ expected_surviving_chains_of_40
 <span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>seed_date <span class="ot">&lt;-</span> calibration<span class="sc">$</span>candidate[<span class="fu">which.min</span>(<span class="fu">abs</span>(calibration<span class="sc">$</span>proportion_reaching <span class="sc">-</span> <span class="fl">0.5</span>))]</span>
 <span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>seed_date</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "2019-12-14"</code></pre>
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>show_dates <span class="ot">&lt;-</span> seed_date <span class="sc">+</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">14</span>, <span class="sc">-</span><span class="dv">7</span>, <span class="sc">-</span><span class="dv">3</span>, <span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">7</span>, <span class="dv">14</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>calibration <span class="sc">%&gt;%</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(candidate <span class="sc">%in%</span> show_dates) <span class="sc">%&gt;%</span></span>
@@ -715,6 +732,7 @@ expected_surviving_chains_of_40
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">proportion_reaching =</span> <span class="fu">fmt_pct</span>(proportion_reaching)) <span class="sc">%&gt;%</span></span>
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Seeding date"</span>, <span class="st">"Proportion reaching 4,000 by 18 Jan"</span>),</span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>               <span class="at">align =</span> <span class="fu">c</span>(<span class="st">"l"</span>, <span class="st">"r"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div id="tbl-calibration" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-calibration-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -764,6 +782,8 @@ Table&nbsp;1: Proportion of 1,000 simulated epidemics (R0 = 2.6, 40 zoonotic cas
 <h2 class="anchored" data-anchor-id="reproducing-figure-1">Reproducing Figure 1</h2>
 <p>With that date fixed, we simulate 5,000 trajectories at <span class="math inline">\(R_0=2.6\)</span> through 25 January and summarise the daily counts.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>n_sims_fig <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>n_days_fig <span class="ot">&lt;-</span> <span class="fu">days_in_window</span>(seed_date, report_date)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -777,8 +797,11 @@ Table&nbsp;1: Proportion of 1,000 simulated epidemics (R0 = 2.6, 40 zoonotic cas
 <span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">dim</span>(trajectories) <span class="sc">==</span> <span class="fu">c</span>(n_days_fig, n_sims_fig),</span>
 <span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>          <span class="fu">all</span>(trajectories[<span class="dv">1</span>, ] <span class="sc">&gt;=</span> <span class="dv">40</span>),</span>
 <span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>          <span class="fu">all</span>(<span class="fu">diff</span>(trajectories[, <span class="dv">1</span>]) <span class="sc">&gt;=</span> <span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>dates_fig <span class="ot">&lt;-</span> seed_date <span class="sc">+</span> (<span class="fu">seq_len</span>(n_days_fig) <span class="sc">-</span> <span class="dv">1</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>band <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
@@ -792,12 +815,15 @@ Table&nbsp;1: Proportion of 1,000 simulated epidemics (R0 = 2.6, 40 zoonotic cas
 <span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>median_at_target <span class="ot">&lt;-</span> <span class="fu">median</span>(at_target)</span>
 <span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>proportion_at_target  <span class="ot">&lt;-</span> <span class="fu">mean</span>(at_target <span class="sc">&gt;=</span> target_cases)</span>
 <span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">median_on_18_jan =</span> median_at_target, <span class="at">proportion_at_or_above_4000 =</span> proportion_at_target)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>           median_on_18_jan proportion_at_or_above_4000 
                   3852.0000                      0.4698 </code></pre>
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>shown <span class="ot">&lt;-</span> <span class="fu">sample</span>(n_sims_fig, <span class="dv">60</span>)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>sample_paths <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(trajectories[, shown])</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>sample_paths<span class="sc">$</span>date <span class="ot">&lt;-</span> dates_fig</span>
@@ -820,6 +846,7 @@ Table&nbsp;1: Proportion of 1,000 simulated epidemics (R0 = 2.6, 40 zoonotic cas
 <span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Cumulative infections"</span>,</span>
 <span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Simulated epidemics in Wuhan: 40 zoonotic cases, R0 = 2.6"</span>,</span>
 <span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Median (red), 95% range (grey band), 60 of 5,000 individual trajectories (grey lines)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <div id="fig-report3-figure1" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Line chart of cumulative infections against date from the seeding day to 25 January 2020. A red median curve rises slowly through December and steeply in January, passing close to 4,000 on 18 January where a vertical and a horizontal dotted line cross. A grey band widens around it, and many thin grey individual trajectories spread from near zero to well above the band.">
 <figure class="quarto-float quarto-float-fig figure">
@@ -878,6 +905,8 @@ Figure&nbsp;1: Reproduction of Report 3’s Figure 1 under the assumptions state
 <h2 class="anchored" data-anchor-id="reproducing-the-table-1-estimates">Reproducing the Table 1 estimates</h2>
 <p>We compute the proportion curve over an <span class="math inline">\(R_0\)</span> grid for 40 seeds, the baseline, and 200 seeds, the scenario that supplied the headline range’s lower endpoint.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>R0_grid     <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">seq</span>(<span class="fl">0.8</span>, <span class="fl">4.5</span>, <span class="at">by =</span> <span class="fl">0.1</span>), <span class="dv">1</span>)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>n_sims_grid <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -890,9 +919,12 @@ Figure&nbsp;1: Reproduction of Report 3’s Figure 1 under the assumptions state
 <span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">n_seed =</span> <span class="dv">40</span>,  <span class="at">R0 =</span> R0_grid, <span class="at">proportion_reaching =</span> <span class="fu">proportion_curve</span>(<span class="dv">40</span>)),</span>
 <span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">n_seed =</span> <span class="dv">200</span>, <span class="at">R0 =</span> R0_grid, <span class="at">proportion_reaching =</span> <span class="fu">proportion_curve</span>(<span class="dv">200</span>))</span>
 <span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 </div>
 <p>We linearly interpolate between grid points to find the 5%, 50% and 95% crossings, then round to one decimal as the report did.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>R0_at_proportion <span class="ot">&lt;-</span> <span class="cf">function</span>(R0, proportion, p) {</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># R0 at which the nondecreasing proportion curve first reaches p, by linear</span></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># interpolation between grid points. -Inf: already at or above p at the</span></span>
@@ -910,6 +942,7 @@ Figure&nbsp;1: Reproduction of Report 3’s Figure 1 under the assumptions state
 <span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>            <span class="at">worst_case =</span> <span class="fu">R0_at_proportion</span>(R0, proportion_reaching, <span class="fl">0.95</span>),</span>
 <span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
 <span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>estimates</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 2 x 4
   n_seed best_case central worst_case
@@ -919,6 +952,8 @@ Figure&nbsp;1: Reproduction of Report 3’s Figure 1 under the assumptions state
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>imperial <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_seed     =</span> <span class="fu">c</span>(<span class="dv">40</span>, <span class="dv">200</span>),</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">best_case  =</span> <span class="fu">c</span>(<span class="fl">2.1</span>, <span class="fl">1.5</span>),</span>
@@ -936,6 +971,7 @@ Figure&nbsp;1: Reproduction of Report 3’s Figure 1 under the assumptions state
 <span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>             <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Zoonotic cases"</span>, <span class="st">"Source"</span>, <span class="st">"Best case (5%)"</span>,</span>
 <span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>                           <span class="st">"Central (50%)"</span>, <span class="st">"Worst case (95%)"</span>),</span>
 <span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>             <span class="at">align =</span> <span class="fu">c</span>(<span class="st">"r"</span>, <span class="st">"l"</span>, <span class="st">"r"</span>, <span class="st">"r"</span>, <span class="st">"r"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div id="tbl-compare" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-compare-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -997,6 +1033,8 @@ Table&nbsp;2: Best-case, central and worst-case R0 for the 4,000-case target on 
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>seed_levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"40 zoonotic cases"</span>, <span class="st">"200 zoonotic cases"</span>)</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>curves_plot <span class="ot">&lt;-</span> curves <span class="sc">%&gt;%</span></span>
@@ -1023,6 +1061,7 @@ Table&nbsp;2: Best-case, central and worst-case R0 for the 4,000-case target on 
 <span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"How the best-case, central and worst-case estimates are read off"</span>,</span>
 <span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Dotted lines: 5%, 50% and 95%. Crosses: Report 3, Table 1"</span>) <span class="sc">+</span></span>
 <span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <div id="fig-proportion-curves" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Two S-shaped curves rising from near zero to one as R0 increases from 0.8 to 4.5. The blue curve for 200 zoonotic cases rises earlier and more steeply than the red curve for 40 cases. Three horizontal dotted lines at 5, 50 and 95 percent cut each curve; crosses near the intersections show Imperial's published values.">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1045,6 +1084,8 @@ Figure&nbsp;2: Proportion reaching 4,000 infections by 18 January 2020 for 40 (r
 <p>The approximate interval interpretation suggests coverage near 90% under the fixed model. To check it, we simulate outbreak-size distributions on a coarser <span class="math inline">\(R_0\)</span> grid, recording sizes up to a cap. We then generate epidemics at <span class="math inline">\(R_0=2.6\)</span> and build each interval from the estimated 5% and 95% crossings of the proportion reaching its observed size.</p>
 <p>Sizes at or above the cap are treated as equal to it. Capping can affect coverage for those epidemics, so their proportion bounds the resulting error and is reported below.</p>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>R0_true     <span class="ot">&lt;-</span> <span class="fl">2.6</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>n_obs       <span class="ot">&lt;-</span> <span class="dv">400</span></span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>n_sims_cov  <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
@@ -1078,12 +1119,15 @@ Figure&nbsp;2: Proportion reaching 4,000 infections by 18 January 2020 for 40 (r
 <span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">missed_below =</span> <span class="fu">mean</span>(intervals<span class="sc">$</span>upper <span class="sc">&lt;</span> R0_true),</span>
 <span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">missed_above =</span> <span class="fu">mean</span>(intervals<span class="sc">$</span>lower <span class="sc">&gt;</span> R0_true),</span>
 <span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a>  <span class="at">proportion_at_cap =</span> proportion_at_cap)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>         coverage      missed_below      missed_above proportion_at_cap 
             0.895             0.060             0.045             0.000 </code></pre>
 </div>
 </div>
 <div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>n_show <span class="ot">&lt;-</span> <span class="dv">100</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>shown_intervals <span class="ot">&lt;-</span> intervals[<span class="fu">seq_len</span>(n_show), ] <span class="sc">%&gt;%</span></span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(observed) <span class="sc">%&gt;%</span></span>
@@ -1108,6 +1152,7 @@ Figure&nbsp;2: Proportion reaching 4,000 infections by 18 January 2020 for 40 (r
 <span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Segment: best case to worst case. Dot: central estimate."</span>) <span class="sc">+</span></span>
 <span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>,</span>
 <span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.y =</span> <span class="fu">element_blank</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 <div class="cell-output-display">
 <div id="fig-coverage" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Horizontal segments stacked vertically, shifting to the right as the simulated outbreak size increases from bottom to top. A vertical dotted line at 2.6 passes through most segments, which are blue. A few red segments at the bottom lie entirely to the left of the line and a few at the top lie entirely to its right.">
 <figure class="quarto-float quarto-float-fig figure">
