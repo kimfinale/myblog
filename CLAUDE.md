@@ -91,10 +91,6 @@ Posts should be written for a **technically sophisticated public health professi
 7. `dt_software_cloud` — AWS deployment (EC2, RDS, ALB, Terraform)
 8. `dt_software_dashboard` — Streamlit dashboard
 
-### Series 2: Business Skills for the Digital Twin Entrepreneur (`biz_*`)
-20-post series covering the technical business skills needed to run a health-tech SaaS:
-`biz_cicd`, `biz_sensitivity`, `biz_reporting`, `biz_data_validation`, `biz_forecasting`, `biz_spatial`, `biz_monitoring`, `biz_r_sdk`, `biz_caching`, `biz_api_versioning`, `biz_multitenancy`, `biz_data_lake`, `biz_websockets`, `biz_iac`, `biz_secrets`, `biz_async`, `biz_auth`, `biz_db_migrations`, `biz_billing`, `biz_compliance`
-
 ---
 
 ## Post Authoring Standards
